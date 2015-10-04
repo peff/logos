@@ -1,0 +1,6 @@
+ - detect win condition
+ - generate and display clues
+ - penalties for wrong guesses
+ - timer
+ - practice mode to turn off penalties/timer
+ - explain rules in README
