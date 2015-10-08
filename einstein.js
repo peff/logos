@@ -26,6 +26,7 @@ function Puzzle(board, messages, symbols) {
 	this.newGame = function() {
 		for (var i = 0; i < this.rows.length; i++)
 			this.rows[i].newGame();
+		this.say("Good luck!");
 	}
 
 	this.checkWin = function() {
