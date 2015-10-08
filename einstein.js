@@ -28,6 +28,13 @@ function Puzzle(board, messages, symbols) {
 			this.rows[i].newGame();
 	}
 
+	this.checkWin = function() {
+		for (var i = 0; i < this.rows.length; i++)
+			if (!this.rows[i].isComplete())
+				return;
+		this.say("You win!");
+	}
+
 	this.say = function(msg) {
 		this.messages.innerHTML = msg;
 	}
@@ -75,6 +82,13 @@ function Row(puzzle, symbols, display) {
 			function(slot) { return slot.isPossible(value) });
 		if (possible.length == 1)
 			possible[0].choose(value);
+	}
+
+	this.isComplete = function() {
+		for (var i = 0; i < this.slots.length; i++)
+			if (!this.slots[i].single)
+				return false;
+		return true;
 	}
 }
 
@@ -139,6 +153,7 @@ function Slot(row, symbols, display) {
 		if (this.value == value) {
 			this.displaySingle(value);
 			this.row.removePossible(value);
+			this.row.puzzle.checkWin();
 		} else {
 			this.say("Nope, not " + this.symbols[value]);
 		}
