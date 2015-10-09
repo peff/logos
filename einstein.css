@@ -1,3 +1,10 @@
+body {
+	display: flex;
+	flex-flow: row wrap;
+	font-family: sans-serif;
+	font-size: 30pt;
+}
+
 #board {
 	font-family: sans-serif;
 	font-size: 30pt;
@@ -39,16 +46,34 @@
 	height: 100%;
 }
 
+#controls {
+	width: 100%;
+}
+
 #message {
 	border-radius: 5px;
 	background-color: #777777;
-	font-size: 200%;
 	color: white;
 	width: 100%;
 	text-align: center;
 }
 
-.clue_row {
-	background-color: #aaaaff;
-	color: white;
+#hclues {
+	padding: auto;
+	margin-left: 2%;
+	width: 48%;
+}
+
+.clue {
+	background-color: #cccccc;
+}
+
+#hclues .clue {
+	width: 6em;
+	height: 3em;
+}
+
+#vclues .clue {
+	width: 3em;
+	height: 6em;
 }

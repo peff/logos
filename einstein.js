@@ -9,13 +9,31 @@ var defaultSymbols = [
 	["+", "&#x2012;", "&#x00f7;", "x", "=", "√"]
 ];
 
-function Puzzle(board, messages, symbols) {
+function Puzzle(board, hClues, vClues, messages, symbols) {
 	symbols = symbols || defaultSymbols;
 
 	this.messages = messages;
 	this.rows = [];
+	this.hClueSlots = [];
+	this.vClueSlots = [];
 	for (var i = 0; i < symbols.length; i++)
 		this.rows[i] = new Row(this, symbols[i], board.insertRow());
+	for (var i = 0; i < 8; i++) {
+		var row = hClues.insertRow();
+		for (var j = 0; j < 3; j++) {
+			var cell = row.insertCell();
+			cell.className = "clue";
+			this.hClueSlots.push(cell);
+		}
+	}
+	{
+		var row = vClues.insertRow();
+		for (var i = 0; i < 15; i++) {
+			var cell = row.insertCell();
+			cell.className = "clue";
+			this.vClueSlots.push(cell);
+		}
+	}
 
 	this.clear = function() {
 		for (var i = 0; i < this.rows.length; i++)

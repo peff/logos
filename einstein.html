@@ -7,13 +7,17 @@
 	<body>
 		<div id="message"></div>
 		<table id="board"></table>
-		<div class="controls">
+		<table id="hclues"></table>
+		<div id="controls">
 			<input type="button" onClick="puzzle.newGame()" value="New Game">
 		</div>
+		<table id="vclues">
 
 		<script>
 		var puzzle = new Puzzle(
 				document.getElementById("board"),
+				document.getElementById("hclues"),
+				document.getElementById("vclues"),
 				document.getElementById("message"));
 		</script>
 	</body>
