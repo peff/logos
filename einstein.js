@@ -9,6 +9,8 @@ var defaultSymbols = [
 	["+", "&#x2012;", "&#x00f7;", "x", "=", "√"]
 ];
 
+var showActiveClues = true;
+
 function Puzzle(board, hClues, vClues, messages, symbols) {
 	symbols = symbols || defaultSymbols;
 
@@ -74,6 +76,8 @@ function Puzzle(board, hClues, vClues, messages, symbols) {
 				type < 0.8 ? new ColumnClue(this) :
 				             new ExactClue(this);
 			this.clues.push(clue);
+			clue.active = true;
+			checkClueDisplay(clue);
 		}
 	}
 
@@ -84,6 +88,12 @@ function Puzzle(board, hClues, vClues, messages, symbols) {
 
 	this.getHClueSlot = function() { return this.hClueSlots[this.numHClues++]; }
 	this.getVClueSlot = function() { return this.vClueSlots[this.numVClues++]; }
+
+	this.toggleClues = function() {
+		showActiveClues = !showActiveClues;
+		for (var i = 0; i < this.clues.length; i++)
+			checkClueDisplay(this.clues[i]);
+	}
 
 	this.clear();
 }
@@ -246,7 +256,14 @@ function Slot(row, symbols, display) {
 	}
 }
 
-function displayClue(slot, type, elements) {
+function checkClueDisplay(clue) {
+	if (clue.active == showActiveClues)
+		clue.show();
+	else if (clue.display)
+		clue.display.innerHTML = "";
+}
+
+function displayClue(clue, slot, type, elements) {
 	slot.innerHTML = "";
 	for (var i = 0; i < elements.length; i++) {
 		var elem = document.createElement(type);
@@ -254,76 +271,100 @@ function displayClue(slot, type, elements) {
 		elem.innerHTML = elements[i][1];
 		slot.appendChild(elem);
 	}
+	if (!clue.listener) {
+		clue.listener = function(ev) {
+			ev.preventDefault();
+			clue.active = !clue.active;
+			checkClueDisplay(clue);
+		};
+		// XXX should get removed when clue is destroyed
+		slot.addEventListener('contextmenu', clue.listener);
+	}
 }
 
 function OrderClue(puzzle) {
-	var lRow = puzzle.rows[randInt(0, puzzle.rows.length)];
-	var rRow = puzzle.rows[randInt(0, puzzle.rows.length)];
-	var lCol = randInt(0, lRow.slots.length - 1);
-	var rCol = randInt(lCol + 1, rRow.slots.length);
+	this.lRow = puzzle.rows[randInt(0, puzzle.rows.length)];
+	this.rRow = puzzle.rows[randInt(0, puzzle.rows.length)];
+	this.lCol = randInt(0, this.lRow.slots.length - 1);
+	this.rCol = randInt(this.lCol + 1, this.rRow.slots.length);
+	this.display = puzzle.getHClueSlot();
 
-	displayClue(puzzle.getHClueSlot(), "span", [
-	      ["tile", lRow.slots[lCol].symbol()],
-	      ["dots", "..."],
-	      ["tile", rRow.slots[rCol].symbol()]
-	]);
+	this.show = function() {
+		displayClue(this, this.display, "span", [
+			    ["tile", this.lRow.slots[this.lCol].symbol()],
+			    ["dots", "..."],
+			    ["tile", this.rRow.slots[this.rCol].symbol()]
+		]);
+	}
 }
 
 function Adjacent2Clue(puzzle) {
-	var lRow = puzzle.rows[randInt(0, puzzle.rows.length)];
-	var rRow = puzzle.rows[randInt(0, puzzle.rows.length)];
-	var lCol = randInt(0, lRow.slots.length - 1);
-	var rCol = lCol + 1;
+	this.lRow = puzzle.rows[randInt(0, puzzle.rows.length)];
+	this.rRow = puzzle.rows[randInt(0, puzzle.rows.length)];
+	this.lCol = randInt(0, this.lRow.slots.length - 1);
+	this.rCol = this.lCol + 1;
+	this.display = puzzle.getHClueSlot();
 
 	if (Math.random() < 0.5) {
-		var tmp = lCol;
-		lCol = rCol;
-		rCol = tmp;
+		var tmp = this.lCol;
+		this.lCol = this.rCol;
+		this.rCol = tmp;
 	}
 
-	displayClue(puzzle.getHClueSlot(), "span", [
-	      ["tile", lRow.slots[lCol].symbol()],
-	      ["arrow", "&#x2194;"],
-	      ["tile", rRow.slots[rCol].symbol()]
-	]);
+	this.show = function() {
+		displayClue(this, this.display, "span", [
+			    ["tile", this.lRow.slots[this.lCol].symbol()],
+			    ["arrow", "&#x2194;"],
+			    ["tile", this.rRow.slots[this.rCol].symbol()]
+		]);
+	}
 }
 
 function Adjacent3Clue(puzzle) {
-	var mRow = puzzle.rows[randInt(0, puzzle.rows.length)];
-	var lRow = puzzle.rows[randInt(0, puzzle.rows.length)];
-	var rRow = puzzle.rows[randInt(0, puzzle.rows.length)];
-	var mCol = randInt(1, mRow.slots.length - 1);
-	var lCol = mCol - 1;
-	var rCol = mCol + 1;
+	this.mRow = puzzle.rows[randInt(0, puzzle.rows.length)];
+	this.lRow = puzzle.rows[randInt(0, puzzle.rows.length)];
+	this.rRow = puzzle.rows[randInt(0, puzzle.rows.length)];
+	this.mCol = randInt(1, this.mRow.slots.length - 1);
+	this.lCol = this.mCol - 1;
+	this.rCol = this.mCol + 1;
+	this.display = puzzle.getHClueSlot();
 
 	if (Math.random() < 0.5) {
-		var tmp = lCol;
-		lCol = rCol;
-		rCol = tmp;
+		var tmp = this.lCol;
+		this.lCol = this.rCol;
+		this.rCol = tmp;
 	}
 
-	displayClue(puzzle.getHClueSlot(), "span", [
-	      ["tile", lRow.slots[lCol].symbol()],
-	      ["tile", mRow.slots[mCol].symbol()],
-	      ["tile", rRow.slots[rCol].symbol()]
-	]);
+	this.show = function() {
+		displayClue(this, this.display, "span", [
+			    ["tile", this.lRow.slots[this.lCol].symbol()],
+			    ["tile", this.mRow.slots[this.mCol].symbol()],
+			    ["tile", this.rRow.slots[this.rCol].symbol()]
+		]);
+	}
 }
 
 function ColumnClue(puzzle) {
-	var tRow = puzzle.rows[randInt(0, puzzle.rows.length)];
-	var col = randInt(0, tRow.slots.length);
-	var bRow = tRow;
-	while (bRow == tRow)
-		bRow = puzzle.rows[randInt(0, puzzle.rows.length)];
+	this.tRow = puzzle.rows[randInt(0, puzzle.rows.length)];
+	this.col = randInt(0, this.tRow.slots.length);
+	this.bRow = this.tRow;
+	while (this.bRow == this.tRow)
+		this.bRow = puzzle.rows[randInt(0, puzzle.rows.length)];
+	this.display = puzzle.getVClueSlot();
 
-	displayClue(puzzle.getVClueSlot(), "div", [
-	      ["tile", tRow.slots[col].symbol()],
-	      ["tile", bRow.slots[col].symbol()]
-	]);
+	this.show = function() {
+		displayClue(this, this.display, "div", [
+			    ["tile", this.tRow.slots[this.col].symbol()],
+			    ["tile", this.bRow.slots[this.col].symbol()]
+		]);
+	}
 }
 
 function ExactClue(puzzle) {
-	var row = puzzle.rows[randInt(0, puzzle.rows.length)];
-	var slot = row.slots[randInt(0, row.slots.length)];
-	slot.choose(slot.value);
+	this.row = puzzle.rows[randInt(0, puzzle.rows.length)];
+	this.slot = this.row.slots[randInt(0, this.row.slots.length)];
+
+	this.show = function() {
+		this.slot.choose(this.slot.value);
+	}
 }
