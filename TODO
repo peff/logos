@@ -1,4 +1,8 @@
- - generate and display clues
+ - make sure puzzles are solvable with clues
+ - avoid redundant clues
+ - avoid duplicate clues (may fall out with eliminating redundant)
+ - deactivate clues on click
+ - make clues less ugly
  - penalties for wrong guesses
  - timer
  - practice mode to turn off penalties/timer

@@ -80,6 +80,12 @@ body {
 	height: 3em;
 }
 
+#hclues .tile {
+	border: 1px solid black;
+	border-radius: 3px;
+	background-color: #dddddd;
+}
+
 #vclues .clue {
 	width: 3em;
 	height: 6em;

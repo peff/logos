@@ -44,6 +44,7 @@ function Puzzle(board, hClues, vClues, messages, symbols) {
 	this.newGame = function() {
 		for (var i = 0; i < this.rows.length; i++)
 			this.rows[i].newGame();
+		this.generateClues();
 		this.say("Good luck!");
 	}
 
@@ -58,7 +59,38 @@ function Puzzle(board, hClues, vClues, messages, symbols) {
 		this.messages.innerHTML = msg;
 	}
 
+	this.generateClues = function() {
+		this.clues = [];
+		this.numHClues = 0;
+		this.numVClues = 0;
+		while (!this.sufficientClues() &&
+		       this.numHClues < this.hClueSlots.length &&
+		       this.numVClues < this.vClueSlots.length) {
+			var type = Math.random();
+			var clue =
+				type < 0.2 ? new OrderClue(this) :
+				type < 0.4 ? new Adjacent2Clue(this) :
+				type < 0.6 ? new Adjacent3Clue(this) :
+				type < 0.8 ? new ColumnClue(this) :
+				             new ExactClue(this);
+			this.clues.push(clue);
+		}
+	}
+
+	this.sufficientClues = function() {
+		// XXX try to solve
+		return false;
+	}
+
+	this.getHClueSlot = function() { return this.hClueSlots[this.numHClues++]; }
+	this.getVClueSlot = function() { return this.vClueSlots[this.numVClues++]; }
+
 	this.clear();
+}
+
+// Generate a random integer in the interval [lo, hi).
+function randInt(lo, hi) {
+	return lo + Math.floor(Math.random() * (hi - lo));
 }
 
 function shuffle(array) {
@@ -125,6 +157,10 @@ function Slot(row, symbols, display) {
 		for (var i = 0; i < this.symbols.length; i++)
 			this.possible.push(true);
 		this.displayPossible();
+	}
+
+	this.symbol = function() {
+		return this.symbols[this.value];
 	}
 
 	this.displaySingle = function(i) {
@@ -208,4 +244,86 @@ function Slot(row, symbols, display) {
 		if (count == 1)
 			this.choose(last);
 	}
+}
+
+function displayClue(slot, type, elements) {
+	slot.innerHTML = "";
+	for (var i = 0; i < elements.length; i++) {
+		var elem = document.createElement(type);
+		elem.className = elements[i][0];
+		elem.innerHTML = elements[i][1];
+		slot.appendChild(elem);
+	}
+}
+
+function OrderClue(puzzle) {
+	var lRow = puzzle.rows[randInt(0, puzzle.rows.length)];
+	var rRow = puzzle.rows[randInt(0, puzzle.rows.length)];
+	var lCol = randInt(0, lRow.slots.length - 1);
+	var rCol = randInt(lCol + 1, rRow.slots.length);
+
+	displayClue(puzzle.getHClueSlot(), "span", [
+	      ["tile", lRow.slots[lCol].symbol()],
+	      ["dots", "..."],
+	      ["tile", rRow.slots[rCol].symbol()]
+	]);
+}
+
+function Adjacent2Clue(puzzle) {
+	var lRow = puzzle.rows[randInt(0, puzzle.rows.length)];
+	var rRow = puzzle.rows[randInt(0, puzzle.rows.length)];
+	var lCol = randInt(0, lRow.slots.length - 1);
+	var rCol = lCol + 1;
+
+	if (Math.random() < 0.5) {
+		var tmp = lCol;
+		lCol = rCol;
+		rCol = tmp;
+	}
+
+	displayClue(puzzle.getHClueSlot(), "span", [
+	      ["tile", lRow.slots[lCol].symbol()],
+	      ["arrow", "&#x2194;"],
+	      ["tile", rRow.slots[rCol].symbol()]
+	]);
+}
+
+function Adjacent3Clue(puzzle) {
+	var mRow = puzzle.rows[randInt(0, puzzle.rows.length)];
+	var lRow = puzzle.rows[randInt(0, puzzle.rows.length)];
+	var rRow = puzzle.rows[randInt(0, puzzle.rows.length)];
+	var mCol = randInt(1, mRow.slots.length - 1);
+	var lCol = mCol - 1;
+	var rCol = mCol + 1;
+
+	if (Math.random() < 0.5) {
+		var tmp = lCol;
+		lCol = rCol;
+		rCol = tmp;
+	}
+
+	displayClue(puzzle.getHClueSlot(), "span", [
+	      ["tile", lRow.slots[lCol].symbol()],
+	      ["tile", mRow.slots[mCol].symbol()],
+	      ["tile", rRow.slots[rCol].symbol()]
+	]);
+}
+
+function ColumnClue(puzzle) {
+	var tRow = puzzle.rows[randInt(0, puzzle.rows.length)];
+	var col = randInt(0, tRow.slots.length);
+	var bRow = tRow;
+	while (bRow == tRow)
+		bRow = puzzle.rows[randInt(0, puzzle.rows.length)];
+
+	displayClue(puzzle.getVClueSlot(), "div", [
+	      ["tile", tRow.slots[col].symbol()],
+	      ["tile", bRow.slots[col].symbol()]
+	]);
+}
+
+function ExactClue(puzzle) {
+	var row = puzzle.rows[randInt(0, puzzle.rows.length)];
+	var slot = row.slots[randInt(0, row.slots.length)];
+	slot.choose(slot.value);
 }
