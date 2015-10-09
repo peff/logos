@@ -47,7 +47,14 @@ body {
 }
 
 #controls {
+	margin-top: 0.5em;
+	margin-bottom: 0.5em;
 	width: 100%;
+}
+
+#controls input {
+	border: 1px solid black;
+	border-radius: 3px;
 }
 
 #message {
