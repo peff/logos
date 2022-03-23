@@ -247,6 +247,8 @@ function Slot(row, symbols, display) {
 	}
 
 	this.checkSingleton = function() {
+		if (this.single)
+			return;
 		var count = 0;
 		var last;
 		for (var i = 0; i < this.possible.length; i++) {
