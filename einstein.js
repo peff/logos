@@ -159,7 +159,7 @@ function Slot(row, symbols, display) {
 	this.elem = display;
 	this.elem.className = "slot";
 
-	this.say = function(msg) this.row.puzzle.say(msg);
+	this.say = function(msg) { this.row.puzzle.say(msg) };
 
 	this.newGame = function(value) {
 		this.value = value;
