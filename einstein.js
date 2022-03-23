@@ -135,7 +135,7 @@ function Row(puzzle, symbols, display) {
 
 	this.removePossible = function(value) {
 		for (var i = 0; i < this.slots.length; i++)
-			this.slots[i].discard(value);
+			this.slots[i].removePossible(value)
 	}
 
 	this.checkSingleton = function(value) {
@@ -230,16 +230,20 @@ function Slot(row, symbols, display) {
 		if (this.value == value) {
 			this.say("Oops, it was " + this.symbols[value]);
 		} else {
-			this.possible[value] = false;
-			this.displayPossible[value].innerHTML = "";
-			this.displayPossible[value].className = "dead-possibility";
-			this.checkSingleton();
+			this.removePossible(value);
 			this.row.checkSingleton(value);
 		}
 	}
 
 	this.isPossible = function(value) {
 		return !this.single && this.possible[value];
+	}
+
+	this.removePossible = function(value) {
+		this.possible[value] = false;
+		this.displayPossible[value].innerHTML = "";
+		this.displayPossible[value].className = "dead-possibility";
+		this.checkSingleton();
 	}
 
 	this.checkSingleton = function() {
