@@ -68,7 +68,7 @@ body {
 #hclues {
 	padding: auto;
 	margin-left: 2%;
-	width: 48%;
+	width: 30%;
 }
 
 .clue {
@@ -77,16 +77,32 @@ body {
 
 #hclues .clue {
 	width: 6em;
-	height: 3em;
+	height: 2em;
+	text-align: center;
+	line-height: 2em;
 }
 
 #hclues .tile {
 	border: 1px solid black;
 	border-radius: 3px;
 	background-color: #dddddd;
+	height: 2em;
+	width: 2em;
+	display: inline-block;
 }
 
 #vclues .clue {
-	width: 3em;
-	height: 6em;
+	width: 2em;
+	height: 4em;
+	text-align: center;
+	line-height: 2em;
+}
+
+#vclues .tile {
+	border: 1px solid black;
+	border-radius: 3px;
+	background-color: #dddddd;
+	height: 2em;
+	width: 2em;
+	display: inline-block;
 }
