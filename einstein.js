@@ -79,7 +79,7 @@ function Puzzle(board, hClues, vClues, messages, symbols) {
 			if (this.numVClues < this.vClueSlots.length)
 				types.push(ColumnClue);
 
-			var type = types[randInt(0, types.length)];
+			var type = weightedChoice(types);
 			var clue = new type(this);
 			this.clues.push(clue);
 			clue.active = true;
@@ -132,6 +132,19 @@ function Puzzle(board, hClues, vClues, messages, symbols) {
 // Generate a random integer in the interval [lo, hi).
 function randInt(lo, hi) {
 	return lo + Math.floor(Math.random() * (hi - lo));
+}
+
+function weightedChoice(choices) {
+	var total = 0;
+	for (var i = 0; i < choices.length; i++)
+		total += choices[i].weight;
+
+	var value = Math.random() * total;
+	for (var i = 0; i < choices.length; i++) {
+		value -= choices[i].weight;
+		if (value < 0)
+			return choices[i];
+	}
 }
 
 function shuffle(array) {
@@ -451,6 +464,7 @@ function OrderClue(puzzle) {
 		]);
 	}
 }
+OrderClue.weight = 5;
 
 function Adjacent2Clue(puzzle) {
 	this.lRow = puzzle.rows[randInt(0, puzzle.rows.length)];
@@ -489,6 +503,7 @@ function Adjacent2Clue(puzzle) {
 		]);
 	}
 }
+Adjacent2Clue.weight = 5;
 
 function Adjacent3Clue(puzzle) {
 	this.mRow = puzzle.rows[randInt(0, puzzle.rows.length)];
@@ -549,6 +564,7 @@ function Adjacent3Clue(puzzle) {
 		]);
 	}
 }
+Adjacent3Clue.weight = 5;
 
 function ColumnClue(puzzle) {
 	this.tRow = puzzle.rows[randInt(0, puzzle.rows.length)];
@@ -579,6 +595,7 @@ function ColumnClue(puzzle) {
 		]);
 	}
 }
+ColumnClue.weight = 5;
 
 function ExactClue(puzzle) {
 	this.row = puzzle.rows[randInt(0, puzzle.rows.length)];
@@ -594,3 +611,4 @@ function ExactClue(puzzle) {
 		this.slot.choose(this.slot.value);
 	}
 }
+ExactClue.weight = 1;
