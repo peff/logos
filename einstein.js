@@ -11,6 +11,10 @@ var defaultSymbols = [
 
 var showActiveClues = true;
 
+document.addEventListener('contextmenu', function(ev) {
+	ev.preventDefault();
+});
+
 function Puzzle(board, hClues, vClues, messages, symbols) {
 	symbols = symbols || defaultSymbols;
 
