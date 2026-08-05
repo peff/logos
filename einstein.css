@@ -169,12 +169,12 @@ body {
 	line-height: 1;
 }
 
-.family-0 { --tile-bg: #a9c7e8; }
-.family-1 { --tile-bg: #a8d5b5; }
-.family-2 { --tile-bg: #c4b5dc; }
-.family-3 { --tile-bg: #e8c66f; }
-.family-4 { --tile-bg: #dfa6ad; }
-.family-5 { --tile-bg: #8fd0c5; }
+.family-0 { --tile-bg: #7fa6c9; }
+.family-1 { --tile-bg: #82aa8b; }
+.family-2 { --tile-bg: #a38fb5; }
+.family-3 { --tile-bg: #c9a44f; }
+.family-4 { --tile-bg: #c47f70; }
+.family-5 { --tile-bg: #68a9a2; }
 
 .arrow {
 	color: #2563eb;
