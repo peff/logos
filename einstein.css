@@ -1,20 +1,47 @@
+html {
+	width: 100%;
+	height: 100%;
+	font-size: min(2.13vw, 2.86vh);
+}
+
 body {
-	display: flex;
-	flex-flow: row wrap;
+	--big-tile-width: 2.65rem;
+	--big-tile-height: 2.65rem;
+	display: grid;
+	grid-template-columns: 19rem 26.5rem;
+	grid-template-rows: 1.15rem 24.4rem 1.8rem 5.8rem;
+	grid-template-areas:
+		"message message"
+		"board hclues"
+		"controls controls"
+		"vclues vclues";
+	align-items: flex-start;
+	justify-content: center;
+	column-gap: 0.5rem;
+	row-gap: 0.3rem;
+	margin: 0.5rem;
+	width: calc(100% - 1rem);
+	height: calc(100% - 1rem);
+	overflow: hidden;
 	font-family: sans-serif;
-	font-size: 30pt;
+	font-size: 1rem;
 }
 
 #board {
+	grid-area: board;
+	flex: 0 0 auto;
 	font-family: sans-serif;
-	font-size: 30pt;
+	font-size: 1rem;
+	border-spacing: 0.12rem;
+	table-layout: fixed;
+	width: 18rem;
 }
 
 #board .slot {
-	border-radius: 5px;
+	border-radius: 0.18rem;
 	background-color: #aaaaaa;
-	width: 2em;
-	height: 2em;
+	width: 3rem;
+	height: 2.9rem;
 	text-align: center;
 }
 
@@ -23,8 +50,8 @@ body {
 	border-radius: 3px;
 	background-color: #dddddd;
 	margin: auto;
-	width: 80%;
-	height: 90%;
+	width: var(--big-tile-width);
+	height: var(--big-tile-height);
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -47,17 +74,20 @@ body {
 }
 
 #controls {
-	margin-top: 0.5em;
-	margin-bottom: 0.5em;
+	grid-area: controls;
+	margin: 0;
 	width: 100%;
 }
 
 #controls input {
 	border: 1px solid black;
-	border-radius: 3px;
+	border-radius: 0.2rem;
+	padding: 0.35rem 0.65rem;
+	font: inherit;
 }
 
 #message {
+	grid-area: message;
 	border-radius: 5px;
 	background-color: #777777;
 	color: white;
@@ -66,43 +96,65 @@ body {
 }
 
 #hclues {
-	padding: auto;
-	margin-left: 2%;
-	width: 30%;
+	grid-area: hclues;
+	flex: 0 0 auto;
+	font-size: 1rem;
+	border-spacing: 0.12rem;
+	table-layout: fixed;
+	width: 24.5rem;
 }
 
 .clue {
 	background-color: #cccccc;
+	border-radius: 0.18rem;
+	cursor: pointer;
+	user-select: none;
 }
 
 #hclues .clue {
-	width: 6em;
-	height: 2em;
+	width: 9rem;
+	height: 2.9rem;
 	text-align: center;
-	line-height: 2em;
+	line-height: 2.8rem;
 }
 
 #hclues .tile {
 	border: 1px solid black;
-	border-radius: 3px;
+	border-radius: 0.12rem;
 	background-color: #dddddd;
-	height: 2em;
-	width: 2em;
+	height: var(--big-tile-height);
+	width: var(--big-tile-width);
 	display: inline-block;
+	vertical-align: middle;
+}
+
+#vclues {
+	grid-area: vclues;
+	flex: 0 0 auto;
+	font-size: 1rem;
+	border-spacing: 0.12rem;
+	table-layout: fixed;
+	width: 45rem;
 }
 
 #vclues .clue {
-	width: 2em;
-	height: 4em;
+	width: 3rem;
+	height: 5.8rem;
 	text-align: center;
-	line-height: 2em;
+	line-height: 2.8rem;
 }
 
 #vclues .tile {
 	border: 1px solid black;
-	border-radius: 3px;
+	border-radius: 0.12rem;
 	background-color: #dddddd;
-	height: 2em;
-	width: 2em;
+	height: var(--big-tile-height);
+	width: var(--big-tile-width);
 	display: inline-block;
+}
+
+.clue:hover,
+#controls input:hover,
+#board .possibility:hover {
+	filter: brightness(0.94);
 }
