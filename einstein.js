@@ -84,7 +84,7 @@ function Puzzle(board, hClues, vClues, messages, symbols) {
 		for (var i = this.clues.length - 1; i >= 0; i--) {
 			var without = this.clues.slice();
 			without.splice(i, 1);
-			if (countSolutions(this, without, 2) == 1)
+			if (cluesSolve(this, without))
 				this.clues = without;
 		}
 
@@ -110,7 +110,7 @@ function Puzzle(board, hClues, vClues, messages, symbols) {
 	}
 
 	this.sufficientClues = function() {
-		return countSolutions(this, this.clues, 2) == 1;
+		return cluesSolve(this, this.clues);
 	}
 
 	this.getHClueSlot = function() { return this.hClueSlots[this.numHClues++]; }
@@ -140,16 +140,12 @@ function shuffle(array) {
 	return array;
 }
 
-/*
- * Count arrangements which satisfy the clues, stopping at maxSolutions.
- * Each domain is a bitmask of the columns where a symbol may occur.
- */
-function countSolutions(puzzle, clues, maxSolutions) {
+/* Try to solve the puzzle using only deductions from the given clues. */
+function cluesSolve(puzzle, clues) {
 	var numRows = puzzle.rows.length;
 	var rowSize = puzzle.rows[0].slots.length;
 	var fullDomain = (1 << rowSize) - 1;
 	var domains = [];
-	var count = 0;
 
 	for (var row = 0; row < numRows; row++) {
 		domains[row] = [];
@@ -157,93 +153,70 @@ function countSolutions(puzzle, clues, maxSolutions) {
 			domains[row][symbol] = fullDomain;
 	}
 
-	function propagate(domains) {
-		var changed;
-		do {
-			changed = false;
+	var changed;
+	do {
+		changed = false;
 
-			/* Each column contains exactly one symbol from each row. */
-			for (var row = 0; row < numRows; row++) {
-				var singles = 0;
-				for (var symbol = 0; symbol < rowSize; symbol++) {
-					var domain = domains[row][symbol];
-					if (!domain)
-						return false;
-					if ((domain & (domain - 1)) == 0) {
-						if (singles & domain)
-							return false;
-						singles |= domain;
-					}
-				}
-				for (var symbol = 0; symbol < rowSize; symbol++) {
-					var domain = domains[row][symbol];
-					if ((domain & (domain - 1)) != 0) {
-						var reduced = domain & ~singles;
-						if (reduced != domain) {
-							domains[row][symbol] = reduced;
-							changed = true;
-						}
-					}
-				}
-			}
-
-			for (var i = 0; i < clues.length; i++) {
-				if (clues[i].constrain(domains, fullDomain))
-					changed = true;
-			}
-		} while (changed);
-
-		for (var row = 0; row < numRows; row++)
-			for (var symbol = 0; symbol < rowSize; symbol++)
-				if (!domains[row][symbol])
-					return false;
-		return true;
-	}
-
-	function search(domains) {
-		if (count >= maxSolutions)
-			return;
-		if (!propagate(domains))
-			return;
-
-		var bestRow = -1;
-		var bestSymbol;
-		var bestSize = rowSize + 1;
+		/* Each column contains exactly one symbol from each row. */
 		for (var row = 0; row < numRows; row++) {
+			var singles = 0;
 			for (var symbol = 0; symbol < rowSize; symbol++) {
 				var domain = domains[row][symbol];
-				var size = 0;
-				for (var bits = domain; bits; bits &= bits - 1)
-					size++;
-				if (size > 1 && size < bestSize) {
-					bestRow = row;
-					bestSymbol = symbol;
-					bestSize = size;
+				if (!domain)
+					return false;
+				if ((domain & (domain - 1)) == 0) {
+					if (singles & domain)
+						return false;
+					singles |= domain;
+				}
+			}
+			for (var symbol = 0; symbol < rowSize; symbol++) {
+				var domain = domains[row][symbol];
+				if ((domain & (domain - 1)) != 0) {
+					var reduced = domain & ~singles;
+					if (reduced != domain) {
+						domains[row][symbol] = reduced;
+						changed = true;
+					}
+				}
+			}
+
+			/* A column which has only one candidate fixes that symbol. */
+			for (var col = 0; col < rowSize; col++) {
+				var bit = 1 << col;
+				var candidate = -1;
+				for (var symbol = 0; symbol < rowSize; symbol++) {
+					if (domains[row][symbol] & bit) {
+						if (candidate >= 0) {
+							candidate = -2;
+							break;
+						}
+						candidate = symbol;
+					}
+				}
+				if (candidate == -1)
+					return false;
+				if (candidate >= 0 && domains[row][candidate] != bit) {
+					domains[row][candidate] = bit;
+					changed = true;
 				}
 			}
 		}
 
-		if (bestRow < 0) {
-			count++;
-			return;
+		for (var i = 0; i < clues.length; i++) {
+			if (clues[i].constrain(domains, fullDomain))
+				changed = true;
 		}
+	} while (changed);
 
-		var choices = domains[bestRow][bestSymbol];
-		for (var bit = 1; bit <= fullDomain; bit <<= 1) {
-			if (!(choices & bit))
-				continue;
-			var branch = [];
-			for (var row = 0; row < numRows; row++)
-				branch[row] = domains[row].slice();
-			branch[bestRow][bestSymbol] = bit;
-			search(branch);
-			if (count >= maxSolutions)
-				return;
+	for (var row = 0; row < numRows; row++) {
+		for (var symbol = 0; symbol < rowSize; symbol++) {
+			var domain = domains[row][symbol];
+			if (!domain || (domain & (domain - 1)) != 0)
+				return false;
 		}
 	}
-
-	search(domains);
-	return count;
+	return true;
 }
 
 function clueVariable(domains, row, slot) {
