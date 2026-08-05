@@ -65,25 +65,52 @@ function Puzzle(board, hClues, vClues, messages, symbols) {
 		this.clues = [];
 		this.numHClues = 0;
 		this.numVClues = 0;
-		while (!this.sufficientClues() &&
-		       this.numHClues < this.hClueSlots.length &&
-		       this.numVClues < this.vClueSlots.length) {
-			var type = Math.random();
-			var clue =
-				type < 0.2 ? new OrderClue(this) :
-				type < 0.4 ? new Adjacent2Clue(this) :
-				type < 0.6 ? new Adjacent3Clue(this) :
-				type < 0.8 ? new ColumnClue(this) :
-				             new ExactClue(this);
+		while (!this.sufficientClues()) {
+			var types = [ExactClue];
+			if (this.numHClues < this.hClueSlots.length) {
+				types.push(OrderClue);
+				types.push(Adjacent2Clue);
+				types.push(Adjacent3Clue);
+			}
+			if (this.numVClues < this.vClueSlots.length)
+				types.push(ColumnClue);
+
+			var type = types[randInt(0, types.length)];
+			var clue = new type(this);
 			this.clues.push(clue);
 			clue.active = true;
+		}
+
+		for (var i = this.clues.length - 1; i >= 0; i--) {
+			var without = this.clues.slice();
+			without.splice(i, 1);
+			if (countSolutions(this, without, 2) == 1)
+				this.clues = without;
+		}
+
+		for (var i = 0; i < this.hClueSlots.length; i++) {
+			this.hClueSlots[i].innerHTML = "";
+			this.hClueSlots[i].oncontextmenu = null;
+		}
+		for (var i = 0; i < this.vClueSlots.length; i++) {
+			this.vClueSlots[i].innerHTML = "";
+			this.vClueSlots[i].oncontextmenu = null;
+		}
+
+		this.numHClues = 0;
+		this.numVClues = 0;
+		for (var i = 0; i < this.clues.length; i++) {
+			var clue = this.clues[i];
+			if (clue.displayType == "horizontal")
+				clue.display = this.getHClueSlot();
+			else if (clue.displayType == "vertical")
+				clue.display = this.getVClueSlot();
 			checkClueDisplay(clue);
 		}
 	}
 
 	this.sufficientClues = function() {
-		// XXX try to solve
-		return false;
+		return countSolutions(this, this.clues, 2) == 1;
 	}
 
 	this.getHClueSlot = function() { return this.hClueSlots[this.numHClues++]; }
@@ -111,6 +138,126 @@ function shuffle(array) {
 		array[r] = tmp;
 	}
 	return array;
+}
+
+/*
+ * Count arrangements which satisfy the clues, stopping at maxSolutions.
+ * Each domain is a bitmask of the columns where a symbol may occur.
+ */
+function countSolutions(puzzle, clues, maxSolutions) {
+	var numRows = puzzle.rows.length;
+	var rowSize = puzzle.rows[0].slots.length;
+	var fullDomain = (1 << rowSize) - 1;
+	var domains = [];
+	var count = 0;
+
+	for (var row = 0; row < numRows; row++) {
+		domains[row] = [];
+		for (var symbol = 0; symbol < rowSize; symbol++)
+			domains[row][symbol] = fullDomain;
+	}
+
+	function propagate(domains) {
+		var changed;
+		do {
+			changed = false;
+
+			/* Each column contains exactly one symbol from each row. */
+			for (var row = 0; row < numRows; row++) {
+				var singles = 0;
+				for (var symbol = 0; symbol < rowSize; symbol++) {
+					var domain = domains[row][symbol];
+					if (!domain)
+						return false;
+					if ((domain & (domain - 1)) == 0) {
+						if (singles & domain)
+							return false;
+						singles |= domain;
+					}
+				}
+				for (var symbol = 0; symbol < rowSize; symbol++) {
+					var domain = domains[row][symbol];
+					if ((domain & (domain - 1)) != 0) {
+						var reduced = domain & ~singles;
+						if (reduced != domain) {
+							domains[row][symbol] = reduced;
+							changed = true;
+						}
+					}
+				}
+			}
+
+			for (var i = 0; i < clues.length; i++) {
+				if (clues[i].constrain(domains, fullDomain))
+					changed = true;
+			}
+		} while (changed);
+
+		for (var row = 0; row < numRows; row++)
+			for (var symbol = 0; symbol < rowSize; symbol++)
+				if (!domains[row][symbol])
+					return false;
+		return true;
+	}
+
+	function search(domains) {
+		if (count >= maxSolutions)
+			return;
+		if (!propagate(domains))
+			return;
+
+		var bestRow = -1;
+		var bestSymbol;
+		var bestSize = rowSize + 1;
+		for (var row = 0; row < numRows; row++) {
+			for (var symbol = 0; symbol < rowSize; symbol++) {
+				var domain = domains[row][symbol];
+				var size = 0;
+				for (var bits = domain; bits; bits &= bits - 1)
+					size++;
+				if (size > 1 && size < bestSize) {
+					bestRow = row;
+					bestSymbol = symbol;
+					bestSize = size;
+				}
+			}
+		}
+
+		if (bestRow < 0) {
+			count++;
+			return;
+		}
+
+		var choices = domains[bestRow][bestSymbol];
+		for (var bit = 1; bit <= fullDomain; bit <<= 1) {
+			if (!(choices & bit))
+				continue;
+			var branch = [];
+			for (var row = 0; row < numRows; row++)
+				branch[row] = domains[row].slice();
+			branch[bestRow][bestSymbol] = bit;
+			search(branch);
+			if (count >= maxSolutions)
+				return;
+		}
+	}
+
+	search(domains);
+	return count;
+}
+
+function clueVariable(domains, row, slot) {
+	var rowNum = row.puzzle.rows.indexOf(row);
+	return {
+		domains: domains[rowNum],
+		symbol: slot.value
+	};
+}
+
+function restrictVariable(variable, allowed) {
+	var old = variable.domains[variable.symbol];
+	variable.domains[variable.symbol] &= allowed;
+	return old != variable.domains[variable.symbol];
 }
 
 function Row(puzzle, symbols, display) {
@@ -283,9 +430,8 @@ function displayClue(clue, slot, type, elements) {
 			clue.active = !clue.active;
 			checkClueDisplay(clue);
 		};
-		// XXX should get removed when clue is destroyed
-		slot.addEventListener('contextmenu', clue.listener);
 	}
+	slot.oncontextmenu = clue.listener;
 }
 
 function OrderClue(puzzle) {
@@ -293,7 +439,29 @@ function OrderClue(puzzle) {
 	this.rRow = puzzle.rows[randInt(0, puzzle.rows.length)];
 	this.lCol = randInt(0, this.lRow.slots.length - 1);
 	this.rCol = randInt(this.lCol + 1, this.rRow.slots.length);
+	this.displayType = "horizontal";
 	this.display = puzzle.getHClueSlot();
+
+	this.constrain = function(domains, fullDomain) {
+		var left = clueVariable(domains, this.lRow,
+					this.lRow.slots[this.lCol]);
+		var right = clueVariable(domains, this.rRow,
+					 this.rRow.slots[this.rCol]);
+		var leftDomain = left.domains[left.symbol];
+		var rightDomain = right.domains[right.symbol];
+		var leftAllowed = 0;
+		var rightAllowed = 0;
+		for (var l = 0; l < this.lRow.slots.length; l++) {
+			for (var r = l + 1; r < this.rRow.slots.length; r++) {
+				if (leftDomain & (1 << l) && rightDomain & (1 << r)) {
+					leftAllowed |= 1 << l;
+					rightAllowed |= 1 << r;
+				}
+			}
+		}
+		return restrictVariable(left, leftAllowed) |
+			restrictVariable(right, rightAllowed);
+	}
 
 	this.show = function() {
 		displayClue(this, this.display, "span", [
@@ -309,12 +477,26 @@ function Adjacent2Clue(puzzle) {
 	this.rRow = puzzle.rows[randInt(0, puzzle.rows.length)];
 	this.lCol = randInt(0, this.lRow.slots.length - 1);
 	this.rCol = this.lCol + 1;
+	this.displayType = "horizontal";
 	this.display = puzzle.getHClueSlot();
 
 	if (Math.random() < 0.5) {
 		var tmp = this.lCol;
 		this.lCol = this.rCol;
 		this.rCol = tmp;
+	}
+
+	this.constrain = function(domains, fullDomain) {
+		var left = clueVariable(domains, this.lRow,
+					this.lRow.slots[this.lCol]);
+		var right = clueVariable(domains, this.rRow,
+					 this.rRow.slots[this.rCol]);
+		var leftDomain = left.domains[left.symbol];
+		var rightDomain = right.domains[right.symbol];
+		var leftAllowed = (rightDomain << 1) | (rightDomain >> 1);
+		var rightAllowed = (leftDomain << 1) | (leftDomain >> 1);
+		return restrictVariable(left, leftAllowed & fullDomain) |
+			restrictVariable(right, rightAllowed & fullDomain);
 	}
 
 	this.show = function() {
@@ -333,12 +515,45 @@ function Adjacent3Clue(puzzle) {
 	this.mCol = randInt(1, this.mRow.slots.length - 1);
 	this.lCol = this.mCol - 1;
 	this.rCol = this.mCol + 1;
+	this.displayType = "horizontal";
 	this.display = puzzle.getHClueSlot();
 
 	if (Math.random() < 0.5) {
 		var tmp = this.lCol;
 		this.lCol = this.rCol;
 		this.rCol = tmp;
+	}
+
+	this.constrain = function(domains, fullDomain) {
+		var left = clueVariable(domains, this.lRow,
+					this.lRow.slots[this.lCol]);
+		var middle = clueVariable(domains, this.mRow,
+					  this.mRow.slots[this.mCol]);
+		var right = clueVariable(domains, this.rRow,
+					 this.rRow.slots[this.rCol]);
+		var leftDomain = left.domains[left.symbol];
+		var middleDomain = middle.domains[middle.symbol];
+		var rightDomain = right.domains[right.symbol];
+		var leftAllowed = 0;
+		var middleAllowed = 0;
+		var rightAllowed = 0;
+		for (var m = 1; m < this.mRow.slots.length - 1; m++) {
+			for (var direction = -1; direction <= 1; direction += 2) {
+				var l = m + direction;
+				var r = m - direction;
+				if (leftDomain & (1 << l) &&
+				    middleDomain & (1 << m) &&
+				    rightDomain & (1 << r)) {
+					leftAllowed |= 1 << l;
+					middleAllowed |= 1 << m;
+					rightAllowed |= 1 << r;
+				}
+			}
+		}
+		var changed = restrictVariable(left, leftAllowed);
+		changed |= restrictVariable(middle, middleAllowed);
+		changed |= restrictVariable(right, rightAllowed);
+		return changed;
 	}
 
 	this.show = function() {
@@ -356,7 +571,19 @@ function ColumnClue(puzzle) {
 	this.bRow = this.tRow;
 	while (this.bRow == this.tRow)
 		this.bRow = puzzle.rows[randInt(0, puzzle.rows.length)];
+	this.displayType = "vertical";
 	this.display = puzzle.getVClueSlot();
+
+	this.constrain = function(domains, fullDomain) {
+		var top = clueVariable(domains, this.tRow,
+				       this.tRow.slots[this.col]);
+		var bottom = clueVariable(domains, this.bRow,
+					  this.bRow.slots[this.col]);
+		var common = top.domains[top.symbol] &
+			bottom.domains[bottom.symbol];
+		return restrictVariable(top, common) |
+			restrictVariable(bottom, common);
+	}
 
 	this.show = function() {
 		displayClue(this, this.display, "div", [
@@ -369,6 +596,12 @@ function ColumnClue(puzzle) {
 function ExactClue(puzzle) {
 	this.row = puzzle.rows[randInt(0, puzzle.rows.length)];
 	this.slot = this.row.slots[randInt(0, this.row.slots.length)];
+
+	this.constrain = function(domains, fullDomain) {
+		var variable = clueVariable(domains, this.row, this.slot);
+		var pos = this.row.slots.indexOf(this.slot);
+		return restrictVariable(variable, 1 << pos);
+	}
 
 	this.show = function() {
 		this.slot.choose(this.slot.value);
