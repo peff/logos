@@ -67,30 +67,28 @@ function Puzzle(board, hClues, vClues, messages, symbols) {
 
 	this.generateClues = function() {
 		this.clues = [];
-		this.numHClues = 0;
-		this.numVClues = 0;
-		while (!this.sufficientClues()) {
-			var types = [ExactClue];
-			if (this.numHClues < this.hClueSlots.length) {
-				types.push(OrderClue);
-				types.push(Adjacent2Clue);
-				types.push(Adjacent3Clue);
+		var types = [ExactClue, OrderClue, Adjacent2Clue,
+			     Adjacent3Clue, ColumnClue];
+		do {
+			while (!this.sufficientClues()) {
+				var type = weightedChoice(types);
+				var clue = new type(this);
+				this.clues.push(clue);
+				clue.active = true;
 			}
-			if (this.numVClues < this.vClueSlots.length)
-				types.push(ColumnClue);
 
-			var type = weightedChoice(types);
-			var clue = new type(this);
-			this.clues.push(clue);
-			clue.active = true;
-		}
+			for (var i = this.clues.length - 1; i >= 0; i--) {
+				var without = this.clues.slice();
+				without.splice(i, 1);
+				if (cluesSolve(this, without))
+					this.clues = without;
+			}
 
-		for (var i = this.clues.length - 1; i >= 0; i--) {
-			var without = this.clues.slice();
-			without.splice(i, 1);
-			if (cluesSolve(this, without))
-				this.clues = without;
-		}
+			this.clues = limitDisplayedClues(this.clues,
+				"horizontal", this.hClueSlots.length);
+			this.clues = limitDisplayedClues(this.clues,
+				"vertical", this.vClueSlots.length);
+		} while (!this.sufficientClues());
 
 		for (var i = 0; i < this.hClueSlots.length; i++) {
 			this.hClueSlots[i].innerHTML = "";
@@ -127,6 +125,15 @@ function Puzzle(board, hClues, vClues, messages, symbols) {
 	}
 
 	this.clear();
+}
+
+function limitDisplayedClues(clues, displayType, limit) {
+	var count = 0;
+	return clues.filter(function(clue) {
+		if (clue.displayType != displayType)
+			return true;
+		return count++ < limit;
+	});
 }
 
 // Generate a random integer in the interval [lo, hi).
@@ -431,7 +438,6 @@ function OrderClue(puzzle) {
 	this.lCol = randInt(0, this.lRow.slots.length - 1);
 	this.rCol = randInt(this.lCol + 1, this.rRow.slots.length);
 	this.displayType = "horizontal";
-	this.display = puzzle.getHClueSlot();
 
 	this.constrain = function(domains, fullDomain) {
 		var left = clueVariable(domains, this.lRow,
@@ -472,7 +478,6 @@ function Adjacent2Clue(puzzle) {
 	this.lCol = randInt(0, this.lRow.slots.length - 1);
 	this.rCol = this.lCol + 1;
 	this.displayType = "horizontal";
-	this.display = puzzle.getHClueSlot();
 
 	if (Math.random() < 0.5) {
 		var tmp = this.lCol;
@@ -513,7 +518,6 @@ function Adjacent3Clue(puzzle) {
 	this.lCol = this.mCol - 1;
 	this.rCol = this.mCol + 1;
 	this.displayType = "horizontal";
-	this.display = puzzle.getHClueSlot();
 
 	if (Math.random() < 0.5) {
 		var tmp = this.lCol;
@@ -573,7 +577,6 @@ function ColumnClue(puzzle) {
 	while (this.bRow == this.tRow)
 		this.bRow = puzzle.rows[randInt(0, puzzle.rows.length)];
 	this.displayType = "vertical";
-	this.display = puzzle.getVClueSlot();
 
 	this.constrain = function(domains, fullDomain) {
 		var top = clueVariable(domains, this.tRow,
