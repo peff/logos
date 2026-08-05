@@ -34,7 +34,7 @@ function Puzzle(board, hClues, vClues, messages, symbols) {
 	}
 	{
 		var row = vClues.insertRow();
-		for (var i = 0; i < 15; i++) {
+		for (var i = 0; i < 8; i++) {
 			var cell = row.insertCell();
 			cell.className = "clue";
 			this.vClueSlots.push(cell);

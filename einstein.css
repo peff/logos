@@ -14,7 +14,7 @@ body {
 		"message message"
 		"board hclues"
 		"controls controls"
-		"vclues vclues";
+		". vclues";
 	align-items: flex-start;
 	justify-content: center;
 	column-gap: 0.5rem;
@@ -141,7 +141,7 @@ body {
 	font-size: 1rem;
 	border-spacing: 0.12rem;
 	table-layout: fixed;
-	width: 45rem;
+	width: 24.5rem;
 }
 
 #vclues .clue {
