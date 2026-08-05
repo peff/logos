@@ -24,7 +24,7 @@ function Puzzle(board, hClues, vClues, messages, symbols) {
 	this.vClueSlots = [];
 	for (var i = 0; i < symbols.length; i++)
 		this.rows[i] = new Row(this, symbols[i], board.insertRow());
-	for (var i = 0; i < 8; i++) {
+	for (var i = 0; i < 6; i++) {
 		var row = hClues.insertRow();
 		for (var j = 0; j < 3; j++) {
 			var cell = row.insertCell();
