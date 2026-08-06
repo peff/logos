@@ -23,6 +23,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols) {
 	this.timer = timer;
 	this.timerInterval = null;
 	this.timerStarted = null;
+	this.gameOver = true;
 	this.rows = [];
 	this.hClueSlots = [];
 	this.vClueSlots = [];
@@ -46,6 +47,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols) {
 	}
 
 	this.clear = function() {
+		this.gameOver = true;
 		this.stopTimer();
 		this.updateTimer(0);
 		for (var i = 0; i < this.rows.length; i++)
@@ -54,12 +56,14 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols) {
 	}
 
 	this.newGame = function() {
+		this.gameOver = true;
 		this.stopTimer();
 		this.updateTimer(0);
 		for (var i = 0; i < this.rows.length; i++)
 			this.rows[i].newGame();
 		this.generateClues();
 		this.say("Good luck!");
+		this.gameOver = false;
 		this.startTimer();
 	}
 
@@ -67,8 +71,17 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols) {
 		for (var i = 0; i < this.rows.length; i++)
 			if (!this.rows[i].isComplete())
 				return;
+		this.gameOver = true;
 		this.stopTimer();
 		this.say("You win!");
+	}
+
+	this.lose = function(msg) {
+		if (this.gameOver)
+			return;
+		this.gameOver = true;
+		this.stopTimer();
+		this.say(msg);
 	}
 
 	this.say = function(msg) {
@@ -395,20 +408,24 @@ function Slot(row, symbols, display) {
 	}
 
 	this.choose = function(value) {
+		if (this.row.puzzle.gameOver)
+			return;
 		if (this.value == value) {
 			this.displaySingle(value);
 			this.row.removePossible(value);
 			this.row.puzzle.checkWin();
 		} else {
-			this.say("Nope, not " + this.symbols[value]);
+			this.row.puzzle.lose("You lose! Not " +
+				this.symbols[value] + ".");
 		}
 	}
 
 	this.discard = function(value) {
-		if (this.single)
+		if (this.single || this.row.puzzle.gameOver)
 			return;
 		if (this.value == value) {
-			this.say("Oops, it was " + this.symbols[value]);
+			this.row.puzzle.lose("You lose! It was " +
+				this.symbols[value] + ".");
 		} else {
 			this.removePossible(value);
 			this.row.checkSingleton(value);
