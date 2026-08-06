@@ -220,13 +220,14 @@ body[data-cursor="native"] {
 	width: min(34rem, calc(100vw - 2rem));
 	max-height: calc(100vh - 2rem);
 	overflow-y: auto;
+	padding: 0.4rem 0.7rem 0.45rem;
 	font-size: 0.78rem;
 	line-height: 1.25;
 }
 
 .help-panel h2,
 .help-panel h3 {
-	margin: 0 0 0.3rem;
+	margin: 0 0 0.2rem;
 	font-family: Forum, Georgia, "Times New Roman", serif;
 }
 
@@ -236,13 +237,13 @@ body[data-cursor="native"] {
 }
 
 .help-panel h3 {
-	margin-top: 0.55rem;
+	margin-top: 0.4rem;
 	font-size: 0.95rem;
 }
 
 .help-panel p,
 .help-panel ul {
-	margin: 0.25rem 0;
+	margin: 0.18rem 0;
 }
 
 .help-panel ul {
@@ -257,7 +258,7 @@ body[data-cursor="native"] {
 .help-clues th,
 .help-clues td {
 	border-top: 1px solid #d5cec0;
-	padding: 0.24rem 0.35rem;
+	padding: 0.18rem 0.35rem;
 	text-align: left;
 }
 

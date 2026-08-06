@@ -293,8 +293,10 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		if (modal.hidden) {
 			this.resumeAfterModal = !this.gameOver &&
 				this.timerInterval !== null;
-			modal.querySelector(".modal-done").value =
-				this.resumeAfterModal ? "Resume game" : closeText;
+			var done = modal.querySelector(".modal-done");
+			if (done)
+				done.value = this.resumeAfterModal ?
+					"Resume game" : closeText;
 			this.paused = true;
 			if (this.resumeAfterModal)
 				this.stopTimer();
@@ -314,7 +316,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.toggleHelp = function() {
-		this.toggleModal(this.help, this.helpButton, "Close help");
+		this.toggleModal(this.help, this.helpButton);
 	}
 
 	var puzzle = this;
