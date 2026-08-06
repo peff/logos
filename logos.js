@@ -10,6 +10,26 @@ var defaultSymbols = [
 	["+", "&#x2012;", "&#x00f7;", "x", "=", "√"]
 ];
 
+var falsePlacementMessages = [
+	"You have mistaken falsehood for truth. The wisdom of the ancients eludes you...",
+	"You have crowned a false answer as truth. The ancients turn away...",
+	"You have embraced an illusion as truth. The oracle falls silent...",
+	"Your judgment has fixed upon the false. The ancients are unconvinced...",
+	"You have chosen the path of error. Wisdom recedes from your grasp...",
+	"You have drawn certainty from deceiving signs. The lesson is lost...",
+	"Your conclusion does not follow. The philosophers dismiss your proof...",
+];
+
+var falseEliminationMessages = [
+	"You have cast aside a truth not yet understood. The wisdom of the ancients eludes you...",
+	"You have banished a truth from consideration. The ancients turn away...",
+	"You have rejected a truth before its hour. The oracle falls silent...",
+	"Your judgment has condemned the possible. The ancients are unconvinced...",
+	"You have closed a path that led to truth. Wisdom recedes from your grasp...",
+	"You have severed a thread that belonged in the pattern. The Fates turn away...",
+	"You have excluded what reason still permits. The philosophers dismiss your proof...",
+];
+
 var showActiveClues = true;
 
 document.addEventListener('contextmenu', function(ev) {
@@ -194,6 +214,10 @@ function limitDisplayedClues(clues, displayType, limit) {
 // Generate a random integer in the interval [lo, hi).
 function randInt(lo, hi) {
 	return lo + Math.floor(Math.random() * (hi - lo));
+}
+
+function randomChoice(choices) {
+	return choices[randInt(0, choices.length)];
 }
 
 function weightedChoice(choices) {
@@ -428,8 +452,7 @@ function Slot(row, symbols, display) {
 			this.row.removePossible(value);
 			this.row.puzzle.checkWin();
 		} else {
-			this.row.puzzle.lose("You lose! Not " +
-				this.symbols[value] + ".");
+			this.row.puzzle.lose(randomChoice(falsePlacementMessages));
 		}
 	}
 
@@ -437,8 +460,7 @@ function Slot(row, symbols, display) {
 		if (this.single || this.row.puzzle.gameOver)
 			return;
 		if (this.value == value) {
-			this.row.puzzle.lose("You lose! It was " +
-				this.symbols[value] + ".");
+			this.row.puzzle.lose(randomChoice(falseEliminationMessages));
 		} else {
 			this.removePossible(value);
 			this.row.checkSingleton(value);
