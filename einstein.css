@@ -10,12 +10,11 @@ body {
 	--big-tile-height: 2.65rem;
 	display: grid;
 	grid-template-columns: 19rem 27.5rem;
-	grid-template-rows: 1.15rem 18.3rem 1.8rem 5.8rem;
+	grid-template-rows: 1.15rem 18.3rem 5.8rem;
 	grid-template-areas:
 		"message message"
 		"board hclues"
-		"controls controls"
-		". vclues";
+		"controls vclues";
 	align-items: flex-start;
 	justify-content: center;
 	column-gap: 0.5rem;
