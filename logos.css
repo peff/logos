@@ -248,6 +248,11 @@ body[data-cursor="native"] {
 	opacity: 0;
 }
 
+#status.appearing {
+	opacity: 0;
+	transition: none;
+}
+
 #timer {
 	position: absolute;
 	top: 50%;

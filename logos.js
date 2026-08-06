@@ -179,6 +179,11 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		}
 		this.messages.classList.remove("fading");
 		this.messages.innerHTML = msg;
+		if (msg) {
+			this.messages.classList.add("appearing");
+			this.messages.offsetWidth;
+			this.messages.classList.remove("appearing");
+		}
 		if (msg && this.timerInterval !== null) {
 			var puzzle = this;
 			this.messageTimeout = setTimeout(function() {
