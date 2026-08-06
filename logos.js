@@ -141,6 +141,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			if (!this.rows[i].isComplete())
 				return;
 		this.gameOver = true;
+		this.playSound("win");
 		this.stopTimer();
 		this.timer.classList.add("won");
 		this.messages.classList.add("won");
@@ -422,6 +423,15 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 				 45 * variation);
 			playTone(context, 154 * variation, 0.04, 0.48,
 				 48 * variation);
+		} else if (type == "win") {
+			var notes = [587.33, 783.99, 659.25, 880,
+				     783.99, 1046.5, 880, 1174.66,
+				     1046.5, 1318.51, 1174.66, 1567.98];
+			var delays = [0, 0.09, 0.17, 0.26, 0.34, 0.43,
+				      0.52, 0.62, 0.73, 0.85, 0.98, 1.12];
+			for (var i = 0; i < notes.length; i++)
+				playChime(context, notes[i] * variation, delays[i],
+					i == notes.length - 1 ? 0.035 : 0.025);
 		}
 	}
 
@@ -510,6 +520,27 @@ function playScrape(context, buffer, variation) {
 		"bandpass", 0.045);
 	playNoise(context, buffer, 1050 * variation, 0.9, 0.02, 0.02,
 		"bandpass", 0.11);
+}
+
+function playChime(context, frequency, delay, volume) {
+	var partials = [1, 2.76, 5.4, 8.93];
+	var strengths = [0.7, 1, 0.32, 0.12];
+	var durations = [1.5, 1.15, 0.65, 0.38];
+	var start = context.currentTime + delay;
+	for (var i = 0; i < partials.length; i++) {
+		var oscillator = context.createOscillator();
+		var gain = context.createGain();
+		oscillator.type = "sine";
+		oscillator.frequency.value = frequency * partials[i];
+		gain.gain.setValueAtTime(0.0001, start);
+		gain.gain.exponentialRampToValueAtTime(volume * strengths[i],
+			start + 0.002);
+		gain.gain.exponentialRampToValueAtTime(0.0001,
+			start + durations[i]);
+		oscillator.connect(gain).connect(context.destination);
+		oscillator.start(start);
+		oscillator.stop(start + durations[i]);
+	}
 }
 
 function playTone(context, frequency, volume, duration, endFrequency, type) {
