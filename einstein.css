@@ -79,6 +79,10 @@ body {
 	letter-spacing: -0.12em;
 }
 
+#board .dead-possibility {
+	visibility: hidden;
+}
+
 .heavy-outline {
 	-webkit-text-stroke: 0.035em currentColor;
 }
