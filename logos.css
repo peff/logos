@@ -240,6 +240,12 @@ body[data-cursor="native"] {
 #status {
 	font-family: Forum, Georgia, "Times New Roman", serif;
 	letter-spacing: 0.06em;
+	opacity: 1;
+	transition: opacity 1s ease-out;
+}
+
+#status.fading {
+	opacity: 0;
 }
 
 #timer {

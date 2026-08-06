@@ -177,13 +177,18 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			clearTimeout(this.messageTimeout);
 			this.messageTimeout = null;
 		}
+		this.messages.classList.remove("fading");
 		this.messages.innerHTML = msg;
 		if (msg && this.timerInterval !== null) {
 			var puzzle = this;
 			this.messageTimeout = setTimeout(function() {
-				puzzle.messages.innerHTML = "";
-				puzzle.messageTimeout = null;
-			}, 10000);
+				puzzle.messages.classList.add("fading");
+				puzzle.messageTimeout = setTimeout(function() {
+					puzzle.messages.innerHTML = "";
+					puzzle.messages.classList.remove("fading");
+					puzzle.messageTimeout = null;
+				}, 1000);
+			}, 9000);
 		}
 	}
 
