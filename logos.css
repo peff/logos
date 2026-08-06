@@ -464,7 +464,7 @@ body[data-cursor="native"] {
 }
 
 .clue-hidden > * {
-	visibility: hidden;
+	opacity: 0.3;
 }
 
 #hclues .clue {
