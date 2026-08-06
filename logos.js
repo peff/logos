@@ -102,6 +102,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols) {
 		this.gameOver = true;
 		this.nextMilestone = 0;
 		this.stopTimer();
+		this.clearOutcome();
 		this.updateTimer(0);
 		for (var i = 0; i < this.rows.length; i++)
 			this.rows[i].clear();
@@ -112,6 +113,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols) {
 		this.gameOver = true;
 		this.nextMilestone = 0;
 		this.stopTimer();
+		this.clearOutcome();
 		this.updateTimer(0);
 		for (var i = 0; i < this.rows.length; i++)
 			this.rows[i].newGame();
@@ -130,6 +132,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols) {
 				return;
 		this.gameOver = true;
 		this.stopTimer();
+		this.timer.classList.add("won");
+		this.messages.classList.add("won");
 		this.say(randomChoice(winMessages));
 	}
 
@@ -152,6 +156,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols) {
 			return;
 		this.gameOver = true;
 		this.stopTimer();
+		this.timer.classList.add("lost");
+		this.messages.classList.add("lost");
 		this.revealSolution();
 		this.say(msg);
 	}
@@ -172,6 +178,11 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols) {
 		var seconds = totalSeconds % 60;
 		this.timer.textContent = minutes + ":" +
 			(seconds < 10 ? "0" : "") + seconds;
+	}
+
+	this.clearOutcome = function() {
+		this.timer.classList.remove("won", "lost");
+		this.messages.classList.remove("won", "lost");
 	}
 
 	this.startTimer = function() {

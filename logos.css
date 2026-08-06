@@ -197,6 +197,53 @@ body {
 	letter-spacing: 0;
 }
 
+#timer.won,
+#timer.lost,
+#status.won,
+#status.lost {
+	font-weight: bold;
+}
+
+#timer.won,
+#status.won {
+	color: #f1d47a;
+	background-image: linear-gradient(to bottom,
+		#fff4b0 0%,
+		#d7a83e 42%,
+		#ffe89a 58%,
+		#9d6f1e 100%);
+	-webkit-background-clip: text;
+	background-clip: text;
+	-webkit-text-fill-color: transparent;
+	text-shadow:
+		0 -1px 0 rgb(255 247 190 / 35%),
+		0 1px 0 rgb(75 49 8 / 70%);
+}
+
+#timer.lost,
+#status.lost {
+	color: #d97865;
+	background-image: linear-gradient(to bottom,
+		#ff9b82 0%,
+		#c44135 34%,
+		#74191d 68%,
+		#d85443 100%);
+	-webkit-background-clip: text;
+	background-clip: text;
+	-webkit-text-fill-color: transparent;
+	text-shadow:
+		0 -1px 0 rgb(255 190 170 / 28%),
+		0 1px 0 rgb(55 5 9 / 80%);
+}
+
+#status.lost {
+	background-image: linear-gradient(to bottom,
+		#ffe0d5 0%,
+		#e87963 36%,
+		#b94343 68%,
+		#f2a087 100%);
+}
+
 #hclues {
 	grid-area: hclues;
 	flex: 0 0 auto;
