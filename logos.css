@@ -390,6 +390,7 @@ body[data-cursor="native"] {
 	font-weight: bold;
 }
 
+.logo-greek,
 #timer.won,
 #status.won {
 	color: #f1d47a;
