@@ -95,6 +95,7 @@ body[data-cursor="native"] {
 	cursor: var(--action-cursor);
 	text-align: center;
 	font-size: 0.85rem;
+	line-height: 1;
 
 	/* hack based on 2x3 display */
 	width: 33%;
