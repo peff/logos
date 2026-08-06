@@ -77,9 +77,13 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.optionsButton = optionsButton;
 	this.timerInterval = null;
 	this.timerStarted = null;
+	this.timerElapsed = 0;
 	this.messageTimeout = null;
 	this.gameOver = true;
+	this.paused = false;
+	this.resumeAfterOptions = false;
 	this.nextMilestone = 0;
+	this.showMilestones = true;
 	this.rows = [];
 	this.hClueSlots = [];
 	this.vClueSlots = [];
@@ -106,6 +110,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.gameOver = true;
 		this.nextMilestone = 0;
 		this.stopTimer();
+		this.timerElapsed = 0;
 		this.clearOutcome();
 		this.updateTimer(0);
 		for (var i = 0; i < this.rows.length; i++)
@@ -117,6 +122,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.gameOver = true;
 		this.nextMilestone = 0;
 		this.stopTimer();
+		this.timerElapsed = 0;
 		this.clearOutcome();
 		this.updateTimer(0);
 		for (var i = 0; i < this.rows.length; i++)
@@ -150,7 +156,9 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 
 		while (this.nextMilestone < milestoneThresholds.length &&
 		       complete >= milestoneThresholds[this.nextMilestone]) {
-			this.say(randomChoice(milestoneMessages[this.nextMilestone]));
+			if (this.showMilestones)
+				this.say(randomChoice(
+					milestoneMessages[this.nextMilestone]));
 			this.nextMilestone++;
 		}
 	}
@@ -212,7 +220,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 
 	this.startTimer = function() {
 		var puzzle = this;
-		this.timerStarted = Date.now();
+		this.timerStarted = Date.now() - this.timerElapsed;
 		this.timerInterval = setInterval(function() {
 			puzzle.updateTimer(Date.now() - puzzle.timerStarted);
 		}, 250);
@@ -221,7 +229,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.stopTimer = function() {
 		if (this.timerInterval === null)
 			return;
-		this.updateTimer(Date.now() - this.timerStarted);
+		this.timerElapsed = Date.now() - this.timerStarted;
+		this.updateTimer(this.timerElapsed);
 		clearInterval(this.timerInterval);
 		this.timerInterval = null;
 		this.timerStarted = null;
@@ -287,7 +296,22 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.toggleOptions = function() {
-		this.options.hidden = !this.options.hidden;
+		if (this.options.hidden) {
+			this.resumeAfterOptions = !this.gameOver &&
+				this.timerInterval !== null;
+			this.options.querySelector(".options-done").value =
+				this.resumeAfterOptions ? "Resume game" : "Close options";
+			this.paused = true;
+			if (this.resumeAfterOptions)
+				this.stopTimer();
+			this.options.hidden = false;
+		} else {
+			this.options.hidden = true;
+			this.paused = false;
+			if (this.resumeAfterOptions && !this.gameOver)
+				this.startTimer();
+			this.resumeAfterOptions = false;
+		}
 		this.optionsButton.setAttribute("aria-expanded",
 						!this.options.hidden);
 	}
@@ -306,13 +330,43 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		}
 	}
 
+	this.setMilestones = function(show) {
+		this.showMilestones = show;
+		this.options.querySelector("#show-milestones").checked = show;
+		try {
+			localStorage.setItem("showMilestones", show);
+		} catch (e) {
+			/* The choice still applies for the current page. */
+		}
+	}
+
+	this.setTimerVisible = function(show) {
+		this.timer.hidden = !show;
+		this.options.querySelector("#show-timer").checked = show;
+		try {
+			localStorage.setItem("showTimer", show);
+		} catch (e) {
+			/* The choice still applies for the current page. */
+		}
+	}
+
 	var cursor = "gear";
+	var showMilestones = true;
+	var showTimer = true;
 	try {
 		cursor = localStorage.getItem("cursor") || cursor;
+		var storedMilestones = localStorage.getItem("showMilestones");
+		var storedTimer = localStorage.getItem("showTimer");
+		if (storedMilestones !== null)
+			showMilestones = storedMilestones == "true";
+		if (storedTimer !== null)
+			showTimer = storedTimer == "true";
 	} catch (e) {
 		/* Storage may be unavailable for local files. */
 	}
 	this.setCursor(cursor);
+	this.setMilestones(showMilestones);
+	this.setTimerVisible(showTimer);
 
 	this.clear();
 }
@@ -563,7 +617,7 @@ function Slot(row, symbols, display) {
 	}
 
 	this.choose = function(value) {
-		if (this.row.puzzle.gameOver)
+		if (this.row.puzzle.gameOver || this.row.puzzle.paused)
 			return;
 		if (this.value == value) {
 			this.displaySingle(value);
@@ -575,7 +629,8 @@ function Slot(row, symbols, display) {
 	}
 
 	this.discard = function(value) {
-		if (this.single || this.row.puzzle.gameOver)
+		if (this.single || this.row.puzzle.gameOver ||
+		    this.row.puzzle.paused)
 			return;
 		if (this.value == value) {
 			this.row.puzzle.lose(randomChoice(falseEliminationMessages));

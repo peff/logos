@@ -142,25 +142,42 @@ body[data-cursor="native"] {
 }
 
 #options-menu {
-	position: absolute;
-	top: 2.15rem;
-	left: 0;
-	z-index: 1;
+	position: fixed;
+	inset: 0;
+	z-index: 10;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background-color: rgb(20 25 25 / 45%);
+	backdrop-filter: blur(1px);
+	font-family: Georgia, "Times New Roman", serif;
+	font-size: 0.72rem;
+}
+
+#options-menu[hidden] {
+	display: none;
+}
+
+.options-panel {
 	box-sizing: border-box;
 	border: 1px solid #777267;
 	border-radius: 0.2rem;
 	background-color: #f7f3e9;
-	box-shadow: 0.12rem 0.16rem 0.3rem rgb(33 27 23 / 35%);
-	padding: 0.35rem 0.5rem 0.45rem;
+	box-shadow: 0.18rem 0.22rem 0.5rem rgb(20 18 15 / 55%);
+	padding: 0.55rem 0.7rem 0.65rem;
 	color: #303637;
-	font-family: Georgia, "Times New Roman", serif;
-	font-size: 0.72rem;
 }
 
 #options-menu fieldset {
 	border: 0;
 	margin: 0;
 	padding: 0;
+}
+
+#options-menu fieldset + fieldset {
+	border-top: 1px solid #c8c0b2;
+	margin-top: 0.35rem;
+	padding-top: 0.3rem;
 }
 
 #options-menu legend {
@@ -176,6 +193,11 @@ body[data-cursor="native"] {
 
 #options-menu input {
 	cursor: var(--action-cursor);
+}
+
+#options-menu .options-done {
+	display: block;
+	margin: 0.55rem auto 0;
 }
 
 #logo {

@@ -21,18 +21,31 @@
 			       onClick="puzzle.toggleOptions()" value="Options"
 			       aria-expanded="false" aria-controls="options-menu">
 			<div id="options-menu" hidden>
-				<fieldset>
-					<legend>Cursor</legend>
-					<label><input type="radio" name="cursor" value="gear"
-					              onChange="puzzle.setCursor(this.value)">
-					       Antikythera gear</label>
-					<label><input type="radio" name="cursor" value="stylus"
-					              onChange="puzzle.setCursor(this.value)">
-					       Bronze stylus</label>
-					<label><input type="radio" name="cursor" value="native"
-					              onChange="puzzle.setCursor(this.value)">
-					       System default</label>
-				</fieldset>
+				<div class="options-panel">
+					<fieldset>
+						<legend>Cursor</legend>
+						<label><input type="radio" name="cursor" value="gear"
+						              onChange="puzzle.setCursor(this.value)">
+						       Antikythera gear</label>
+						<label><input type="radio" name="cursor" value="stylus"
+						              onChange="puzzle.setCursor(this.value)">
+						       Bronze stylus</label>
+						<label><input type="radio" name="cursor" value="native"
+						              onChange="puzzle.setCursor(this.value)">
+						       System default</label>
+					</fieldset>
+					<fieldset>
+						<legend>Display</legend>
+						<label><input id="show-milestones" type="checkbox" checked
+						              onChange="puzzle.setMilestones(this.checked)">
+						       Milestone messages</label>
+						<label><input id="show-timer" type="checkbox" checked
+						              onChange="puzzle.setTimerVisible(this.checked)">
+						       Show timer</label>
+					</fieldset>
+					<input class="options-done" type="button"
+					       onClick="puzzle.toggleOptions()" value="Close options">
+				</div>
 			</div>
 			<div id="logo" aria-label="Logos">
 				<span class="logo-greek" aria-hidden="true">ΛΟΓΟΣ</span>
