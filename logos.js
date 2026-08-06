@@ -10,6 +10,18 @@ var defaultSymbols = [
 	["+", "&#x2012;", "&#x00f7;", "x", "=", "√"]
 ];
 
+var startMessages = [
+	"The ancient puzzle awaits. Let reason be your guide.",
+	"The signs are set. The search for truth begins.",
+	"The pattern lies hidden. Reveal that which is concealed.",
+	"The oracle is silent. Only reason may uncover the truth.",
+	"The pieces are before you. Their true order remains veiled.",
+	"The mystery is set. Uncover the hidden order.",
+	"The veil is drawn. Let the work of deduction begin.",
+	"The pattern is broken. Restore the order that lies beneath.",
+	"Truth is hidden among the signs. Seek it well.",
+];
+
 var falsePlacementMessages = [
 	"You have mistaken falsehood for truth. The wisdom of the ancients eludes you...",
 	"You have crowned a false answer as truth. The ancients turn away...",
@@ -130,7 +142,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.gameOver = false;
 		this.generateClues();
 		this.startTimer();
-		this.say("The challenge begins...");
+		this.say(randomChoice(startMessages));
 	}
 
 	this.checkWin = function() {
