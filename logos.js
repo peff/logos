@@ -829,10 +829,12 @@ function Slot(row, symbols, display) {
 }
 
 function checkClueDisplay(clue) {
+	if (!clue.rendered) {
+		clue.show();
+		clue.rendered = true;
+	}
 	if (!clue.display)
 		return;
-	if (!clue.rendered)
-		clue.show();
 	if (clue.active)
 		clue.display.classList.remove("clue-hidden");
 	else

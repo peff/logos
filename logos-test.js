@@ -33,8 +33,12 @@ globalThis.document = {
 
 const source = await Deno.readTextFile(
 	new URL("./logos.js", import.meta.url));
-const Logos = eval(source + "\n;({ Row: Row, Slot: Slot });");
+const Logos = eval(source +
+	"\n;({ Row: Row, Slot: Slot, ExactClue: ExactClue, " +
+	"checkClueDisplay: checkClueDisplay });");
 const Row = Logos.Row;
+const ExactClue = Logos.ExactClue;
+const checkClueDisplay = Logos.checkClueDisplay;
 const symbols = ["0", "1", "2", "3", "4", "5"];
 
 function assert(condition, message) {
@@ -122,6 +126,14 @@ Deno.test("a symbol with one possible slot is resolved", function() {
 			slot.discard(value);
 	assert(actual.single, "row singleton was not resolved");
 	assert(puzzle.losses == 0, "correct eliminations caused a loss");
+});
+
+Deno.test("displaying an exact clue fixes its tile", function() {
+	const puzzle = makePuzzle(1);
+	const clue = new ExactClue(puzzle);
+
+	checkClueDisplay(clue);
+	assert(clue.slot.single, "exact clue did not fix its tile");
 });
 
 Deno.test("a player placement makes one sound", function() {
