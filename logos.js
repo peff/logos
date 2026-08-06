@@ -99,6 +99,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols) {
 	}
 
 	this.checkWin = function() {
+		if (this.gameOver)
+			return;
 		for (var i = 0; i < this.rows.length; i++)
 			if (!this.rows[i].isComplete())
 				return;
