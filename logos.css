@@ -198,9 +198,7 @@ body {
 }
 
 #timer.won,
-#timer.lost,
-#status.won,
-#status.lost {
+#timer.lost {
 	font-weight: bold;
 }
 
