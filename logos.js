@@ -81,7 +81,14 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols) {
 			return;
 		this.gameOver = true;
 		this.stopTimer();
+		this.revealSolution();
 		this.say(msg);
+	}
+
+	this.revealSolution = function() {
+		for (var i = 0; i < this.rows.length; i++)
+			for (var j = 0; j < this.rows[i].slots.length; j++)
+				this.rows[i].slots[j].reveal();
 	}
 
 	this.say = function(msg) {
@@ -366,13 +373,19 @@ function Slot(row, symbols, display) {
 		return this.symbols[this.value];
 	}
 
-	this.displaySingle = function(i) {
+	this.displaySingle = function(i, revealed) {
 		var tile = document.createElement("div");
-		tile.className = "single";
+		tile.className = "single" + (revealed ? " revealed" : "");
 		tile.innerHTML = this.symbols[i];
 		this.elem.innerHTML = '';
 		this.elem.appendChild(tile);
 		this.single = true;
+	}
+
+	this.reveal = function() {
+		if (this.single)
+			return;
+		this.displaySingle(this.value, true);
 	}
 
 	this.displayPossible = function() {
