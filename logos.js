@@ -16,10 +16,13 @@ document.addEventListener('contextmenu', function(ev) {
 	ev.preventDefault();
 });
 
-function Puzzle(board, hClues, vClues, messages, symbols) {
+function Puzzle(board, hClues, vClues, messages, timer, symbols) {
 	symbols = symbols || defaultSymbols;
 
 	this.messages = messages;
+	this.timer = timer;
+	this.timerInterval = null;
+	this.timerStarted = null;
 	this.rows = [];
 	this.hClueSlots = [];
 	this.vClueSlots = [];
@@ -43,27 +46,58 @@ function Puzzle(board, hClues, vClues, messages, symbols) {
 	}
 
 	this.clear = function() {
+		this.stopTimer();
+		this.updateTimer(0);
 		for (var i = 0; i < this.rows.length; i++)
 			this.rows[i].clear();
 		this.say("");
 	}
 
 	this.newGame = function() {
+		this.stopTimer();
+		this.updateTimer(0);
 		for (var i = 0; i < this.rows.length; i++)
 			this.rows[i].newGame();
 		this.generateClues();
 		this.say("Good luck!");
+		this.startTimer();
 	}
 
 	this.checkWin = function() {
 		for (var i = 0; i < this.rows.length; i++)
 			if (!this.rows[i].isComplete())
 				return;
+		this.stopTimer();
 		this.say("You win!");
 	}
 
 	this.say = function(msg) {
 		this.messages.innerHTML = msg;
+	}
+
+	this.updateTimer = function(elapsed) {
+		var totalSeconds = Math.floor(elapsed / 1000);
+		var minutes = Math.floor(totalSeconds / 60);
+		var seconds = totalSeconds % 60;
+		this.timer.textContent = minutes + ":" +
+			(seconds < 10 ? "0" : "") + seconds;
+	}
+
+	this.startTimer = function() {
+		var puzzle = this;
+		this.timerStarted = Date.now();
+		this.timerInterval = setInterval(function() {
+			puzzle.updateTimer(Date.now() - puzzle.timerStarted);
+		}, 250);
+	}
+
+	this.stopTimer = function() {
+		if (this.timerInterval === null)
+			return;
+		this.updateTimer(Date.now() - this.timerStarted);
+		clearInterval(this.timerInterval);
+		this.timerInterval = null;
+		this.timerStarted = null;
 	}
 
 	this.generateClues = function() {

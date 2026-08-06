@@ -8,7 +8,10 @@
 		<script src="logos.js"></script>
 	</head>
 	<body>
-		<div id="message"></div>
+		<div id="message">
+			<span id="status"></span>
+			<span id="timer">0:00</span>
+		</div>
 		<table id="board"></table>
 		<table id="hclues"></table>
 		<div id="controls">
@@ -27,7 +30,8 @@
 				document.getElementById("board"),
 				document.getElementById("hclues"),
 				document.getElementById("vclues"),
-				document.getElementById("message"));
+				document.getElementById("status"),
+				document.getElementById("timer"));
 		</script>
 	</body>
 </html>
