@@ -78,6 +78,7 @@ body {
 	border-radius: 3px;
 	background-color: var(--tile-bg);
 	color: var(--tile-fg);
+	cursor: pointer;
 	text-align: center;
 	font-size: 0.85rem;
 
