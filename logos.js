@@ -692,19 +692,26 @@ function Slot(row, symbols, display) {
 }
 
 function checkClueDisplay(clue) {
-	if (clue.active == showActiveClues)
+	if (!clue.display)
+		return;
+	if (!clue.rendered)
 		clue.show();
-	else if (clue.display)
-		clue.display.innerHTML = "";
+	if (clue.active == showActiveClues)
+		clue.display.classList.remove("clue-hidden");
+	else
+		clue.display.classList.add("clue-hidden");
 }
 
 function displayClue(clue, slot, type, elements) {
-	slot.innerHTML = "";
-	for (var i = 0; i < elements.length; i++) {
-		var elem = document.createElement(type);
-		elem.className = elements[i][0];
-		elem.innerHTML = elements[i][1];
-		slot.appendChild(elem);
+	if (!clue.rendered) {
+		slot.innerHTML = "";
+		for (var i = 0; i < elements.length; i++) {
+			var elem = document.createElement(type);
+			elem.className = elements[i][0];
+			elem.innerHTML = elements[i][1];
+			slot.appendChild(elem);
+		}
+		clue.rendered = true;
 	}
 	if (!clue.listener) {
 		clue.listener = function(ev) {

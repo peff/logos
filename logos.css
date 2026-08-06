@@ -463,6 +463,10 @@ body[data-cursor="native"] {
 	user-select: none;
 }
 
+.clue-hidden > * {
+	visibility: hidden;
+}
+
 #hclues .clue {
 	box-sizing: border-box;
 	width: 9rem;
