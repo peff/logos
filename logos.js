@@ -325,6 +325,16 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.toggleModal(this.help, this.helpButton, "Close help");
 	}
 
+	var puzzle = this;
+	this.options.addEventListener("click", function(ev) {
+		if (ev.target == puzzle.options)
+			puzzle.toggleOptions();
+	});
+	this.help.addEventListener("click", function(ev) {
+		if (ev.target == puzzle.help)
+			puzzle.toggleHelp();
+	});
+
 	this.setCursor = function(style) {
 		if (["gear", "stylus", "native"].indexOf(style) < 0)
 			style = "gear";
