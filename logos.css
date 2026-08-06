@@ -16,7 +16,7 @@ html {
 body {
 	--big-tile-width: 2.65rem;
 	--big-tile-height: 2.65rem;
-	cursor: default;
+	cursor: url("cursor-stylus.svg") 1 1, default;
 	display: grid;
 	grid-template-columns: 19rem 27.5rem;
 	grid-template-rows: 1.15rem 18.3rem 5.8rem;
@@ -80,7 +80,7 @@ body {
 	border-radius: 3px;
 	background-color: var(--tile-bg);
 	color: var(--tile-fg);
-	cursor: pointer;
+	cursor: url("cursor-stylus-active.svg") 1 1, pointer;
 	text-align: center;
 	font-size: 0.85rem;
 
@@ -122,7 +122,7 @@ body {
 	border-radius: 0.2rem;
 	background-color: #f7f3e9;
 	color: #303637;
-	cursor: pointer;
+	cursor: url("cursor-stylus-active.svg") 1 1, pointer;
 	padding: 0.35rem 0.65rem;
 	font-family: Georgia, "Times New Roman", serif;
 	font-size: inherit;
@@ -274,7 +274,7 @@ body {
 		inset 0.04rem 0.05rem 0.12rem rgb(255 255 255 / 45%),
 		inset -0.05rem -0.04rem 0.14rem rgb(117 94 55 / 8%);
 	border-radius: 0.18rem;
-	cursor: pointer;
+	cursor: url("cursor-stylus-active.svg") 1 1, pointer;
 	user-select: none;
 }
 
