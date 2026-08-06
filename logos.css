@@ -132,6 +132,7 @@ body[data-cursor="native"] {
 }
 
 .control-buttons > input,
+.sound-tests > input,
 .modal-done {
 	border: 1px solid #777267;
 	border-radius: 0.2rem;
@@ -151,6 +152,16 @@ body[data-cursor="native"] {
 .control-buttons > input {
 	padding: 0.28rem 0.45rem;
 	font-size: 0.78rem;
+}
+
+.sound-tests {
+	display: flex;
+	gap: 0.2rem;
+}
+
+.sound-tests > input {
+	padding: 0.2rem 0.35rem;
+	font-size: 0.68rem;
 }
 
 .modal-done {

@@ -378,8 +378,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		}
 	}
 
-	this.playSound = function(type) {
-		if (!this.soundEffects)
+	this.playSound = function(type, preview) {
+		if (!preview && !this.soundEffects)
 			return;
 		var AudioContext = window.AudioContext || window.webkitAudioContext;
 		if (!AudioContext)
