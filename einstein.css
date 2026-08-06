@@ -75,9 +75,14 @@ body {
 	height: 50%;
 }
 
+#board .family-2 .possibility {
+	letter-spacing: -0.12em;
+}
+
 #board table {
 	width: 100%;
 	height: 100%;
+	table-layout: fixed;
 }
 
 #controls {
