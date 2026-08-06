@@ -5,7 +5,8 @@ var defaultSymbols = [
 	// unicode dice
 	["&#x2680;", "&#x2681;", "&#x2682;", "&#x2683;", "&#x2684;", "&#x2685;"],
 	// unicode shapes
-	["&#x25b3;", "&#x25bd;", "&#x25a1;", "&#x25c7;", "&#x2b20;", "&#x25cb;"],
+	["&#x25b3;", "&#x25bd;", "<span class=\"heavy-outline\">&#x25a1;</span>",
+	 "&#x25c7;", "&#x2b20;", "<span class=\"circle-symbol\">&#x25cb;</span>"],
 	["+", "&#x2012;", "&#x00f7;", "x", "=", "√"]
 ];
 
