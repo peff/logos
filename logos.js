@@ -363,25 +363,163 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		}
 	}
 
+	this.setSoundEffects = function(enabled) {
+		this.soundEffects = enabled;
+		this.options.querySelector("#sound-effects").checked = enabled;
+		try {
+			localStorage.setItem("soundEffects", enabled);
+		} catch (e) {
+			/* The choice still applies for the current page. */
+		}
+	}
+
+	this.playSound = function(type) {
+		if (!this.soundEffects)
+			return;
+		var AudioContext = window.AudioContext || window.webkitAudioContext;
+		if (!AudioContext)
+			return;
+		if (!this.audioContext) {
+			this.audioContext = new AudioContext();
+			this.soundNoise = makeNoise(this.audioContext, 0.5);
+		}
+		var context = this.audioContext;
+		if (context.state == "suspended")
+			context.resume();
+		var variation = 0.94 + Math.random() * 0.12;
+		if (type == "place") {
+			playNoise(context, this.soundNoise,
+				  1100 * variation, 0.8, 0.075, 0.022);
+			playTone(context, 185 * variation, 0.03, 0.14,
+				 undefined, "sine");
+			playTone(context, 337 * variation, 0.021, 0.1,
+				 undefined, "sine");
+			playTone(context, 521 * variation, 0.014, 0.07,
+				 undefined, "sine");
+			playTone(context, 743 * variation, 0.008, 0.045,
+				 undefined, "sine");
+		} else if (type == "discard") {
+			playScrape(context, this.soundNoise, variation);
+		} else if (type == "mistake") {
+			playNoise(context, this.soundNoise,
+				  650 * variation, 0.7, 0.28, 0.075, "highpass");
+			playNoise(context, this.soundNoise,
+				  1700 * variation, 1.4, 0.16, 0.07,
+				  "bandpass", 0.025);
+			playNoise(context, this.soundNoise,
+				  2400 * variation, 1.8, 0.13, 0.065,
+				  "bandpass", 0.065);
+			playNoise(context, this.soundNoise,
+				  3200 * variation, 2.2, 0.1, 0.055,
+				  "bandpass", 0.11);
+			playNoise(context, this.soundNoise,
+				  160 * variation, 1.1, 0.11, 0.34);
+			playTone(context, 145 * variation, 0.07, 0.55,
+				 45 * variation);
+			playTone(context, 154 * variation, 0.04, 0.48,
+				 48 * variation);
+		}
+	}
+
 	var cursor = "gear";
 	var showMilestones = true;
 	var showTimer = true;
+	var soundEffects = false;
 	try {
 		cursor = localStorage.getItem("cursor") || cursor;
 		var storedMilestones = localStorage.getItem("showMilestones");
 		var storedTimer = localStorage.getItem("showTimer");
+		var storedSoundEffects = localStorage.getItem("soundEffects");
 		if (storedMilestones !== null)
 			showMilestones = storedMilestones == "true";
 		if (storedTimer !== null)
 			showTimer = storedTimer == "true";
+		if (storedSoundEffects !== null)
+			soundEffects = storedSoundEffects == "true";
 	} catch (e) {
 		/* Storage may be unavailable for local files. */
 	}
 	this.setCursor(cursor);
 	this.setMilestones(showMilestones);
 	this.setTimerVisible(showTimer);
+	this.setSoundEffects(soundEffects);
 
 	this.clear();
+}
+
+function makeNoise(context, duration) {
+	var buffer = context.createBuffer(1,
+		Math.ceil(context.sampleRate * duration), context.sampleRate);
+	var data = buffer.getChannelData(0);
+	for (var i = 0; i < data.length; i++)
+		data[i] = Math.random() * 2 - 1;
+	return buffer;
+}
+
+function fadeSound(gain, context, volume, duration, delay) {
+	var now = context.currentTime + (delay || 0);
+	gain.gain.setValueAtTime(volume, now);
+	gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+}
+
+function playNoise(context, buffer, frequency, q, volume, duration, type,
+		delay) {
+	var source = context.createBufferSource();
+	var filter = context.createBiquadFilter();
+	var gain = context.createGain();
+	var start = context.currentTime + (delay || 0);
+	source.buffer = buffer;
+	source.playbackRate.value = 0.92 + Math.random() * 0.16;
+	filter.type = type || "bandpass";
+	filter.frequency.value = frequency;
+	filter.Q.value = q;
+	fadeSound(gain, context, volume, duration, delay);
+	source.connect(filter).connect(gain).connect(context.destination);
+	source.start(start);
+	source.stop(start + duration);
+}
+
+function playScrape(context, buffer, variation) {
+	var source = context.createBufferSource();
+	var highpass = context.createBiquadFilter();
+	var lowpass = context.createBiquadFilter();
+	var gain = context.createGain();
+	var now = context.currentTime;
+	source.buffer = buffer;
+	source.playbackRate.value = 0.9 + Math.random() * 0.2;
+	highpass.type = "highpass";
+	highpass.frequency.value = 380 * variation;
+	lowpass.type = "lowpass";
+	lowpass.frequency.setValueAtTime(3200 * variation, now);
+	lowpass.frequency.exponentialRampToValueAtTime(1200 * variation,
+		now + 0.16);
+	gain.gain.setValueAtTime(0.0001, now);
+	gain.gain.linearRampToValueAtTime(0.035, now + 0.012);
+	gain.gain.linearRampToValueAtTime(0.014, now + 0.055);
+	gain.gain.linearRampToValueAtTime(0.028, now + 0.095);
+	gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.16);
+	source.connect(highpass).connect(lowpass).connect(gain)
+		.connect(context.destination);
+	source.start(now);
+	source.stop(now + 0.16);
+	playNoise(context, buffer, 1450 * variation, 1.1, 0.025, 0.018,
+		"bandpass", 0.045);
+	playNoise(context, buffer, 1050 * variation, 0.9, 0.02, 0.02,
+		"bandpass", 0.11);
+}
+
+function playTone(context, frequency, volume, duration, endFrequency, type) {
+	var oscillator = context.createOscillator();
+	var gain = context.createGain();
+	oscillator.type = type || "triangle";
+	oscillator.frequency.setValueAtTime(frequency, context.currentTime);
+	if (endFrequency)
+		oscillator.frequency.exponentialRampToValueAtTime(endFrequency,
+			context.currentTime + duration);
+	fadeSound(gain, context, volume, duration);
+	oscillator.connect(gain).connect(context.destination);
+	oscillator.start();
+	oscillator.stop(context.currentTime + duration);
 }
 
 function limitDisplayedClues(clues, displayType, limit) {
@@ -616,12 +754,12 @@ function Slot(row, symbols, display) {
 				cell.className = "possibility";
 				cell.addEventListener('click',
 					function(s, j) { return function() {
-						s.choose(j);
+						s.choose(j, true);
 					}}(this, j));
 				cell.addEventListener('contextmenu',
 					function(s, j) { return function(ev) {
 						ev.preventDefault();
-						s.discard(j);
+						s.discard(j, true);
 					}}(this, j));
 			}
 		}
@@ -631,9 +769,12 @@ function Slot(row, symbols, display) {
 		this.single = false;
 	}
 
-	this.choose = function(value) {
+	this.choose = function(value, playerAction) {
 		if (this.row.puzzle.gameOver || this.row.puzzle.paused)
 			return;
+		if (playerAction)
+			this.row.puzzle.playSound(this.value == value ?
+				"place" : "mistake");
 		if (this.value == value) {
 			this.displaySingle(value);
 			this.row.removePossible(value);
@@ -643,10 +784,13 @@ function Slot(row, symbols, display) {
 		}
 	}
 
-	this.discard = function(value) {
+	this.discard = function(value, playerAction) {
 		if (this.single || this.row.puzzle.gameOver ||
 		    this.row.puzzle.paused)
 			return;
+		if (playerAction)
+			this.row.puzzle.playSound(this.value == value ?
+				"mistake" : "discard");
 		if (this.value == value) {
 			this.row.puzzle.lose(randomChoice(falseEliminationMessages));
 		} else {

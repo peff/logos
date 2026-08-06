@@ -47,8 +47,12 @@ function makePuzzle(numRows) {
 		gameOver: false,
 		paused: false,
 		losses: 0,
+		sounds: [],
 		rows: [],
 		checkWin() {},
+		playSound(sound) {
+			this.sounds.push(sound);
+		},
 		lose() {
 			this.losses++;
 			this.gameOver = true;
@@ -118,6 +122,43 @@ Deno.test("a symbol with one possible slot is resolved", function() {
 			slot.discard(value);
 	assert(actual.single, "row singleton was not resolved");
 	assert(puzzle.losses == 0, "correct eliminations caused a loss");
+});
+
+Deno.test("a player placement makes one sound", function() {
+	const puzzle = makePuzzle(1);
+	const slot = puzzle.rows[0].slots[0];
+
+	slot.choose(slot.value, true);
+	assert(puzzle.sounds.length == 1,
+	       "automatic deductions made extra sounds");
+	assert(puzzle.sounds[0] == "place", "placement made the wrong sound");
+});
+
+Deno.test("a player elimination makes one sound", function() {
+	const puzzle = makePuzzle(1);
+	const slot = puzzle.rows[0].slots[0];
+	const wrong = (slot.value + 1) % symbols.length;
+
+	slot.discard(wrong, true);
+	assert(puzzle.sounds.length == 1,
+	       "automatic deductions made extra sounds");
+	assert(puzzle.sounds[0] == "discard",
+	       "elimination made the wrong sound");
+});
+
+Deno.test("losing player actions make a mistake sound", function() {
+	for (const action of ["choose", "discard"]) {
+		const puzzle = makePuzzle(1);
+		const slot = puzzle.rows[0].slots[0];
+		const value = action == "choose" ?
+			(slot.value + 1) % symbols.length : slot.value;
+
+		slot[action](value, true);
+		assert(puzzle.sounds.length == 1,
+		       "losing " + action + " made extra sounds");
+		assert(puzzle.sounds[0] == "mistake",
+		       "losing " + action + " made the wrong sound");
+	}
 });
 
 Deno.test("row propagation updates every slot before deducing", function() {
