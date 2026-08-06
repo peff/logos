@@ -152,6 +152,16 @@ body {
 	border-top: 1px solid #8c877a;
 }
 
+.logo-tagline {
+	display: block;
+	margin-top: 0.35rem;
+	color: #68685f;
+	font-family: Georgia, "Times New Roman", serif;
+	font-size: 0.52rem;
+	font-style: italic;
+	letter-spacing: 0.04em;
+}
+
 #message {
 	grid-area: message;
 	border-radius: 5px;
