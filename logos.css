@@ -130,14 +130,29 @@ body[data-cursor="native"] {
 	width: 100%;
 }
 
-#controls input {
+.control-buttons > input,
+.modal-done {
 	border: 1px solid #777267;
 	border-radius: 0.2rem;
 	background-color: #f7f3e9;
 	color: #303637;
 	cursor: var(--action-cursor);
-	padding: 0.35rem 0.65rem;
 	font-family: Georgia, "Times New Roman", serif;
+}
+
+.control-buttons {
+	display: flex;
+	gap: 0.2rem;
+	white-space: nowrap;
+}
+
+.control-buttons > input {
+	padding: 0.28rem 0.45rem;
+	font-size: 0.78rem;
+}
+
+.modal-done {
+	padding: 0.35rem 0.65rem;
 	font-size: inherit;
 }
 

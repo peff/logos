@@ -15,14 +15,16 @@
 		<table id="board"></table>
 		<table id="hclues"></table>
 		<div id="controls">
-			<input type="button" onClick="puzzle.newGame()" value="New Game">
-			<input type="button" onClick="puzzle.toggleClues()" value="Toggle Clues">
-			<input id="options-button" type="button"
-			       onClick="puzzle.toggleOptions()" value="Options"
-			       aria-expanded="false" aria-controls="options-menu">
-			<input id="help-button" type="button"
-			       onClick="puzzle.toggleHelp()" value="How to play"
-			       aria-expanded="false" aria-controls="help-menu">
+			<div class="control-buttons">
+				<input type="button" onClick="puzzle.newGame()" value="New Game">
+				<input type="button" onClick="puzzle.toggleClues()" value="Toggle Clues">
+				<input id="options-button" type="button"
+				       onClick="puzzle.toggleOptions()" value="Options"
+				       aria-expanded="false" aria-controls="options-menu">
+				<input id="help-button" type="button"
+				       onClick="puzzle.toggleHelp()" value="How to play"
+				       aria-expanded="false" aria-controls="help-menu">
+			</div>
 			<div id="options-menu" class="modal" hidden role="dialog"
 			     aria-modal="true" aria-label="Options">
 				<div class="modal-panel options-panel">
