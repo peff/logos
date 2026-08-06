@@ -185,7 +185,12 @@ body {
 .family-0 { --tile-bg: #303738; --tile-fg: #8eb9d8; --tile-accent: #78a9cc; }
 .family-1 { --tile-bg: #303738; --tile-fg: #91c39a; --tile-accent: #79ad83; }
 .family-2 { --tile-bg: #303738; --tile-fg: #bea4d1; --tile-accent: #a98bc0; }
-.family-3 { --tile-bg: #303738; --tile-fg: #d8bb76; --tile-accent: #c4a253; }
+.family-3 {
+	--tile-bg: #303738;
+	--tile-fg: #d8bb76;
+	--tile-accent: #c4a253;
+	--tile-weight: 400;
+}
 .family-4 { --tile-bg: #303738; --tile-fg: #d69aa1; --tile-accent: #c27e87; }
 .family-5 { --tile-bg: #303738; --tile-fg: #86c3bb; --tile-accent: #6baaa2; }
 
@@ -204,7 +209,7 @@ body {
 		inset 0 0 0.16rem rgb(0 0 0 / 38%),
 		inset 0 0 0.04rem rgb(255 255 255 / 22%);
 	font-family: "Palatino Linotype", Palatino, Georgia, serif;
-	font-weight: 600;
+	font-weight: var(--tile-weight, 600);
 }
 
 .arrow {
