@@ -245,7 +245,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 				var type = weightedChoice(types);
 				var clue = new type(this);
 				this.clues.push(clue);
-				clue.active = true;
+				if (clue.displayType)
+					clue.active = true;
 			}
 
 			for (var i = this.clues.length - 1; i >= 0; i--) {
@@ -274,7 +275,10 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.numVClues = 0;
 		for (var i = 0; i < this.clues.length; i++) {
 			var clue = this.clues[i];
-			if (clue.displayType == "horizontal")
+			if (clue.applyInitialState) {
+				clue.applyInitialState();
+				continue;
+			} else if (clue.displayType == "horizontal")
 				clue.display = this.getHClueSlot();
 			else if (clue.displayType == "vertical")
 				clue.display = this.getVClueSlot();
@@ -830,27 +834,22 @@ function Slot(row, symbols, display) {
 
 function checkClueDisplay(clue) {
 	if (!clue.rendered) {
-		clue.show();
+		clue.render();
 		clue.rendered = true;
 	}
-	if (!clue.display)
-		return;
 	if (clue.active)
 		clue.display.classList.remove("clue-hidden");
 	else
 		clue.display.classList.add("clue-hidden");
 }
 
-function displayClue(clue, slot, type, elements) {
-	if (!clue.rendered) {
-		slot.innerHTML = "";
-		for (var i = 0; i < elements.length; i++) {
-			var elem = document.createElement(type);
-			elem.className = elements[i][0];
-			elem.innerHTML = elements[i][1];
-			slot.appendChild(elem);
-		}
-		clue.rendered = true;
+function renderClue(clue, slot, type, elements) {
+	slot.innerHTML = "";
+	for (var i = 0; i < elements.length; i++) {
+		var elem = document.createElement(type);
+		elem.className = elements[i][0];
+		elem.innerHTML = elements[i][1];
+		slot.appendChild(elem);
 	}
 	if (!clue.listener) {
 		clue.listener = function(ev) {
@@ -890,8 +889,8 @@ function OrderClue(puzzle) {
 			restrictVariable(right, rightAllowed);
 	}
 
-	this.show = function() {
-		displayClue(this, this.display, "span", [
+	this.render = function() {
+		renderClue(this, this.display, "span", [
 			    ["tile " + this.lRow.familyClass,
 			     this.lRow.slots[this.lCol].symbol()],
 			    ["dots", "..."],
@@ -928,8 +927,8 @@ function Adjacent2Clue(puzzle) {
 			restrictVariable(right, rightAllowed & fullDomain);
 	}
 
-	this.show = function() {
-		displayClue(this, this.display, "span", [
+	this.render = function() {
+		renderClue(this, this.display, "span", [
 			    ["tile " + this.lRow.familyClass,
 			     this.lRow.slots[this.lCol].symbol()],
 			    ["arrow", "&#x2194;"],
@@ -987,8 +986,8 @@ function Adjacent3Clue(puzzle) {
 		return changed;
 	}
 
-	this.show = function() {
-		displayClue(this, this.display, "span", [
+	this.render = function() {
+		renderClue(this, this.display, "span", [
 			    ["tile " + this.lRow.familyClass,
 			     this.lRow.slots[this.lCol].symbol()],
 			    ["tile " + this.mRow.familyClass,
@@ -1019,8 +1018,8 @@ function ColumnClue(puzzle) {
 			restrictVariable(bottom, common);
 	}
 
-	this.show = function() {
-		displayClue(this, this.display, "div", [
+	this.render = function() {
+		renderClue(this, this.display, "div", [
 			    ["tile " + this.tRow.familyClass,
 			     this.tRow.slots[this.col].symbol()],
 			    ["tile " + this.bRow.familyClass,
@@ -1040,7 +1039,7 @@ function ExactClue(puzzle) {
 		return restrictVariable(variable, 1 << pos);
 	}
 
-	this.show = function() {
+	this.applyInitialState = function() {
 		this.slot.choose(this.slot.value);
 	}
 }
