@@ -30,6 +30,17 @@ var falseEliminationMessages = [
 	"You have excluded what reason still permits. The philosophers dismiss your proof...",
 ];
 
+var winMessages = [
+	"The pattern is revealed. The wisdom of the ancients is yours.",
+	"Every sign has found its place. The secrets of the ancients stand revealed.",
+	"You have restored the hidden order. The ancients acknowledge your wisdom.",
+	"The veil is lifted. What was concealed is now understood.",
+	"The final truth falls into place. The oracle speaks your name.",
+	"You have mastered the logic of the ancients. The mystery is no more.",
+	"The design is complete. Knowledge emerges from the shadows.",
+	"All false paths are closed. The one true order remains.",
+];
+
 var showActiveClues = true;
 
 document.addEventListener('contextmenu', function(ev) {
@@ -93,7 +104,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols) {
 				return;
 		this.gameOver = true;
 		this.stopTimer();
-		this.say("You win!");
+		this.say(randomChoice(winMessages));
 	}
 
 	this.lose = function(msg) {
