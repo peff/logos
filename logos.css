@@ -16,7 +16,9 @@ html {
 body {
 	--big-tile-width: 2.65rem;
 	--big-tile-height: 2.65rem;
-	cursor: url("cursor-stylus.svg") 1 1, default;
+	--default-cursor: url("cursor-gear.svg") 1 1, default;
+	--action-cursor: url("cursor-gear-active.svg") 1 1, pointer;
+	cursor: var(--default-cursor);
 	display: grid;
 	grid-template-columns: 19rem 27.5rem;
 	grid-template-rows: 1.15rem 18.3rem 5.8rem;
@@ -36,6 +38,16 @@ body {
 	font-size: 1rem;
 	color: #263238;
 	user-select: none;
+}
+
+body[data-cursor="stylus"] {
+	--default-cursor: url("cursor-stylus.svg") 1 1, default;
+	--action-cursor: url("cursor-stylus-active.svg") 1 1, pointer;
+}
+
+body[data-cursor="native"] {
+	--default-cursor: default;
+	--action-cursor: pointer;
 }
 
 #board {
@@ -80,7 +92,7 @@ body {
 	border-radius: 3px;
 	background-color: var(--tile-bg);
 	color: var(--tile-fg);
-	cursor: url("cursor-stylus-active.svg") 1 1, pointer;
+	cursor: var(--action-cursor);
 	text-align: center;
 	font-size: 0.85rem;
 
@@ -113,6 +125,7 @@ body {
 
 #controls {
 	grid-area: controls;
+	position: relative;
 	margin: 0;
 	width: 100%;
 }
@@ -122,10 +135,47 @@ body {
 	border-radius: 0.2rem;
 	background-color: #f7f3e9;
 	color: #303637;
-	cursor: url("cursor-stylus-active.svg") 1 1, pointer;
+	cursor: var(--action-cursor);
 	padding: 0.35rem 0.65rem;
 	font-family: Georgia, "Times New Roman", serif;
 	font-size: inherit;
+}
+
+#options-menu {
+	position: absolute;
+	top: 2.15rem;
+	left: 0;
+	z-index: 1;
+	box-sizing: border-box;
+	border: 1px solid #777267;
+	border-radius: 0.2rem;
+	background-color: #f7f3e9;
+	box-shadow: 0.12rem 0.16rem 0.3rem rgb(33 27 23 / 35%);
+	padding: 0.35rem 0.5rem 0.45rem;
+	color: #303637;
+	font-family: Georgia, "Times New Roman", serif;
+	font-size: 0.72rem;
+}
+
+#options-menu fieldset {
+	border: 0;
+	margin: 0;
+	padding: 0;
+}
+
+#options-menu legend {
+	margin-bottom: 0.2rem;
+	font-weight: bold;
+}
+
+#options-menu label {
+	display: block;
+	cursor: var(--action-cursor);
+	white-space: nowrap;
+}
+
+#options-menu input {
+	cursor: var(--action-cursor);
 }
 
 #logo {
@@ -274,7 +324,7 @@ body {
 		inset 0.04rem 0.05rem 0.12rem rgb(255 255 255 / 45%),
 		inset -0.05rem -0.04rem 0.14rem rgb(117 94 55 / 8%);
 	border-radius: 0.18rem;
-	cursor: url("cursor-stylus-active.svg") 1 1, pointer;
+	cursor: var(--action-cursor);
 	user-select: none;
 }
 

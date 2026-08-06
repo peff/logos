@@ -67,11 +67,14 @@ document.addEventListener('contextmenu', function(ev) {
 	ev.preventDefault();
 });
 
-function Puzzle(board, hClues, vClues, messages, timer, symbols) {
+function Puzzle(board, hClues, vClues, messages, timer, symbols,
+		options, optionsButton) {
 	symbols = symbols || defaultSymbols;
 
 	this.messages = messages;
 	this.timer = timer;
+	this.options = options;
+	this.optionsButton = optionsButton;
 	this.timerInterval = null;
 	this.timerStarted = null;
 	this.gameOver = true;
@@ -260,6 +263,34 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols) {
 		for (var i = 0; i < this.clues.length; i++)
 			checkClueDisplay(this.clues[i]);
 	}
+
+	this.toggleOptions = function() {
+		this.options.hidden = !this.options.hidden;
+		this.optionsButton.setAttribute("aria-expanded",
+						!this.options.hidden);
+	}
+
+	this.setCursor = function(style) {
+		if (["gear", "stylus", "native"].indexOf(style) < 0)
+			style = "gear";
+		document.body.dataset.cursor = style;
+		var input = this.options.querySelector(
+				'input[value="' + style + '"]');
+		input.checked = true;
+		try {
+			localStorage.setItem("cursor", style);
+		} catch (e) {
+			/* The choice still applies for the current page. */
+		}
+	}
+
+	var cursor = "gear";
+	try {
+		cursor = localStorage.getItem("cursor") || cursor;
+	} catch (e) {
+		/* Storage may be unavailable for local files. */
+	}
+	this.setCursor(cursor);
 
 	this.clear();
 }

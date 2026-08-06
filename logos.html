@@ -17,6 +17,23 @@
 		<div id="controls">
 			<input type="button" onClick="puzzle.newGame()" value="New Game">
 			<input type="button" onClick="puzzle.toggleClues()" value="Toggle Clues">
+			<input id="options-button" type="button"
+			       onClick="puzzle.toggleOptions()" value="Options"
+			       aria-expanded="false" aria-controls="options-menu">
+			<div id="options-menu" hidden>
+				<fieldset>
+					<legend>Cursor</legend>
+					<label><input type="radio" name="cursor" value="gear"
+					              onChange="puzzle.setCursor(this.value)">
+					       Antikythera gear</label>
+					<label><input type="radio" name="cursor" value="stylus"
+					              onChange="puzzle.setCursor(this.value)">
+					       Bronze stylus</label>
+					<label><input type="radio" name="cursor" value="native"
+					              onChange="puzzle.setCursor(this.value)">
+					       System default</label>
+				</fieldset>
+			</div>
 			<div id="logo" aria-label="Logos">
 				<span class="logo-greek" aria-hidden="true">ΛΟΓΟΣ</span>
 				<span class="logo-name">LOGOS</span>
@@ -31,7 +48,10 @@
 				document.getElementById("hclues"),
 				document.getElementById("vclues"),
 				document.getElementById("status"),
-				document.getElementById("timer"));
+				document.getElementById("timer"),
+				undefined,
+				document.getElementById("options-menu"),
+				document.getElementById("options-button"));
 		</script>
 	</body>
 </html>
