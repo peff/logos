@@ -482,14 +482,19 @@ function makeNoise(context, duration) {
 	return buffer;
 }
 
-function fadeSound(gain, context, volume, duration, delay) {
+function fadeSound(gain, context, volume, duration, delay, attack) {
 	var now = context.currentTime + (delay || 0);
-	gain.gain.setValueAtTime(volume, now);
+	if (attack) {
+		gain.gain.setValueAtTime(0.0001, now);
+		gain.gain.exponentialRampToValueAtTime(volume, now + attack);
+	} else {
+		gain.gain.setValueAtTime(volume, now);
+	}
 	gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
 }
 
 function playNoise(context, buffer, frequency, q, volume, duration, type,
-		delay) {
+		delay, attack) {
 	var source = context.createBufferSource();
 	var filter = context.createBiquadFilter();
 	var gain = context.createGain();
@@ -499,7 +504,7 @@ function playNoise(context, buffer, frequency, q, volume, duration, type,
 	filter.type = type || "bandpass";
 	filter.frequency.value = frequency;
 	filter.Q.value = q;
-	fadeSound(gain, context, volume, duration, delay);
+	fadeSound(gain, context, volume, duration, delay, attack);
 	source.connect(filter).connect(gain).connect(context.destination);
 	source.start(start);
 	source.stop(start + duration);
@@ -529,9 +534,9 @@ function playScrape(context, buffer, variation) {
 	source.start(now);
 	source.stop(now + 0.16);
 	playNoise(context, buffer, 1450 * variation, 1.1, 0.025, 0.018,
-		"bandpass", 0.045);
+		"bandpass", 0.045, 0.004);
 	playNoise(context, buffer, 1050 * variation, 0.9, 0.02, 0.02,
-		"bandpass", 0.11);
+		"bandpass", 0.11, 0.004);
 }
 
 function playChime(context, frequency, delay, volume) {
