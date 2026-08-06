@@ -174,12 +174,12 @@ body {
 	line-height: 1;
 }
 
-.family-0 { --tile-bg: #303740; --tile-fg: #f8fafc; --tile-accent: #60a5fa; }
-.family-1 { --tile-bg: #303740; --tile-fg: #f8fafc; --tile-accent: #4ade80; }
-.family-2 { --tile-bg: #303740; --tile-fg: #f8fafc; --tile-accent: #c084fc; }
-.family-3 { --tile-bg: #303740; --tile-fg: #f8fafc; --tile-accent: #fbbf24; }
-.family-4 { --tile-bg: #303740; --tile-fg: #f8fafc; --tile-accent: #fb7185; }
-.family-5 { --tile-bg: #303740; --tile-fg: #f8fafc; --tile-accent: #2dd4bf; }
+.family-0 { --tile-bg: #303740; --tile-fg: #60a5fa; --tile-accent: #60a5fa; }
+.family-1 { --tile-bg: #303740; --tile-fg: #4ade80; --tile-accent: #4ade80; }
+.family-2 { --tile-bg: #303740; --tile-fg: #c084fc; --tile-accent: #c084fc; }
+.family-3 { --tile-bg: #303740; --tile-fg: #fbbf24; --tile-accent: #fbbf24; }
+.family-4 { --tile-bg: #303740; --tile-fg: #fb7185; --tile-accent: #fb7185; }
+.family-5 { --tile-bg: #303740; --tile-fg: #2dd4bf; --tile-accent: #2dd4bf; }
 
 .arrow {
 	color: #2563eb;
