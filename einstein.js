@@ -45,7 +45,7 @@ function Puzzle(board, hClues, vClues, messages, symbols) {
 	this.clear = function() {
 		for (var i = 0; i < this.rows.length; i++)
 			this.rows[i].clear();
-		this.say("Einstein Puzzle");
+		this.say("");
 	}
 
 	this.newGame = function() {

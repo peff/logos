@@ -1,3 +1,11 @@
+@font-face {
+	font-family: Forum;
+	src: url("Forum-Regular.ttf") format("truetype");
+	font-weight: 400;
+	font-style: normal;
+	font-display: swap;
+}
+
 html {
 	width: 100%;
 	height: 100%;
@@ -110,6 +118,38 @@ body {
 	padding: 0.35rem 0.65rem;
 	font-family: Georgia, "Times New Roman", serif;
 	font-size: inherit;
+}
+
+#logo {
+	margin-top: 0.5rem;
+	width: 18rem;
+	color: #293638;
+	text-align: center;
+	font-family: Forum, Georgia, "Times New Roman", serif;
+}
+
+.logo-greek {
+	display: block;
+	font-size: 2.1rem;
+	line-height: 0.9;
+	letter-spacing: 0.12em;
+}
+
+.logo-name {
+	display: flex;
+	align-items: center;
+	gap: 0.6rem;
+	margin-top: 0.3rem;
+	font-size: 0.55rem;
+	line-height: 1;
+	letter-spacing: 0.45em;
+}
+
+.logo-name::before,
+.logo-name::after {
+	content: "";
+	flex: 1;
+	border-top: 1px solid #8c877a;
 }
 
 #message {
