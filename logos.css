@@ -252,14 +252,33 @@ body[data-cursor="native"] {
 	white-space: nowrap;
 }
 
-.help-fixed,
-.help-stack {
-	display: inline-block;
-	border: 1px solid #777267;
+.help-tile {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	box-sizing: border-box;
+	border: 1px solid var(--tile-accent);
 	border-radius: 0.12rem;
-	background-color: #293638;
-	padding: 0.08rem 0.3rem;
-	color: #f4f0e5;
+	background-color: var(--tile-bg);
+	width: 1.15rem;
+	height: 1.15rem;
+	color: var(--tile-fg);
+	font-family: "Palatino Linotype", Palatino, Georgia, serif;
+	font-weight: var(--tile-weight, 600);
+	vertical-align: middle;
+}
+
+.help-example {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 0;
+}
+
+.help-stack {
+	display: inline-flex;
+	flex-direction: column;
+	gap: 0;
 }
 
 .help-note {
@@ -498,7 +517,8 @@ body[data-cursor="native"] {
 #board .single,
 #board .possibility,
 #hclues .tile,
-#vclues .tile {
+#vclues .tile,
+.help-tile {
 	background-image:
 		url("slate-noise.svg"),
 		radial-gradient(ellipse at 14% 18%,
