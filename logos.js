@@ -123,6 +123,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.newGame = function() {
 		this.gameOver = true;
 		this.nextMilestone = 0;
+		showActiveClues = true;
 		this.stopTimer();
 		this.timerElapsed = 0;
 		this.clearOutcome();
