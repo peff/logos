@@ -77,6 +77,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.optionsButton = optionsButton;
 	this.timerInterval = null;
 	this.timerStarted = null;
+	this.messageTimeout = null;
 	this.gameOver = true;
 	this.nextMilestone = 0;
 	this.rows = [];
@@ -122,8 +123,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			this.rows[i].newGame();
 		this.gameOver = false;
 		this.generateClues();
-		this.say("The challenge begins...");
 		this.startTimer();
+		this.say("The challenge begins...");
 	}
 
 	this.checkWin = function() {
@@ -172,7 +173,18 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.say = function(msg) {
+		if (this.messageTimeout !== null) {
+			clearTimeout(this.messageTimeout);
+			this.messageTimeout = null;
+		}
 		this.messages.innerHTML = msg;
+		if (msg && this.timerInterval !== null) {
+			var puzzle = this;
+			this.messageTimeout = setTimeout(function() {
+				puzzle.messages.innerHTML = "";
+				puzzle.messageTimeout = null;
+			}, 10000);
+		}
 	}
 
 	this.updateTimer = function(elapsed) {
