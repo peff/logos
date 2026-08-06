@@ -2,7 +2,7 @@ html {
 	width: 100%;
 	height: 100%;
 	font-size: min(2.13vw, 3.45vh);
-	background-color: #f4f1e8;
+	background-color: #eef1f4;
 }
 
 body {
@@ -48,9 +48,10 @@ body {
 }
 
 #board .single {
-	border: 1px solid #475569;
+	border: 2px solid var(--tile-accent);
 	border-radius: 3px;
 	background-color: var(--tile-bg);
+	color: var(--tile-fg);
 	margin: auto;
 	width: var(--big-tile-width);
 	height: var(--big-tile-height);
@@ -62,9 +63,10 @@ body {
 }
 
 #board .possibility {
-	border: 1px solid #475569;
+	border: 1px solid var(--tile-accent);
 	border-radius: 3px;
 	background-color: var(--tile-bg);
+	color: var(--tile-fg);
 	text-align: center;
 	font-size: 0.85rem;
 
@@ -112,7 +114,8 @@ body {
 }
 
 .clue {
-	background-color: #dce4e8;
+	border: 1px solid #a8b3bd;
+	background-color: #f8fafc;
 	border-radius: 0.18rem;
 	cursor: pointer;
 	user-select: none;
@@ -126,9 +129,10 @@ body {
 }
 
 #hclues .tile {
-	border: 1px solid #475569;
+	border: 2px solid var(--tile-accent);
 	border-radius: 0.12rem;
 	background-color: var(--tile-bg);
+	color: var(--tile-fg);
 	height: var(--big-tile-height);
 	width: var(--big-tile-width);
 	display: inline-flex;
@@ -156,9 +160,10 @@ body {
 }
 
 #vclues .tile {
-	border: 1px solid #475569;
+	border: 2px solid var(--tile-accent);
 	border-radius: 0.12rem;
 	background-color: var(--tile-bg);
+	color: var(--tile-fg);
 	height: var(--big-tile-height);
 	width: var(--big-tile-width);
 	display: flex;
@@ -169,12 +174,12 @@ body {
 	line-height: 1;
 }
 
-.family-0 { --tile-bg: #7fa6c9; }
-.family-1 { --tile-bg: #82aa8b; }
-.family-2 { --tile-bg: #a38fb5; }
-.family-3 { --tile-bg: #c9a44f; }
-.family-4 { --tile-bg: #c47f70; }
-.family-5 { --tile-bg: #68a9a2; }
+.family-0 { --tile-bg: #303740; --tile-fg: #f8fafc; --tile-accent: #60a5fa; }
+.family-1 { --tile-bg: #303740; --tile-fg: #f8fafc; --tile-accent: #4ade80; }
+.family-2 { --tile-bg: #303740; --tile-fg: #f8fafc; --tile-accent: #c084fc; }
+.family-3 { --tile-bg: #303740; --tile-fg: #f8fafc; --tile-accent: #fbbf24; }
+.family-4 { --tile-bg: #303740; --tile-fg: #f8fafc; --tile-accent: #fb7185; }
+.family-5 { --tile-bg: #303740; --tile-fg: #f8fafc; --tile-accent: #2dd4bf; }
 
 .arrow {
 	color: #2563eb;
