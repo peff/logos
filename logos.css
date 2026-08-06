@@ -141,7 +141,7 @@ body[data-cursor="native"] {
 	font-size: inherit;
 }
 
-#options-menu {
+.modal {
 	position: fixed;
 	inset: 0;
 	z-index: 10;
@@ -154,11 +154,11 @@ body[data-cursor="native"] {
 	font-size: 0.72rem;
 }
 
-#options-menu[hidden] {
+.modal[hidden] {
 	display: none;
 }
 
-.options-panel {
+.modal-panel {
 	box-sizing: border-box;
 	border: 1px solid #777267;
 	border-radius: 0.2rem;
@@ -195,9 +195,75 @@ body[data-cursor="native"] {
 	cursor: var(--action-cursor);
 }
 
-#options-menu .options-done {
+.modal-done {
 	display: block;
 	margin: 0.55rem auto 0;
+}
+
+.help-panel {
+	width: min(34rem, calc(100vw - 2rem));
+	max-height: calc(100vh - 2rem);
+	overflow-y: auto;
+	font-size: 0.78rem;
+	line-height: 1.25;
+}
+
+.help-panel h2,
+.help-panel h3 {
+	margin: 0 0 0.3rem;
+	font-family: Forum, Georgia, "Times New Roman", serif;
+}
+
+.help-panel h2 {
+	text-align: center;
+	font-size: 1.35rem;
+}
+
+.help-panel h3 {
+	margin-top: 0.55rem;
+	font-size: 0.95rem;
+}
+
+.help-panel p,
+.help-panel ul {
+	margin: 0.25rem 0;
+}
+
+.help-panel ul {
+	padding-left: 1.25rem;
+}
+
+.help-clues {
+	width: 100%;
+	border-collapse: collapse;
+}
+
+.help-clues th,
+.help-clues td {
+	border-top: 1px solid #d5cec0;
+	padding: 0.24rem 0.35rem;
+	text-align: left;
+}
+
+.help-clues th:first-child,
+.help-clues td:first-child {
+	width: 6.5rem;
+	text-align: center;
+	white-space: nowrap;
+}
+
+.help-fixed,
+.help-stack {
+	display: inline-block;
+	border: 1px solid #777267;
+	border-radius: 0.12rem;
+	background-color: #293638;
+	padding: 0.08rem 0.3rem;
+	color: #f4f0e5;
+}
+
+.help-note {
+	font-style: italic;
 }
 
 #logo {

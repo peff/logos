@@ -20,8 +20,12 @@
 			<input id="options-button" type="button"
 			       onClick="puzzle.toggleOptions()" value="Options"
 			       aria-expanded="false" aria-controls="options-menu">
-			<div id="options-menu" hidden>
-				<div class="options-panel">
+			<input id="help-button" type="button"
+			       onClick="puzzle.toggleHelp()" value="How to play"
+			       aria-expanded="false" aria-controls="help-menu">
+			<div id="options-menu" class="modal" hidden role="dialog"
+			     aria-modal="true" aria-label="Options">
+				<div class="modal-panel options-panel">
 					<fieldset>
 						<legend>Cursor</legend>
 						<label><input type="radio" name="cursor" value="gear"
@@ -43,8 +47,65 @@
 						              onChange="puzzle.setTimerVisible(this.checked)">
 						       Show timer</label>
 					</fieldset>
-					<input class="options-done" type="button"
+					<input class="modal-done" type="button"
 					       onClick="puzzle.toggleOptions()" value="Close options">
+				</div>
+			</div>
+			<div id="help-menu" class="modal" hidden role="dialog"
+			     aria-modal="true" aria-labelledby="help-title">
+				<div class="modal-panel help-panel">
+					<h2 id="help-title">How to play</h2>
+					<p>
+						The board has six columns and six families of symbols.
+						Each column contains one symbol from every family, and
+						every symbol is used exactly once. Use the
+						clues to determine which six symbols belong together in
+						each column.
+					</p>
+
+					<h3>Making deductions</h3>
+					<ul>
+						<li><strong>Left-click</strong> a possibility to place it.</li>
+						<li><strong>Right-click</strong> a possibility to eliminate it.</li>
+						<li>A false placement or elimination ends the game.</li>
+						<li>Forced placements are filled in automatically.</li>
+					</ul>
+
+					<h3>Reading the clues</h3>
+					<table class="help-clues">
+						<tr>
+							<th>Example</th>
+							<th>Meaning</th>
+						</tr>
+						<tr>
+							<td><span class="help-fixed">A</span></td>
+							<td>A symbol already placed on the board is fixed in that column.</td>
+						</tr>
+						<tr>
+							<td><span class="help-stack">A<br>△</span></td>
+							<td>The two symbols are in the same column.</td>
+						</tr>
+						<tr>
+							<td>A <strong>↔</strong> △</td>
+							<td>The symbols are in neighboring columns, in either order.</td>
+						</tr>
+						<tr>
+							<td>A <strong>…</strong> △</td>
+							<td>A is somewhere to the left of △, but not necessarily adjacent.</td>
+						</tr>
+						<tr>
+							<td>A&nbsp; △&nbsp; II</td>
+							<td>Three consecutive columns contain these symbols. △ is in
+								the middle; A and II may appear on either side.</td>
+						</tr>
+					</table>
+
+					<p class="help-note">
+						Right-click a clue to set it aside. <strong>Toggle Clues</strong>
+						swaps between the active clues and those you have hidden.
+					</p>
+					<input class="modal-done" type="button"
+					       onClick="puzzle.toggleHelp()" value="Close help">
 				</div>
 			</div>
 			<div id="logo" aria-label="Logos">
@@ -64,7 +125,9 @@
 				document.getElementById("timer"),
 				undefined,
 				document.getElementById("options-menu"),
-				document.getElementById("options-button"));
+				document.getElementById("options-button"),
+				document.getElementById("help-menu"),
+				document.getElementById("help-button"));
 		</script>
 	</body>
 </html>

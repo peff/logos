@@ -68,20 +68,22 @@ document.addEventListener('contextmenu', function(ev) {
 });
 
 function Puzzle(board, hClues, vClues, messages, timer, symbols,
-		options, optionsButton) {
+		options, optionsButton, help, helpButton) {
 	symbols = symbols || defaultSymbols;
 
 	this.messages = messages;
 	this.timer = timer;
 	this.options = options;
 	this.optionsButton = optionsButton;
+	this.help = help;
+	this.helpButton = helpButton;
 	this.timerInterval = null;
 	this.timerStarted = null;
 	this.timerElapsed = 0;
 	this.messageTimeout = null;
 	this.gameOver = true;
 	this.paused = false;
-	this.resumeAfterOptions = false;
+	this.resumeAfterModal = false;
 	this.nextMilestone = 0;
 	this.showMilestones = true;
 	this.rows = [];
@@ -295,25 +297,32 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			checkClueDisplay(this.clues[i]);
 	}
 
-	this.toggleOptions = function() {
-		if (this.options.hidden) {
-			this.resumeAfterOptions = !this.gameOver &&
+	this.toggleModal = function(modal, button, closeText) {
+		if (modal.hidden) {
+			this.resumeAfterModal = !this.gameOver &&
 				this.timerInterval !== null;
-			this.options.querySelector(".options-done").value =
-				this.resumeAfterOptions ? "Resume game" : "Close options";
+			modal.querySelector(".modal-done").value =
+				this.resumeAfterModal ? "Resume game" : closeText;
 			this.paused = true;
-			if (this.resumeAfterOptions)
+			if (this.resumeAfterModal)
 				this.stopTimer();
-			this.options.hidden = false;
+			modal.hidden = false;
 		} else {
-			this.options.hidden = true;
+			modal.hidden = true;
 			this.paused = false;
-			if (this.resumeAfterOptions && !this.gameOver)
+			if (this.resumeAfterModal && !this.gameOver)
 				this.startTimer();
-			this.resumeAfterOptions = false;
+			this.resumeAfterModal = false;
 		}
-		this.optionsButton.setAttribute("aria-expanded",
-						!this.options.hidden);
+		button.setAttribute("aria-expanded", !modal.hidden);
+	}
+
+	this.toggleOptions = function() {
+		this.toggleModal(this.options, this.optionsButton, "Close options");
+	}
+
+	this.toggleHelp = function() {
+		this.toggleModal(this.help, this.helpButton, "Close help");
 	}
 
 	this.setCursor = function(style) {
