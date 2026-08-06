@@ -131,6 +131,7 @@ body {
 	border-spacing: 0.12rem;
 	table-layout: fixed;
 	width: 27.5rem;
+	height: 18.3rem;
 }
 
 .clue {
@@ -159,11 +160,13 @@ body {
 	box-sizing: border-box;
 	width: 9rem;
 	height: 2.9rem;
+	padding: 0;
 	text-align: center;
 	line-height: 2.8rem;
 }
 
 #hclues .tile {
+	box-sizing: border-box;
 	border: 2px solid var(--tile-accent);
 	border-radius: 0.12rem;
 	background-color: var(--tile-bg);
