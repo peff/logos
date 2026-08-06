@@ -23,7 +23,6 @@
 				<input id="options-button" type="button"
 				       onClick="puzzle.toggleOptions()" value="Options"
 				       aria-expanded="false" aria-controls="options-menu">
-				<input type="button" onClick="puzzle.toggleClues()" value="Toggle Clues">
 			</div>
 			<div id="options-menu" class="modal" hidden role="dialog"
 			     aria-modal="true" aria-label="Options">
@@ -126,8 +125,7 @@
 					</table>
 
 					<p class="help-note">
-						Right-click a clue to set it aside. <strong>Toggle Clues</strong>
-						swaps between the active clues and those you have hidden.
+						Right-click a clue to set it aside.
 					</p>
 					<input class="modal-done" type="button"
 					       onClick="puzzle.toggleHelp()" value="Close help">

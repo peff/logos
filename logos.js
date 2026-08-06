@@ -61,8 +61,6 @@ var milestoneMessages = [
 
 var milestoneThresholds = [9, 18, 27];
 
-var showActiveClues = true;
-
 document.addEventListener('contextmenu', function(ev) {
 	ev.preventDefault();
 });
@@ -123,7 +121,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.newGame = function() {
 		this.gameOver = true;
 		this.nextMilestone = 0;
-		showActiveClues = true;
 		this.stopTimer();
 		this.timerElapsed = 0;
 		this.clearOutcome();
@@ -291,12 +288,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 
 	this.getHClueSlot = function() { return this.hClueSlots[this.numHClues++]; }
 	this.getVClueSlot = function() { return this.vClueSlots[this.numVClues++]; }
-
-	this.toggleClues = function() {
-		showActiveClues = !showActiveClues;
-		for (var i = 0; i < this.clues.length; i++)
-			checkClueDisplay(this.clues[i]);
-	}
 
 	this.toggleModal = function(modal, button, closeText) {
 		if (modal.hidden) {
@@ -696,7 +687,7 @@ function checkClueDisplay(clue) {
 		return;
 	if (!clue.rendered)
 		clue.show();
-	if (clue.active == showActiveClues)
+	if (clue.active)
 		clue.display.classList.remove("clue-hidden");
 	else
 		clue.display.classList.add("clue-hidden");
