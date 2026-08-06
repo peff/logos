@@ -115,9 +115,9 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols) {
 		this.updateTimer(0);
 		for (var i = 0; i < this.rows.length; i++)
 			this.rows[i].newGame();
+		this.gameOver = false;
 		this.generateClues();
 		this.say("The challenge begins...");
-		this.gameOver = false;
 		this.startTimer();
 	}
 
