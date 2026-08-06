@@ -41,6 +41,26 @@ var winMessages = [
 	"All false paths are closed. The one true order remains.",
 ];
 
+var milestoneMessages = [
+	[
+		"The first signs align. A hidden order begins to emerge.",
+		"The scattered signs begin to speak.",
+		"The first seal is broken. The mystery stirs.",
+	],
+	[
+		"The pattern takes shape. The wisdom of the ancients draws near.",
+		"Half of the ancient design stands revealed.",
+		"Order rises from uncertainty. The path grows clearer.",
+	],
+	[
+		"The veil grows thin. Only the final secrets remain.",
+		"The final veil trembles. Truth lies close at hand.",
+		"Nearly every sign has found its place. The answer awaits.",
+	],
+];
+
+var milestoneThresholds = [9, 18, 27];
+
 var showActiveClues = true;
 
 document.addEventListener('contextmenu', function(ev) {
@@ -55,6 +75,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols) {
 	this.timerInterval = null;
 	this.timerStarted = null;
 	this.gameOver = true;
+	this.nextMilestone = 0;
 	this.rows = [];
 	this.hClueSlots = [];
 	this.vClueSlots = [];
@@ -79,6 +100,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols) {
 
 	this.clear = function() {
 		this.gameOver = true;
+		this.nextMilestone = 0;
 		this.stopTimer();
 		this.updateTimer(0);
 		for (var i = 0; i < this.rows.length; i++)
@@ -88,6 +110,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols) {
 
 	this.newGame = function() {
 		this.gameOver = true;
+		this.nextMilestone = 0;
 		this.stopTimer();
 		this.updateTimer(0);
 		for (var i = 0; i < this.rows.length; i++)
@@ -101,12 +124,27 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols) {
 	this.checkWin = function() {
 		if (this.gameOver)
 			return;
+		this.checkMilestones();
 		for (var i = 0; i < this.rows.length; i++)
 			if (!this.rows[i].isComplete())
 				return;
 		this.gameOver = true;
 		this.stopTimer();
 		this.say(randomChoice(winMessages));
+	}
+
+	this.checkMilestones = function() {
+		var complete = 0;
+		for (var i = 0; i < this.rows.length; i++)
+			for (var j = 0; j < this.rows[i].slots.length; j++)
+				if (this.rows[i].slots[j].single)
+					complete++;
+
+		while (this.nextMilestone < milestoneThresholds.length &&
+		       complete >= milestoneThresholds[this.nextMilestone]) {
+			this.say(randomChoice(milestoneMessages[this.nextMilestone]));
+			this.nextMilestone++;
+		}
 	}
 
 	this.lose = function(msg) {
