@@ -422,7 +422,7 @@ function Row(puzzle, symbols, display, family) {
 	this.removePossible = function(value) {
 		for (var i = 0; i < this.slots.length; i++)
 			this.slots[i].removePossible(value);
-		for (var i = 0; i < this.symbols.length; i++)
+		for (var i = 0; i < this.slots.length; i++)
 			if (i != value)
 				this.checkSingleton(i);
 	}
