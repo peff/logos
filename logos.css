@@ -143,6 +143,7 @@ body[data-cursor="native"] {
 
 .control-buttons {
 	display: flex;
+	justify-content: center;
 	gap: 0.2rem;
 	white-space: nowrap;
 }
