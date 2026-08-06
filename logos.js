@@ -82,7 +82,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols) {
 		for (var i = 0; i < this.rows.length; i++)
 			this.rows[i].newGame();
 		this.generateClues();
-		this.say("Good luck!");
+		this.say("The challenge begins...");
 		this.gameOver = false;
 		this.startTimer();
 	}
