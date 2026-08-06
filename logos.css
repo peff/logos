@@ -183,6 +183,11 @@ body {
 	letter-spacing: 0.025em;
 }
 
+#status {
+	font-family: Forum, Georgia, "Times New Roman", serif;
+	letter-spacing: 0.06em;
+}
+
 #timer {
 	position: absolute;
 	top: 50%;
