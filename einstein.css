@@ -1,7 +1,7 @@
 html {
 	width: 100%;
 	height: 100%;
-	font-size: min(2.13vw, 3.45vh);
+	font-size: min(2.08vw, 3.45vh);
 	background-color: #ece8dd;
 }
 
@@ -9,7 +9,7 @@ body {
 	--big-tile-width: 2.65rem;
 	--big-tile-height: 2.65rem;
 	display: grid;
-	grid-template-columns: 19rem 26.5rem;
+	grid-template-columns: 19rem 27.5rem;
 	grid-template-rows: 1.15rem 18.3rem 1.8rem 5.8rem;
 	grid-template-areas:
 		"message message"
@@ -130,7 +130,7 @@ body {
 	font-size: 1rem;
 	border-spacing: 0.12rem;
 	table-layout: fixed;
-	width: 24.5rem;
+	width: 27.5rem;
 }
 
 .clue {
@@ -156,6 +156,7 @@ body {
 }
 
 #hclues .clue {
+	box-sizing: border-box;
 	width: 9rem;
 	height: 2.9rem;
 	text-align: center;
