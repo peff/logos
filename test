@@ -1,0 +1,3 @@
+#!/bin/sh
+
+exec deno test --allow-read=logos.js logos-test.js
