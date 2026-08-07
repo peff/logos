@@ -107,7 +107,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	};
 	this.soundVariations = {
 		place: 0.045,
-		discard: 0.07,
+		discard: 0.1,
 		clue: 0.055,
 		mistake: 0,
 	};
