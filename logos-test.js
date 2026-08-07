@@ -51,7 +51,7 @@ const source = await Deno.readTextFile(
 	new URL("./logos.js", import.meta.url));
 const Logos = eval(source +
 	"\n;({ Puzzle: Puzzle, ExactClue: ExactClue, " +
-	"formatOlympiad: formatOlympiad });");
+	"formatOlympiad: formatOlympiad, greekNumeralDay: greekNumeralDay });");
 const Puzzle = Logos.Puzzle;
 const ExactClue = Logos.ExactClue;
 const symbols = ["0", "1", "2", "3", "4", "5"];
@@ -263,6 +263,15 @@ Deno.test("Olympiad years begin in July", function() {
 	       "Olympiad 701.1", "Olympiad year ended too early");
 	assert(Logos.formatOlympiad(new Date(2026, 6, 1).getTime()) ==
 	       "Olympiad 701.2", "Olympiad year did not advance in July");
+});
+
+Deno.test("score dates use Greek numerals for the day", function() {
+	assert(Logos.greekNumeralDay(new Date(2026, 7, 6).getTime()) == "ϛʹ",
+	       "sixth day did not use stigma");
+	assert(Logos.greekNumeralDay(new Date(2026, 7, 12).getTime()) == "ιβʹ",
+	       "twelfth day used the wrong Greek numeral");
+	assert(Logos.greekNumeralDay(new Date(2026, 7, 31).getTime()) == "λαʹ",
+	       "thirty-first day used the wrong Greek numeral");
 });
 
 Deno.test("row propagation updates every slot before deducing", function() {

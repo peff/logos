@@ -284,8 +284,10 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			if (this.highScores[i].date !== null) {
 				var attic = document.createElement("span");
 				attic.className = "score-attic-date";
-				attic.textContent = atticMonth(this.highScores[i].date) +
-					" · " + formatOlympiad(this.highScores[i].date);
+				attic.textContent = greekNumeralDay(
+					this.highScores[i].date) + " " +
+					atticMonth(this.highScores[i].date) + " · " +
+					formatOlympiad(this.highScores[i].date);
 				date.appendChild(attic);
 			}
 			entry.appendChild(date);
@@ -571,6 +573,13 @@ function atticMonth(timestamp) {
 		"Boedromion", "Pyanopsion", "Maimakterion", "Poseideon",
 	];
 	return months[new Date(timestamp).getMonth()];
+}
+
+function greekNumeralDay(timestamp) {
+	var day = new Date(timestamp).getDate();
+	var tens = ["", "ι", "κ", "λ"];
+	var units = ["", "α", "β", "γ", "δ", "ε", "ϛ", "ζ", "η", "θ"];
+	return tens[Math.floor(day / 10)] + units[day % 10] + "\u0374";
 }
 
 function formatOlympiad(timestamp) {
