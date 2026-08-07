@@ -16,6 +16,7 @@ class FakeElement {
 	}
 
 	addEventListener() {}
+	querySelector() { return new FakeElement(); }
 
 	insertRow() {
 		return new FakeElement();
@@ -29,13 +30,16 @@ class FakeElement {
 globalThis.document = {
 	addEventListener() {},
 	createElement() { return new FakeElement(); },
+	body: new FakeElement(),
 };
+globalThis.document.body.dataset = {};
+globalThis.Audio = class {};
 
 const source = await Deno.readTextFile(
 	new URL("./logos.js", import.meta.url));
 const Logos = eval(source +
-	"\n;({ Row: Row, Slot: Slot, ExactClue: ExactClue });");
-const Row = Logos.Row;
+	"\n;({ Puzzle: Puzzle, ExactClue: ExactClue });");
+const Puzzle = Logos.Puzzle;
 const ExactClue = Logos.ExactClue;
 const symbols = ["0", "1", "2", "3", "4", "5"];
 
@@ -45,27 +49,23 @@ function assert(condition, message) {
 }
 
 function makePuzzle(numRows) {
-	const puzzle = {
-		gameOver: false,
-		paused: false,
-		losses: 0,
-		sounds: [],
-		rows: [],
-		checkWin() {},
-		playSound(sound) {
-			this.sounds.push(sound);
-		},
-		lose() {
-			this.losses++;
-			this.gameOver = true;
-		},
+	const elem = function() { return new FakeElement(); };
+	const puzzle = new Puzzle(elem(), elem(), elem(), elem(), elem(),
+		Array(numRows).fill(symbols), elem(), elem(), elem(), elem());
+	const lose = puzzle.lose;
+	puzzle.lose = function(msg) {
+		this.losses++;
+		lose.call(this, msg);
 	};
-
-	for (let family = 0; family < numRows; family++) {
-		const row = new Row(puzzle, symbols, new FakeElement(), family);
-		puzzle.rows.push(row);
+	puzzle.losses = 0;
+	puzzle.sounds = [];
+	puzzle.playSound = function(sound) {
+		this.sounds.push(sound);
+	};
+	puzzle.checkWin = function() {};
+	puzzle.gameOver = false;
+	for (const row of puzzle.rows)
 		row.newGame();
-	}
 	return puzzle;
 }
 
