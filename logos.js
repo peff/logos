@@ -206,6 +206,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		if (this.gameOver)
 			return;
 		this.gameOver = true;
+		this.playSound("mistake");
 		this.stopTimer();
 		this.timer.classList.add("lost");
 		this.messages.classList.add("lost");
@@ -761,10 +762,9 @@ function Slot(row, symbols, display) {
 	this.choose = function(value, playerAction) {
 		if (this.row.puzzle.gameOver || this.row.puzzle.paused)
 			return;
-		if (playerAction)
-			this.row.puzzle.playSound(this.value == value ?
-				"place" : "mistake");
 		if (this.value == value) {
+			if (playerAction)
+				this.row.puzzle.playSound("place");
 			this.displaySingle(value);
 			this.row.removePossible(value);
 			this.row.puzzle.checkWin();
@@ -777,12 +777,11 @@ function Slot(row, symbols, display) {
 		if (this.single || this.row.puzzle.gameOver ||
 		    this.row.puzzle.paused)
 			return;
-		if (playerAction)
-			this.row.puzzle.playSound(this.value == value ?
-				"mistake" : "discard");
 		if (this.value == value) {
 			this.row.puzzle.lose(randomChoice(falseEliminationMessages));
 		} else {
+			if (playerAction)
+				this.row.puzzle.playSound("discard");
 			this.removePossible(value);
 			this.row.checkSingleton(value);
 		}
