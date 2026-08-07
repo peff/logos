@@ -374,7 +374,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 
 	this.setCursor = function(style) {
 		if (["gear", "stylus", "native"].indexOf(style) < 0)
-			style = "gear";
+			style = "stylus";
 		document.body.dataset.cursor = style;
 		var input = this.options.querySelector(
 				'input[value="' + style + '"]');
@@ -464,7 +464,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		}
 	}
 
-	var cursor = "gear";
+	var cursor = "stylus";
 	var showMilestones = true;
 	var showTimer = true;
 	var soundEffects = false;

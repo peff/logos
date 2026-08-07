@@ -16,8 +16,8 @@ html {
 body {
 	--big-tile-width: 2.65rem;
 	--big-tile-height: 2.65rem;
-	--default-cursor: url("cursor-gear.svg") 1 1, default;
-	--action-cursor: url("cursor-gear-active.svg") 1 1, pointer;
+	--default-cursor: url("cursor-stylus.svg") 1 1, default;
+	--action-cursor: url("cursor-stylus-active.svg") 1 1, pointer;
 	cursor: var(--default-cursor);
 	display: grid;
 	grid-template-columns: 19rem 27.5rem;
@@ -40,9 +40,9 @@ body {
 	user-select: none;
 }
 
-body[data-cursor="stylus"] {
-	--default-cursor: url("cursor-stylus.svg") 1 1, default;
-	--action-cursor: url("cursor-stylus-active.svg") 1 1, pointer;
+body[data-cursor="gear"] {
+	--default-cursor: url("cursor-gear.svg") 1 1, default;
+	--action-cursor: url("cursor-gear-active.svg") 1 1, pointer;
 }
 
 body[data-cursor="native"] {
