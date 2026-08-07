@@ -160,6 +160,53 @@ Deno.test("a player elimination makes one sound", function() {
 	       "elimination made the wrong sound");
 });
 
+Deno.test("forced placements make one place sound per action", function() {
+	const puzzle = makePuzzle(1);
+	const row = puzzle.rows[0];
+
+	/*
+	 * Leave each slot with its value and the next slot's value. Removing
+	 * that alternative from the first slot will resolve the whole row.
+	 */
+	for (let i = 0; i < row.slots.length; i++) {
+		const slot = row.slots[i];
+		const alternative = row.slots[(i + 1) % row.slots.length].value;
+		for (let value = 0; value < symbols.length; value++)
+			if (value != slot.value && value != alternative)
+				slot.removePossible(value, true);
+	}
+
+	const first = row.slots[0];
+	const alternative = row.slots[1].value;
+	first.discard(alternative, true);
+
+	assert(row.isComplete(), "elimination did not trigger placement chain");
+	assert(puzzle.sounds.filter(function(sound) {
+		return sound == "place";
+	}).length == 1, "placement chain made multiple place sounds");
+});
+
+Deno.test("row singleton placement makes a place sound", function() {
+	const puzzle = makePuzzle(1);
+	const row = puzzle.rows[0];
+	const value = 0;
+	const actual = row.slots.find(function(slot) {
+		return slot.value == value;
+	});
+	const candidates = row.slots.filter(function(slot) {
+		return slot != actual;
+	});
+
+	for (let i = 0; i < candidates.length - 1; i++)
+		candidates[i].removePossible(value, true);
+	candidates[candidates.length - 1].discard(value, true);
+
+	assert(actual.single, "row singleton was not placed");
+	assert(puzzle.sounds.filter(function(sound) {
+		return sound == "place";
+	}).length == 1, "row singleton did not make one place sound");
+});
+
 Deno.test("losing player actions make a mistake sound", function() {
 	for (const action of ["choose", "discard"]) {
 		const puzzle = makePuzzle(1);

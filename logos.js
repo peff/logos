@@ -763,8 +763,9 @@ function Slot(row, symbols, display) {
 		if (this.row.puzzle.gameOver || this.row.puzzle.paused)
 			return;
 		if (this.value == value) {
-			if (playerAction)
+			if (playerAction || this.row.puzzle.placeSoundPending)
 				this.row.puzzle.playSound("place");
+			this.row.puzzle.placeSoundPending = false;
 			this.displaySingle(value);
 			this.row.removePossible(value);
 			this.row.puzzle.checkWin();
@@ -780,10 +781,13 @@ function Slot(row, symbols, display) {
 		if (this.value == value) {
 			this.row.puzzle.lose(randomChoice(falseEliminationMessages));
 		} else {
-			if (playerAction)
+			if (playerAction) {
 				this.row.puzzle.playSound("discard");
+				this.row.puzzle.placeSoundPending = true;
+			}
 			this.removePossible(value);
 			this.row.checkSingleton(value);
+			this.row.puzzle.placeSoundPending = false;
 		}
 	}
 
