@@ -78,7 +78,8 @@ document.addEventListener('contextmenu', function(ev) {
 });
 
 function Puzzle(board, hClues, vClues, messages, timer, symbols,
-		options, optionsButton, help, helpButton, scores, scoresButton) {
+		options, optionsButton, help, helpButton, scores, scoresButton,
+		about, logoButton) {
 	symbols = symbols || defaultSymbols;
 
 	this.messages = messages;
@@ -89,6 +90,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.helpButton = helpButton;
 	this.scores = scores;
 	this.scoresButton = scoresButton;
+	this.about = about;
+	this.logoButton = logoButton;
 	this.timerInterval = null;
 	this.timerStarted = null;
 	this.timerElapsed = 0;
@@ -428,6 +431,10 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			this.highlightedScore = null;
 	}
 
+	this.toggleAbout = function() {
+		this.toggleModal(this.about, this.logoButton, "Close");
+	}
+
 	var puzzle = this;
 	this.options.addEventListener("click", function(ev) {
 		if (ev.target == puzzle.options)
@@ -440,6 +447,10 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.scores.addEventListener("click", function(ev) {
 		if (ev.target == puzzle.scores)
 			puzzle.toggleScores();
+	});
+	this.about.addEventListener("click", function(ev) {
+		if (ev.target == puzzle.about)
+			puzzle.toggleAbout();
 	});
 
 	this.setCursor = function(style) {

@@ -152,11 +152,32 @@
 					</p>
 				</div>
 			</div>
-			<div id="logo" aria-label="Logos">
+			<div id="about-menu" class="modal" hidden role="dialog"
+			     aria-modal="true" aria-labelledby="about-title">
+				<div class="modal-panel about-panel">
+					<h2 id="about-title">About Logos</h2>
+					<p>
+						Logos was inspired by the "Einstein puzzle" game published by Flowix
+						Games (which in turn was inspired by the DOS "Sherlock" game, though I
+						never played that).
+					</p>
+					<p>
+						This type of puzzle is known as the
+						<a href="https://en.wikipedia.org/wiki/Zebra_Puzzle">Zebra Puzzle</a>
+						and sometimes credited to Albert Einstein, though the veracity
+						of that connection is unclear.
+					</p>
+					<input class="modal-done" type="button"
+					       onClick="puzzle.toggleAbout()" value="Close">
+				</div>
+			</div>
+			<button id="logo" type="button" onClick="puzzle.toggleAbout()"
+			        aria-label="About Logos" aria-expanded="false"
+			        aria-controls="about-menu">
 				<span class="logo-greek" aria-hidden="true">ΛΟΓΟΣ</span>
 				<span class="logo-name">LOGOS</span>
 				<span class="logo-tagline">A puzzle of pure reason</span>
-			</div>
+			</button>
 		</div>
 		<table id="vclues"></table>
 
@@ -173,7 +194,9 @@
 				document.getElementById("help-menu"),
 				document.getElementById("help-button"),
 				document.getElementById("scores-menu"),
-				document.getElementById("scores-button"));
+				document.getElementById("scores-button"),
+				document.getElementById("about-menu"),
+				document.getElementById("logo"));
 		</script>
 	</body>
 </html>

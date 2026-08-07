@@ -421,10 +421,33 @@ body[data-cursor="native"] {
 	font-style: italic;
 }
 
+.about-panel {
+	max-width: 24rem;
+	text-align: center;
+}
+
+.about-panel h2 {
+	margin: 0 0 0.35rem;
+	font-family: Forum, Georgia, "Times New Roman", serif;
+	font-size: 1.35rem;
+}
+
+.about-panel p {
+	margin: 0.35rem 0;
+}
+
+.about-panel .modal-done {
+	margin-top: 0.25rem;
+}
+
 #logo {
+	border: 0;
+	background: none;
+	padding: 0;
 	margin-top: 0.5rem;
 	width: 18rem;
 	color: #293638;
+	cursor: var(--action-cursor);
 	text-align: center;
 	font-family: Forum, Georgia, "Times New Roman", serif;
 }

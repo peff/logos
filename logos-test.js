@@ -71,7 +71,7 @@ function makePuzzle(numRows, checkWin) {
 	const elem = function() { return new FakeElement(); };
 	const puzzle = new Puzzle(elem(), elem(), elem(), elem(), elem(),
 		Array(numRows).fill(symbols), elem(), elem(), elem(), elem(),
-		elem(), elem());
+		elem(), elem(), elem(), elem());
 	const lose = puzzle.lose;
 	puzzle.lose = function(msg) {
 		this.losses++;
