@@ -43,25 +43,31 @@
 				<div class="modal-panel options-panel">
 					<fieldset>
 						<legend>Cursor</legend>
-						<label><input type="radio" name="cursor" value="gear"
+						<label title="Use an Antikythera gear for pointing and actions.">
+						       <input type="radio" name="cursor" value="gear"
 						              onChange="puzzle.setCursor(this.value)">
 						       Antikythera gear</label>
-						<label><input type="radio" name="cursor" value="stylus"
+						<label title="Use a bronze stylus for pointing and actions.">
+						       <input type="radio" name="cursor" value="stylus"
 						              onChange="puzzle.setCursor(this.value)">
 						       Bronze stylus</label>
-						<label><input type="radio" name="cursor" value="native"
+						<label title="Use your browser's standard pointer.">
+						       <input type="radio" name="cursor" value="native"
 						              onChange="puzzle.setCursor(this.value)">
 						       System default</label>
 					</fieldset>
 					<fieldset>
 						<legend>Display</legend>
-						<label><input id="show-milestones" type="checkbox" checked
+						<label title="Show messages as you reveal more of the solution. Disable for deep focus.">
+						       <input id="show-milestones" type="checkbox" checked
 						              onChange="puzzle.setMilestones(this.checked)">
 						       Milestone messages</label>
-						<label><input id="show-timer" type="checkbox" checked
+						<label title="Show elapsed time. Disable for zen relaxation.">
+						       <input id="show-timer" type="checkbox" checked
 						              onChange="puzzle.setTimerVisible(this.checked)">
 						       Show timer</label>
-						<label><input id="sound-effects" type="checkbox"
+						<label title="Play sounds for deductions, clues, wins, and mistakes.">
+						       <input id="sound-effects" type="checkbox"
 						              onChange="puzzle.setSoundEffects(this.checked)">
 						       Sound effects</label>
 					</fieldset>
