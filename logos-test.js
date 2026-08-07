@@ -34,6 +34,18 @@ globalThis.document = {
 };
 globalThis.document.body.dataset = {};
 globalThis.Audio = class {};
+Object.defineProperty(globalThis, "localStorage", { value: {
+	values: {},
+	getItem(key) {
+		return Object.hasOwn(this.values, key) ? this.values[key] : null;
+	},
+	setItem(key, value) {
+		this.values[key] = String(value);
+	},
+	removeItem(key) {
+		delete this.values[key];
+	},
+} });
 
 const source = await Deno.readTextFile(
 	new URL("./logos.js", import.meta.url));
@@ -51,7 +63,8 @@ function assert(condition, message) {
 function makePuzzle(numRows) {
 	const elem = function() { return new FakeElement(); };
 	const puzzle = new Puzzle(elem(), elem(), elem(), elem(), elem(),
-		Array(numRows).fill(symbols), elem(), elem(), elem(), elem());
+		Array(numRows).fill(symbols), elem(), elem(), elem(), elem(),
+		elem(), elem());
 	const lose = puzzle.lose;
 	puzzle.lose = function(msg) {
 		this.losses++;
@@ -220,6 +233,26 @@ Deno.test("losing player actions make a mistake sound", function() {
 		assert(puzzle.sounds[0] == "mistake",
 		       "losing " + action + " made the wrong sound");
 	}
+});
+
+Deno.test("high scores retain the ten fastest times", function() {
+	localStorage.setItem("highScores", JSON.stringify([
+		9000, 3000, 7000, 1000, 11000, 5000,
+		4000, 8000, 2000, 10000, 6000,
+	]));
+	const puzzle = makePuzzle(1);
+
+	puzzle.recordHighScore(500);
+	assert(puzzle.highScores.length == 10,
+	       "high-score list was not limited to ten entries");
+	assert(puzzle.highScores[0].elapsed == 500,
+	       "new fastest time was not ranked first");
+	assert(puzzle.highScores[9].elapsed == 9000,
+	       "slowest retained time was incorrect");
+	assert(JSON.stringify(puzzle.highScores) ==
+	       localStorage.getItem("highScores"),
+	       "high scores were not persisted");
+	localStorage.removeItem("highScores");
 });
 
 Deno.test("row propagation updates every slot before deducing", function() {

@@ -78,7 +78,7 @@ document.addEventListener('contextmenu', function(ev) {
 });
 
 function Puzzle(board, hClues, vClues, messages, timer, symbols,
-		options, optionsButton, help, helpButton) {
+		options, optionsButton, help, helpButton, scores, scoresButton) {
 	symbols = symbols || defaultSymbols;
 
 	this.messages = messages;
@@ -87,6 +87,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.optionsButton = optionsButton;
 	this.help = help;
 	this.helpButton = helpButton;
+	this.scores = scores;
+	this.scoresButton = scoresButton;
 	this.timerInterval = null;
 	this.timerStarted = null;
 	this.timerElapsed = 0;
@@ -181,6 +183,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.gameOver = true;
 		this.playSound("win");
 		this.stopTimer();
+		this.recordHighScore(this.timerElapsed);
 		this.timer.classList.add("won");
 		this.messages.classList.add("won");
 		this.say(randomChoice(winMessages));
@@ -246,11 +249,43 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.updateTimer = function(elapsed) {
-		var totalSeconds = Math.floor(elapsed / 1000);
-		var minutes = Math.floor(totalSeconds / 60);
-		var seconds = totalSeconds % 60;
-		this.timer.textContent = minutes + ":" +
-			(seconds < 10 ? "0" : "") + seconds;
+		this.timer.textContent = formatTime(elapsed);
+	}
+
+	this.recordHighScore = function(elapsed) {
+		this.highScores.push({ elapsed: elapsed, date: Date.now() });
+		this.highScores.sort(function(a, b) {
+			return a.elapsed - b.elapsed;
+		});
+		this.highScores = this.highScores.slice(0, 10);
+		try {
+			localStorage.setItem("highScores",
+				JSON.stringify(this.highScores));
+		} catch (e) {
+			/* The scores still apply for the current page. */
+		}
+	}
+
+	this.renderHighScores = function() {
+		var list = this.scores.querySelector("ol");
+		var empty = this.scores.querySelector(".scores-empty");
+		list.innerHTML = "";
+		empty.hidden = this.highScores.length != 0;
+		for (var i = 0; i < this.highScores.length; i++) {
+			var item = document.createElement("li");
+			var entry = document.createElement("span");
+			entry.className = "score-entry";
+			var date = document.createElement("span");
+			date.className = "score-date";
+			date.textContent = formatScoreDate(this.highScores[i].date);
+			entry.appendChild(date);
+			var time = document.createElement("span");
+			time.className = "score-time";
+			time.textContent = formatTime(this.highScores[i].elapsed);
+			entry.appendChild(time);
+			item.appendChild(entry);
+			list.appendChild(item);
+		}
 	}
 
 	this.clearOutcome = function() {
@@ -363,6 +398,12 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.toggleModal(this.help, this.helpButton);
 	}
 
+	this.toggleScores = function() {
+		this.renderHighScores();
+		this.toggleModal(this.scores, this.scoresButton,
+			"Rejoin the mortal realm");
+	}
+
 	var puzzle = this;
 	this.options.addEventListener("click", function(ev) {
 		if (ev.target == puzzle.options)
@@ -371,6 +412,10 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.help.addEventListener("click", function(ev) {
 		if (ev.target == puzzle.help)
 			puzzle.toggleHelp();
+	});
+	this.scores.addEventListener("click", function(ev) {
+		if (ev.target == puzzle.scores)
+			puzzle.toggleScores();
 	});
 
 	this.setCursor = function(style) {
@@ -483,12 +528,53 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	} catch (e) {
 		/* Storage may be unavailable for local files. */
 	}
+	this.highScores = loadHighScores();
 	this.setCursor(cursor);
 	this.setMilestones(showMilestones);
 	this.setTimerVisible(showTimer);
 	this.setSoundEffects(soundEffects);
 
 	this.clear();
+}
+
+function formatTime(elapsed) {
+	var totalSeconds = Math.floor(elapsed / 1000);
+	var minutes = Math.floor(totalSeconds / 60);
+	var seconds = totalSeconds % 60;
+	return minutes + ":" + (seconds < 10 ? "0" : "") + seconds;
+}
+
+function formatScoreDate(timestamp) {
+	if (timestamp === null)
+		return "Earlier";
+	return new Date(timestamp).toLocaleDateString(undefined, {
+		year: "numeric",
+		month: "short",
+		day: "numeric",
+	});
+}
+
+function loadHighScores() {
+	var scores = [];
+	try {
+		scores = JSON.parse(localStorage.getItem("highScores") || "[]");
+	} catch (e) {
+		return [];
+	}
+	if (!Array.isArray(scores))
+		return [];
+	scores = scores.map(function(score) {
+		if (Number.isFinite(score) && score >= 0)
+			return { elapsed: score, date: null };
+		if (!score || !Number.isFinite(score.elapsed) || score.elapsed < 0)
+			return null;
+		if (!Number.isFinite(score.date) || score.date < 0)
+			score.date = null;
+		return score;
+	}).filter(function(score) { return score !== null; });
+	return scores.sort(function(a, b) {
+		return a.elapsed - b.elapsed;
+	}).slice(0, 10);
 }
 
 function playChime(context, frequency, delay, volume) {

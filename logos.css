@@ -283,6 +283,47 @@ body[data-cursor="native"] {
 	line-height: 1.25;
 }
 
+.scores-panel {
+	min-width: 16rem;
+}
+
+.scores-panel h2 {
+	margin: 0 0 0.4rem;
+	text-align: center;
+	font-family: Forum, Georgia, "Times New Roman", serif;
+	font-size: 1.35rem;
+}
+
+.scores-panel ol {
+	margin: 0;
+	padding-left: 2.4rem;
+	font-variant-numeric: tabular-nums;
+}
+
+.scores-panel li {
+	padding: 0.08rem 0.3rem;
+}
+
+.score-entry {
+	display: flex;
+	justify-content: space-between;
+	gap: 1.5rem;
+}
+
+.score-date {
+	color: #68685f;
+}
+
+.score-time {
+	font-weight: bold;
+}
+
+.scores-empty {
+	margin: 0.5rem 1rem;
+	text-align: center;
+	font-style: italic;
+}
+
 .help-panel h2,
 .help-panel h3 {
 	margin: 0 0 0.2rem;
