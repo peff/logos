@@ -569,7 +569,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	var cursor = "stylus";
 	var showMilestones = true;
 	var showTimer = true;
-	var soundEffects = false;
+	var soundEffects = true;
 	try {
 		cursor = localStorage.getItem("cursor") || cursor;
 		var storedMilestones = localStorage.getItem("showMilestones");
