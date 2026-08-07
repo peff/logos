@@ -103,8 +103,20 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		clue: 1,
 		mistake: 1,
 	};
-	for (var name in this.soundSamples)
+	this.soundVariations = {
+		place: 0.045,
+		discard: 0.07,
+		clue: 0.055,
+		mistake: 0,
+	};
+	/* Normalized offsets, scaled by each sound's variation above. */
+	this.soundSequence = [0, 0.833, -0.5, 0.333, -1, -0.167, 0.667,
+		-0.667, 0.167, 1, -0.333, 0.5, -0.833];
+	this.soundSequencePositions = {};
+	for (var name in this.soundSamples) {
 		this.soundSamples[name].preload = "auto";
+		this.soundSamples[name].preservesPitch = false;
+	}
 	this.gameOver = true;
 	this.paused = false;
 	this.resumeAfterModal = false;
@@ -413,6 +425,11 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			this.soundSamples[other].currentTime = 0;
 		}
 		audio.volume = this.soundVolumes[name];
+		var variation = this.soundVariations[name];
+		var position = this.soundSequencePositions[name] || 0;
+		audio.playbackRate = 1 + variation * this.soundSequence[position];
+		this.soundSequencePositions[name] =
+			(position + 1) % this.soundSequence.length;
 		var playback = audio.play();
 		if (playback)
 			playback.catch(function() {});
