@@ -413,7 +413,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.toggleOptions = function() {
-		this.toggleModal(this.options, this.optionsButton, "Close options");
+		this.toggleModal(this.options, this.optionsButton, "Close");
 	}
 
 	this.toggleHelp = function() {
