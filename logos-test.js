@@ -9,6 +9,7 @@ class FakeElement {
 		this.classList = new FakeClassList();
 		this.children = [];
 		this.innerHTML = "";
+		this.queries = {};
 	}
 
 	appendChild(child) {
@@ -16,7 +17,12 @@ class FakeElement {
 	}
 
 	addEventListener() {}
-	querySelector() { return new FakeElement(); }
+	setAttribute() {}
+	querySelector(selector) {
+		if (!this.queries[selector])
+			this.queries[selector] = new FakeElement();
+		return this.queries[selector];
+	}
 
 	insertRow() {
 		return new FakeElement();
@@ -61,7 +67,7 @@ function assert(condition, message) {
 		throw new Error(message || "assertion failed");
 }
 
-function makePuzzle(numRows) {
+function makePuzzle(numRows, checkWin) {
 	const elem = function() { return new FakeElement(); };
 	const puzzle = new Puzzle(elem(), elem(), elem(), elem(), elem(),
 		Array(numRows).fill(symbols), elem(), elem(), elem(), elem(),
@@ -74,7 +80,8 @@ function makePuzzle(numRows) {
 	puzzle.playSound = function(sound) {
 		this.sounds.push(sound);
 	};
-	puzzle.checkWin = function() {};
+	if (!checkWin)
+		puzzle.checkWin = function() {};
 	resetPuzzle(puzzle);
 	return puzzle;
 }
@@ -243,9 +250,15 @@ Deno.test("high scores retain the ten fastest times", function() {
 	]));
 	const puzzle = makePuzzle(1);
 
-	puzzle.recordHighScore(500);
+	const entry = puzzle.recordHighScore(500);
 	assert(puzzle.highScores.length == 10,
 	       "high-score list was not limited to ten entries");
+	assert(entry == puzzle.highScores[0],
+	       "qualifying high score was not returned");
+	puzzle.highlightedScore = entry;
+	puzzle.renderHighScores();
+	assert(puzzle.scores.querySelector("ol").children[0].className ==
+	       "score-new", "new high score was not highlighted");
 	assert(puzzle.highScores[0].elapsed == 500,
 	       "new fastest time was not ranked first");
 	assert(puzzle.highScores[9].elapsed == 9000,
@@ -253,6 +266,24 @@ Deno.test("high scores retain the ten fastest times", function() {
 	assert(JSON.stringify(puzzle.highScores) ==
 	       localStorage.getItem("highScores"),
 	       "high scores were not persisted");
+	assert(puzzle.recordHighScore(12000) === null,
+	       "non-qualifying score was returned");
+	localStorage.removeItem("highScores");
+});
+
+Deno.test("a winning high score opens the Pantheon", function() {
+	const puzzle = makePuzzle(1, true);
+	for (const slot of puzzle.rows[0].slots)
+		slot.displaySingle(slot.value);
+	puzzle.toggleScores = function() {
+		this.scoresShown = true;
+	};
+	puzzle.timerElapsed = 5000;
+
+	puzzle.checkWin();
+	assert(puzzle.scoresShown, "winning high score did not show the Pantheon");
+	assert(puzzle.highlightedScore == puzzle.highScores[0],
+	       "winning high score was not selected for highlighting");
 	localStorage.removeItem("highScores");
 });
 

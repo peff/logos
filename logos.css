@@ -304,6 +304,17 @@ body[data-cursor="native"] {
 	padding: 0.08rem 0.3rem;
 }
 
+.scores-panel li.score-new {
+	border-radius: 0.15rem;
+	background-color: #e8d69b;
+	box-shadow: inset 0 0 0 1px #b89a46;
+}
+
+.scores-panel li.score-new::marker {
+	color: #80633a;
+	font-weight: bold;
+}
+
 .score-entry {
 	display: flex;
 	align-items: center;

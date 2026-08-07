@@ -183,10 +183,14 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.gameOver = true;
 		this.playSound("win");
 		this.stopTimer();
-		this.recordHighScore(this.timerElapsed);
+		var highScore = this.recordHighScore(this.timerElapsed);
 		this.timer.classList.add("won");
 		this.messages.classList.add("won");
 		this.say(randomChoice(winMessages));
+		if (highScore) {
+			this.highlightedScore = highScore;
+			this.toggleScores();
+		}
 	}
 
 	this.checkMilestones = function() {
@@ -253,7 +257,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.recordHighScore = function(elapsed) {
-		this.highScores.push({ elapsed: elapsed, date: Date.now() });
+		var score = { elapsed: elapsed, date: Date.now() };
+		this.highScores.push(score);
 		this.highScores.sort(function(a, b) {
 			return a.elapsed - b.elapsed;
 		});
@@ -264,6 +269,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		} catch (e) {
 			/* The scores still apply for the current page. */
 		}
+		return this.highScores.indexOf(score) >= 0 ? score : null;
 	}
 
 	this.renderHighScores = function() {
@@ -273,6 +279,10 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		empty.hidden = this.highScores.length != 0;
 		for (var i = 0; i < this.highScores.length; i++) {
 			var item = document.createElement("li");
+			if (this.highScores[i] == this.highlightedScore) {
+				item.className = "score-new";
+				item.setAttribute("aria-current", "true");
+			}
 			var entry = document.createElement("span");
 			entry.className = "score-entry";
 			var date = document.createElement("span");
@@ -414,6 +424,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.renderHighScores();
 		this.toggleModal(this.scores, this.scoresButton,
 			"Rejoin the mortal realm");
+		if (this.scores.hidden)
+			this.highlightedScore = null;
 	}
 
 	var puzzle = this;
