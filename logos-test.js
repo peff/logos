@@ -57,16 +57,20 @@ function makePuzzle(numRows) {
 		this.losses++;
 		lose.call(this, msg);
 	};
-	puzzle.losses = 0;
-	puzzle.sounds = [];
 	puzzle.playSound = function(sound) {
 		this.sounds.push(sound);
 	};
 	puzzle.checkWin = function() {};
+	resetPuzzle(puzzle);
+	return puzzle;
+}
+
+function resetPuzzle(puzzle) {
+	puzzle.losses = 0;
+	puzzle.sounds = [];
 	puzzle.gameOver = false;
 	for (const row of puzzle.rows)
 		row.newGame();
-	return puzzle;
 }
 
 function withRandom(seed, callback) {
@@ -196,9 +200,10 @@ Deno.test("row propagation updates every slot before deducing", function() {
 });
 
 Deno.test("correct mixed play never causes an automatic loss", function() {
+	const puzzle = makePuzzle(6);
 	for (let seed = 1; seed <= 1000; seed++) {
 		withRandom(seed, function() {
-			const puzzle = makePuzzle(6);
+			resetPuzzle(puzzle);
 			while (!puzzle.gameOver) {
 				const open = [];
 				for (const row of puzzle.rows)
