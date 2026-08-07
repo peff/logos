@@ -435,8 +435,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			playback.catch(function() {});
 	}
 
-	this.playSound = function(type, preview) {
-		if (!preview && !this.soundEffects)
+	this.playSound = function(type) {
+		if (!this.soundEffects)
 			return;
 		if (this.soundSamples[type]) {
 			this.playSampleSound(type);

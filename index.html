@@ -51,21 +51,6 @@
 						              onChange="puzzle.setSoundEffects(this.checked)">
 						       Sound effects</label>
 					</fieldset>
-					<fieldset>
-						<legend>Test sounds</legend>
-						<div class="sound-tests">
-							<input type="button" value="Place"
-							       onClick="puzzle.playSound('place', true)">
-							<input type="button" value="Eliminate"
-							       onClick="puzzle.playSound('discard', true)">
-							<input type="button" value="Clue"
-							       onClick="puzzle.playSound('clue', true)">
-							<input type="button" value="Mistake"
-							       onClick="puzzle.playSound('mistake', true)">
-							<input type="button" value="Win"
-							       onClick="puzzle.playSound('win', true)">
-						</div>
-					</fieldset>
 					<input class="modal-done" type="button"
 					       onClick="puzzle.toggleOptions()" value="Close options">
 				</div>
