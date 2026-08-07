@@ -132,7 +132,8 @@ body[data-cursor="native"] {
 }
 
 .control-buttons > input,
-.modal-done {
+.modal-done,
+.option-action {
 	border: 1px solid #777267;
 	border-radius: 0.2rem;
 	background-color: #f7f3e9;
@@ -156,6 +157,17 @@ body[data-cursor="native"] {
 .modal-done {
 	padding: 0.35rem 0.65rem;
 	font-size: inherit;
+}
+
+.option-action {
+	display: block;
+	margin: 0.35rem auto 0;
+	padding: 0.2rem 0.45rem;
+	font-size: 0.7rem;
+}
+
+.option-action[hidden] {
+	display: none;
 }
 
 .modal {

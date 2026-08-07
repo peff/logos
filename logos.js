@@ -452,6 +452,9 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		if (ev.target == puzzle.about)
 			puzzle.toggleAbout();
 	});
+	document.addEventListener("fullscreenchange", function() {
+		puzzle.updateFullscreenButton();
+	});
 
 	this.setCursor = function(style) {
 		if (["gear", "stylus", "native"].indexOf(style) < 0)
@@ -495,6 +498,24 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		} catch (e) {
 			/* The choice still applies for the current page. */
 		}
+	}
+
+	this.updateFullscreenButton = function() {
+		var button = this.options.querySelector("#fullscreen-button");
+		button.hidden = !document.fullscreenEnabled;
+		button.value = document.fullscreenElement ?
+			"Exit full screen" : "Enter full screen";
+	}
+
+	this.toggleFullscreen = function() {
+		var action = document.fullscreenElement ?
+			document.exitFullscreen() :
+			document.documentElement.requestFullscreen({
+				navigationUI: "hide",
+			});
+		action.catch(function() {
+			/* The browser may decline a fullscreen request. */
+		});
 	}
 
 	this.playSampleSound = function(name) {
@@ -568,6 +589,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.setMilestones(showMilestones);
 	this.setTimerVisible(showTimer);
 	this.setSoundEffects(soundEffects);
+	this.updateFullscreenButton();
 
 	this.clear();
 }
