@@ -91,6 +91,20 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.timerStarted = null;
 	this.timerElapsed = 0;
 	this.messageTimeout = null;
+	this.soundSamples = {
+		place: new Audio("sound/place.opus"),
+		discard: new Audio("sound/discard.opus"),
+		clue: new Audio("sound/clue.opus"),
+		mistake: new Audio("sound/mistake.opus"),
+	};
+	this.soundVolumes = {
+		place: 1,
+		discard: 0.55,
+		clue: 1,
+		mistake: 1,
+	};
+	for (var name in this.soundSamples)
+		this.soundSamples[name].preload = "auto";
 	this.gameOver = true;
 	this.paused = false;
 	this.resumeAfterModal = false;
@@ -390,52 +404,38 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		}
 	}
 
+	this.playSampleSound = function(name) {
+		var audio = this.soundSamples[name];
+		if (!audio)
+			return;
+		for (var other in this.soundSamples) {
+			this.soundSamples[other].pause();
+			this.soundSamples[other].currentTime = 0;
+		}
+		audio.volume = this.soundVolumes[name];
+		var playback = audio.play();
+		if (playback)
+			playback.catch(function() {});
+	}
+
 	this.playSound = function(type, preview) {
 		if (!preview && !this.soundEffects)
 			return;
+		if (this.soundSamples[type]) {
+			this.playSampleSound(type);
+			return;
+		}
 		var AudioContext = window.AudioContext || window.webkitAudioContext;
 		if (!AudioContext)
 			return;
 		if (!this.audioContext) {
 			this.audioContext = new AudioContext();
-			this.soundNoise = makeNoise(this.audioContext, 0.5);
 		}
 		var context = this.audioContext;
 		if (context.state == "suspended")
 			context.resume();
 		var variation = 0.94 + Math.random() * 0.12;
-		if (type == "place") {
-			playNoise(context, this.soundNoise,
-				  1100 * variation, 0.8, 0.075, 0.022);
-			playTone(context, 185 * variation, 0.03, 0.14,
-				 undefined, "sine");
-			playTone(context, 337 * variation, 0.021, 0.1,
-				 undefined, "sine");
-			playTone(context, 521 * variation, 0.014, 0.07,
-				 undefined, "sine");
-			playTone(context, 743 * variation, 0.008, 0.045,
-				 undefined, "sine");
-		} else if (type == "discard") {
-			playScrape(context, this.soundNoise, variation);
-		} else if (type == "mistake") {
-			playNoise(context, this.soundNoise,
-				  650 * variation, 0.7, 0.28, 0.075, "highpass");
-			playNoise(context, this.soundNoise,
-				  1700 * variation, 1.4, 0.16, 0.07,
-				  "bandpass", 0.025);
-			playNoise(context, this.soundNoise,
-				  2400 * variation, 1.8, 0.13, 0.065,
-				  "bandpass", 0.065);
-			playNoise(context, this.soundNoise,
-				  3200 * variation, 2.2, 0.1, 0.055,
-				  "bandpass", 0.11);
-			playNoise(context, this.soundNoise,
-				  160 * variation, 1.1, 0.11, 0.34);
-			playTone(context, 145 * variation, 0.07, 0.55,
-				 45 * variation);
-			playTone(context, 154 * variation, 0.04, 0.48,
-				 48 * variation);
-		} else if (type == "win") {
+		if (type == "win") {
 			var notes = [587.33, 783.99, 659.25, 880,
 				     783.99, 1046.5, 880, 1174.66,
 				     1046.5, 1318.51, 1174.66, 1567.98];
@@ -473,72 +473,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.clear();
 }
 
-function makeNoise(context, duration) {
-	var buffer = context.createBuffer(1,
-		Math.ceil(context.sampleRate * duration), context.sampleRate);
-	var data = buffer.getChannelData(0);
-	for (var i = 0; i < data.length; i++)
-		data[i] = Math.random() * 2 - 1;
-	return buffer;
-}
-
-function fadeSound(gain, context, volume, duration, delay, attack) {
-	var now = context.currentTime + (delay || 0);
-	if (attack) {
-		gain.gain.setValueAtTime(0.0001, now);
-		gain.gain.exponentialRampToValueAtTime(volume, now + attack);
-	} else {
-		gain.gain.setValueAtTime(volume, now);
-	}
-	gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
-}
-
-function playNoise(context, buffer, frequency, q, volume, duration, type,
-		delay, attack) {
-	var source = context.createBufferSource();
-	var filter = context.createBiquadFilter();
-	var gain = context.createGain();
-	var start = context.currentTime + (delay || 0);
-	source.buffer = buffer;
-	source.playbackRate.value = 0.92 + Math.random() * 0.16;
-	filter.type = type || "bandpass";
-	filter.frequency.value = frequency;
-	filter.Q.value = q;
-	fadeSound(gain, context, volume, duration, delay, attack);
-	source.connect(filter).connect(gain).connect(context.destination);
-	source.start(start);
-	source.stop(start + duration);
-}
-
-function playScrape(context, buffer, variation) {
-	var source = context.createBufferSource();
-	var highpass = context.createBiquadFilter();
-	var lowpass = context.createBiquadFilter();
-	var gain = context.createGain();
-	var now = context.currentTime;
-	source.buffer = buffer;
-	source.playbackRate.value = 0.9 + Math.random() * 0.2;
-	highpass.type = "highpass";
-	highpass.frequency.value = 380 * variation;
-	lowpass.type = "lowpass";
-	lowpass.frequency.setValueAtTime(3200 * variation, now);
-	lowpass.frequency.exponentialRampToValueAtTime(1200 * variation,
-		now + 0.16);
-	gain.gain.setValueAtTime(0.0001, now);
-	gain.gain.linearRampToValueAtTime(0.035, now + 0.012);
-	gain.gain.linearRampToValueAtTime(0.014, now + 0.055);
-	gain.gain.linearRampToValueAtTime(0.028, now + 0.095);
-	gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.16);
-	source.connect(highpass).connect(lowpass).connect(gain)
-		.connect(context.destination);
-	source.start(now);
-	source.stop(now + 0.16);
-	playNoise(context, buffer, 1450 * variation, 1.1, 0.025, 0.018,
-		"bandpass", 0.045, 0.004);
-	playNoise(context, buffer, 1050 * variation, 0.9, 0.02, 0.02,
-		"bandpass", 0.11, 0.004);
-}
-
 function playChime(context, frequency, delay, volume) {
 	var partials = [1, 2.76, 5.4, 8.93];
 	var strengths = [0.7, 1, 0.32, 0.12];
@@ -558,20 +492,6 @@ function playChime(context, frequency, delay, volume) {
 		oscillator.start(start);
 		oscillator.stop(start + durations[i]);
 	}
-}
-
-function playTone(context, frequency, volume, duration, endFrequency, type) {
-	var oscillator = context.createOscillator();
-	var gain = context.createGain();
-	oscillator.type = type || "triangle";
-	oscillator.frequency.setValueAtTime(frequency, context.currentTime);
-	if (endFrequency)
-		oscillator.frequency.exponentialRampToValueAtTime(endFrequency,
-			context.currentTime + duration);
-	fadeSound(gain, context, volume, duration);
-	oscillator.connect(gain).connect(context.destination);
-	oscillator.start();
-	oscillator.stop(context.currentTime + duration);
 }
 
 function limitDisplayedClues(clues, displayType, limit) {
@@ -891,7 +811,7 @@ function checkClueDisplay(clue) {
 		clue.display.classList.add("clue-hidden");
 }
 
-function renderClue(clue, slot, type, elements) {
+function renderClue(puzzle, clue, slot, type, elements) {
 	slot.innerHTML = "";
 	for (var i = 0; i < elements.length; i++) {
 		var elem = document.createElement(type);
@@ -902,6 +822,8 @@ function renderClue(clue, slot, type, elements) {
 	if (!clue.listener) {
 		clue.listener = function(ev) {
 			ev.preventDefault();
+			if (clue.active)
+				puzzle.playSound("clue");
 			clue.active = !clue.active;
 			checkClueDisplay(clue);
 		};
@@ -938,7 +860,7 @@ function OrderClue(puzzle) {
 	}
 
 	this.render = function() {
-		renderClue(this, this.display, "span", [
+		renderClue(puzzle, this, this.display, "span", [
 			    ["tile " + this.lRow.familyClass,
 			     this.lRow.slots[this.lCol].symbol()],
 			    ["dots", "..."],
@@ -976,7 +898,7 @@ function Adjacent2Clue(puzzle) {
 	}
 
 	this.render = function() {
-		renderClue(this, this.display, "span", [
+		renderClue(puzzle, this, this.display, "span", [
 			    ["tile " + this.lRow.familyClass,
 			     this.lRow.slots[this.lCol].symbol()],
 			    ["arrow", "&#x2194;"],
@@ -1035,7 +957,7 @@ function Adjacent3Clue(puzzle) {
 	}
 
 	this.render = function() {
-		renderClue(this, this.display, "span", [
+		renderClue(puzzle, this, this.display, "span", [
 			    ["tile " + this.lRow.familyClass,
 			     this.lRow.slots[this.lCol].symbol()],
 			    ["tile " + this.mRow.familyClass,
@@ -1067,7 +989,7 @@ function ColumnClue(puzzle) {
 	}
 
 	this.render = function() {
-		renderClue(this, this.display, "div", [
+		renderClue(puzzle, this, this.display, "div", [
 			    ["tile " + this.tRow.familyClass,
 			     this.tRow.slots[this.col].symbol()],
 			    ["tile " + this.bRow.familyClass,
