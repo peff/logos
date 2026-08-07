@@ -306,12 +306,21 @@ body[data-cursor="native"] {
 
 .score-entry {
 	display: flex;
+	align-items: center;
 	justify-content: space-between;
 	gap: 1.5rem;
 }
 
 .score-date {
+	display: flex;
+	flex-direction: column;
+	white-space: nowrap;
+}
+
+.score-attic-date {
 	color: #68685f;
+	font-size: 0.8em;
+	font-style: italic;
 }
 
 .score-time {

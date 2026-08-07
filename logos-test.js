@@ -50,7 +50,8 @@ Object.defineProperty(globalThis, "localStorage", { value: {
 const source = await Deno.readTextFile(
 	new URL("./logos.js", import.meta.url));
 const Logos = eval(source +
-	"\n;({ Puzzle: Puzzle, ExactClue: ExactClue });");
+	"\n;({ Puzzle: Puzzle, ExactClue: ExactClue, " +
+	"formatOlympiad: formatOlympiad });");
 const Puzzle = Logos.Puzzle;
 const ExactClue = Logos.ExactClue;
 const symbols = ["0", "1", "2", "3", "4", "5"];
@@ -253,6 +254,15 @@ Deno.test("high scores retain the ten fastest times", function() {
 	       localStorage.getItem("highScores"),
 	       "high scores were not persisted");
 	localStorage.removeItem("highScores");
+});
+
+Deno.test("Olympiad years begin in July", function() {
+	assert(Logos.formatOlympiad(new Date(2025, 6, 1).getTime()) ==
+	       "Olympiad 701.1", "701st Olympiad began in the wrong year");
+	assert(Logos.formatOlympiad(new Date(2026, 5, 30).getTime()) ==
+	       "Olympiad 701.1", "Olympiad year ended too early");
+	assert(Logos.formatOlympiad(new Date(2026, 6, 1).getTime()) ==
+	       "Olympiad 701.2", "Olympiad year did not advance in July");
 });
 
 Deno.test("row propagation updates every slot before deducing", function() {

@@ -277,7 +277,17 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			entry.className = "score-entry";
 			var date = document.createElement("span");
 			date.className = "score-date";
-			date.textContent = formatScoreDate(this.highScores[i].date);
+			var modern = document.createElement("span");
+			modern.className = "score-modern-date";
+			modern.textContent = formatScoreDate(this.highScores[i].date);
+			date.appendChild(modern);
+			if (this.highScores[i].date !== null) {
+				var attic = document.createElement("span");
+				attic.className = "score-attic-date";
+				attic.textContent = atticMonth(this.highScores[i].date) +
+					" · " + formatOlympiad(this.highScores[i].date);
+				date.appendChild(attic);
+			}
 			entry.appendChild(date);
 			var time = document.createElement("span");
 			time.className = "score-time";
@@ -547,11 +557,32 @@ function formatTime(elapsed) {
 function formatScoreDate(timestamp) {
 	if (timestamp === null)
 		return "Earlier";
-	return new Date(timestamp).toLocaleDateString(undefined, {
-		year: "numeric",
-		month: "short",
-		day: "numeric",
-	});
+	var date = new Date(timestamp);
+	var month = date.toLocaleDateString(undefined, { month: "long" });
+	return date.getDate() + " " + month + " " +
+		date.getFullYear() + " CE";
+}
+
+function atticMonth(timestamp) {
+	/* Decorative correspondence only; the Attic calendar was lunar. */
+	var months = [
+		"Gamelion", "Anthesterion", "Elaphebolion", "Mounichion",
+		"Thargelion", "Skirophorion", "Hekatombaion", "Metageitnion",
+		"Boedromion", "Pyanopsion", "Maimakterion", "Poseideon",
+	];
+	return months[new Date(timestamp).getMonth()];
+}
+
+function formatOlympiad(timestamp) {
+	var date = new Date(timestamp);
+	var olympiadYear = date.getFullYear();
+	/* Use July 1 as a decorative approximation of the summer boundary. */
+	if (date.getMonth() < 6)
+		olympiadYear--;
+	var yearsSinceFirst = olympiadYear + 775;
+	var olympiad = Math.floor(yearsSinceFirst / 4) + 1;
+	var year = yearsSinceFirst % 4 + 1;
+	return "Olympiad " + olympiad + "." + year;
 }
 
 function loadHighScores() {
