@@ -973,7 +973,6 @@ function Slot(row, symbols, display) {
 
 	this.removePossible = function(value, deferCheck) {
 		this.possible[value] = false;
-		this.displayPossible[value].innerHTML = "";
 		this.displayPossible[value].className =
 			"possibility dead-possibility";
 		if (!deferCheck)
