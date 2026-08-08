@@ -15,16 +15,15 @@ from fontTools.ttLib import TTFont
 UNITS_PER_EM = 1000
 ASCENT = 800
 DESCENT = -200
-REGULAR_BASE = 0xE000
-COMPACT_ROMAN_BASE = 0xE100
-CLUE_ARROW = 0xE200
-
 TEXT_SYMBOLS = {
 	0: ["1", "2", "3", "4", "5", "6"],
 	1: ["A", "B", "C", "D", "E", "F"],
-	2: ["I", "II", "III", "IV", "V", "VI"],
 	5: ["+", "\u2012", "\u00f7", "x", "=", "\u221a"],
 }
+
+DICE_BASE = 0x2680
+SHAPE_CODEPOINTS = [0x25B3, 0x25BD, 0x25A1, 0x25C7, 0x2B20, 0x25CB]
+CLUE_ARROW = 0x2194
 
 
 def glyph_run(font, text, tracking=0):
@@ -89,6 +88,21 @@ def text_glyph(font, text, max_width=760, max_height=680, tracking=0,
 			else:
 				glyphs[name].draw(transformed)
 	return pen.glyph()
+
+
+def roman_glyph(font, text):
+	glyphs = font.getGlyphSet()
+	run = glyph_run(font, text)
+	xmin, ymin, xmax, ymax = run_bounds(glyphs, run)
+	scale = 680 / (ymax - ymin)
+	dy = 500 + scale * (ymin + ymax) / 2
+
+	pen = TTGlyphPen(None)
+	quadratic = Cu2QuPen(pen, max_err=0.5, reverse_direction=True)
+	transform = (scale, 0, 0, scale, 0, ASCENT - dy)
+	glyphs[run[0][0]].draw(TransformPen(quadratic, transform))
+	advance = font["hmtx"][run[0][0]][0] * scale
+	return pen.glyph(), advance
 
 
 def font_point(point):
@@ -276,11 +290,13 @@ def main():
 
 	for family in range(6):
 		for index in range(6):
+			if family == 2:
+				continue
 			name = f"tile_{family}_{index}"
-			codepoint = REGULAR_BASE + family * 6 + index
 			if family in TEXT_SYMBOLS:
 				text = TEXT_SYMBOLS[family][index]
-				width = 1200 if family == 2 else 760
+				codepoint = ord(text)
+				width = 760
 				height = 680
 				embolden = 0
 				extend_root = None
@@ -297,18 +313,20 @@ def main():
 				                   extend_root=extend_root)
 			elif family == 3:
 				glyph = die_glyph(index + 1)
+				codepoint = DICE_BASE + index
 			else:
 				glyph = shape_glyph(index)
+				codepoint = SHAPE_CODEPOINTS[index]
 			glyphs[name] = glyph
 			glyph_order.append(name)
 			cmap[codepoint] = name
 
-	for index, text in enumerate(TEXT_SYMBOLS[2]):
-		name = f"tile_compact_2_{index}"
-		codepoint = COMPACT_ROMAN_BASE + index
-		glyphs[name] = text_glyph(source, text, 1200, 680, tracking=-120)
+	roman_advances = {}
+	for text in ["I", "V"]:
+		name = f"roman_{text}"
+		glyphs[name], roman_advances[name] = roman_glyph(source, text)
 		glyph_order.append(name)
-		cmap[codepoint] = name
+		cmap[ord(text)] = name
 
 	name = "clue_arrow"
 	glyphs[name] = clue_arrow_glyph()
@@ -322,7 +340,8 @@ def main():
 	for glyph in glyphs.values():
 		glyph.recalcBounds(builder.font["glyf"])
 	metrics = {
-		name: (UNITS_PER_EM, getattr(glyph, "xMin", 0))
+		name: (roman_advances.get(name, UNITS_PER_EM),
+		       getattr(glyph, "xMin", 0))
 		for name, glyph in glyphs.items()
 	}
 	builder.setupHorizontalMetrics(metrics)

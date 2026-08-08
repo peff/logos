@@ -114,16 +114,9 @@ body[data-cursor="native"] {
 	visibility: hidden;
 }
 
-.tile-symbol-compact {
-	display: none;
-}
-
-#board .family-2 .possibility .tile-symbol-normal {
-	display: none;
-}
-
-#board .family-2 .possibility .tile-symbol-compact {
-	display: inline;
+#board .family-2 .possibility {
+	letter-spacing: -0.12em;
+	text-indent: -0.12em;
 }
 
 #board table {

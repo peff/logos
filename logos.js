@@ -1,20 +1,13 @@
-function tileSymbol(family, symbol) {
-	var normal = String.fromCodePoint(0xe000 + family * 6 + symbol);
-	if (family != 2)
-		return normal;
-	var compact = String.fromCodePoint(0xe100 + symbol);
-	return '<span class="tile-symbol-normal">' + normal + '</span>' +
-	       '<span class="tile-symbol-compact">' + compact + '</span>';
-}
+var defaultSymbols = [
+	["1", "2", "3", "4", "5", "6"],
+	["A", "B", "C", "D", "E", "F"],
+	["I", "II", "III", "IV", "V", "VI"],
+	["⚀", "⚁", "⚂", "⚃", "⚄", "⚅"],
+	["△", "▽", "□", "◇", "⬠", "○"],
+	["+", "‒", "÷", "x", "=", "√"],
+];
 
-var defaultSymbols = [];
-for (var family = 0; family < 6; family++) {
-	defaultSymbols[family] = [];
-	for (var symbol = 0; symbol < 6; symbol++)
-		defaultSymbols[family][symbol] = tileSymbol(family, symbol);
-}
-
-var clueArrow = '<span aria-hidden="true">\ue200</span>';
+var clueArrow = '<span aria-hidden="true">↔</span>';
 
 var startMessages = [
 	"The ancient puzzle awaits. Let reason be your guide.",
