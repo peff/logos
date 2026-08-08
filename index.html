@@ -5,7 +5,6 @@
 		<meta name="viewport" content="width=device-width, initial-scale=1">
 		<title>Logos</title>
 		<link rel="stylesheet" type="text/css" href="logos.css">
-		<script src="tile-symbols.js"></script>
 		<script src="logos.js"></script>
 	</head>
 	<body>
@@ -121,10 +120,7 @@
 						<tr>
 							<td><span class="help-example">
 								<span class="help-tile family-1" data-tile="1-0"></span>
-								<span class="arrow"><svg viewBox="0 0 1000 600"
-									aria-hidden="true"><path d="M130 300H870M130 300L300 115
-									M130 300L300 485M870 300L700 115M870 300L700 485">
-									</path></svg></span>
+								<span class="arrow" aria-hidden="true">&#xe200;</span>
 								<span class="help-tile family-4" data-tile="4-0"></span>
 							</span></td>
 							<td>The symbols are in neighboring columns, in either order.</td>
@@ -188,7 +184,6 @@
 		<table id="vclues"></table>
 
 		<script>
-		installTileSymbols();
 		for (var helpTile of document.querySelectorAll("[data-tile]")) {
 			var tile = helpTile.dataset.tile.split("-");
 			helpTile.innerHTML = tileSymbol(tile[0], tile[1]);

@@ -6,6 +6,14 @@
 	font-display: swap;
 }
 
+@font-face {
+	font-family: "Logos Tiles";
+	src: url("logos-tiles.woff2") format("woff2");
+	font-weight: 400;
+	font-style: normal;
+	font-display: block;
+}
+
 html {
 	width: 100%;
 	height: 100%;
@@ -104,13 +112,6 @@ body[data-cursor="native"] {
 
 #board .dead-possibility {
 	visibility: hidden;
-}
-
-.tile-symbol {
-	display: block;
-	width: 1em;
-	height: 1em;
-	overflow: visible;
 }
 
 .tile-symbol-compact {
@@ -715,6 +716,8 @@ body[data-cursor="native"] {
 	box-shadow:
 		inset 0 0 0.22rem rgb(0 0 0 / 52%),
 		inset 0 0.05rem 0.12rem rgb(255 255 255 / 7%);
+	font-family: "Logos Tiles";
+	font-synthesis: none;
 }
 
 .arrow {
@@ -724,22 +727,11 @@ body[data-cursor="native"] {
 	width: 1.4rem;
 	height: 1rem;
 	color: #2563eb;
+	font-family: "Logos Tiles";
+	font-size: 1.4rem;
+	font-synthesis: none;
+	line-height: 1;
 	vertical-align: middle;
-}
-
-.arrow svg {
-	display: block;
-	width: 100%;
-	height: 100%;
-	overflow: visible;
-}
-
-.arrow path {
-	fill: none;
-	stroke: currentColor;
-	stroke-width: 85;
-	stroke-linecap: round;
-	stroke-linejoin: round;
 }
 
 .dots {

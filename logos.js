@@ -1,11 +1,10 @@
 function tileSymbol(family, symbol) {
-	var uses = '<use class="tile-symbol-normal" href="#tile-' + family +
-	           '-' + symbol + '"></use>';
-	if (family == 2)
-		uses += '<use class="tile-symbol-compact" href="#tile-compact-2-' +
-		        symbol + '"></use>';
-	return '<svg class="tile-symbol" aria-hidden="true" focusable="false">' +
-	       uses + '</svg>';
+	var normal = String.fromCodePoint(0xe000 + family * 6 + symbol);
+	if (family != 2)
+		return normal;
+	var compact = String.fromCodePoint(0xe100 + symbol);
+	return '<span class="tile-symbol-normal">' + normal + '</span>' +
+	       '<span class="tile-symbol-compact">' + compact + '</span>';
 }
 
 var defaultSymbols = [];
@@ -15,9 +14,7 @@ for (var family = 0; family < 6; family++) {
 		defaultSymbols[family][symbol] = tileSymbol(family, symbol);
 }
 
-var clueArrow = '<svg viewBox="0 0 1000 600" aria-hidden="true">' +
-	'<path d="M130 300H870M130 300L300 115M130 300L300 485' +
-	'M870 300L700 115M870 300L700 485"></path></svg>';
+var clueArrow = '<span aria-hidden="true">\ue200</span>';
 
 var startMessages = [
 	"The ancient puzzle awaits. Let reason be your guide.",
