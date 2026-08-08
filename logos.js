@@ -15,6 +15,10 @@ for (var family = 0; family < 6; family++) {
 		defaultSymbols[family][symbol] = tileSymbol(family, symbol);
 }
 
+var clueArrow = '<svg viewBox="0 0 1000 600" aria-hidden="true">' +
+	'<path d="M130 300H870M130 300L300 115M130 300L300 485' +
+	'M870 300L700 115M870 300L700 485"></path></svg>';
+
 var startMessages = [
 	"The ancient puzzle awaits. Let reason be your guide.",
 	"The signs are set. The search for truth begins.",
@@ -1096,7 +1100,7 @@ function Adjacent2Clue(puzzle) {
 		renderClue(puzzle, this, this.display, "span", [
 			    ["tile " + this.lRow.familyClass,
 			     this.lRow.slots[this.lCol].symbol()],
-			    ["arrow", "&#x2194;"],
+			    ["arrow", clueArrow],
 			    ["tile " + this.rRow.familyClass,
 			     this.rRow.slots[this.rCol].symbol()]
 		]);
