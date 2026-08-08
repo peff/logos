@@ -104,7 +104,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	};
 	this.soundVolumes = {
 		place: 1,
-		discard: 0.4,
+		discard: 0.55,
 		clue: 1,
 		mistake: 1,
 	};
