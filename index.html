@@ -105,46 +105,46 @@
 						</tr>
 						<tr>
 							<td><span class="help-example">
-								<span class="help-tile family-1" data-tile="1-0"></span>
+								<span class="help-tile family-1">&#xe006;</span>
 							</span></td>
-							<td><span class="help-tile family-1" data-tile="1-0"></span> already placed
+							<td><span class="help-tile family-1">&#xe006;</span> already placed
 								on the board is fixed in that column.</td>
 						</tr>
 						<tr>
 							<td><span class="help-example"><span class="help-stack">
-								<span class="help-tile family-1" data-tile="1-0"></span>
-								<span class="help-tile family-4" data-tile="4-0"></span>
+								<span class="help-tile family-1">&#xe006;</span>
+								<span class="help-tile family-4">&#xe018;</span>
 							</span></span></td>
 							<td>The two symbols are in the same column.</td>
 						</tr>
 						<tr>
 							<td><span class="help-example">
-								<span class="help-tile family-1" data-tile="1-0"></span>
+								<span class="help-tile family-1">&#xe006;</span>
 								<span class="arrow" aria-hidden="true">&#xe200;</span>
-								<span class="help-tile family-4" data-tile="4-0"></span>
+								<span class="help-tile family-4">&#xe018;</span>
 							</span></td>
 							<td>The symbols are in neighboring columns, in either order.</td>
 						</tr>
 						<tr>
 							<td><span class="help-example">
-								<span class="help-tile family-1" data-tile="1-0"></span>
+								<span class="help-tile family-1">&#xe006;</span>
 								<strong class="dots">...</strong>
-								<span class="help-tile family-4" data-tile="4-0"></span>
+								<span class="help-tile family-4">&#xe018;</span>
 							</span></td>
-							<td><span class="help-tile family-1" data-tile="1-0"></span> is somewhere to
-								the left of <span class="help-tile family-4" data-tile="4-0"></span>, but not
+							<td><span class="help-tile family-1">&#xe006;</span> is somewhere to
+								the left of <span class="help-tile family-4">&#xe018;</span>, but not
 								necessarily adjacent.</td>
 						</tr>
 						<tr>
 							<td><span class="help-example">
-								<span class="help-tile family-1" data-tile="1-0"></span>
-								<span class="help-tile family-4" data-tile="4-0"></span>
-								<span class="help-tile family-2" data-tile="2-1"></span>
+								<span class="help-tile family-1">&#xe006;</span>
+								<span class="help-tile family-4">&#xe018;</span>
+								<span class="help-tile family-2">&#xe00d;</span>
 							</span></td>
 							<td>Three consecutive columns contain these symbols, either left-to-right or right-to-left.
-								<span class="help-tile family-4" data-tile="4-0"></span> is in the middle;
-								<span class="help-tile family-1" data-tile="1-0"></span> and
-								<span class="help-tile family-2" data-tile="2-1"></span> appear on
+								<span class="help-tile family-4">&#xe018;</span> is in the middle;
+								<span class="help-tile family-1">&#xe006;</span> and
+								<span class="help-tile family-2">&#xe00d;</span> appear on
 								opposite sides.</td>
 						</tr>
 					</table>
@@ -184,11 +184,6 @@
 		<table id="vclues"></table>
 
 		<script>
-		for (var helpTile of document.querySelectorAll("[data-tile]")) {
-			var tile = helpTile.dataset.tile.split("-");
-			helpTile.innerHTML = tileSymbol(tile[0], tile[1]);
-		}
-
 		var puzzle = new Puzzle(
 				document.getElementById("board"),
 				document.getElementById("hclues"),
