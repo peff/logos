@@ -5,6 +5,7 @@
 		<meta name="viewport" content="width=device-width, initial-scale=1">
 		<title>Logos</title>
 		<link rel="stylesheet" type="text/css" href="logos.css">
+		<script src="tile-symbols.js"></script>
 		<script src="logos.js"></script>
 	</head>
 	<body>
@@ -105,46 +106,46 @@
 						</tr>
 						<tr>
 							<td><span class="help-example">
-								<span class="help-tile family-1">A</span>
+								<span class="help-tile family-1" data-tile="1-0"></span>
 							</span></td>
-							<td><span class="help-tile family-1">A</span> already placed
+							<td><span class="help-tile family-1" data-tile="1-0"></span> already placed
 								on the board is fixed in that column.</td>
 						</tr>
 						<tr>
 							<td><span class="help-example"><span class="help-stack">
-								<span class="help-tile family-1">A</span>
-								<span class="help-tile family-4">△</span>
+								<span class="help-tile family-1" data-tile="1-0"></span>
+								<span class="help-tile family-4" data-tile="4-0"></span>
 							</span></span></td>
 							<td>The two symbols are in the same column.</td>
 						</tr>
 						<tr>
 							<td><span class="help-example">
-								<span class="help-tile family-1">A</span>
+								<span class="help-tile family-1" data-tile="1-0"></span>
 								<strong>↔</strong>
-								<span class="help-tile family-4">△</span>
+								<span class="help-tile family-4" data-tile="4-0"></span>
 							</span></td>
 							<td>The symbols are in neighboring columns, in either order.</td>
 						</tr>
 						<tr>
 							<td><span class="help-example">
-								<span class="help-tile family-1">A</span>
+								<span class="help-tile family-1" data-tile="1-0"></span>
 								<strong>…</strong>
-								<span class="help-tile family-4">△</span>
+								<span class="help-tile family-4" data-tile="4-0"></span>
 							</span></td>
-							<td><span class="help-tile family-1">A</span> is somewhere to
-								the left of <span class="help-tile family-4">△</span>, but not
+							<td><span class="help-tile family-1" data-tile="1-0"></span> is somewhere to
+								the left of <span class="help-tile family-4" data-tile="4-0"></span>, but not
 								necessarily adjacent.</td>
 						</tr>
 						<tr>
 							<td><span class="help-example">
-								<span class="help-tile family-1">A</span>
-								<span class="help-tile family-4">△</span>
-								<span class="help-tile family-2">II</span>
+								<span class="help-tile family-1" data-tile="1-0"></span>
+								<span class="help-tile family-4" data-tile="4-0"></span>
+								<span class="help-tile family-2" data-tile="2-1"></span>
 							</span></td>
 							<td>Three consecutive columns contain these symbols.
-								<span class="help-tile family-4">△</span> is in the middle;
-								<span class="help-tile family-1">A</span> and
-								<span class="help-tile family-2">II</span> may appear on
+								<span class="help-tile family-4" data-tile="4-0"></span> is in the middle;
+								<span class="help-tile family-1" data-tile="1-0"></span> and
+								<span class="help-tile family-2" data-tile="2-1"></span> may appear on
 								either opposing side.</td>
 						</tr>
 					</table>
@@ -184,6 +185,12 @@
 		<table id="vclues"></table>
 
 		<script>
+		installTileSymbols();
+		for (var helpTile of document.querySelectorAll("[data-tile]")) {
+			var tile = helpTile.dataset.tile.split("-");
+			helpTile.innerHTML = tileSymbol(tile[0], tile[1]);
+		}
+
 		var puzzle = new Puzzle(
 				document.getElementById("board"),
 				document.getElementById("hclues"),
