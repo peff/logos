@@ -585,10 +585,10 @@ body[data-cursor="native"] {
 
 #status.lost {
 	background-image: linear-gradient(to bottom,
-		#ffe0d5 0%,
-		#e87963 36%,
-		#b94343 68%,
-		#f2a087 100%);
+		#ffc5a8 0%,
+		#f06b4d 36%,
+		#dc493d 68%,
+		#f17d5d 100%);
 }
 
 #hclues {
