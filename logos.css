@@ -76,6 +76,10 @@ body[data-cursor="native"] {
 	text-align: center;
 }
 
+#board .slot > [hidden] {
+	display: none;
+}
+
 #board .single {
 	border: 2px solid var(--tile-accent);
 	border-radius: 3px;

@@ -125,6 +125,25 @@ Deno.test("a false elimination loses the game", function() {
 	assert(puzzle.losses == 1, "false elimination did not cause a loss");
 });
 
+Deno.test("slot views are reused when switching displays", function() {
+	const puzzle = makePuzzle(1);
+	const slot = puzzle.rows[0].slots[0];
+	const single = slot.singleElem;
+	const possible = slot.possibleElem;
+
+	slot.displaySingle(slot.value);
+	assert(slot.singleElem === single, "single tile was replaced");
+	assert(slot.possibleElem === possible, "possibility table was replaced");
+	assert(!single.hidden && possible.hidden,
+	       "single tile was not the only visible view");
+
+	slot.displayPossible();
+	assert(slot.singleElem === single, "single tile was not reused");
+	assert(slot.possibleElem === possible, "possibility table was not reused");
+	assert(single.hidden && !possible.hidden,
+	       "possibility table was not the only visible view");
+});
+
 Deno.test("a slot with one candidate is resolved", function() {
 	const puzzle = makePuzzle(1);
 	const slot = puzzle.rows[0].slots[0];

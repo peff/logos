@@ -883,11 +883,11 @@ function Slot(row, symbols, display) {
 	}
 
 	this.displaySingle = function(i, revealed) {
-		var tile = document.createElement("div");
-		tile.className = "single" + (revealed ? " revealed" : "");
-		tile.innerHTML = this.symbols[i];
-		this.elem.innerHTML = '';
-		this.elem.appendChild(tile);
+		this.singleElem.className =
+			"single" + (revealed ? " revealed" : "");
+		this.singleElem.innerHTML = this.symbols[i];
+		this.singleElem.hidden = false;
+		this.possibleElem.hidden = true;
 		this.single = true;
 	}
 
@@ -898,34 +898,10 @@ function Slot(row, symbols, display) {
 	}
 
 	this.displayPossible = function() {
-		// as close to square as we can
-		var table = document.createElement("table");
-		var rows = Math.floor(Math.sqrt(this.symbols.length));
-		var cols = Math.floor(this.symbols.length / rows);
-		for (var i = 0; i < rows; i++) {
-			var row = table.insertRow();
-			var lo = i * cols;
-			var hi = (i+1) * cols;
-			if (hi > this.symbols.length)
-				hi = this.symbols.length;
-			for (var j = lo; j < hi; j++) {
-				var cell = this.displayPossible[j] = row.insertCell();
-				cell.innerHTML = this.symbols[j];
-				cell.className = "possibility";
-				cell.addEventListener('click',
-					function(s, j) { return function() {
-						s.choose(j, true);
-					}}(this, j));
-				cell.addEventListener('contextmenu',
-					function(s, j) { return function(ev) {
-						ev.preventDefault();
-						s.discard(j, true);
-					}}(this, j));
-			}
-		}
-
-		this.elem.innerHTML = "";
-		this.elem.appendChild(table);
+		for (var i = 0; i < this.possibilityElems.length; i++)
+			this.possibilityElems[i].className = "possibility";
+		this.singleElem.hidden = true;
+		this.possibleElem.hidden = false;
 		this.single = false;
 	}
 
@@ -967,7 +943,7 @@ function Slot(row, symbols, display) {
 
 	this.removePossible = function(value, deferCheck) {
 		this.possible[value] = false;
-		this.displayPossible[value].className =
+		this.possibilityElems[value].className =
 			"possibility dead-possibility";
 		if (!deferCheck)
 			this.checkSingleton();
@@ -987,6 +963,40 @@ function Slot(row, symbols, display) {
 		if (count == 1)
 			this.choose(last);
 	}
+
+	this.singleElem = document.createElement("div");
+	this.singleElem.hidden = true;
+	this.possibleElem = document.createElement("table");
+	this.possibilityElems = [];
+
+	// Lay the possibilities out as close to square as we can.
+	var rows = Math.floor(Math.sqrt(this.symbols.length));
+	var cols = Math.floor(this.symbols.length / rows);
+	for (var i = 0; i < rows; i++) {
+		var possibleRow = this.possibleElem.insertRow();
+		var lo = i * cols;
+		var hi = (i+1) * cols;
+		if (hi > this.symbols.length)
+			hi = this.symbols.length;
+		for (var j = lo; j < hi; j++) {
+			var cell = this.possibilityElems[j] =
+				possibleRow.insertCell();
+			cell.innerHTML = this.symbols[j];
+			cell.className = "possibility";
+			cell.addEventListener('click',
+				function(s, j) { return function() {
+					s.choose(j, true);
+				}}(this, j));
+			cell.addEventListener('contextmenu',
+				function(s, j) { return function(ev) {
+					ev.preventDefault();
+					s.discard(j, true);
+				}}(this, j));
+		}
+	}
+
+	this.elem.appendChild(this.singleElem);
+	this.elem.appendChild(this.possibleElem);
 }
 
 function checkClueDisplay(clue) {
