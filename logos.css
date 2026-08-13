@@ -141,10 +141,41 @@ body[data-cursor="native"] {
 .option-action {
 	border: 1px solid #777267;
 	border-radius: 0.2rem;
-	background-color: #f7f3e9;
+	background-color: #e7dfd1;
+	background-image: linear-gradient(to bottom, #f0eadf, #ddd2c1);
+	box-shadow: 0 0.08rem 0.13rem rgb(42 37 30 / 24%);
 	color: #303637;
 	cursor: var(--action-cursor);
-	font-family: Georgia, "Times New Roman", serif;
+	font-family: Forum, Georgia, "Times New Roman", serif;
+	font-weight: 600;
+	transition:
+		background-color 80ms ease-out,
+		border-color 80ms ease-out,
+		box-shadow 80ms ease-out,
+		transform 80ms ease-out;
+}
+
+.control-buttons > input:hover,
+.modal-done:hover,
+.option-action:hover {
+	background-color: #eee6d8;
+	background-image: linear-gradient(to bottom, #f7f1e6, #e3d8c7);
+}
+
+.control-buttons > input:active,
+.modal-done:active,
+.option-action:active {
+	background-color: #eee8dc;
+	background-image: linear-gradient(to bottom, #d8cdbc, #e8dece);
+	box-shadow: inset 0 0.04rem 0.08rem rgb(73 62 47 / 22%);
+	transform: translateY(0.04rem);
+}
+
+.control-buttons > input:focus-visible,
+.modal-done:focus-visible,
+.option-action:focus-visible {
+	outline: 2px solid #80633a;
+	outline-offset: 0.16rem;
 }
 
 .control-buttons {
