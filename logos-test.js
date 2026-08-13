@@ -291,6 +291,7 @@ Deno.test("high scores retain the ten fastest times", function() {
 });
 
 Deno.test("a winning high score opens the Pantheon", function() {
+	localStorage.removeItem("gameStats");
 	const puzzle = makePuzzle(1, true);
 	for (const slot of puzzle.rows[0].slots)
 		slot.displaySingle(slot.value);
@@ -303,7 +304,27 @@ Deno.test("a winning high score opens the Pantheon", function() {
 	assert(puzzle.scoresShown, "winning high score did not show the Pantheon");
 	assert(puzzle.highlightedScore == puzzle.highScores[0],
 	       "winning high score was not selected for highlighting");
+	assert(JSON.stringify(puzzle.gameStats) ==
+	       JSON.stringify({ won: 1, lost: 0 }),
+	       "win was not counted");
 	localStorage.removeItem("highScores");
+	localStorage.removeItem("gameStats");
+});
+
+Deno.test("game outcomes are persisted and rendered", function() {
+	localStorage.setItem("gameStats", JSON.stringify({ won: 3, lost: 2 }));
+	const puzzle = makePuzzle(1);
+	puzzle.lose("test loss");
+	assert(localStorage.getItem("gameStats") ==
+	       JSON.stringify({ won: 3, lost: 3 }),
+	       "loss was not persisted");
+
+	puzzle.renderHighScores();
+	assert(puzzle.scores.querySelector(".games-sought").textContent == 6,
+	       "total games were not rendered");
+	assert(puzzle.scores.querySelector(".games-won").textContent == 3,
+	       "wins were not rendered");
+	localStorage.removeItem("gameStats");
 });
 
 Deno.test("Olympiad years begin in July", function() {

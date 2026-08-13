@@ -185,6 +185,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.gameOver = true;
 		this.playSound("win");
 		this.stopTimer();
+		this.recordOutcome("won");
 		var highScore = this.recordHighScore(this.timerElapsed);
 		this.timer.classList.add("won");
 		this.messages.classList.add("won");
@@ -217,6 +218,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.gameOver = true;
 		this.playSound("mistake");
 		this.stopTimer();
+		this.recordOutcome("lost");
 		this.timer.classList.add("lost");
 		this.messages.classList.add("lost");
 		this.revealSolution();
@@ -274,9 +276,23 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		return this.highScores.indexOf(score) >= 0 ? score : null;
 	}
 
+	this.recordOutcome = function(outcome) {
+		this.gameStats[outcome]++;
+		try {
+			localStorage.setItem("gameStats",
+				JSON.stringify(this.gameStats));
+		} catch (e) {
+			/* The totals still apply for the current page. */
+		}
+	}
+
 	this.renderHighScores = function() {
 		var list = this.scores.querySelector("ol");
 		var empty = this.scores.querySelector(".scores-empty");
+		var gamesSought = this.gameStats.won + this.gameStats.lost;
+		this.scores.querySelector(".games-sought").textContent = gamesSought;
+		this.scores.querySelector(".games-won").textContent =
+			this.gameStats.won;
 		list.innerHTML = "";
 		empty.hidden = this.highScores.length != 0;
 		for (var i = 0; i < this.highScores.length; i++) {
@@ -584,6 +600,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		/* Storage may be unavailable for local files. */
 	}
 	this.highScores = loadHighScores();
+	this.gameStats = loadGameStats();
 	this.setCursor(cursor);
 	this.setMilestones(showMilestones);
 	this.setTimerVisible(showTimer);
@@ -659,6 +676,19 @@ function loadHighScores() {
 	return scores.sort(function(a, b) {
 		return a.elapsed - b.elapsed;
 	}).slice(0, 10);
+}
+
+function loadGameStats() {
+	var stats;
+	try {
+		stats = JSON.parse(localStorage.getItem("gameStats") || "{}");
+	} catch (e) {
+		return { won: 0, lost: 0 };
+	}
+	if (!stats || !Number.isSafeInteger(stats.won) || stats.won < 0 ||
+	    !Number.isSafeInteger(stats.lost) || stats.lost < 0)
+		return { won: 0, lost: 0 };
+	return { won: stats.won, lost: stats.lost };
 }
 
 function playChime(context, frequency, delay, volume) {

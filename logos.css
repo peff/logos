@@ -348,6 +348,18 @@ body[data-cursor="native"] {
 	font-variant-numeric: tabular-nums;
 }
 
+.game-stats {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: center;
+	column-gap: 1.5rem;
+	row-gap: 0.25rem;
+	margin: 0 0 0.5rem;
+	text-align: center;
+	font-size: 0.85rem;
+	font-variant-numeric: tabular-nums;
+}
+
 .scores-panel li {
 	padding: 0.08rem 0.3rem;
 }
