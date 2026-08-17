@@ -291,6 +291,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		var empty = this.scores.querySelector(".scores-empty");
 		var gamesSought = this.gameStats.won + this.gameStats.lost;
 		this.scores.querySelector(".games-sought").textContent = gamesSought;
+		this.scores.querySelector(".games-sought-unit").textContent =
+			gamesSought == 1 ? "time" : "times";
 		this.scores.querySelector(".games-won").textContent =
 			this.gameStats.won;
 		list.innerHTML = "";

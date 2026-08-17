@@ -349,14 +349,11 @@ body[data-cursor="native"] {
 }
 
 .game-stats {
-	display: flex;
-	flex-wrap: wrap;
-	justify-content: center;
-	column-gap: 1.5rem;
-	row-gap: 0.25rem;
 	margin: 0 0 0.5rem;
 	text-align: center;
-	font-size: 0.85rem;
+	color: #68685f;
+	font-size: 0.8em;
+	font-style: italic;
 	font-variant-numeric: tabular-nums;
 }
 

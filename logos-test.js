@@ -324,6 +324,17 @@ Deno.test("game outcomes are persisted and rendered", function() {
 	       "total games were not rendered");
 	assert(puzzle.scores.querySelector(".games-won").textContent == 3,
 	       "wins were not rendered");
+	assert(puzzle.scores.querySelector(".games-sought-unit").textContent ==
+	       "times", "plural game count was not rendered");
+	localStorage.removeItem("gameStats");
+});
+
+Deno.test("game statistics use singular wording", function() {
+	localStorage.setItem("gameStats", JSON.stringify({ won: 1, lost: 0 }));
+	const puzzle = makePuzzle(1);
+	puzzle.renderHighScores();
+	assert(puzzle.scores.querySelector(".games-sought-unit").textContent ==
+	       "time", "singular game count was not rendered");
 	localStorage.removeItem("gameStats");
 });
 
