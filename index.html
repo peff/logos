@@ -17,23 +17,22 @@
 		<div id="controls">
 			<div id="board-actions" class="tile-action-selector" hidden
 			     role="group" aria-label="Tile action">
-				<fieldset class="tile-action-group">
-					<legend>Inscribe</legend>
-					<input id="action-place" type="radio" name="tile-action"
+				<fieldset class="tile-action-group tile-operation"
+				          aria-label="Deduction">
+					<input id="action-place" type="radio" name="tile-operation"
 					       value="place" checked>
 					<label for="action-place">Choose</label>
-					<input id="action-remove" type="radio" name="tile-action"
+					<input id="action-remove" type="radio" name="tile-operation"
 					       value="remove">
 					<label for="action-remove">Discard</label>
 				</fieldset>
-				<fieldset class="tile-action-group">
-					<legend>Sketch</legend>
-					<input id="action-pencil-select" type="radio" name="tile-action"
-					       value="pencil-select">
-					<label for="action-pencil-select">Choose</label>
-					<input id="action-pencil-remove" type="radio" name="tile-action"
-					       value="pencil-remove">
-					<label for="action-pencil-remove">Discard</label>
+				<fieldset class="tile-action-group tile-mark" aria-label="Mark">
+					<input id="action-inscribe" type="radio" name="tile-mark"
+					       value="inscribe" checked>
+					<label for="action-inscribe">Inscribe</label>
+					<input id="action-sketch" type="radio" name="tile-mark"
+					       value="sketch">
+					<label for="action-sketch">Sketch</label>
 				</fieldset>
 			</div>
 			<div class="control-buttons">

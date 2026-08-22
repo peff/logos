@@ -342,8 +342,13 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.getTileAction = function() {
-		return this.boardActions.querySelector(
-			"input[name=tile-action]:checked").value;
+		var operation = this.boardActions.querySelector(
+			"input[name=tile-operation]:checked").value;
+		var mark = this.boardActions.querySelector(
+			"input[name=tile-mark]:checked").value;
+		if (mark == "inscribe")
+			return operation;
+		return operation == "place" ? "pencil-select" : "pencil-remove";
 	}
 
 	this.renderSlotTray = function() {

@@ -201,8 +201,7 @@ body[data-cursor="native"] {
 
 .control-buttons > input,
 .modal-done,
-.option-action,
-.tile-action-selector label {
+.option-action {
 	border: 1px solid #777267;
 	border-radius: 0.2rem;
 	background-color: #e7dfd1;
@@ -226,16 +225,14 @@ body[data-cursor="native"] {
 
 .control-buttons > input:hover,
 .modal-done:hover,
-.option-action:hover,
-.tile-action-selector label:hover {
+.option-action:hover {
 	background-color: #eee6d8;
 	background-image: linear-gradient(to bottom, #f7f1e6, #e3d8c7);
 }
 
 .control-buttons > input:active,
 .modal-done:active,
-.option-action:active,
-.tile-action-selector label:active {
+.option-action:active {
 	background-color: #eee8dc;
 	background-image: linear-gradient(to bottom, #d8cdbc, #e8dece);
 	box-shadow: inset 0 0.04rem 0.08rem rgb(73 62 47 / 22%);
@@ -276,8 +273,8 @@ body[data-cursor="native"] {
 }
 
 #board-actions label {
-	padding: 0.28rem 0.45rem;
-	font-size: 0.78rem;
+	padding: 0.24rem 0.3rem 0.36rem;
+	font-size: 0.82rem;
 	white-space: nowrap;
 }
 
@@ -287,18 +284,11 @@ body[data-cursor="native"] {
 	gap: 0.1rem;
 	min-width: 0;
 	margin: 0;
-	border: 1px solid #c8c0b2;
+	border: 0;
 	border-radius: 0.2rem;
-	padding: 0.08rem 0.1rem 0.12rem;
-}
-
-.tile-action-group legend {
-	padding: 0 0.2rem;
-	color: #68685f;
-	font-family: Forum, Georgia, "Times New Roman", serif;
-	font-size: 0.6rem;
-	font-weight: 600;
-	letter-spacing: 0.035em;
+	background: rgb(73 68 59 / 5%);
+	box-shadow: inset 0 0 0 1px rgb(104 96 82 / 10%);
+	padding: 0.08rem 0.1rem 0.1rem;
 }
 
 .modal-done {
@@ -404,21 +394,48 @@ body[data-cursor="native"] {
 }
 
 .tile-action-selector label {
+	position: relative;
 	display: flex;
 	align-items: center;
 	justify-content: center;
 	min-width: 0;
+	font-family: Forum, Georgia, "Times New Roman", serif;
+	font-weight: 600;
 	letter-spacing: 0.025em;
 	text-align: center;
 }
 
-.tile-action-selector input:checked + label {
-	border-color: #6f2c25;
-	background-color: #7d332b;
-	background-image: none;
-	color: #f7f3e9;
-	box-shadow: inset 0 0 0 1px rgb(247 243 233 / 25%);
-	text-shadow: 0 1px 1px rgb(30 15 12 / 60%);
+.tile-action-selector label::after {
+	content: "";
+	pointer-events: none;
+	position: absolute;
+	right: 16%;
+	bottom: 0.2rem;
+	left: 16%;
+	height: 0.1rem;
+	border-radius: 48% 55% 46% 52%;
+	background: #8a5732;
+	opacity: 0;
+	transform: rotate(-2deg) scaleX(0.7);
+	transition: opacity 80ms ease-out, transform 100ms ease-out;
+}
+
+.tile-action-selector input:checked + label::after {
+	opacity: 0.9;
+	transform: rotate(-2deg) scaleX(1);
+}
+
+.tile-mark #action-inscribe:checked + label::after {
+	height: 0.16rem;
+	background: #71372e;
+	box-shadow: 0 0.04rem 0 rgb(80 37 29 / 20%);
+}
+
+.tile-mark #action-sketch:checked + label::after {
+	height: 0.07rem;
+	background: #a49a84;
+	opacity: 0.75;
+	transform: rotate(1deg) scaleX(1);
 }
 
 #board .slot.expanded {

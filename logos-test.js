@@ -45,9 +45,10 @@ class FakeElement {
 	}
 	setAttribute() {}
 	querySelector(selector) {
-		if (selector == "input[name=tile-action]:checked")
+		const match = selector.match(/^input\[name=([^\]]+)\]:checked$/);
+		if (match)
 			return this.children.find(child =>
-				child.name == "tile-action" && child.checked);
+				child.name == match[1] && child.checked);
 		if (!this.queries[selector])
 			this.queries[selector] = new FakeElement();
 		return this.queries[selector];
@@ -69,13 +70,20 @@ globalThis.document = {
 };
 globalThis.document.body.dataset = {};
 const boardActions = globalThis.document.querySelector("#board-actions");
-for (const action of ["place", "remove", "pencil-select", "pencil-remove"]) {
+for (const action of ["place", "remove"]) {
 	const input = new FakeElement();
-	input.name = "tile-action";
+	input.name = "tile-operation";
 	input.value = action;
 	boardActions.appendChild(input);
 }
 boardActions.children[0].checked = true;
+for (const mark of ["inscribe", "sketch"]) {
+	const input = new FakeElement();
+	input.name = "tile-mark";
+	input.value = mark;
+	boardActions.appendChild(input);
+}
+boardActions.children[2].checked = true;
 globalThis.Audio = class {};
 Object.defineProperty(globalThis, "localStorage", { value: {
 	values: {},
@@ -109,8 +117,16 @@ function assert(condition, message) {
 }
 
 function selectTileAction(puzzle, action) {
-	for (const input of puzzle.boardActions.children)
-		input.checked = input.value == action;
+	var operation = action == "remove" || action == "pencil-remove" ?
+		"remove" : "place";
+	var mark = action == "place" || action == "remove" ?
+		"inscribe" : "sketch";
+	for (const input of puzzle.boardActions.children) {
+		if (input.name == "tile-operation")
+			input.checked = input.value == operation;
+		else if (input.name == "tile-mark")
+			input.checked = input.value == mark;
+	}
 }
 
 function makePuzzle(numRows, checkWin) {
