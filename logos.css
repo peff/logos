@@ -209,7 +209,6 @@ body[data-cursor="native"] {
 	background-image: linear-gradient(to bottom, #f0eadf, #ddd2c1);
 	box-shadow: 0 0.08rem 0.13rem rgb(42 37 30 / 24%);
 	color: #303637;
-	cursor: var(--action-cursor);
 	font-family: Forum, Georgia, "Times New Roman", serif;
 	font-weight: 600;
 	transition:
@@ -217,6 +216,12 @@ body[data-cursor="native"] {
 		border-color 80ms ease-out,
 		box-shadow 80ms ease-out,
 		transform 80ms ease-out;
+}
+
+.control-buttons > input,
+.modal-done,
+.option-action {
+	cursor: var(--action-cursor);
 }
 
 .control-buttons > input:hover,
@@ -271,8 +276,7 @@ body[data-cursor="native"] {
 }
 
 #board-actions label {
-	min-height: 1.65rem;
-	padding: 0.12rem;
+	padding: 0.28rem 0.45rem;
 	font-size: 0.78rem;
 	white-space: nowrap;
 }
@@ -401,19 +405,9 @@ body[data-cursor="native"] {
 
 .tile-action-selector label {
 	display: flex;
-	flex-direction: column;
 	align-items: center;
 	justify-content: center;
 	min-width: 0;
-	border: 1px solid #777267;
-	border-radius: 3px;
-	background-color: #e7dfd1;
-	color: #303637;
-	cursor: var(--default-cursor);
-	font-family: Forum, Georgia, "Times New Roman", serif;
-	font-size: 13px;
-	font-weight: 600;
-	line-height: 1.05;
 	letter-spacing: 0.025em;
 	text-align: center;
 }
