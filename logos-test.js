@@ -218,9 +218,13 @@ Deno.test("coarse pointers use an expanded slot tray", function() {
 Deno.test("the action menu defaults by pointer and remembers its setting",
 		function() {
 	localStorage.removeItem("selectionActionMenu");
-	globalThis.matchMedia = function() { return { matches: true }; };
+	let mediaQuery;
+	globalThis.matchMedia = function(query) {
+		mediaQuery = query;
+		return { matches: true };
+	};
 	let puzzle = makePuzzle(1);
-	assert(puzzle.selectionActionMenu,
+	assert(mediaQuery == "(pointer: coarse)" && puzzle.selectionActionMenu,
 	       "coarse pointer did not enable the action menu by default");
 
 	localStorage.setItem("selectionActionMenu", "false");

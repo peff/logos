@@ -100,7 +100,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.expandedSlot = null;
 	this.slotTrayAction = "place";
 	this.coarsePointer = typeof matchMedia != "undefined" &&
-		matchMedia("(any-pointer: coarse)").matches;
+		matchMedia("(pointer: coarse)").matches;
 	this.selectionActionMenu = this.coarsePointer;
 	this.timerInterval = null;
 	this.timerStarted = null;
