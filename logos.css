@@ -95,10 +95,6 @@ body[data-cursor="native"] {
 	line-height: 1;
 }
 
-#board .single.revealed {
-	background-color: #54262b;
-}
-
 #board .possibility {
 	border: 1px solid var(--tile-accent);
 	border-radius: 3px;
@@ -755,6 +751,14 @@ body[data-cursor="native"] {
 		inset 0 0.05rem 0.12rem rgb(255 255 255 / 7%);
 	font-family: "Logos Tiles";
 	font-synthesis: none;
+}
+
+#board .possibility.answer {
+	background-color: #54262b;
+	outline: 2px solid #d4777f;
+	outline-offset: -2px;
+	position: relative;
+	z-index: 1;
 }
 
 .arrow {

@@ -914,9 +914,8 @@ function Slot(row, symbols, display) {
 		return this.symbols[this.value];
 	}
 
-	this.displaySingle = function(i, revealed) {
-		this.singleElem.className =
-			"single" + (revealed ? " revealed" : "");
+	this.displaySingle = function(i) {
+		this.singleElem.className = "single";
 		this.singleElem.innerHTML = this.symbols[i];
 		this.singleElem.hidden = false;
 		this.possibleElem.hidden = true;
@@ -926,7 +925,7 @@ function Slot(row, symbols, display) {
 	this.reveal = function() {
 		if (this.single)
 			return;
-		this.displaySingle(this.value, true);
+		this.possibilityElems[this.value].className += " answer";
 	}
 
 	this.displayPossible = function() {

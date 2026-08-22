@@ -144,6 +144,22 @@ Deno.test("slot views are reused when switching displays", function() {
 	       "possibility table was not the only visible view");
 });
 
+Deno.test("revealing a slot preserves its deductions", function() {
+	const puzzle = makePuzzle(1);
+	const slot = puzzle.rows[0].slots[0];
+	const discarded = (slot.value + 1) % symbols.length;
+
+	slot.removePossible(discarded, true);
+	slot.reveal();
+	assert(slot.singleElem.hidden && !slot.possibleElem.hidden,
+	       "reveal replaced the possibility table");
+	assert(slot.possibilityElems[slot.value].className ==
+	       "possibility answer", "answer was not marked");
+	assert(slot.possibilityElems[discarded].className ==
+	       "possibility dead-possibility",
+	       "reveal restored a discarded possibility");
+});
+
 Deno.test("a slot with one candidate is resolved", function() {
 	const puzzle = makePuzzle(1);
 	const slot = puzzle.rows[0].slots[0];
