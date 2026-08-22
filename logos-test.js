@@ -235,6 +235,15 @@ Deno.test("modifier clicks toggle pencil marks", function() {
 	assert(puzzle.pencilMarks.length == 1 &&
 	       puzzle.pencilMarks[0].discard,
 	       "shift-right-click did not pencil-discard");
+
+	puzzle.macOS = true;
+	const wrong = (value + 1) % symbols.length;
+	slot.possibilityElems[wrong].listeners.contextmenu({
+		ctrlKey: true,
+		preventDefault() {},
+	});
+	assert(!slot.possible[wrong],
+	       "macOS secondary click was mistaken for a pencil discard");
 });
 
 Deno.test("coarse pointers use an expanded slot tray", function() {

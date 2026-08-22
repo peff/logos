@@ -100,6 +100,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.expandedSlot = null;
 	this.coarsePointer = typeof matchMedia != "undefined" &&
 		matchMedia("(pointer: coarse)").matches;
+	this.macOS = typeof navigator != "undefined" &&
+		/^Mac/.test(navigator.platform);
 	this.expandTileChoices = this.coarsePointer &&
 		typeof innerWidth != "undefined" &&
 		Math.min(innerWidth * 0.0208, innerHeight * 0.0345) < 20;
@@ -1746,7 +1748,8 @@ function Slot(row, symbols, display) {
 			cell.addEventListener('contextmenu',
 				function(s, j) { return function(ev) {
 					ev.preventDefault();
-					if (ev.ctrlKey || ev.altKey || ev.shiftKey)
+					if (ev.altKey || ev.shiftKey ||
+					    (ev.ctrlKey && !s.row.puzzle.macOS))
 						s.pencil(j, true);
 					else
 						s.discard(j, true);
