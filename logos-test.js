@@ -34,6 +34,9 @@ class FakeElement {
 	addEventListener(type, listener) {
 		this.listeners[type] = listener;
 	}
+	focus() {
+		this.focused = true;
+	}
 	setAttribute() {}
 	querySelector(selector) {
 		if (!this.queries[selector])
@@ -254,6 +257,32 @@ Deno.test("committed moves remove only affected pencil marks", function() {
 	assert(unrelated.possibilityElems[unrelated.value].className.includes(
 	       "pencil-selected pencil-explicit"),
 	       "remaining pencil state was not recomputed");
+});
+
+Deno.test("help pages switch between rules and clues", function() {
+	const puzzle = makePuzzle(1);
+	const rules = puzzle.help.querySelector(".help-page-rules");
+	const clues = puzzle.help.querySelector(".help-page-clues");
+	const previous = puzzle.help.querySelector(".help-page-previous");
+	const next = puzzle.help.querySelector(".help-page-next");
+	const number = puzzle.help.querySelector(".help-page-number");
+
+	puzzle.showHelpPage(0);
+	assert(!rules.hidden && clues.hidden,
+	       "rules were not the only visible first page");
+	assert(previous.hidden && !next.hidden,
+	       "first-page navigation was incorrect");
+	assert(number.textContent == "Leaf I of II",
+	       "first-page folio was incorrect");
+
+	puzzle.turnHelpPage(1);
+	assert(rules.hidden && !clues.hidden,
+	       "clues were not the only visible second page");
+	assert(!previous.hidden && next.hidden,
+	       "second-page navigation was incorrect");
+	assert(number.textContent == "Leaf II of II",
+	       "second-page folio was incorrect");
+	assert(previous.focused, "page turn did not preserve keyboard focus");
 });
 
 Deno.test("a directly contradicting clue is highlighted", function() {

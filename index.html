@@ -86,30 +86,35 @@
 			     aria-modal="true" aria-labelledby="help-title">
 				<div class="modal-panel help-panel">
 					<h2 id="help-title">How to play</h2>
-					<p>
-						The board has six columns and six families of symbols.
-						Each column contains one symbol from every family, and
-						every symbol is used exactly once. Use the
-						clues to determine which six symbols belong together in
-						each column.
-					</p>
+					<div class="help-pages">
+					<section class="help-page help-page-rules">
+						<h3>The Rules</h3>
+						<p>
+							The board has six columns and six families of symbols.
+							Each column contains one symbol from every family, and
+							every symbol is used exactly once. Use the
+							clues to determine which six symbols belong together in
+							each column.
+						</p>
 
-					<h3>Making deductions</h3>
-					<ul>
-						<li><strong>Left-click</strong> a possibility to place it.</li>
-						<li><strong>Right-click</strong> a possibility to eliminate it.</li>
-						<li>A false placement or elimination ends the game.</li>
-						<li>Forced placements are filled in automatically.</li>
-					</ul>
-					<h3>Pencil Marks</h3>
-					<ul>
-						<li><strong>Shift-click</strong> to tentatively select a possibility.</li>
-						<li><strong>Shift-right-click</strong> to tentatively eliminate a possibility.</li>
-						<li>Pencil marks propagate within a row, but are not checked against clues or the solution.</li>
-					</ul>
+						<h3>Making deductions</h3>
+						<ul>
+							<li><strong>Left-click</strong> a possibility to place it.</li>
+							<li><strong>Right-click</strong> a possibility to eliminate it.</li>
+							<li>A false placement or elimination ends the game.</li>
+							<li>Forced placements are filled in automatically.</li>
+						</ul>
+						<h3>Pencil Marks</h3>
+						<ul>
+							<li><strong>Shift-click</strong> to tentatively select a possibility.</li>
+							<li><strong>Shift-right-click</strong> to tentatively eliminate a possibility.</li>
+							<li>Pencil marks propagate within a row, but are not checked against clues or the solution.</li>
+						</ul>
+					</section>
 
-					<h3>Reading the clues</h3>
-					<table class="help-clues">
+					<section class="help-page help-page-clues" hidden>
+						<h3>The Clues</h3>
+						<table class="help-clues">
 						<tr>
 							<th>Example</th>
 							<th>Meaning</th>
@@ -158,11 +163,20 @@
 								<span class="help-tile family-2">II</span> appear on
 								opposite sides.</td>
 						</tr>
-					</table>
+						</table>
 
-					<p class="help-note">
-						Right-click a clue to set it aside.
-					</p>
+						<p class="help-note">
+							Right-click a clue to set it aside.
+						</p>
+					</section>
+					</div>
+					<nav class="help-folio" aria-label="Help pages">
+						<button class="help-page-turn help-page-previous" type="button"
+							onClick="puzzle.turnHelpPage(-1)" hidden>‹ The Rules</button>
+						<span class="help-page-number" aria-live="polite">Leaf I of II</span>
+						<button class="help-page-turn help-page-next" type="button"
+							onClick="puzzle.turnHelpPage(1)">The Clues ›</button>
+					</nav>
 				</div>
 			</div>
 			<div id="about-menu" class="modal" hidden role="dialog"

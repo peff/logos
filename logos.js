@@ -127,6 +127,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.paused = false;
 	this.resumeAfterModal = false;
 	this.nextMilestone = 0;
+	this.helpPage = 0;
 	this.showMilestones = true;
 	this.pencilMarks = [];
 	this.rows = [];
@@ -545,7 +546,30 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.toggleHelp = function() {
+		if (this.help.hidden)
+			this.showHelpPage(0);
 		this.toggleModal(this.help, this.helpButton);
+	}
+
+	this.showHelpPage = function(page) {
+		this.helpPage = Math.max(0, Math.min(1, page));
+		this.help.querySelector(".help-page-rules").hidden =
+			this.helpPage != 0;
+		this.help.querySelector(".help-page-clues").hidden =
+			this.helpPage != 1;
+		this.help.querySelector(".help-page-previous").hidden =
+			this.helpPage == 0;
+		this.help.querySelector(".help-page-next").hidden =
+			this.helpPage == 1;
+		this.help.querySelector(".help-page-number").textContent =
+			this.helpPage ? "Leaf II of II" : "Leaf I of II";
+	}
+
+	this.turnHelpPage = function(direction) {
+		this.showHelpPage(this.helpPage + direction);
+		var selector = this.helpPage ?
+			".help-page-previous" : ".help-page-next";
+		this.help.querySelector(selector).focus();
 	}
 
 	this.toggleScores = function() {
