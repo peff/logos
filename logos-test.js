@@ -187,7 +187,7 @@ Deno.test("a false elimination loses the game", function() {
 	assert(puzzle.losses == 1, "false elimination did not cause a loss");
 });
 
-Deno.test("ctrl clicks toggle pencil marks without making moves", function() {
+Deno.test("control and option clicks toggle pencil marks", function() {
 	const puzzle = makePuzzle(1);
 	const slot = puzzle.rows[0].slots[0];
 	const value = slot.value;
@@ -211,6 +211,18 @@ Deno.test("ctrl clicks toggle pencil marks without making moves", function() {
 	       "ctrl-right-click did not add a pencil elimination");
 	assert(puzzle.losses == 0,
 	       "pencil elimination checked the hidden solution");
+
+	cell.listeners.click({ altKey: true });
+	assert(puzzle.pencilMarks.length == 1 &&
+	       !puzzle.pencilMarks[0].discard,
+	       "option-click did not replace the pencil elimination");
+	cell.listeners.contextmenu({
+		altKey: true,
+		preventDefault() {},
+	});
+	assert(puzzle.pencilMarks.length == 1 &&
+	       puzzle.pencilMarks[0].discard,
+	       "option-right-click did not pencil-discard");
 });
 
 Deno.test("coarse pointers use an expanded slot tray", function() {

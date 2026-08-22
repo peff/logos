@@ -1738,7 +1738,7 @@ function Slot(row, symbols, display) {
 					else if (s.row.puzzle.showActionSelector)
 						s.row.puzzle.applyTileAction(s, j,
 							s.row.puzzle.getTileAction());
-					else if (ev.ctrlKey)
+					else if (ev.ctrlKey || ev.altKey)
 						s.pencil(j, false);
 					else
 						s.choose(j, true);
@@ -1746,7 +1746,7 @@ function Slot(row, symbols, display) {
 			cell.addEventListener('contextmenu',
 				function(s, j) { return function(ev) {
 					ev.preventDefault();
-					if (ev.ctrlKey)
+					if (ev.ctrlKey || ev.altKey)
 						s.pencil(j, true);
 					else
 						s.discard(j, true);
