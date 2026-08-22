@@ -102,7 +102,7 @@
 						<label title="Choose how taps on tiles are interpreted. Avoids long-press and enables chalk marks on mobile.">
 						       <input id="show-action-selector" type="checkbox"
 						              onChange="puzzle.setShowActionSelector(this.checked)">
-						       Show action selector</label>
+						       Show tap controls</label>
 						<input id="fullscreen-button" class="option-action" type="button"
 						       onClick="puzzle.toggleFullscreen()" value="Enter full screen">
 					</fieldset>
@@ -116,32 +116,64 @@
 					<h2 id="help-title">How to play</h2>
 					<div class="help-pages">
 					<section class="help-page help-page-rules">
-						<h3>The Rules</h3>
+						<h3>Objective</h3>
 						<p>
-							The board has six columns and six families of symbols.
-							Each column contains one symbol from every family, and
-							every symbol is used exactly once. Use the
-							clues to determine which six symbols belong together in
-							each column.
+							The board has six rows, each containing a family of six
+							symbols, with each symbol appearing exactly once. The
+							symbols within each row have been scrambled, and you have
+							only a set of mysterious clues to guide you to the correct
+							order.
 						</p>
 
-						<h3>Making deductions</h3>
-						<ul>
-							<li><strong>Left-click</strong> a possibility to choose it.</li>
-							<li><strong>Right-click</strong> a possibility to discard it.</li>
-							<li>A false choice or discard ends the game.</li>
-							<li>Forced choices are filled in automatically.</li>
-						</ul>
-						<h3>Chalk Marks</h3>
-						<ul>
-							<li><strong>Ctrl-click</strong> to tentatively choose a possibility.</li>
-							<li><strong>Ctrl-right-click</strong> to tentatively discard a possibility.</li>
-							<li>Chalk marks propagate within a row, but are not checked against clues or the solution.</li>
-						</ul>
+						<p>
+							Place all of the symbols correctly to prove your
+							wisdom. But beware! One false move will bring your logical
+							edifice tumbling down.
+						</p>
+
+						<h3>Example</h3>
+						<div class="help-example-row family-0" role="img"
+						     aria-label="A partially solved row: the second slot contains 5, while the other slots show their remaining possibilities.">
+							<div class="help-example-slot"><div class="help-example-possibilities">
+								<span>1</span><span>2</span><span>3</span>
+								<span>4</span><span class="removed">5</span><span class="removed">6</span>
+							</div></div>
+							<div class="help-example-slot">
+								<span class="help-example-single">5</span>
+							</div>
+							<div class="help-example-slot"><div class="help-example-possibilities">
+								<span>1</span><span>2</span><span>3</span>
+								<span>4</span><span class="removed">5</span><span>6</span>
+							</div></div>
+							<div class="help-example-slot"><div class="help-example-possibilities">
+								<span class="removed">1</span><span>2</span><span>3</span>
+								<span>4</span><span class="removed">5</span><span class="removed">6</span>
+							</div></div>
+							<div class="help-example-slot"><div class="help-example-possibilities">
+								<span>1</span><span>2</span><span>3</span>
+								<span class="removed">4</span><span class="removed">5</span><span>6</span>
+							</div></div>
+							<div class="help-example-slot"><div class="help-example-possibilities">
+								<span>1</span><span>2</span><span>3</span>
+								<span>4</span><span class="removed">5</span><span>6</span>
+							</div></div>
+						</div>
+
+						<p>
+							Each position shows either a large symbol that has been
+							placed, or a set of smaller tiles which have not yet been
+							eliminated. In this example,
+							<span class="help-tile family-0">5</span>
+							has been placed in the second position and removed as a
+							possibility from all others. And
+							<span class="help-tile family-0">6</span> has been
+							eliminated from the first and fourth positions (along with
+							some other tiles).
+						</p>
 					</section>
 
 					<section class="help-page help-page-clues" hidden>
-						<h3>The Clues</h3>
+						<h3>Clues</h3>
 						<table class="help-clues">
 						<tr>
 							<th>Example</th>
@@ -151,7 +183,7 @@
 							<td><span class="help-example">
 								<span class="help-tile family-1">A</span>
 							</span></td>
-							<td><span class="help-tile family-1">A</span> already chosen
+							<td>A symbol already chosen
 								on the board is fixed in that column.</td>
 						</tr>
 						<tr>
@@ -194,16 +226,45 @@
 						</table>
 
 						<p class="help-note">
-							Right-click a clue to set it aside.
+							You may click or tap a clue to dismiss it once you have
+							drawn all you can from it. This is optional but allows you
+							to focus on the path to true wisdom.
 						</p>
+					</section>
+
+					<section class="help-page help-page-controls" hidden>
+						<h3>Controls</h3>
+						<ul>
+							<li><strong>Left-click</strong> a possibility to choose it.</li>
+							<li><strong>Right-click</strong> a possibility to discard it.</li>
+							<li>A false choice or discard ends the game.</li>
+							<li>Forced choices (when only one option remains) are filled in automatically.</li>
+						</ul>
+						<h3>Chalk Marks</h3>
+						<ul>
+							<li><strong>Control-left-click</strong> to tentatively choose a possibility.</li>
+							<li><strong>Control-right-click</strong> to tentatively discard a possibility.</li>
+							<li>Chalk marks propagate within a row, but are not checked against clues or the solution.</li>
+						</ul>
+						<h3>Touchscreens</h3>
+						<ul>
+							<li>The <span class="help-option">Tap Controls</span>
+							option allows you to select the action performed by a
+							single tap: choosing vs discarding, and permanently
+							inscribing an action versus sketching a chalk mark.</li>
+							<li>The <span class="help-option">Expand Tile</span>
+							option makes it easier to select small tiles,
+							at the expense of requiring multiple taps.</li>
+						</ul>
+
 					</section>
 					</div>
 					<nav class="help-folio" aria-label="Help pages">
 						<button class="help-page-turn help-page-previous" type="button"
-							onClick="puzzle.turnHelpPage(-1)" hidden>‹ The Rules</button>
-						<span class="help-page-number" aria-live="polite">Leaf I of II</span>
+							onClick="puzzle.turnHelpPage(-1)" hidden>‹ Previous</button>
+						<span class="help-page-number" aria-live="polite"></span>
 						<button class="help-page-turn help-page-next" type="button"
-							onClick="puzzle.turnHelpPage(1)">The Clues ›</button>
+							onClick="puzzle.turnHelpPage(1)">Next ›</button>
 					</nav>
 				</div>
 			</div>

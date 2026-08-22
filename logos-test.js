@@ -463,30 +463,43 @@ Deno.test("committed moves remove only affected pencil marks", function() {
 	       "remaining pencil state was not recomputed");
 });
 
-Deno.test("help pages switch between rules and clues", function() {
+Deno.test("help pages switch between rules, clues, and controls", function() {
 	const puzzle = makePuzzle(1);
 	const rules = puzzle.help.querySelector(".help-page-rules");
 	const clues = puzzle.help.querySelector(".help-page-clues");
+	const controls = puzzle.help.querySelector(".help-page-controls");
 	const previous = puzzle.help.querySelector(".help-page-previous");
 	const next = puzzle.help.querySelector(".help-page-next");
 	const number = puzzle.help.querySelector(".help-page-number");
 
 	puzzle.showHelpPage(0);
-	assert(!rules.hidden && clues.hidden,
+	assert(!rules.hidden && clues.hidden && controls.hidden,
 	       "rules were not the only visible first page");
 	assert(previous.hidden && !next.hidden,
 	       "first-page navigation was incorrect");
-	assert(number.textContent == "Leaf I of II",
+	assert(number.textContent == "Leaf I of III",
 	       "first-page folio was incorrect");
 
 	puzzle.turnHelpPage(1);
-	assert(rules.hidden && !clues.hidden,
+	assert(rules.hidden && !clues.hidden && controls.hidden,
 	       "clues were not the only visible second page");
-	assert(!previous.hidden && next.hidden,
+	assert(!previous.hidden && !next.hidden,
 	       "second-page navigation was incorrect");
-	assert(number.textContent == "Leaf II of II",
+	assert(previous.textContent == "‹ Objective" &&
+	       next.textContent == "Controls ›",
+	       "second-page labels were incorrect");
+	assert(number.textContent == "Leaf II of III",
 	       "second-page folio was incorrect");
 	assert(previous.focused, "page turn did not preserve keyboard focus");
+
+	puzzle.turnHelpPage(1);
+	assert(rules.hidden && clues.hidden && !controls.hidden,
+	       "controls were not the only visible third page");
+	assert(!previous.hidden && next.hidden,
+	       "third-page navigation was incorrect");
+	assert(previous.textContent == "‹ Clues" &&
+	       number.textContent == "Leaf III of III",
+	       "third-page folio was incorrect");
 });
 
 Deno.test("a directly contradicting clue is highlighted", function() {

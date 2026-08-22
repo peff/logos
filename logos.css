@@ -634,7 +634,7 @@ body[data-cursor="native"] {
 	display: flex;
 	flex-direction: column;
 	width: min(34rem, calc(100vw - 2rem));
-	height: min(21rem, calc(100vh - 2rem));
+	max-height: calc(100vh - 2rem);
 	overflow: hidden;
 	padding: 0.4rem 0.7rem 0.45rem;
 	font-size: 0.78rem;
@@ -642,12 +642,19 @@ body[data-cursor="native"] {
 }
 
 .help-pages {
+	display: grid;
 	flex: 1 1 auto;
 	min-height: 0;
+	overflow-y: auto;
+}
+
+.help-page {
+	grid-area: 1 / 1;
 }
 
 .help-page[hidden] {
-	display: none;
+	display: block;
+	visibility: hidden;
 }
 
 .help-folio {
@@ -773,7 +780,7 @@ body[data-cursor="native"] {
 
 .help-panel h2,
 .help-panel h3 {
-	margin: 0 0 0.2rem;
+	margin: 0 0 0.3rem;
 	font-family: Forum, Georgia, "Times New Roman", serif;
 }
 
@@ -783,13 +790,13 @@ body[data-cursor="native"] {
 }
 
 .help-panel h3 {
-	margin-top: 0.4rem;
+	margin-top: 0.55rem;
 	font-size: 0.95rem;
 }
 
 .help-panel p,
 .help-panel ul {
-	margin: 0.18rem 0;
+	margin: 0.25rem 0;
 }
 
 .help-panel ul {
@@ -804,7 +811,7 @@ body[data-cursor="native"] {
 .help-clues th,
 .help-clues td {
 	border-top: 1px solid #d5cec0;
-	padding: 0.18rem 0.35rem;
+	padding: 0.24rem 0.35rem;
 	text-align: left;
 }
 
@@ -842,8 +849,68 @@ body[data-cursor="native"] {
 	gap: 0;
 }
 
+.help-example-row {
+	display: grid;
+	grid-template-columns: repeat(6, 2.7rem);
+	justify-content: center;
+	gap: 0.1rem;
+	margin: 0.55rem auto 0.25rem;
+}
+
+.help-example-slot {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: 0.18rem;
+	background-color: #737b7a;
+	width: 2.7rem;
+	height: 2.6rem;
+	overflow: hidden;
+}
+
+.help-example-possibilities {
+	display: grid;
+	grid-template-columns: repeat(3, 1fr);
+	grid-template-rows: repeat(2, 1fr);
+	width: 100%;
+	height: 100%;
+}
+
+.help-example-possibilities span,
+.help-example-single {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	box-sizing: border-box;
+	border: 1px solid var(--tile-accent);
+	border-radius: 3px;
+	background-color: var(--tile-bg);
+	color: var(--tile-fg);
+	line-height: 1;
+}
+
+.help-example-possibilities span {
+	font-size: 0.72rem;
+}
+
+.help-example-possibilities .removed {
+	visibility: hidden;
+}
+
+.help-example-single {
+	border-width: 2px;
+	width: 2.4rem;
+	height: 2.35rem;
+	font-size: 1.35rem;
+}
+
 .help-note {
 	font-style: italic;
+}
+
+.help-option {
+	font-weight: bold;
+	white-space: nowrap;
 }
 
 .about-panel {
@@ -1121,6 +1188,8 @@ body[data-cursor="native"] {
 #hclues .tile,
 #vclues .tile,
 .help-tile,
+.help-example-possibilities span,
+.help-example-single,
 .slot-tray-symbol {
 	background-image:
 		url("slate-noise.svg"),
