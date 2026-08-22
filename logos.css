@@ -761,6 +761,10 @@ body[data-cursor="native"] {
 	z-index: 1;
 }
 
+#board .solution .possibility:not(.answer) {
+	opacity: 0.5;
+}
+
 .arrow {
 	display: inline-flex;
 	align-items: center;

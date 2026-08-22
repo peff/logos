@@ -153,11 +153,17 @@ Deno.test("revealing a slot preserves its deductions", function() {
 	slot.reveal();
 	assert(slot.singleElem.hidden && !slot.possibleElem.hidden,
 	       "reveal replaced the possibility table");
+	assert(slot.possibleElem.className == "solution",
+	       "possibility table was not marked as a solution");
 	assert(slot.possibilityElems[slot.value].className ==
 	       "possibility answer", "answer was not marked");
 	assert(slot.possibilityElems[discarded].className ==
 	       "possibility dead-possibility",
 	       "reveal restored a discarded possibility");
+
+	slot.displayPossible();
+	assert(slot.possibleElem.className == "",
+	       "solution styling survived a display reset");
 });
 
 Deno.test("a slot with one candidate is resolved", function() {

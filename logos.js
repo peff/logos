@@ -925,10 +925,12 @@ function Slot(row, symbols, display) {
 	this.reveal = function() {
 		if (this.single)
 			return;
+		this.possibleElem.className = "solution";
 		this.possibilityElems[this.value].className += " answer";
 	}
 
 	this.displayPossible = function() {
+		this.possibleElem.className = "";
 		for (var i = 0; i < this.possibilityElems.length; i++)
 			this.possibilityElems[i].className = "possibility";
 		this.singleElem.hidden = true;
