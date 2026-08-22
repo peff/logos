@@ -370,6 +370,7 @@ body[data-cursor="native"] {
 	border-radius: 4px;
 	background-color: var(--tile-bg);
 	color: var(--tile-fg);
+	cursor: var(--default-cursor);
 	font-family: "Logos Tiles";
 	font-size: 32px;
 	line-height: 1;
@@ -391,10 +392,13 @@ body[data-cursor="native"] {
 	border-radius: 3px;
 	background-color: #e7dfd1;
 	color: #303637;
-	font-family: Georgia, "Times New Roman", serif;
-	font-size: 12px;
+	cursor: var(--default-cursor);
+	font-family: Forum, Georgia, "Times New Roman", serif;
+	font-size: 13px;
 	line-height: 1.05;
+	letter-spacing: 0.025em;
 	text-align: center;
+	text-shadow: 0 1px 0 rgb(255 255 255 / 65%);
 }
 
 .slot-tray-action.selected {
@@ -402,6 +406,7 @@ body[data-cursor="native"] {
 	background-color: #7d332b;
 	color: #f7f3e9;
 	box-shadow: inset 0 0 0 1px rgb(247 243 233 / 25%);
+	text-shadow: 0 1px 1px rgb(30 15 12 / 60%);
 }
 
 #board .slot.expanded {
