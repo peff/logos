@@ -58,21 +58,20 @@ body[data-cursor="native"] {
 	--action-cursor: pointer;
 }
 
-#board {
-	--chalk-mark: rgb(240 232 211 / 88%);
-	grid-area: board;
-	flex: 0 0 auto;
-	font-family: sans-serif;
-	font-size: 1rem;
+.board {
 	border-spacing: 0.12rem;
 	table-layout: fixed;
 	width: 18rem;
 }
 
-#board .slot {
+#board {
+	--chalk-mark: rgb(240 232 211 / 88%);
+	grid-area: board;
+}
+
+.board .slot {
 	border-radius: 0.18rem;
 	background-color: #737b7a;
-	width: 3rem;
 	height: 2.9rem;
 	text-align: center;
 }
@@ -81,7 +80,7 @@ body[data-cursor="native"] {
 	display: none;
 }
 
-#board .single {
+.board .single {
 	border: 2px solid var(--tile-accent);
 	border-radius: 3px;
 	background-color: var(--tile-bg);
@@ -96,12 +95,11 @@ body[data-cursor="native"] {
 	line-height: 1;
 }
 
-#board .possibility {
+.board .possibility {
 	border: 1px solid var(--tile-accent);
 	border-radius: 3px;
 	background-color: var(--tile-bg);
 	color: var(--tile-fg);
-	cursor: var(--action-cursor);
 	text-align: center;
 	font-size: 0.85rem;
 	line-height: 1;
@@ -111,8 +109,12 @@ body[data-cursor="native"] {
 	height: 50%;
 }
 
-#board .dead-possibility {
+.board .dead-possibility {
 	visibility: hidden;
+}
+
+#board .possibility {
+	cursor: var(--action-cursor);
 }
 
 :is(#board tr, #slot-tray .slot-tray-panel).pencil-conflict {
@@ -180,12 +182,12 @@ body[data-cursor="native"] {
 	opacity: 0.5;
 }
 
-#board .family-2 .possibility {
+.board .family-2 .possibility {
 	letter-spacing: -0.12em;
 	text-indent: -0.12em;
 }
 
-#board table {
+.board .slot > table {
 	width: 100%;
 	height: 100%;
 	border-spacing: 0.04rem;
@@ -854,58 +856,7 @@ body[data-cursor="native"] {
 }
 
 .help-example-row {
-	display: grid;
-	grid-template-columns: repeat(6, 2.7rem);
-	justify-content: center;
-	gap: 0.1rem;
 	margin: 0.55rem auto 0.25rem;
-}
-
-.help-example-slot {
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	border-radius: 0.18rem;
-	background-color: #737b7a;
-	width: 2.7rem;
-	height: 2.6rem;
-	overflow: hidden;
-}
-
-.help-example-possibilities {
-	display: grid;
-	grid-template-columns: repeat(3, 1fr);
-	grid-template-rows: repeat(2, 1fr);
-	width: 100%;
-	height: 100%;
-}
-
-.help-example-possibilities span,
-.help-example-single {
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	box-sizing: border-box;
-	border: 1px solid var(--tile-accent);
-	border-radius: 3px;
-	background-color: var(--tile-bg);
-	color: var(--tile-fg);
-	line-height: 1;
-}
-
-.help-example-possibilities span {
-	font-size: 0.72rem;
-}
-
-.help-example-possibilities .removed {
-	visibility: hidden;
-}
-
-.help-example-single {
-	border-width: 2px;
-	width: 2.4rem;
-	height: 2.35rem;
-	font-size: 1.35rem;
 }
 
 .help-note {
@@ -1187,13 +1138,10 @@ body[data-cursor="native"] {
 	--tile-accent: #6baaa2;
 }
 
-#board .single,
-#board .possibility,
+.board :is(.single, .possibility),
 #hclues .tile,
 #vclues .tile,
 .help-tile,
-.help-example-possibilities span,
-.help-example-single,
 .slot-tray-symbol {
 	background-image:
 		url("slate-noise.svg"),

@@ -12,7 +12,7 @@
 			<span id="status"></span>
 			<span id="timer">0:00</span>
 		</div>
-		<table id="board"></table>
+		<table id="board" class="board"></table>
 		<table id="hclues"></table>
 		<div id="controls">
 			<div id="board-actions" class="tile-action-selector" hidden
@@ -133,32 +133,34 @@
 						</p>
 
 						<h3>Example</h3>
-						<div class="help-example-row family-0" role="img"
+						<table class="board help-example-row family-0" role="img"
 						     aria-label="A partially solved row: the second slot contains 5, while the other slots show their remaining possibilities.">
-							<div class="help-example-slot"><div class="help-example-possibilities">
-								<span>1</span><span>2</span><span>3</span>
-								<span>4</span><span class="removed">5</span><span class="removed">6</span>
-							</div></div>
-							<div class="help-example-slot">
-								<span class="help-example-single">5</span>
-							</div>
-							<div class="help-example-slot"><div class="help-example-possibilities">
-								<span>1</span><span>2</span><span>3</span>
-								<span>4</span><span class="removed">5</span><span>6</span>
-							</div></div>
-							<div class="help-example-slot"><div class="help-example-possibilities">
-								<span class="removed">1</span><span>2</span><span>3</span>
-								<span>4</span><span class="removed">5</span><span class="removed">6</span>
-							</div></div>
-							<div class="help-example-slot"><div class="help-example-possibilities">
-								<span>1</span><span>2</span><span>3</span>
-								<span class="removed">4</span><span class="removed">5</span><span>6</span>
-							</div></div>
-							<div class="help-example-slot"><div class="help-example-possibilities">
-								<span>1</span><span>2</span><span>3</span>
-								<span>4</span><span class="removed">5</span><span>6</span>
-							</div></div>
-						</div>
+							<tr>
+							<td class="slot"><table>
+								<tr><td class="possibility">1</td><td class="possibility">2</td><td class="possibility">3</td></tr>
+								<tr><td class="possibility">4</td><td class="possibility dead-possibility">5</td><td class="possibility dead-possibility">6</td></tr>
+							</table></td>
+							<td class="slot">
+								<span class="single">5</span>
+							</td>
+							<td class="slot"><table>
+								<tr><td class="possibility">1</td><td class="possibility">2</td><td class="possibility">3</td></tr>
+								<tr><td class="possibility">4</td><td class="possibility dead-possibility">5</td><td class="possibility">6</td></tr>
+							</table></td>
+							<td class="slot"><table>
+								<tr><td class="possibility dead-possibility">1</td><td class="possibility">2</td><td class="possibility">3</td></tr>
+								<tr><td class="possibility">4</td><td class="possibility dead-possibility">5</td><td class="possibility dead-possibility">6</td></tr>
+							</table></td>
+							<td class="slot"><table>
+								<tr><td class="possibility">1</td><td class="possibility">2</td><td class="possibility">3</td></tr>
+								<tr><td class="possibility dead-possibility">4</td><td class="possibility dead-possibility">5</td><td class="possibility">6</td></tr>
+							</table></td>
+							<td class="slot"><table>
+								<tr><td class="possibility">1</td><td class="possibility">2</td><td class="possibility">3</td></tr>
+								<tr><td class="possibility">4</td><td class="possibility dead-possibility">5</td><td class="possibility">6</td></tr>
+							</table></td>
+							</tr>
+						</table>
 
 						<p>
 							Each position shows either a large symbol that has been
