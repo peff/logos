@@ -645,16 +645,25 @@ body[data-cursor="native"] {
 	display: grid;
 	flex: 1 1 auto;
 	min-height: 0;
-	overflow-y: auto;
+	overflow: hidden;
 }
 
 .help-page {
 	grid-area: 1 / 1;
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
 }
 
 .help-page[hidden] {
-	display: block;
+	display: flex;
 	visibility: hidden;
+}
+
+.help-page-content {
+	flex: 1 1 auto;
+	min-height: 0;
+	overflow-y: auto;
 }
 
 .help-folio {
@@ -663,7 +672,7 @@ body[data-cursor="native"] {
 	align-items: center;
 	flex: 0 0 auto;
 	border-top: 1px solid #c8c0b2;
-	margin-top: 0.3rem;
+	margin-top: auto;
 	padding-top: 0.28rem;
 }
 
@@ -685,11 +694,6 @@ body[data-cursor="native"] {
 .help-page-turn:focus-visible {
 	outline: 2px solid #80633a;
 	outline-offset: 0.08rem;
-}
-
-.help-page-turn[hidden] {
-	display: block;
-	visibility: hidden;
 }
 
 .help-page-previous {

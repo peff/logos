@@ -139,6 +139,11 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.resumeAfterModal = false;
 	this.nextMilestone = 0;
 	this.helpPage = 0;
+	this.helpPages = [
+		this.help.querySelector(".help-page-rules"),
+		this.help.querySelector(".help-page-clues"),
+		this.help.querySelector(".help-page-controls"),
+	];
 	this.showMilestones = true;
 	this.pencilMarks = [];
 	this.rows = [];
@@ -701,33 +706,17 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.showHelpPage = function(page) {
-		var pages = [
-			this.help.querySelector(".help-page-rules"),
-			this.help.querySelector(".help-page-clues"),
-			this.help.querySelector(".help-page-controls"),
-		];
-		var titles = ["Objective", "Clues", "Controls"];
-		var leaves = ["I", "II", "III"];
-		this.helpPage = Math.max(0, Math.min(pages.length - 1, page));
-		for (var i = 0; i < pages.length; i++)
-			pages[i].hidden = this.helpPage != i;
-		var previous = this.help.querySelector(".help-page-previous");
-		var next = this.help.querySelector(".help-page-next");
-		previous.hidden = this.helpPage == 0;
-		next.hidden = this.helpPage == pages.length - 1;
-		if (!previous.hidden)
-			previous.textContent = "‹ " + titles[this.helpPage - 1];
-		if (!next.hidden)
-			next.textContent = titles[this.helpPage + 1] + " ›";
-		this.help.querySelector(".help-page-number").textContent =
-			"Leaf " + leaves[this.helpPage] + " of III";
+		this.helpPage = Math.max(0,
+			Math.min(this.helpPages.length - 1, page));
+		for (var i = 0; i < this.helpPages.length; i++)
+			this.helpPages[i].hidden = this.helpPage != i;
 	}
 
 	this.turnHelpPage = function(direction) {
 		this.showHelpPage(this.helpPage + direction);
 		var selector = direction > 0 ?
 			".help-page-previous" : ".help-page-next";
-		this.help.querySelector(selector).focus();
+		this.helpPages[this.helpPage].querySelector(selector).focus();
 	}
 
 	this.toggleScores = function() {
