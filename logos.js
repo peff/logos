@@ -339,11 +339,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		if (!slot)
 			return;
 		this.applyTileAction(slot, value, this.getTileAction());
-
-		if (!this.gameOver && this.expandedSlot && !slot.single)
-			this.renderSlotTray();
-		else
-			this.closeSlotTray();
+		this.closeSlotTray();
 	}
 
 	this.getTileAction = function() {

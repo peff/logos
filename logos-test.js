@@ -245,17 +245,18 @@ Deno.test("coarse pointers use an expanded slot tray", function() {
 	let tile = puzzle.slotTrayOptions.children[wrong];
 	tile.listeners.click({});
 	assert(!slot.possible[wrong], "tray removal did not commit");
-	assert(puzzle.expandedSlot == slot &&
-	       puzzle.slotTrayOptions.children[wrong].className.includes(
-	       "eliminated"), "tray did not stay open and refresh");
+	assert(puzzle.expandedSlot === null && puzzle.slotTray.hidden,
+	       "tray removal did not close the slot");
 
+	puzzle.openSlotTray(slot);
 	selectTileAction(puzzle, "pencil-select");
 	tile = puzzle.slotTrayOptions.children[slot.value];
 	tile.listeners.click({});
 	assert(puzzle.pencilMarks.length == 1 &&
-	       puzzle.expandedSlot == slot,
-	       "tray pencil action did not remain open");
+	       puzzle.expandedSlot === null && puzzle.slotTray.hidden,
+	       "tray pencil action did not close the slot");
 
+	puzzle.openSlotTray(slot);
 	selectTileAction(puzzle, "place");
 	tile = puzzle.slotTrayOptions.children[slot.value];
 	tile.listeners.click({});
