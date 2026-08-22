@@ -25,6 +25,9 @@ class FakeElement {
 		this.innerHTML = "";
 		this.listeners = {};
 		this.queries = {};
+		this.style = {
+			setProperty(name, value) { this[name] = String(value); },
+		};
 	}
 
 	appendChild(child) {
@@ -191,7 +194,6 @@ Deno.test("coarse pointers use an expanded slot tray", function() {
 	panel.getBoundingClientRect = function() {
 		return { width: 260, height: 200 };
 	};
-	panel.style = {};
 	globalThis.innerWidth = 800;
 	globalThis.innerHeight = 400;
 
@@ -203,6 +205,10 @@ Deno.test("coarse pointers use an expanded slot tray", function() {
 	       "expanded tray did not show all possibilities");
 	assert(panel.style.left == "8px" && panel.style.top == "15px",
 	       "expanded tray was not anchored and clamped to its slot");
+	assert(panel.classList.contains("opening") &&
+	       panel.style["--tray-start-x"] == "92px" &&
+	       panel.style["--tray-start-scale-x"] == String(30 / 260),
+	       "expanded tray did not animate from its source slot");
 
 	puzzle.tileAction = "remove";
 	let tile = puzzle.slotTrayOptions.children[wrong];
@@ -225,6 +231,8 @@ Deno.test("coarse pointers use an expanded slot tray", function() {
 	assert(slot.single && puzzle.expandedSlot === null &&
 	       puzzle.slotTray.hidden,
 	       "tray placement did not resolve and close the slot");
+	assert(!panel.classList.contains("opening"),
+	       "closing the tray retained its opening animation");
 	delete globalThis.innerWidth;
 	delete globalThis.innerHeight;
 });

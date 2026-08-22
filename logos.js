@@ -270,6 +270,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			return;
 		this.closeSlotTray();
 		this.expandedSlot = slot;
+		this.animateSlotTray = true;
 		slot.elem.classList.add("expanded");
 		this.slotTray.hidden = false;
 		this.renderSlotTray();
@@ -280,9 +281,13 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			this.expandedSlot.elem.classList.remove("expanded");
 		this.expandedSlot = null;
 		this.slotTray.hidden = true;
+		this.slotTray.querySelector(".slot-tray-panel").classList.remove(
+			"opening");
 	}
 
 	this.positionSlotTray = function() {
+		var animate = this.animateSlotTray;
+		this.animateSlotTray = false;
 		if (!this.expandedSlot || typeof innerWidth == "undefined")
 			return;
 		var target = this.expandedSlot.elem;
@@ -303,6 +308,17 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		panel.style.position = "fixed";
 		panel.style.left = left + "px";
 		panel.style.top = top + "px";
+		if (animate && panel.style.setProperty) {
+			panel.style.setProperty("--tray-start-x",
+				(targetRect.left - left) + "px");
+			panel.style.setProperty("--tray-start-y",
+				(targetRect.top - top) + "px");
+			panel.style.setProperty("--tray-start-scale-x",
+				targetRect.width / panelRect.width);
+			panel.style.setProperty("--tray-start-scale-y",
+				targetRect.height / panelRect.height);
+			panel.classList.add("opening");
+		}
 	}
 
 	this.applyTileAction = function(slot, value, action) {
