@@ -429,6 +429,14 @@ body[data-cursor="native"] {
 	border-color: transparent;
 }
 
+.slot-tray-symbol.drag-target {
+	box-shadow:
+		inset 0 0 0.22rem rgb(0 0 0 / 52%),
+		inset 0 0.05rem 0.12rem rgb(255 255 255 / 7%),
+		0 0 0 3px rgb(240 232 211 / 90%);
+	transform: scale(1.04);
+}
+
 .tile-action-selector input {
 	position: absolute;
 	opacity: 0;
@@ -579,6 +587,19 @@ body[data-cursor="native"] {
 	white-space: nowrap;
 }
 
+#options-menu .option-dependent {
+	margin-left: 1.08rem;
+}
+
+#options-menu label:has(input:disabled) {
+	opacity: 0.5;
+	cursor: default;
+}
+
+#options-menu input:disabled {
+	cursor: default;
+}
+
 #options-menu input[type="radio"],
 #options-menu input[type="checkbox"] {
 	appearance: none;
@@ -626,8 +647,8 @@ body[data-cursor="native"] {
 	transform: scale(1);
 }
 
-#options-menu label:hover input[type="radio"],
-#options-menu label:hover input[type="checkbox"] {
+#options-menu label:hover input[type="radio"]:not(:disabled),
+#options-menu label:hover input[type="checkbox"]:not(:disabled) {
 	border-color: #80633a;
 	background-color: #f7f3e9;
 }

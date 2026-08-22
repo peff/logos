@@ -272,6 +272,7 @@ Deno.test("coarse pointers use an expanded slot tray", function() {
 Deno.test("touch options use independent defaults and saved settings",
 		function() {
 	localStorage.removeItem("expandTileChoices");
+	localStorage.removeItem("dragTileChoices");
 	localStorage.removeItem("showActionSelector");
 	localStorage.removeItem("selectionActionMenu");
 	let mediaQuery;
@@ -282,21 +283,77 @@ Deno.test("touch options use independent defaults and saved settings",
 	globalThis.innerWidth = 800;
 	globalThis.innerHeight = 400;
 	let puzzle = makePuzzle(1);
+	let dragOption = puzzle.options.querySelector("#drag-tile-choices");
 	assert(mediaQuery == "(pointer: coarse)" &&
-	       puzzle.expandTileChoices && puzzle.showActionSelector,
+	       puzzle.expandTileChoices && !puzzle.dragTileChoices &&
+	       puzzle.showActionSelector && !dragOption.disabled,
 	       "touch options did not use coarse/small defaults");
 
 	localStorage.setItem("expandTileChoices", "false");
+	localStorage.setItem("dragTileChoices", "true");
 	localStorage.setItem("showActionSelector", "false");
 	puzzle = makePuzzle(1);
-	assert(!puzzle.expandTileChoices && !puzzle.showActionSelector,
+	dragOption = puzzle.options.querySelector("#drag-tile-choices");
+	assert(!puzzle.expandTileChoices && puzzle.dragTileChoices &&
+	       !puzzle.showActionSelector && dragOption.disabled &&
+	       dragOption.checked,
 	       "saved touch preferences did not override defaults");
 	delete globalThis.matchMedia;
 	delete globalThis.innerWidth;
 	delete globalThis.innerHeight;
 	localStorage.removeItem("expandTileChoices");
+	localStorage.removeItem("dragTileChoices");
 	localStorage.removeItem("showActionSelector");
 	localStorage.removeItem("selectionActionMenu");
+});
+
+Deno.test("expanded tiles support press-drag-release actions", function() {
+	const puzzle = makePuzzle(1);
+	const slot = puzzle.rows[0].slots[0];
+	const wrong = (slot.value + 1) % symbols.length;
+	const cell = slot.possibilityElems[0];
+	puzzle.expandTileChoices = true;
+	puzzle.dragTileChoices = true;
+	selectTileAction(puzzle, "remove");
+	cell.getBoundingClientRect = function() {
+		return { left: 100, top: 100, width: 30, height: 30 };
+	};
+	puzzle.slotTray.querySelector(".slot-tray-panel").getBoundingClientRect =
+		function() { return { width: 260, height: 200 }; };
+	globalThis.innerWidth = 800;
+	globalThis.innerHeight = 400;
+
+	let prevented = false;
+	cell.listeners.pointerdown({
+		button: 0,
+		pointerId: 1,
+		clientX: 100,
+		clientY: 100,
+		currentTarget: cell,
+		preventDefault() { prevented = true; },
+	});
+	const target = puzzle.slotTrayOptions.children[wrong];
+	globalThis.document.elementFromPoint = function() { return target; };
+	cell.listeners.pointermove({
+		pointerId: 1,
+		clientX: 120,
+		clientY: 120,
+		preventDefault() {},
+	});
+	assert(prevented && target.classList.contains("drag-target"),
+	       "drag did not open the tray and highlight its target");
+	cell.listeners.pointerup({
+		pointerId: 1,
+		clientX: 120,
+		clientY: 120,
+		preventDefault() {},
+	});
+	assert(!slot.possible[wrong] && puzzle.slotTray.hidden,
+	       "releasing over a tile did not apply and close");
+
+	delete globalThis.document.elementFromPoint;
+	delete globalThis.innerWidth;
+	delete globalThis.innerHeight;
 });
 
 Deno.test("the persistent selector applies actions directly", function() {
