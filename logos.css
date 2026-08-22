@@ -281,6 +281,7 @@ body[data-cursor="native"] {
 }
 
 .tile-action-group {
+	position: relative;
 	display: grid;
 	grid-template-columns: repeat(2, 1fr);
 	gap: 0.1rem;
@@ -291,6 +292,42 @@ body[data-cursor="native"] {
 	background: rgb(73 68 59 / 5%);
 	box-shadow: inset 0 0 0 1px rgb(104 96 82 / 10%);
 	padding: 0.08rem 0.1rem 0.1rem;
+}
+
+.tile-action-group::after {
+	content: "";
+	pointer-events: none;
+	position: absolute;
+	bottom: 0.3rem;
+	left: 8%;
+	width: 34%;
+	height: 0.1rem;
+	border-radius: 48% 55% 46% 52%;
+	background-color: #8a5732;
+	opacity: 0.9;
+	transform: translateX(0) rotate(-2deg);
+	transition:
+		background-color 120ms ease-out,
+		height 120ms ease-out,
+		opacity 120ms ease-out,
+		transform 180ms ease-out;
+}
+
+.tile-operation:has(#action-remove:checked)::after {
+	transform: translateX(147.06%) rotate(-2deg);
+}
+
+.tile-mark::after {
+	height: 0.16rem;
+	background-color: #71372e;
+	box-shadow: 0 0.04rem 0 rgb(80 37 29 / 20%);
+}
+
+.tile-mark:has(#action-sketch:checked)::after {
+	height: 0.07rem;
+	background-color: #a49a84;
+	opacity: 0.75;
+	transform: translateX(147.06%) rotate(1deg);
 }
 
 .modal-done {
@@ -407,39 +444,6 @@ body[data-cursor="native"] {
 	text-align: center;
 }
 
-.tile-action-selector label::after {
-	content: "";
-	pointer-events: none;
-	position: absolute;
-	right: 16%;
-	bottom: 0.2rem;
-	left: 16%;
-	height: 0.1rem;
-	border-radius: 48% 55% 46% 52%;
-	background: #8a5732;
-	opacity: 0;
-	transform: rotate(-2deg) scaleX(0.7);
-	transition: opacity 80ms ease-out, transform 100ms ease-out;
-}
-
-.tile-action-selector input:checked + label::after {
-	opacity: 0.9;
-	transform: rotate(-2deg) scaleX(1);
-}
-
-.tile-mark #action-inscribe:checked + label::after {
-	height: 0.16rem;
-	background: #71372e;
-	box-shadow: 0 0.04rem 0 rgb(80 37 29 / 20%);
-}
-
-.tile-mark #action-sketch:checked + label::after {
-	height: 0.07rem;
-	background: #a49a84;
-	opacity: 0.75;
-	transform: rotate(1deg) scaleX(1);
-}
-
 #board .slot.expanded {
 	box-shadow: 0 0 0 2px rgb(240 232 211 / 85%);
 }
@@ -476,6 +480,10 @@ body[data-cursor="native"] {
 	#slot-tray:not([hidden]),
 	.slot-tray-panel.opening {
 		animation: none;
+	}
+
+	.tile-action-group::after {
+		transition: none;
 	}
 }
 
