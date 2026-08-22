@@ -661,6 +661,16 @@ body[data-cursor="native"] {
 	opacity: 0.2;
 }
 
+#hclues .clue.contradiction .tile,
+#vclues .clue.contradiction .tile {
+	background-color: #54262b;
+}
+
+#hclues.solution .clue:not(.contradiction):not(.clue-hidden) > *,
+#vclues.solution .clue:not(.contradiction):not(.clue-hidden) > * {
+	opacity: 0.5;
+}
+
 #hclues .clue {
 	box-sizing: border-box;
 	width: 9rem;

@@ -83,6 +83,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 
 	this.messages = messages;
 	this.timer = timer;
+	this.hClues = hClues;
+	this.vClues = vClues;
 	this.options = options;
 	this.optionsButton = optionsButton;
 	this.help = help;
@@ -127,6 +129,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.nextMilestone = 0;
 	this.showMilestones = true;
 	this.rows = [];
+	this.clues = [];
 	this.hClueSlots = [];
 	this.vClueSlots = [];
 	for (var i = 0; i < symbols.length; i++)
@@ -151,6 +154,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.clear = function() {
 		this.gameOver = true;
 		this.nextMilestone = 0;
+		this.hClues.classList.remove("solution");
+		this.vClues.classList.remove("solution");
 		this.stopTimer();
 		this.timerElapsed = 0;
 		this.clearOutcome();
@@ -212,7 +217,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		}
 	}
 
-	this.lose = function(msg) {
+	this.lose = function(msg, clues) {
 		if (this.gameOver)
 			return;
 		this.gameOver = true;
@@ -222,7 +227,52 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.timer.classList.add("lost");
 		this.messages.classList.add("lost");
 		this.revealSolution();
+		if (clues && clues.length) {
+			this.hClues.classList.add("solution");
+			this.vClues.classList.add("solution");
+			for (var i = 0; i < clues.length; i++)
+				clues[i].display.classList.add("contradiction");
+		}
 		this.say(msg);
+	}
+
+	this.findContradictingClues = function(slot, value, discard) {
+		var rowSize = this.rows[0].slots.length;
+		var fullDomain = (1 << rowSize) - 1;
+		var domains = domainsFromSlots(this);
+		applyMove(domains, slot, value, discard, this.rows);
+
+		if (cluesAllow(this, [], domains)) {
+			var direct = [];
+			for (var i = 0; i < this.clues.length; i++) {
+				var clue = this.clues[i];
+				if (clue.display && !cluesAllow(this, [clue],
+							       copyDomains(domains)))
+					direct.push(clue);
+			}
+			if (direct.length)
+				return direct;
+		}
+
+		domains = [];
+		for (var i = 0; i < this.rows.length; i++)
+			domains[i] = Array(rowSize).fill(fullDomain);
+		applyMove(domains, slot, value, discard, this.rows);
+
+		if (cluesHaveSolution(this, this.clues, copyDomains(domains)))
+			return [];
+
+		var contradicting = [];
+		for (var i = 0; i < this.clues.length; i++) {
+			var clue = this.clues[i];
+			if (!clue.display)
+				continue;
+			var without = this.clues.slice();
+			without.splice(i, 1);
+			if (cluesHaveSolution(this, without, copyDomains(domains)))
+				contradicting.push(clue);
+		}
+		return contradicting;
 	}
 
 	this.revealSolution = function() {
@@ -354,6 +404,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.generateClues = function() {
+		this.hClues.classList.remove("solution");
+		this.vClues.classList.remove("solution");
 		this.clues = [];
 		var types = [ExactClue, OrderClue, Adjacent2Clue,
 			     Adjacent3Clue, ColumnClue];
@@ -381,10 +433,12 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 
 		for (var i = 0; i < this.hClueSlots.length; i++) {
 			this.hClueSlots[i].innerHTML = "";
+			this.hClueSlots[i].className = "clue";
 			this.hClueSlots[i].oncontextmenu = null;
 		}
 		for (var i = 0; i < this.vClueSlots.length; i++) {
 			this.vClueSlots[i].innerHTML = "";
+			this.vClueSlots[i].className = "clue";
 			this.vClueSlots[i].oncontextmenu = null;
 		}
 
@@ -755,18 +809,46 @@ function shuffle(array) {
 	return array;
 }
 
-/* Try to solve the puzzle using only deductions from the given clues. */
-function cluesSolve(puzzle, clues) {
+function copyDomains(domains) {
+	return domains.map(function(row) { return row.slice(); });
+}
+
+function domainsFromSlots(puzzle) {
+	var rowSize = puzzle.rows[0].slots.length;
+	var domains = [];
+	for (var row = 0; row < puzzle.rows.length; row++) {
+		domains[row] = Array(rowSize).fill(0);
+		for (var col = 0; col < rowSize; col++) {
+			var slot = puzzle.rows[row].slots[col];
+			var bit = 1 << col;
+			if (slot.single)
+				domains[row][slot.value] |= bit;
+			else
+				for (var symbol = 0; symbol < rowSize; symbol++)
+					if (slot.possible[symbol])
+						domains[row][symbol] |= bit;
+		}
+	}
+	return domains;
+}
+
+function applyMove(domains, slot, value, discard, rows) {
+	var row = rows.indexOf(slot.row);
+	var col = slot.row.slots.indexOf(slot);
+	var bit = 1 << col;
+	if (discard) {
+		domains[row][value] &= ~bit;
+	} else {
+		for (var symbol = 0; symbol < domains[row].length; symbol++)
+			domains[row][symbol] &= ~bit;
+		domains[row][value] = bit;
+	}
+}
+
+function cluesAllow(puzzle, clues, domains) {
 	var numRows = puzzle.rows.length;
 	var rowSize = puzzle.rows[0].slots.length;
 	var fullDomain = (1 << rowSize) - 1;
-	var domains = [];
-
-	for (var row = 0; row < numRows; row++) {
-		domains[row] = [];
-		for (var symbol = 0; symbol < rowSize; symbol++)
-			domains[row][symbol] = fullDomain;
-	}
 
 	var changed;
 	do {
@@ -823,6 +905,56 @@ function cluesSolve(puzzle, clues) {
 				changed = true;
 		}
 	} while (changed);
+	return true;
+}
+
+function cluesHaveSolution(puzzle, clues, domains) {
+	if (!cluesAllow(puzzle, clues, domains))
+		return false;
+
+	var bestRow = -1;
+	var bestSymbol = -1;
+	var bestCount = Infinity;
+	for (var row = 0; row < domains.length; row++) {
+		for (var symbol = 0; symbol < domains[row].length; symbol++) {
+			var domain = domains[row][symbol];
+			var count = 0;
+			for (var bits = domain; bits; bits &= bits - 1)
+				count++;
+			if (count > 1 && count < bestCount) {
+				bestRow = row;
+				bestSymbol = symbol;
+				bestCount = count;
+			}
+		}
+	}
+	if (bestRow < 0)
+		return true;
+
+	var domain = domains[bestRow][bestSymbol];
+	for (var bit = 1; bit <= domain; bit <<= 1) {
+		if (!(domain & bit))
+			continue;
+		var trial = copyDomains(domains);
+		trial[bestRow][bestSymbol] = bit;
+		if (cluesHaveSolution(puzzle, clues, trial))
+			return true;
+	}
+	return false;
+}
+
+/* Try to solve the puzzle using only deductions from the given clues. */
+function cluesSolve(puzzle, clues) {
+	var numRows = puzzle.rows.length;
+	var rowSize = puzzle.rows[0].slots.length;
+	var fullDomain = (1 << rowSize) - 1;
+	var domains = [];
+
+	for (var row = 0; row < numRows; row++)
+		domains[row] = Array(rowSize).fill(fullDomain);
+
+	if (!cluesAllow(puzzle, clues, domains))
+		return false;
 
 	for (var row = 0; row < numRows; row++) {
 		for (var symbol = 0; symbol < rowSize; symbol++) {
@@ -949,7 +1081,10 @@ function Slot(row, symbols, display) {
 			this.row.removePossible(value);
 			this.row.puzzle.checkWin();
 		} else {
-			this.row.puzzle.lose(randomChoice(falsePlacementMessages));
+			var clues = this.row.puzzle.findContradictingClues(
+				this, value, false);
+			this.row.puzzle.lose(
+				randomChoice(falsePlacementMessages), clues);
 		}
 	}
 
@@ -958,7 +1093,10 @@ function Slot(row, symbols, display) {
 		    this.row.puzzle.paused)
 			return;
 		if (this.value == value) {
-			this.row.puzzle.lose(randomChoice(falseEliminationMessages));
+			var clues = this.row.puzzle.findContradictingClues(
+				this, value, true);
+			this.row.puzzle.lose(
+				randomChoice(falseEliminationMessages), clues);
 		} else {
 			if (playerAction) {
 				this.row.puzzle.playSound("discard");

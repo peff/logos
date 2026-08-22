@@ -1,7 +1,21 @@
 class FakeClassList {
-	add() {}
-	remove() {}
-	contains() { return false; }
+	constructor() {
+		this.classes = new Set();
+	}
+
+	add(...classes) {
+		for (const name of classes)
+			this.classes.add(name);
+	}
+
+	remove(...classes) {
+		for (const name of classes)
+			this.classes.delete(name);
+	}
+
+	contains(name) {
+		return this.classes.has(name);
+	}
 }
 
 class FakeElement {
@@ -57,9 +71,13 @@ const source = await Deno.readTextFile(
 	new URL("./logos.js", import.meta.url));
 const Logos = eval(source +
 	"\n;({ Puzzle: Puzzle, ExactClue: ExactClue, " +
+	"Adjacent2Clue: Adjacent2Clue, " +
+	"ColumnClue: ColumnClue, " +
 	"formatOlympiad: formatOlympiad, greekNumeralDay: greekNumeralDay });");
 const Puzzle = Logos.Puzzle;
 const ExactClue = Logos.ExactClue;
+const Adjacent2Clue = Logos.Adjacent2Clue;
+const ColumnClue = Logos.ColumnClue;
 const symbols = ["0", "1", "2", "3", "4", "5"];
 
 function assert(condition, message) {
@@ -73,9 +91,9 @@ function makePuzzle(numRows, checkWin) {
 		Array(numRows).fill(symbols), elem(), elem(), elem(), elem(),
 		elem(), elem(), elem(), elem());
 	const lose = puzzle.lose;
-	puzzle.lose = function(msg) {
+	puzzle.lose = function(msg, clues) {
 		this.losses++;
-		lose.call(this, msg);
+		lose.call(this, msg, clues);
 	};
 	puzzle.playSound = function(sound) {
 		this.sounds.push(sound);
@@ -123,6 +141,83 @@ Deno.test("a false elimination loses the game", function() {
 
 	slot.discard(slot.value);
 	assert(puzzle.losses == 1, "false elimination did not cause a loss");
+});
+
+Deno.test("a directly contradicting clue is highlighted", function() {
+	const puzzle = makePuzzle(2);
+	const left = puzzle.rows[0].slots[0];
+	const right = puzzle.rows[1].slots[1];
+	const target = puzzle.rows[0].slots[5];
+	const clue = new Adjacent2Clue(puzzle);
+	clue.lRow = left.row;
+	clue.lCol = 0;
+	clue.rRow = right.row;
+	clue.rCol = 1;
+	clue.display = new FakeElement();
+	clue.display.classList.add("clue");
+	const fixRight = {
+		constrain(domains) {
+			const old = domains[1][right.value];
+			domains[1][right.value] &= 1 << 1;
+			return old != domains[1][right.value];
+		},
+	};
+	puzzle.clues = [clue, fixRight];
+
+	target.choose(left.value);
+	assert(clue.display.classList.contains("contradiction"),
+	       "contradicting clue was not highlighted");
+	assert(puzzle.hClues.classList.contains("solution") &&
+	       puzzle.vClues.classList.contains("solution"),
+	       "clue displays were not marked as a solution");
+});
+
+Deno.test("all clues essential to a contradiction are highlighted", function() {
+	const puzzle = makePuzzle(1);
+	const slot = puzzle.rows[0].slots[0];
+	const correct = 1 << 0;
+	const alternatives = [1 << 1, 1 << 2];
+	const makeClue = function(alternative) {
+		return {
+			display: new FakeElement(),
+			constrain(domains) {
+				const old = domains[0][slot.value];
+				domains[0][slot.value] &= correct | alternative;
+				return old != domains[0][slot.value];
+			},
+		};
+	};
+	const clues = alternatives.map(makeClue);
+	puzzle.clues = clues;
+
+	slot.discard(slot.value);
+	for (const clue of clues)
+		assert(clue.display.classList.contains("contradiction"),
+		       "essential clue was not highlighted");
+});
+
+Deno.test("a direct clue is preferred to global clue blame", function() {
+	const puzzle = makePuzzle(2);
+	const top = puzzle.rows[0].slots[0];
+	const bottom = puzzle.rows[1].slots[0];
+	const clue = new ColumnClue(puzzle);
+	clue.tRow = top.row;
+	clue.bRow = bottom.row;
+	clue.col = 0;
+	clue.display = new FakeElement();
+	const forceBottom = {
+		constrain(domains) {
+			const old = domains[1][bottom.value];
+			domains[1][bottom.value] &= 1 << 0;
+			return old != domains[1][bottom.value];
+		},
+	};
+	puzzle.clues = [clue, forceBottom];
+	top.choose(top.value);
+
+	bottom.discard(bottom.value);
+	assert(clue.display.classList.contains("contradiction"),
+	       "direct column clue was not highlighted");
 });
 
 Deno.test("slot views are reused when switching displays", function() {
