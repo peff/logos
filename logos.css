@@ -72,6 +72,7 @@ body[data-cursor="native"] {
 .board .slot {
 	border-radius: 0.18rem;
 	background-color: #737b7a;
+	width: 3rem;
 	height: 2.9rem;
 	text-align: center;
 }
@@ -96,10 +97,12 @@ body[data-cursor="native"] {
 }
 
 .board .possibility {
+	box-sizing: border-box;
 	border: 1px solid var(--tile-accent);
 	border-radius: 3px;
 	background-color: var(--tile-bg);
 	color: var(--tile-fg);
+	padding: 0;
 	text-align: center;
 	font-size: 0.85rem;
 	line-height: 1;
