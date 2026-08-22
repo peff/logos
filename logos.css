@@ -338,32 +338,6 @@ body[data-cursor="native"] {
 	font-size: 16px;
 }
 
-.slot-tray-header {
-	display: grid;
-	grid-template-columns: 1fr auto 1fr;
-	align-items: center;
-	margin-bottom: 8px;
-}
-
-.slot-tray-header h2 {
-	grid-column: 2;
-	margin: 0;
-	font-family: Forum, Georgia, "Times New Roman", serif;
-	font-size: 22px;
-}
-
-.slot-tray-close {
-	grid-column: 3;
-	justify-self: end;
-	width: 44px;
-	height: 44px;
-	border: 0;
-	border-radius: 4px;
-	background: transparent;
-	color: #71552f;
-	font-size: 28px;
-}
-
 .slot-tray-body {
 	display: flex;
 	justify-content: center;
