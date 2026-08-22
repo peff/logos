@@ -75,6 +75,10 @@
 						       <input id="sound-effects" type="checkbox"
 						              onChange="puzzle.setSoundEffects(this.checked)">
 						       Sound effects</label>
+						<label title="Open larger tiles and touch-friendly actions when choosing a board space.">
+						       <input id="selection-action-menu" type="checkbox"
+						              onChange="puzzle.setSelectionActionMenu(this.checked)">
+						       Selection opens action menu</label>
 						<input id="fullscreen-button" class="option-action" type="button"
 						       onClick="puzzle.toggleFullscreen()" value="Enter full screen">
 					</fieldset>
@@ -207,6 +211,22 @@
 			</button>
 		</div>
 		<table id="vclues"></table>
+		<div id="slot-tray" hidden role="dialog" aria-modal="true"
+		     aria-labelledby="slot-tray-title">
+			<div class="slot-tray-panel">
+				<header class="slot-tray-header">
+					<h2 id="slot-tray-title">Choose a tile</h2>
+					<button class="slot-tray-close" type="button"
+						onClick="puzzle.closeSlotTray()"
+						aria-label="Close expanded tiles">×</button>
+				</header>
+				<div class="slot-tray-body">
+					<div id="slot-tray-options"></div>
+					<div id="slot-tray-actions" role="group"
+					     aria-label="Tile action"></div>
+				</div>
+			</div>
+		</div>
 
 		<script>
 		var puzzle = new Puzzle(

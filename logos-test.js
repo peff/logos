@@ -30,6 +30,9 @@ class FakeElement {
 	appendChild(child) {
 		this.children.push(child);
 	}
+	replaceChildren() {
+		this.children = [];
+	}
 
 	addEventListener(type, listener) {
 		this.listeners[type] = listener;
@@ -56,6 +59,7 @@ class FakeElement {
 globalThis.document = {
 	addEventListener() {},
 	createElement() { return new FakeElement(); },
+	querySelector(selector) { return this.body.querySelector(selector); },
 	body: new FakeElement(),
 };
 globalThis.document.body.dataset = {};
@@ -173,6 +177,58 @@ Deno.test("ctrl clicks toggle pencil marks without making moves", function() {
 	       "ctrl-right-click did not add a pencil elimination");
 	assert(puzzle.losses == 0,
 	       "pencil elimination checked the hidden solution");
+});
+
+Deno.test("coarse pointers use an expanded slot tray", function() {
+	const puzzle = makePuzzle(1);
+	const slot = puzzle.rows[0].slots[0];
+	const wrong = (slot.value + 1) % symbols.length;
+	puzzle.selectionActionMenu = true;
+
+	slot.possibilityElems[0].listeners.click({ ctrlKey: false });
+	assert(!slot.single && puzzle.expandedSlot == slot,
+	       "first tap made a move instead of expanding the slot");
+	assert(!puzzle.slotTray.hidden &&
+	       puzzle.slotTrayOptions.children.length == symbols.length,
+	       "expanded tray did not show all possibilities");
+
+	puzzle.slotTrayActions.children[1].listeners.click({});
+	let tile = puzzle.slotTrayOptions.children[wrong];
+	tile.listeners.click({});
+	assert(!slot.possible[wrong], "tray removal did not commit");
+	assert(puzzle.expandedSlot == slot &&
+	       puzzle.slotTrayOptions.children[wrong].className.includes(
+	       "eliminated"), "tray did not stay open and refresh");
+
+	puzzle.slotTrayActions.children[2].listeners.click({});
+	tile = puzzle.slotTrayOptions.children[slot.value];
+	tile.listeners.click({});
+	assert(puzzle.pencilMarks.length == 1 &&
+	       puzzle.expandedSlot == slot,
+	       "tray pencil action did not remain open");
+
+	puzzle.slotTrayActions.children[0].listeners.click({});
+	tile = puzzle.slotTrayOptions.children[slot.value];
+	tile.listeners.click({});
+	assert(slot.single && puzzle.expandedSlot === null &&
+	       puzzle.slotTray.hidden,
+	       "tray placement did not resolve and close the slot");
+});
+
+Deno.test("the action menu defaults by pointer and remembers its setting",
+		function() {
+	localStorage.removeItem("selectionActionMenu");
+	globalThis.matchMedia = function() { return { matches: true }; };
+	let puzzle = makePuzzle(1);
+	assert(puzzle.selectionActionMenu,
+	       "coarse pointer did not enable the action menu by default");
+
+	localStorage.setItem("selectionActionMenu", "false");
+	puzzle = makePuzzle(1);
+	assert(!puzzle.selectionActionMenu,
+	       "saved action-menu preference did not override pointer default");
+	delete globalThis.matchMedia;
+	localStorage.removeItem("selectionActionMenu");
 });
 
 Deno.test("pencil marks coexist and show row consequences", function() {
