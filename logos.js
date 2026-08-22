@@ -282,6 +282,29 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.slotTray.hidden = true;
 	}
 
+	this.positionSlotTray = function() {
+		if (!this.expandedSlot || typeof innerWidth == "undefined")
+			return;
+		var target = this.expandedSlot.elem;
+		var panel = this.slotTray.querySelector(".slot-tray-panel");
+		if (!target.getBoundingClientRect || !panel.getBoundingClientRect)
+			return;
+		var targetRect = target.getBoundingClientRect();
+		var panelRect = panel.getBoundingClientRect();
+		var margin = 8;
+		var left = targetRect.left + targetRect.width / 2 -
+			panelRect.width / 2;
+		var top = targetRect.top + targetRect.height / 2 -
+			panelRect.height / 2;
+		left = Math.max(margin,
+			Math.min(left, innerWidth - panelRect.width - margin));
+		top = Math.max(margin,
+			Math.min(top, innerHeight - panelRect.height - margin));
+		panel.style.position = "fixed";
+		panel.style.left = left + "px";
+		panel.style.top = top + "px";
+	}
+
 	this.applyTileAction = function(slot, value, action) {
 		if (action == "place")
 			slot.choose(value, true);
@@ -369,6 +392,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			}(value));
 			this.slotTrayOptions.appendChild(tile);
 		}
+		this.positionSlotTray();
 	}
 
 	this.togglePencilMark = function(slot, value, discard) {
@@ -741,6 +765,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	if (typeof window != "undefined")
 		window.addEventListener("resize", function() {
 			puzzle.updateMobileOrientation();
+			puzzle.positionSlotTray();
 		});
 
 	this.setCursor = function(style) {

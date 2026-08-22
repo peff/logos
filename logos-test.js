@@ -184,6 +184,16 @@ Deno.test("coarse pointers use an expanded slot tray", function() {
 	const slot = puzzle.rows[0].slots[0];
 	const wrong = (slot.value + 1) % symbols.length;
 	puzzle.expandTileChoices = true;
+	const panel = puzzle.slotTray.querySelector(".slot-tray-panel");
+	slot.elem.getBoundingClientRect = function() {
+		return { left: 100, top: 100, width: 30, height: 30 };
+	};
+	panel.getBoundingClientRect = function() {
+		return { width: 260, height: 200 };
+	};
+	panel.style = {};
+	globalThis.innerWidth = 800;
+	globalThis.innerHeight = 400;
 
 	slot.possibilityElems[0].listeners.click({ ctrlKey: false });
 	assert(!slot.single && puzzle.expandedSlot == slot,
@@ -191,6 +201,8 @@ Deno.test("coarse pointers use an expanded slot tray", function() {
 	assert(!puzzle.slotTray.hidden &&
 	       puzzle.slotTrayOptions.children.length == symbols.length,
 	       "expanded tray did not show all possibilities");
+	assert(panel.style.left == "8px" && panel.style.top == "15px",
+	       "expanded tray was not anchored and clamped to its slot");
 
 	puzzle.tileAction = "remove";
 	let tile = puzzle.slotTrayOptions.children[wrong];
@@ -213,6 +225,8 @@ Deno.test("coarse pointers use an expanded slot tray", function() {
 	assert(slot.single && puzzle.expandedSlot === null &&
 	       puzzle.slotTray.hidden,
 	       "tray placement did not resolve and close the slot");
+	delete globalThis.innerWidth;
+	delete globalThis.innerHeight;
 });
 
 Deno.test("touch options use independent defaults and saved settings",

@@ -311,7 +311,7 @@ body[data-cursor="native"] {
 	inset: 0;
 	z-index: 20;
 	display: none;
-	align-items: flex-end;
+	align-items: center;
 	justify-content: center;
 	box-sizing: border-box;
 	padding: 8px;
