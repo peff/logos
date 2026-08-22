@@ -211,6 +211,17 @@
 			</button>
 		</div>
 		<table id="vclues"></table>
+		<div id="mobile-orientation" hidden role="dialog" aria-modal="true"
+		     aria-labelledby="mobile-orientation-title">
+			<div class="mobile-orientation-panel">
+				<h2 id="mobile-orientation-title">Play in landscape</h2>
+				<p>Logos needs a wider tablet for its board and clues.</p>
+				<p class="mobile-orientation-instruction" aria-live="polite"></p>
+				<button type="button" onClick="puzzle.enterMobileFullscreen()">
+					Enter full screen
+				</button>
+			</div>
+		</div>
 		<div id="slot-tray" hidden role="dialog" aria-modal="true"
 		     aria-labelledby="slot-tray-title">
 			<div class="slot-tray-panel">

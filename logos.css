@@ -417,6 +417,60 @@ body[data-cursor="native"] {
 	display: flex;
 }
 
+#mobile-orientation {
+	position: fixed;
+	inset: 0;
+	z-index: 40;
+	display: none;
+	align-items: center;
+	justify-content: center;
+	box-sizing: border-box;
+	padding: 16px;
+	background-color: #ece8dd;
+	font-family: Georgia, "Times New Roman", serif;
+	font-size: 16px;
+	text-align: center;
+}
+
+#mobile-orientation:not([hidden]) {
+	display: flex;
+}
+
+.mobile-orientation-panel {
+	box-sizing: border-box;
+	width: min(360px, 100%);
+	border: 1px solid #777267;
+	border-radius: 6px;
+	background-color: #f7f3e9;
+	box-shadow: 0 4px 16px rgb(20 18 15 / 35%);
+	padding: 22px;
+}
+
+.mobile-orientation-panel h2 {
+	margin: 0 0 10px;
+	color: #303637;
+	font-family: Forum, Georgia, "Times New Roman", serif;
+	font-size: 28px;
+	font-weight: normal;
+}
+
+.mobile-orientation-panel p {
+	margin: 8px 0;
+	line-height: 1.35;
+}
+
+.mobile-orientation-panel button {
+	margin-top: 10px;
+	border: 1px solid #80633a;
+	border-radius: 4px;
+	background-color: #e7dfd1;
+	padding: 10px 16px;
+	color: #303637;
+	cursor: var(--action-cursor);
+	font-family: Forum, Georgia, "Times New Roman", serif;
+	font-size: 18px;
+}
+
 .modal-panel {
 	box-sizing: border-box;
 	border: 1px solid #777267;

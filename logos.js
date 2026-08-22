@@ -96,10 +96,12 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.slotTray = document.querySelector("#slot-tray");
 	this.slotTrayOptions = document.querySelector("#slot-tray-options");
 	this.slotTrayActions = document.querySelector("#slot-tray-actions");
+	this.mobileOrientation = document.querySelector("#mobile-orientation");
 	this.expandedSlot = null;
 	this.slotTrayAction = "place";
-	this.selectionActionMenu = typeof matchMedia != "undefined" &&
+	this.coarsePointer = typeof matchMedia != "undefined" &&
 		matchMedia("(any-pointer: coarse)").matches;
+	this.selectionActionMenu = this.coarsePointer;
 	this.timerInterval = null;
 	this.timerStarted = null;
 	this.timerElapsed = 0;
@@ -717,7 +719,12 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	});
 	document.addEventListener("fullscreenchange", function() {
 		puzzle.updateFullscreenButton();
+		puzzle.updateMobileOrientation();
 	});
+	if (typeof window != "undefined")
+		window.addEventListener("resize", function() {
+			puzzle.updateMobileOrientation();
+		});
 
 	this.setCursor = function(style) {
 		if (["gear", "stylus", "native"].indexOf(style) < 0)
@@ -780,6 +787,47 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		button.hidden = !document.fullscreenEnabled;
 		button.value = document.fullscreenElement ?
 			"Exit full screen" : "Enter full screen";
+	}
+
+	this.updateMobileOrientation = function() {
+		var portrait = typeof innerWidth != "undefined" &&
+			innerWidth < innerHeight && innerWidth <= 600;
+		this.mobileOrientation.hidden = !portrait;
+		if (!portrait)
+			return;
+
+		var canFullscreen = document.fullscreenEnabled &&
+			document.documentElement.requestFullscreen;
+		var fullscreen = !!document.fullscreenElement;
+		var instruction = this.mobileOrientation.querySelector(
+			".mobile-orientation-instruction");
+		var button = this.mobileOrientation.querySelector("button");
+		button.hidden = fullscreen || !canFullscreen;
+		instruction.textContent = button.hidden ?
+			"Rotate your device to continue." :
+			"Enter full screen and turn your device to continue.";
+	}
+
+	this.enterMobileFullscreen = function() {
+		var puzzle = this;
+		var action;
+		try {
+			action = document.documentElement.requestFullscreen({
+				navigationUI: "hide",
+			});
+		} catch (e) {
+			this.updateMobileOrientation();
+			return;
+		}
+		Promise.resolve(action).then(function() {
+			if (typeof screen != "undefined" && screen.orientation &&
+			    screen.orientation.lock)
+				return screen.orientation.lock("landscape");
+		}).catch(function() {
+			/* The player can still rotate the device manually. */
+		}).then(function() {
+			puzzle.updateMobileOrientation();
+		});
 	}
 
 	this.toggleFullscreen = function() {
@@ -872,6 +920,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.setSoundEffects(soundEffects);
 	this.setSelectionActionMenu(selectionActionMenu);
 	this.updateFullscreenButton();
+	this.updateMobileOrientation();
 
 	this.clear();
 }
