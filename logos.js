@@ -598,11 +598,13 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		for (var i = 0; i < this.hClueSlots.length; i++) {
 			this.hClueSlots[i].innerHTML = "";
 			this.hClueSlots[i].className = "clue";
+			this.hClueSlots[i].onclick = null;
 			this.hClueSlots[i].oncontextmenu = null;
 		}
 		for (var i = 0; i < this.vClueSlots.length; i++) {
 			this.vClueSlots[i].innerHTML = "";
 			this.vClueSlots[i].className = "clue";
+			this.vClueSlots[i].onclick = null;
 			this.vClueSlots[i].oncontextmenu = null;
 		}
 
@@ -1553,6 +1555,7 @@ function renderClue(puzzle, clue, slot, type, elements) {
 			checkClueDisplay(clue);
 		};
 	}
+	slot.onclick = clue.listener;
 	slot.oncontextmenu = clue.listener;
 }
 

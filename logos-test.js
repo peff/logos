@@ -268,6 +268,26 @@ Deno.test("clues do not propagate pencil marks", function() {
 	       "clue propagated a pencil selection to another row");
 });
 
+Deno.test("left clicks toggle clue dismissal", function() {
+	const puzzle = makePuzzle(2);
+	const clue = new ColumnClue(puzzle);
+	clue.display = new FakeElement();
+	clue.active = true;
+	clue.render();
+	let prevented = false;
+
+	clue.display.onclick({
+		preventDefault() { prevented = true; },
+	});
+	assert(prevented && !clue.active &&
+	       clue.display.classList.contains("clue-hidden"),
+	       "left click did not dismiss the clue");
+	clue.display.onclick({ preventDefault() {} });
+	assert(clue.active &&
+	       !clue.display.classList.contains("clue-hidden"),
+	       "second left click did not restore the clue");
+});
+
 Deno.test("an opposite pencil mark replaces the mark on a tile", function() {
 	const puzzle = makePuzzle(1);
 	const slot = puzzle.rows[0].slots[0];
