@@ -28,8 +28,8 @@ body {
 	--action-cursor: url("cursor-stylus-active.svg") 1 1, pointer;
 	cursor: var(--default-cursor);
 	display: grid;
-	grid-template-columns: 19rem 27.5rem;
-	grid-template-rows: 1.15rem 18.3rem 5.8rem;
+	grid-template-columns: max-content 27.5rem;
+	grid-template-rows: 1.15rem max-content 5.8rem;
 	grid-template-areas:
 		"message message"
 		"board hclues"
