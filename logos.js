@@ -107,7 +107,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.showActionSelector = this.coarsePointer;
 	this.slotTrayDrag = null;
 	this.ignoreSlotClick = false;
-	this.timerInterval = null;
+	this.timerTimeout = null;
 	this.timerStarted = null;
 	this.timerElapsed = 0;
 	this.messageTimeout = null;
@@ -569,7 +569,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			this.messages.offsetWidth;
 			this.messages.classList.remove("appearing");
 		}
-		if (msg && this.timerInterval !== null) {
+		if (msg && this.timerTimeout !== null) {
 			var puzzle = this;
 			this.messageTimeout = setTimeout(function() {
 				puzzle.messages.classList.add("fading");
@@ -662,20 +662,27 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.startTimer = function() {
-		var puzzle = this;
 		this.timerStarted = Date.now() - this.timerElapsed;
-		this.timerInterval = setInterval(function() {
+		this.scheduleTimerUpdate();
+	}
+
+	this.scheduleTimerUpdate = function() {
+		var puzzle = this;
+		var elapsed = Date.now() - this.timerStarted;
+		var delay = 1000 - elapsed % 1000;
+		this.timerTimeout = setTimeout(function() {
 			puzzle.updateTimer(Date.now() - puzzle.timerStarted);
-		}, 250);
+			puzzle.scheduleTimerUpdate();
+		}, delay);
 	}
 
 	this.stopTimer = function() {
-		if (this.timerInterval === null)
+		if (this.timerTimeout === null)
 			return;
 		this.timerElapsed = Date.now() - this.timerStarted;
 		this.updateTimer(this.timerElapsed);
-		clearInterval(this.timerInterval);
-		this.timerInterval = null;
+		clearTimeout(this.timerTimeout);
+		this.timerTimeout = null;
 		this.timerStarted = null;
 	}
 
@@ -745,7 +752,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.toggleModal = function(modal, button, closeText) {
 		if (modal.hidden) {
 			this.resumeAfterModal = !this.gameOver &&
-				this.timerInterval !== null;
+				this.timerTimeout !== null;
 			var done = modal.querySelector(".modal-done");
 			if (done)
 				done.value = this.resumeAfterModal ?
