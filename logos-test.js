@@ -45,11 +45,13 @@ class FakeElement {
 	}
 	setAttribute() {}
 	querySelector(selector) {
+		if (selector == "input[name=tile-action]:checked")
+			return this.children.find(child =>
+				child.name == "tile-action" && child.checked);
 		if (!this.queries[selector])
 			this.queries[selector] = new FakeElement();
 		return this.queries[selector];
 	}
-
 	insertRow() {
 		return new FakeElement();
 	}
@@ -66,6 +68,14 @@ globalThis.document = {
 	body: new FakeElement(),
 };
 globalThis.document.body.dataset = {};
+const boardActions = globalThis.document.querySelector("#board-actions");
+for (const action of ["place", "remove", "pencil-select", "pencil-remove"]) {
+	const input = new FakeElement();
+	input.name = "tile-action";
+	input.value = action;
+	boardActions.appendChild(input);
+}
+boardActions.children[0].checked = true;
 globalThis.Audio = class {};
 Object.defineProperty(globalThis, "localStorage", { value: {
 	values: {},
@@ -96,6 +106,11 @@ const symbols = ["0", "1", "2", "3", "4", "5"];
 function assert(condition, message) {
 	if (!condition)
 		throw new Error(message || "assertion failed");
+}
+
+function selectTileAction(puzzle, action) {
+	for (const input of puzzle.boardActions.children)
+		input.checked = input.value == action;
 }
 
 function makePuzzle(numRows, checkWin) {
@@ -210,7 +225,7 @@ Deno.test("coarse pointers use an expanded slot tray", function() {
 	       panel.style["--tray-start-scale-x"] == String(30 / 260),
 	       "expanded tray did not animate from its source slot");
 
-	puzzle.tileAction = "remove";
+	selectTileAction(puzzle, "remove");
 	let tile = puzzle.slotTrayOptions.children[wrong];
 	tile.listeners.click({});
 	assert(!slot.possible[wrong], "tray removal did not commit");
@@ -218,14 +233,14 @@ Deno.test("coarse pointers use an expanded slot tray", function() {
 	       puzzle.slotTrayOptions.children[wrong].className.includes(
 	       "eliminated"), "tray did not stay open and refresh");
 
-	puzzle.tileAction = "pencil-select";
+	selectTileAction(puzzle, "pencil-select");
 	tile = puzzle.slotTrayOptions.children[slot.value];
 	tile.listeners.click({});
 	assert(puzzle.pencilMarks.length == 1 &&
 	       puzzle.expandedSlot == slot,
 	       "tray pencil action did not remain open");
 
-	puzzle.tileAction = "place";
+	selectTileAction(puzzle, "place");
 	tile = puzzle.slotTrayOptions.children[slot.value];
 	tile.listeners.click({});
 	assert(slot.single && puzzle.expandedSlot === null &&
@@ -274,12 +289,14 @@ Deno.test("the persistent selector applies actions directly", function() {
 	puzzle.expandTileChoices = false;
 	puzzle.showActionSelector = true;
 
-	puzzle.tileAction = "pencil-select";
+	selectTileAction(puzzle, "pencil-select");
+	assert(puzzle.getTileAction() == "pencil-select",
+	       "persistent selector did not show its selected action");
 	slot.possibilityElems[slot.value].listeners.click({ ctrlKey: false });
 	assert(puzzle.pencilMarks.length == 1 && !slot.single,
 	       "direct pencil action committed a move");
 
-	puzzle.tileAction = "remove";
+	selectTileAction(puzzle, "remove");
 	slot.possibilityElems[wrong].listeners.click({ ctrlKey: false });
 	assert(!slot.possible[wrong] && puzzle.expandedSlot === null,
 	       "direct removal opened the expanded tray");

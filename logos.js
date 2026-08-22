@@ -98,7 +98,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.boardActions = document.querySelector("#board-actions");
 	this.mobileOrientation = document.querySelector("#mobile-orientation");
 	this.expandedSlot = null;
-	this.tileAction = "place";
 	this.coarsePointer = typeof matchMedia != "undefined" &&
 		matchMedia("(pointer: coarse)").matches;
 	this.expandTileChoices = this.coarsePointer &&
@@ -334,7 +333,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		var slot = this.expandedSlot;
 		if (!slot)
 			return;
-		this.applyTileAction(slot, value, this.tileAction);
+		this.applyTileAction(slot, value, this.getTileAction());
 
 		if (!this.gameOver && this.expandedSlot && !slot.single)
 			this.renderSlotTray();
@@ -342,47 +341,9 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			this.closeSlotTray();
 	}
 
-	this.renderActionSelector = function(container) {
-		container.replaceChildren();
-		var puzzle = this;
-		var groups = [
-			["Inscribe", [
-				["place", "Place"],
-				["remove", "Remove"],
-			]],
-			["Sketch", [
-				["pencil-select", "Place"],
-				["pencil-remove", "Remove"],
-			]],
-		];
-		for (var g = 0; g < groups.length; g++) {
-			var group = document.createElement("fieldset");
-			group.className = "tile-action-group";
-			var legend = document.createElement("legend");
-			legend.textContent = groups[g][0];
-			group.appendChild(legend);
-			var actions = groups[g][1];
-			for (var i = 0; i < actions.length; i++) {
-				var action = actions[i][0];
-				var button = document.createElement("button");
-				button.type = "button";
-				button.className = "slot-tray-action " + action;
-				if (this.tileAction == action)
-					button.className += " selected";
-				button.textContent = actions[i][1];
-				button.setAttribute("aria-pressed",
-					this.tileAction == action ? "true" : "false");
-				button.addEventListener("click", function(action) {
-					return function() {
-						puzzle.tileAction = action;
-						puzzle.renderActionSelector(
-							puzzle.boardActions);
-					};
-				}(action));
-				group.appendChild(button);
-			}
-			container.appendChild(group);
-		}
+	this.getTileAction = function() {
+		return this.boardActions.querySelector(
+			"input[name=tile-action]:checked").value;
 	}
 
 	this.renderSlotTray = function() {
@@ -857,7 +818,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.setShowActionSelector = function(enabled) {
 		this.showActionSelector = enabled;
 		this.options.querySelector("#show-action-selector").checked = enabled;
-		this.renderActionSelector(this.boardActions);
 		this.updateActionControls();
 		try {
 			localStorage.setItem("showActionSelector", enabled);
@@ -1657,7 +1617,7 @@ function Slot(row, symbols, display) {
 						s.row.puzzle.openSlotTray(s);
 					else if (s.row.puzzle.showActionSelector)
 						s.row.puzzle.applyTileAction(s, j,
-							s.row.puzzle.tileAction);
+							s.row.puzzle.getTileAction());
 					else if (ev.ctrlKey)
 						s.pencil(j, false);
 					else

@@ -16,7 +16,26 @@
 		<table id="hclues"></table>
 		<div id="controls">
 			<div id="board-actions" class="tile-action-selector" hidden
-			     role="group" aria-label="Tile action"></div>
+			     role="group" aria-label="Tile action">
+				<fieldset class="tile-action-group">
+					<legend>Inscribe</legend>
+					<input id="action-place" type="radio" name="tile-action"
+					       value="place" checked>
+					<label for="action-place">Place</label>
+					<input id="action-remove" type="radio" name="tile-action"
+					       value="remove">
+					<label for="action-remove">Remove</label>
+				</fieldset>
+				<fieldset class="tile-action-group">
+					<legend>Sketch</legend>
+					<input id="action-pencil-select" type="radio" name="tile-action"
+					       value="pencil-select">
+					<label for="action-pencil-select">Place</label>
+					<input id="action-pencil-remove" type="radio" name="tile-action"
+					       value="pencil-remove">
+					<label for="action-pencil-remove">Remove</label>
+				</fieldset>
+			</div>
 			<div class="control-buttons">
 				<input type="button" onClick="puzzle.newGame()" value="New Game">
 				<input id="help-button" type="button"
