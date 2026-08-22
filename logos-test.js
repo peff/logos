@@ -149,28 +149,28 @@ Deno.test("a false elimination loses the game", function() {
 	assert(puzzle.losses == 1, "false elimination did not cause a loss");
 });
 
-Deno.test("shift clicks toggle pencil marks without making moves", function() {
+Deno.test("ctrl clicks toggle pencil marks without making moves", function() {
 	const puzzle = makePuzzle(1);
 	const slot = puzzle.rows[0].slots[0];
 	const value = slot.value;
 	const cell = slot.possibilityElems[value];
 
-	cell.listeners.click({ shiftKey: true });
+	cell.listeners.click({ ctrlKey: true });
 	assert(puzzle.pencilMarks.length == 1,
-	       "shift-click did not add a pencil selection");
+	       "ctrl-click did not add a pencil selection");
 	assert(!slot.single && puzzle.losses == 0,
 	       "pencil selection made a committed move");
-	cell.listeners.click({ shiftKey: true });
+	cell.listeners.click({ ctrlKey: true });
 	assert(puzzle.pencilMarks.length == 0,
-	       "second shift-click did not remove the pencil selection");
+	       "second ctrl-click did not remove the pencil selection");
 
 	cell.listeners.contextmenu({
-		shiftKey: true,
+		ctrlKey: true,
 		preventDefault() {},
 	});
 	assert(puzzle.pencilMarks.length == 1 &&
 	       puzzle.pencilMarks[0].discard,
-	       "shift-right-click did not add a pencil elimination");
+	       "ctrl-right-click did not add a pencil elimination");
 	assert(puzzle.losses == 0,
 	       "pencil elimination checked the hidden solution");
 });

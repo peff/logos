@@ -1372,7 +1372,7 @@ function Slot(row, symbols, display) {
 			cell.className = "possibility";
 			cell.addEventListener('click',
 				function(s, j) { return function(ev) {
-					if (ev.shiftKey)
+					if (ev.ctrlKey)
 						s.pencil(j, false);
 					else
 						s.choose(j, true);
@@ -1380,7 +1380,7 @@ function Slot(row, symbols, display) {
 			cell.addEventListener('contextmenu',
 				function(s, j) { return function(ev) {
 					ev.preventDefault();
-					if (ev.shiftKey)
+					if (ev.ctrlKey)
 						s.pencil(j, true);
 					else
 						s.discard(j, true);
