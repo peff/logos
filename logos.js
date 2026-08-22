@@ -304,14 +304,13 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 				"pencil-conflict");
 
 		var puzzle = this;
-		var addAction = function(action, symbol, label) {
+		var addAction = function(action, label) {
 			var button = document.createElement("button");
 			button.type = "button";
 			button.className = "slot-tray-action " + action;
 			if (puzzle.slotTrayAction == action)
 				button.className += " selected";
-			button.innerHTML = '<span aria-hidden="true">' + symbol +
-				'</span><small>' + label + '</small>';
+			button.textContent = label;
 			button.setAttribute("aria-label", label);
 			button.setAttribute("aria-pressed",
 				puzzle.slotTrayAction == action ? "true" : "false");
@@ -321,10 +320,10 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			});
 			puzzle.slotTrayActions.appendChild(button);
 		};
-		addAction("place", "●", "Place");
-		addAction("remove", "−", "Remove");
-		addAction("pencil-select", "○", "Circle");
-		addAction("pencil-remove", "╳", "Chalk X");
+		addAction("place", "Place");
+		addAction("remove", "Remove");
+		addAction("pencil-select", "Pencil Select");
+		addAction("pencil-remove", "Pencil Remove");
 
 		for (var value = 0; value < slot.symbols.length; value++) {
 			var tile = document.createElement("button");
