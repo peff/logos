@@ -345,29 +345,43 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.renderActionSelector = function(container) {
 		container.replaceChildren();
 		var puzzle = this;
-		var actions = [
-			["place", "Place"],
-			["remove", "Remove"],
-			["pencil-select", "Pencil Select"],
-			["pencil-remove", "Pencil Remove"],
+		var groups = [
+			["Inscribe", [
+				["place", "Place"],
+				["remove", "Remove"],
+			]],
+			["Sketch", [
+				["pencil-select", "Place"],
+				["pencil-remove", "Remove"],
+			]],
 		];
-		for (var i = 0; i < actions.length; i++) {
-			var action = actions[i][0];
-			var button = document.createElement("button");
-			button.type = "button";
-			button.className = "slot-tray-action " + action;
-			if (this.tileAction == action)
-				button.className += " selected";
-			button.textContent = actions[i][1];
-			button.setAttribute("aria-pressed",
-				this.tileAction == action ? "true" : "false");
-			button.addEventListener("click", function(action) {
-				return function() {
-					puzzle.tileAction = action;
-					puzzle.renderActionSelector(puzzle.boardActions);
-				};
-			}(action));
-			container.appendChild(button);
+		for (var g = 0; g < groups.length; g++) {
+			var group = document.createElement("fieldset");
+			group.className = "tile-action-group";
+			var legend = document.createElement("legend");
+			legend.textContent = groups[g][0];
+			group.appendChild(legend);
+			var actions = groups[g][1];
+			for (var i = 0; i < actions.length; i++) {
+				var action = actions[i][0];
+				var button = document.createElement("button");
+				button.type = "button";
+				button.className = "slot-tray-action " + action;
+				if (this.tileAction == action)
+					button.className += " selected";
+				button.textContent = actions[i][1];
+				button.setAttribute("aria-pressed",
+					this.tileAction == action ? "true" : "false");
+				button.addEventListener("click", function(action) {
+					return function() {
+						puzzle.tileAction = action;
+						puzzle.renderActionSelector(
+							puzzle.boardActions);
+					};
+				}(action));
+				group.appendChild(button);
+			}
+			container.appendChild(group);
 		}
 	}
 
