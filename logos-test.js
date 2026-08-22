@@ -183,7 +183,7 @@ Deno.test("coarse pointers use an expanded slot tray", function() {
 	const puzzle = makePuzzle(1);
 	const slot = puzzle.rows[0].slots[0];
 	const wrong = (slot.value + 1) % symbols.length;
-	puzzle.selectionActionMenu = true;
+	puzzle.expandTileChoices = true;
 
 	slot.possibilityElems[0].listeners.click({ ctrlKey: false });
 	assert(!slot.single && puzzle.expandedSlot == slot,
@@ -215,28 +215,72 @@ Deno.test("coarse pointers use an expanded slot tray", function() {
 	       "tray placement did not resolve and close the slot");
 });
 
-Deno.test("the action menu defaults by pointer and remembers its setting",
+Deno.test("touch options use independent defaults and saved settings",
 		function() {
+	localStorage.removeItem("expandTileChoices");
+	localStorage.removeItem("showActionSelector");
 	localStorage.removeItem("selectionActionMenu");
 	let mediaQuery;
 	globalThis.matchMedia = function(query) {
 		mediaQuery = query;
 		return { matches: true };
 	};
+	globalThis.innerWidth = 800;
+	globalThis.innerHeight = 400;
 	let puzzle = makePuzzle(1);
-	assert(mediaQuery == "(pointer: coarse)" && puzzle.selectionActionMenu,
-	       "coarse pointer did not enable the action menu by default");
+	assert(mediaQuery == "(pointer: coarse)" &&
+	       puzzle.expandTileChoices && puzzle.showActionSelector,
+	       "touch options did not use coarse/small defaults");
 
-	localStorage.setItem("selectionActionMenu", "false");
+	localStorage.setItem("expandTileChoices", "false");
+	localStorage.setItem("showActionSelector", "false");
 	puzzle = makePuzzle(1);
-	assert(!puzzle.selectionActionMenu,
-	       "saved action-menu preference did not override pointer default");
+	assert(!puzzle.expandTileChoices && !puzzle.showActionSelector,
+	       "saved touch preferences did not override defaults");
 	delete globalThis.matchMedia;
+	delete globalThis.innerWidth;
+	delete globalThis.innerHeight;
+	localStorage.removeItem("expandTileChoices");
+	localStorage.removeItem("showActionSelector");
 	localStorage.removeItem("selectionActionMenu");
 });
 
+Deno.test("the persistent selector applies actions directly", function() {
+	const puzzle = makePuzzle(1);
+	const slot = puzzle.rows[0].slots[0];
+	const wrong = (slot.value + 1) % symbols.length;
+	puzzle.expandTileChoices = false;
+	puzzle.showActionSelector = true;
+
+	puzzle.tileAction = "pencil-select";
+	slot.possibilityElems[slot.value].listeners.click({ ctrlKey: false });
+	assert(puzzle.pencilMarks.length == 1 && !slot.single,
+	       "direct pencil action committed a move");
+
+	puzzle.tileAction = "remove";
+	slot.possibilityElems[wrong].listeners.click({ ctrlKey: false });
+	assert(!slot.possible[wrong] && puzzle.expandedSlot === null,
+	       "direct removal opened the expanded tray");
+});
+
+Deno.test("the persistent selector replaces the logo only during play",
+		function() {
+	const puzzle = makePuzzle(1);
+	puzzle.showActionSelector = true;
+	puzzle.gameOver = true;
+	puzzle.updateActionControls();
+	assert(puzzle.boardActions.hidden && !puzzle.logoButton.hidden,
+	       "selector replaced the logo outside an active game");
+
+	puzzle.gameOver = false;
+	puzzle.updateActionControls();
+	assert(!puzzle.boardActions.hidden && puzzle.logoButton.hidden,
+	       "selector did not replace the logo during play");
+});
+
 Deno.test("narrow portrait screens ask for landscape mode", function() {
-	localStorage.removeItem("selectionActionMenu");
+	localStorage.removeItem("expandTileChoices");
+	localStorage.removeItem("showActionSelector");
 	globalThis.innerWidth = 400;
 	globalThis.innerHeight = 800;
 	const puzzle = makePuzzle(1);
@@ -256,7 +300,8 @@ Deno.test("narrow portrait screens ask for landscape mode", function() {
 	       "portrait prompt remained visible in landscape");
 	delete globalThis.innerWidth;
 	delete globalThis.innerHeight;
-	localStorage.removeItem("selectionActionMenu");
+	localStorage.removeItem("expandTileChoices");
+	localStorage.removeItem("showActionSelector");
 });
 
 Deno.test("pencil marks coexist and show row consequences", function() {

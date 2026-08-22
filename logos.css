@@ -253,6 +253,25 @@ body[data-cursor="native"] {
 	font-size: 0.78rem;
 }
 
+#board-actions {
+	display: grid;
+	grid-template-columns: repeat(4, 1fr);
+	gap: 0.12rem;
+	box-sizing: border-box;
+	width: 18rem;
+	margin: 0 auto 0.2rem;
+}
+
+#board-actions[hidden] {
+	display: none;
+}
+
+#board-actions .slot-tray-action {
+	min-height: 1.65rem;
+	padding: 0.12rem;
+	font-size: 0.62rem;
+}
+
 .modal-done {
 	padding: 0.35rem 0.65rem;
 	font-size: inherit;

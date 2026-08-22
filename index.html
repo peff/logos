@@ -15,6 +15,8 @@
 		<table id="board"></table>
 		<table id="hclues"></table>
 		<div id="controls">
+			<div id="board-actions" class="tile-action-selector" hidden
+			     role="group" aria-label="Tile action"></div>
 			<div class="control-buttons">
 				<input type="button" onClick="puzzle.newGame()" value="New Game">
 				<input id="help-button" type="button"
@@ -75,10 +77,14 @@
 						       <input id="sound-effects" type="checkbox"
 						              onChange="puzzle.setSoundEffects(this.checked)">
 						       Sound effects</label>
-						<label title="When your fingers are too big or your screen is too small.">
-						       <input id="selection-action-menu" type="checkbox"
-						              onChange="puzzle.setSelectionActionMenu(this.checked)">
-						       Selection opens action menu</label>
+						<label title="Open larger copies of a slot's tiles before choosing one.">
+						       <input id="expand-tile-choices" type="checkbox"
+						              onChange="puzzle.setExpandTileChoices(this.checked)">
+						       Expand tile choices</label>
+						<label title="Choose how taps on tiles are interpreted.">
+						       <input id="show-action-selector" type="checkbox"
+						              onChange="puzzle.setShowActionSelector(this.checked)">
+						       Show action selector</label>
 						<input id="fullscreen-button" class="option-action" type="button"
 						       onClick="puzzle.toggleFullscreen()" value="Enter full screen">
 					</fieldset>
@@ -233,7 +239,7 @@
 				</header>
 				<div class="slot-tray-body">
 					<div id="slot-tray-options"></div>
-					<div id="slot-tray-actions" role="group"
+					<div id="slot-tray-actions" class="tile-action-selector" role="group"
 					     aria-label="Tile action"></div>
 				</div>
 			</div>

@@ -96,12 +96,16 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.slotTray = document.querySelector("#slot-tray");
 	this.slotTrayOptions = document.querySelector("#slot-tray-options");
 	this.slotTrayActions = document.querySelector("#slot-tray-actions");
+	this.boardActions = document.querySelector("#board-actions");
 	this.mobileOrientation = document.querySelector("#mobile-orientation");
 	this.expandedSlot = null;
-	this.slotTrayAction = "place";
+	this.tileAction = "place";
 	this.coarsePointer = typeof matchMedia != "undefined" &&
 		matchMedia("(pointer: coarse)").matches;
-	this.selectionActionMenu = this.coarsePointer;
+	this.expandTileChoices = this.coarsePointer &&
+		typeof innerWidth != "undefined" &&
+		Math.min(innerWidth * 0.0208, innerHeight * 0.0345) < 20;
+	this.showActionSelector = this.coarsePointer;
 	this.timerInterval = null;
 	this.timerStarted = null;
 	this.timerElapsed = 0;
@@ -176,6 +180,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		for (var i = 0; i < this.rows.length; i++)
 			this.rows[i].clear();
 		this.say("");
+		this.updateActionControls();
 	}
 
 	this.newGame = function() {
@@ -193,6 +198,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.generateClues();
 		this.startTimer();
 		this.say(randomChoice(startMessages));
+		this.updateActionControls();
 	}
 
 	this.checkWin = function() {
@@ -203,6 +209,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			if (!this.rows[i].isComplete())
 				return;
 		this.gameOver = true;
+		this.updateActionControls();
 		this.playSound("win");
 		this.stopTimer();
 		this.recordOutcome("won");
@@ -236,6 +243,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		if (this.gameOver)
 			return;
 		this.gameOver = true;
+		this.updateActionControls();
 		this.playSound("mistake");
 		this.stopTimer();
 		this.recordOutcome("lost");
@@ -263,7 +271,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			return;
 		this.closeSlotTray();
 		this.expandedSlot = slot;
-		this.slotTrayAction = "place";
 		slot.elem.classList.add("expanded");
 		this.slotTray.hidden = false;
 		this.renderSlotTray();
@@ -276,16 +283,20 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.slotTray.hidden = true;
 	}
 
-	this.applySlotTrayAction = function(value, action) {
-		var slot = this.expandedSlot;
-		if (!slot)
-			return;
+	this.applyTileAction = function(slot, value, action) {
 		if (action == "place")
 			slot.choose(value, true);
 		else if (action == "remove")
 			slot.discard(value, true);
 		else
 			slot.pencil(value, action == "pencil-remove");
+	}
+
+	this.applySlotTrayAction = function(value) {
+		var slot = this.expandedSlot;
+		if (!slot)
+			return;
+		this.applyTileAction(slot, value, this.tileAction);
 
 		if (!this.gameOver && this.expandedSlot && !slot.single)
 			this.renderSlotTray();
@@ -293,12 +304,43 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			this.closeSlotTray();
 	}
 
+	this.renderActionSelector = function(container) {
+		container.replaceChildren();
+		var puzzle = this;
+		var actions = [
+			["place", "Place"],
+			["remove", "Remove"],
+			["pencil-select", "Pencil Select"],
+			["pencil-remove", "Pencil Remove"],
+		];
+		for (var i = 0; i < actions.length; i++) {
+			var action = actions[i][0];
+			var button = document.createElement("button");
+			button.type = "button";
+			button.className = "slot-tray-action " + action;
+			if (this.tileAction == action)
+				button.className += " selected";
+			button.textContent = actions[i][1];
+			button.setAttribute("aria-pressed",
+				this.tileAction == action ? "true" : "false");
+			button.addEventListener("click", function(action) {
+				return function() {
+					puzzle.tileAction = action;
+					puzzle.renderActionSelector(puzzle.boardActions);
+					if (puzzle.expandedSlot)
+						puzzle.renderSlotTray();
+				};
+			}(action));
+			container.appendChild(button);
+		}
+	}
+
 	this.renderSlotTray = function() {
 		var slot = this.expandedSlot;
 		if (!slot)
 			return;
 		this.slotTrayOptions.replaceChildren();
-		this.slotTrayActions.replaceChildren();
+		this.renderActionSelector(this.slotTrayActions);
 		this.slotTray.querySelector(".slot-tray-panel").classList.remove(
 			"pencil-conflict");
 		if (slot.row.elem.classList.contains("pencil-conflict"))
@@ -306,26 +348,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 				"pencil-conflict");
 
 		var puzzle = this;
-		var addAction = function(action, label) {
-			var button = document.createElement("button");
-			button.type = "button";
-			button.className = "slot-tray-action " + action;
-			if (puzzle.slotTrayAction == action)
-				button.className += " selected";
-			button.textContent = label;
-			button.setAttribute("aria-label", label);
-			button.setAttribute("aria-pressed",
-				puzzle.slotTrayAction == action ? "true" : "false");
-			button.addEventListener("click", function() {
-				puzzle.slotTrayAction = action;
-				puzzle.renderSlotTray();
-			});
-			puzzle.slotTrayActions.appendChild(button);
-		};
-		addAction("place", "Place");
-		addAction("remove", "Remove");
-		addAction("pencil-select", "Pencil Select");
-		addAction("pencil-remove", "Pencil Remove");
 
 		for (var value = 0; value < slot.symbols.length; value++) {
 			var tile = document.createElement("button");
@@ -346,8 +368,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			tile.setAttribute("aria-label", slot.symbols[value]);
 			tile.addEventListener("click", function(value) {
 				return function() {
-					puzzle.applySlotTrayAction(value,
-						puzzle.slotTrayAction);
+					puzzle.applySlotTrayAction(value);
 				};
 			}(value));
 			this.slotTrayOptions.appendChild(tile);
@@ -770,16 +791,34 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		}
 	}
 
-	this.setSelectionActionMenu = function(enabled) {
-		this.selectionActionMenu = enabled;
-		this.options.querySelector("#selection-action-menu").checked = enabled;
+	this.setExpandTileChoices = function(enabled) {
+		this.expandTileChoices = enabled;
+		this.options.querySelector("#expand-tile-choices").checked = enabled;
 		if (!enabled)
 			this.closeSlotTray();
 		try {
-			localStorage.setItem("selectionActionMenu", enabled);
+			localStorage.setItem("expandTileChoices", enabled);
 		} catch (e) {
 			/* The choice still applies for the current page. */
 		}
+	}
+
+	this.setShowActionSelector = function(enabled) {
+		this.showActionSelector = enabled;
+		this.options.querySelector("#show-action-selector").checked = enabled;
+		this.renderActionSelector(this.boardActions);
+		this.updateActionControls();
+		try {
+			localStorage.setItem("showActionSelector", enabled);
+		} catch (e) {
+			/* The choice still applies for the current page. */
+		}
+	}
+
+	this.updateActionControls = function() {
+		var show = this.showActionSelector && !this.gameOver;
+		this.boardActions.hidden = !show;
+		this.logoButton.hidden = show;
 	}
 
 	this.updateFullscreenButton = function() {
@@ -893,13 +932,18 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	var showMilestones = true;
 	var showTimer = true;
 	var soundEffects = true;
-	var selectionActionMenu = this.selectionActionMenu;
+	var expandTileChoices = this.expandTileChoices;
+	var showActionSelector = this.showActionSelector;
 	try {
 		cursor = localStorage.getItem("cursor") || cursor;
 		var storedMilestones = localStorage.getItem("showMilestones");
 		var storedTimer = localStorage.getItem("showTimer");
 		var storedSoundEffects = localStorage.getItem("soundEffects");
-		var storedSelectionActionMenu = localStorage.getItem(
+		var storedExpandTileChoices = localStorage.getItem(
+			"expandTileChoices");
+		var storedShowActionSelector = localStorage.getItem(
+			"showActionSelector");
+		var oldSelectionActionMenu = localStorage.getItem(
 			"selectionActionMenu");
 		if (storedMilestones !== null)
 			showMilestones = storedMilestones == "true";
@@ -907,8 +951,12 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			showTimer = storedTimer == "true";
 		if (storedSoundEffects !== null)
 			soundEffects = storedSoundEffects == "true";
-		if (storedSelectionActionMenu !== null)
-			selectionActionMenu = storedSelectionActionMenu == "true";
+		if (storedExpandTileChoices !== null)
+			expandTileChoices = storedExpandTileChoices == "true";
+		else if (oldSelectionActionMenu !== null)
+			expandTileChoices = oldSelectionActionMenu == "true";
+		if (storedShowActionSelector !== null)
+			showActionSelector = storedShowActionSelector == "true";
 	} catch (e) {
 		/* Storage may be unavailable for local files. */
 	}
@@ -918,7 +966,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.setMilestones(showMilestones);
 	this.setTimerVisible(showTimer);
 	this.setSoundEffects(soundEffects);
-	this.setSelectionActionMenu(selectionActionMenu);
+	this.setExpandTileChoices(expandTileChoices);
+	this.setShowActionSelector(showActionSelector);
 	this.updateFullscreenButton();
 	this.updateMobileOrientation();
 
@@ -1553,8 +1602,11 @@ function Slot(row, symbols, display) {
 			cell.className = "possibility";
 			cell.addEventListener('click',
 				function(s, j) { return function(ev) {
-					if (s.row.puzzle.selectionActionMenu)
+					if (s.row.puzzle.expandTileChoices)
 						s.row.puzzle.openSlotTray(s);
+					else if (s.row.puzzle.showActionSelector)
+						s.row.puzzle.applyTileAction(s, j,
+							s.row.puzzle.tileAction);
 					else if (ev.ctrlKey)
 						s.pencil(j, false);
 					else
