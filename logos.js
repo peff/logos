@@ -128,6 +128,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.resumeAfterModal = false;
 	this.nextMilestone = 0;
 	this.showMilestones = true;
+	this.pencilMarks = [];
 	this.rows = [];
 	this.clues = [];
 	this.hClueSlots = [];
@@ -154,6 +155,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.clear = function() {
 		this.gameOver = true;
 		this.nextMilestone = 0;
+		this.clearPencilMarks();
 		this.hClues.classList.remove("solution");
 		this.vClues.classList.remove("solution");
 		this.stopTimer();
@@ -168,6 +170,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.newGame = function() {
 		this.gameOver = true;
 		this.nextMilestone = 0;
+		this.clearPencilMarks();
 		this.stopTimer();
 		this.timerElapsed = 0;
 		this.clearOutcome();
@@ -234,6 +237,57 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 				clues[i].display.classList.add("contradiction");
 		}
 		this.say(msg);
+	}
+
+	this.clearPencilMarks = function() {
+		this.pencilMarks = [];
+		for (var i = 0; i < this.rows.length; i++)
+			this.rows[i].clearPencilDisplay();
+	}
+
+	this.togglePencilMark = function(slot, value, discard) {
+		if (this.gameOver || this.paused || slot.single ||
+		    !slot.possible[value])
+			return;
+		var found = false;
+		for (var i = this.pencilMarks.length - 1; i >= 0; i--) {
+			var mark = this.pencilMarks[i];
+			if (mark.slot != slot || mark.value != value)
+				continue;
+			if (mark.discard == discard)
+				found = true;
+			this.pencilMarks.splice(i, 1);
+		}
+		if (!found)
+			this.pencilMarks.push({
+				slot: slot,
+				value: value,
+				discard: discard,
+			});
+		this.renderPencilMarks();
+	}
+
+	this.reconcilePencilMarks = function() {
+		if (!this.pencilMarks.length)
+			return;
+		this.pencilMarks = this.pencilMarks.filter(function(mark) {
+			return !mark.slot.single && mark.slot.possible[mark.value];
+		});
+		this.renderPencilMarks();
+	}
+
+	this.renderPencilMarks = function() {
+		/* Rebuild tentative domains without changing committed slot state. */
+		var domains = domainsFromSlots(this);
+		for (var i = 0; i < this.pencilMarks.length; i++) {
+			var mark = this.pencilMarks[i];
+			applyPencilMark(domains, mark, this.rows);
+		}
+		for (var i = 0; i < this.rows.length; i++) {
+			var conflict = propagatePencilRow(domains[i]);
+			this.rows[i].displayPencil(
+				domains[i], this.pencilMarks, conflict);
+		}
 	}
 
 	this.findContradictingClues = function(slot, value, discard) {
@@ -845,6 +899,83 @@ function applyMove(domains, slot, value, discard, rows) {
 	}
 }
 
+function applyPencilMark(domains, mark, rows) {
+	var row = rows.indexOf(mark.slot.row);
+	var col = mark.slot.row.slots.indexOf(mark.slot);
+	var bit = 1 << col;
+	if (mark.discard) {
+		domains[row][mark.value] &= ~bit;
+	} else {
+		domains[row][mark.value] &= bit;
+		for (var symbol = 0; symbol < domains[row].length; symbol++)
+			if (symbol != mark.value)
+				domains[row][symbol] &= ~bit;
+	}
+}
+
+function propagatePencilRow(domains) {
+	var changed;
+	do {
+		changed = false;
+		var singles = 0;
+		for (var symbol = 0; symbol < domains.length; symbol++) {
+			var domain = domains[symbol];
+			if (domain && (domain & (domain - 1)) == 0)
+				singles |= domain;
+		}
+		for (var symbol = 0; symbol < domains.length; symbol++) {
+			var domain = domains[symbol];
+			if (domain && (domain & (domain - 1)) != 0) {
+				var reduced = domain & ~singles;
+				if (reduced != domain) {
+					domains[symbol] = reduced;
+					changed = true;
+				}
+			}
+		}
+
+		for (var col = 0; col < domains.length; col++) {
+			var bit = 1 << col;
+			var candidate = -1;
+			for (var symbol = 0; symbol < domains.length; symbol++) {
+				if (domains[symbol] & bit) {
+					if (candidate >= 0) {
+						candidate = -2;
+						break;
+					}
+					candidate = symbol;
+				}
+			}
+			if (candidate >= 0 && domains[candidate] != bit) {
+				domains[candidate] = bit;
+				changed = true;
+			}
+		}
+	} while (changed);
+
+	var singles = 0;
+	for (var symbol = 0; symbol < domains.length; symbol++) {
+		var domain = domains[symbol];
+		if (!domain)
+			return true;
+		if ((domain & (domain - 1)) == 0) {
+			if (singles & domain)
+				return true;
+			singles |= domain;
+		}
+	}
+	for (var col = 0; col < domains.length; col++) {
+		var bit = 1 << col;
+		var found = false;
+		for (var symbol = 0; symbol < domains.length; symbol++)
+			if (domains[symbol] & bit)
+				found = true;
+		if (!found)
+			return true;
+	}
+	return false;
+}
+
 function cluesAllow(puzzle, clues, domains) {
 	var numRows = puzzle.rows.length;
 	var rowSize = puzzle.rows[0].slots.length;
@@ -982,6 +1113,7 @@ function restrictVariable(variable, allowed) {
 
 function Row(puzzle, symbols, display, family) {
 	this.puzzle = puzzle;
+	this.elem = display;
 	this.familyClass = "family-" + family;
 	this.slots = [];
 	for (var i = 0; i < symbols.length; i++)
@@ -999,6 +1131,52 @@ function Row(puzzle, symbols, display, family) {
 		shuffle(values);
 		for (var i = 0; i < this.slots.length; i++)
 			this.slots[i].newGame(values[i]);
+	}
+
+	this.clearPencilDisplay = function() {
+		this.elem.classList.remove("pencil-conflict");
+		for (var i = 0; i < this.slots.length; i++)
+			this.slots[i].clearPencilDisplay();
+	}
+
+	this.displayPencil = function(domains, marks, conflict) {
+		this.clearPencilDisplay();
+		if (conflict)
+			this.elem.classList.add("pencil-conflict");
+		for (var col = 0; col < this.slots.length; col++) {
+			var slot = this.slots[col];
+			if (slot.single)
+				continue;
+			for (var value = 0; value < domains.length; value++) {
+				if (!slot.possible[value])
+					continue;
+				var selected = false;
+				var removed = false;
+				for (var i = 0; i < marks.length; i++) {
+					if (marks[i].slot != slot ||
+					    marks[i].value != value)
+						continue;
+					if (marks[i].discard)
+						removed = true;
+					else
+						selected = true;
+				}
+				var bit = 1 << col;
+				var elem = slot.possibilityElems[value];
+				if (selected)
+					elem.className +=
+						" pencil-selected pencil-explicit";
+				else if (domains[value] == bit)
+					elem.className +=
+						" pencil-selected pencil-derived";
+				if (removed)
+					elem.className +=
+						" pencil-removed pencil-explicit";
+				else if (!(domains[value] & bit))
+					elem.className +=
+						" pencil-removed pencil-derived";
+			}
+		}
 	}
 
 	this.removePossible = function(value) {
@@ -1070,6 +1248,14 @@ function Slot(row, symbols, display) {
 		this.single = false;
 	}
 
+	this.clearPencilDisplay = function() {
+		if (!this.possible)
+			return;
+		for (var i = 0; i < this.possibilityElems.length; i++)
+			this.possibilityElems[i].className = this.possible[i] ?
+				"possibility" : "possibility dead-possibility";
+	}
+
 	this.choose = function(value, playerAction) {
 		if (this.row.puzzle.gameOver || this.row.puzzle.paused)
 			return;
@@ -1079,6 +1265,7 @@ function Slot(row, symbols, display) {
 			this.row.puzzle.placeSoundPending = false;
 			this.displaySingle(value);
 			this.row.removePossible(value);
+			this.row.puzzle.reconcilePencilMarks();
 			this.row.puzzle.checkWin();
 		} else {
 			var clues = this.row.puzzle.findContradictingClues(
@@ -1104,6 +1291,7 @@ function Slot(row, symbols, display) {
 			}
 			this.removePossible(value);
 			this.row.checkSingleton(value);
+			this.row.puzzle.reconcilePencilMarks();
 			this.row.puzzle.placeSoundPending = false;
 		}
 	}
@@ -1135,6 +1323,10 @@ function Slot(row, symbols, display) {
 			this.choose(last);
 	}
 
+	this.pencil = function(value, discard) {
+		this.row.puzzle.togglePencilMark(this, value, discard);
+	}
+
 	this.singleElem = document.createElement("div");
 	this.singleElem.hidden = true;
 	this.possibleElem = document.createElement("table");
@@ -1155,13 +1347,19 @@ function Slot(row, symbols, display) {
 			cell.innerHTML = this.symbols[j];
 			cell.className = "possibility";
 			cell.addEventListener('click',
-				function(s, j) { return function() {
-					s.choose(j, true);
+				function(s, j) { return function(ev) {
+					if (ev.shiftKey)
+						s.pencil(j, false);
+					else
+						s.choose(j, true);
 				}}(this, j));
 			cell.addEventListener('contextmenu',
 				function(s, j) { return function(ev) {
 					ev.preventDefault();
-					s.discard(j, true);
+					if (ev.shiftKey)
+						s.pencil(j, true);
+					else
+						s.discard(j, true);
 				}}(this, j));
 		}
 	}

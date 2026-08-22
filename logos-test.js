@@ -23,6 +23,7 @@ class FakeElement {
 		this.classList = new FakeClassList();
 		this.children = [];
 		this.innerHTML = "";
+		this.listeners = {};
 		this.queries = {};
 	}
 
@@ -30,7 +31,9 @@ class FakeElement {
 		this.children.push(child);
 	}
 
-	addEventListener() {}
+	addEventListener(type, listener) {
+		this.listeners[type] = listener;
+	}
 	setAttribute() {}
 	querySelector(selector) {
 		if (!this.queries[selector])
@@ -141,6 +144,116 @@ Deno.test("a false elimination loses the game", function() {
 
 	slot.discard(slot.value);
 	assert(puzzle.losses == 1, "false elimination did not cause a loss");
+});
+
+Deno.test("shift clicks toggle pencil marks without making moves", function() {
+	const puzzle = makePuzzle(1);
+	const slot = puzzle.rows[0].slots[0];
+	const value = slot.value;
+	const cell = slot.possibilityElems[value];
+
+	cell.listeners.click({ shiftKey: true });
+	assert(puzzle.pencilMarks.length == 1,
+	       "shift-click did not add a pencil selection");
+	assert(!slot.single && puzzle.losses == 0,
+	       "pencil selection made a committed move");
+	cell.listeners.click({ shiftKey: true });
+	assert(puzzle.pencilMarks.length == 0,
+	       "second shift-click did not remove the pencil selection");
+
+	cell.listeners.contextmenu({
+		shiftKey: true,
+		preventDefault() {},
+	});
+	assert(puzzle.pencilMarks.length == 1 &&
+	       puzzle.pencilMarks[0].discard,
+	       "shift-right-click did not add a pencil elimination");
+	assert(puzzle.losses == 0,
+	       "pencil elimination checked the hidden solution");
+});
+
+Deno.test("pencil marks coexist and show row consequences", function() {
+	const puzzle = makePuzzle(2);
+	const selected = puzzle.rows[0].slots[0];
+	const removed = puzzle.rows[1].slots[0];
+	const selectedValue = selected.value;
+	const removedValue = removed.value;
+
+	selected.pencil(selectedValue, false);
+	removed.pencil(removedValue, true);
+	assert(puzzle.pencilMarks.length == 2,
+	       "pencil mark in another row replaced the first mark");
+	assert(selected.possibilityElems[selectedValue].className.includes(
+	       "pencil-selected pencil-explicit"),
+	       "explicit pencil selection was not rendered");
+	assert(puzzle.rows[0].slots[1].possibilityElems[selectedValue]
+	       .className.includes("pencil-removed pencil-derived"),
+	       "pencil selection did not cascade across its row");
+	assert(removed.possibilityElems[removedValue].className.includes(
+	       "pencil-removed pencil-explicit"),
+	       "explicit pencil elimination was not rendered");
+});
+
+Deno.test("clues do not propagate pencil marks", function() {
+	const puzzle = makePuzzle(2);
+	const top = puzzle.rows[0].slots[0];
+	const bottom = puzzle.rows[1].slots[0];
+	const clue = new ColumnClue(puzzle);
+	clue.tRow = top.row;
+	clue.bRow = bottom.row;
+	clue.col = 0;
+	puzzle.clues = [clue];
+
+	top.pencil(top.value, false);
+	assert(bottom.possibilityElems[bottom.value].className == "possibility",
+	       "clue propagated a pencil selection to another row");
+});
+
+Deno.test("an opposite pencil mark replaces the mark on a tile", function() {
+	const puzzle = makePuzzle(1);
+	const slot = puzzle.rows[0].slots[0];
+
+	slot.pencil(slot.value, false);
+	slot.pencil(slot.value, true);
+	assert(puzzle.pencilMarks.length == 1 &&
+	       puzzle.pencilMarks[0].discard,
+	       "pencil elimination did not replace pencil selection");
+	assert(!slot.row.elem.classList.contains("pencil-conflict"),
+	       "replacing a pencil mark created a conflict");
+});
+
+Deno.test("contradicting pencil marks show a conflict", function() {
+	const puzzle = makePuzzle(1);
+	const slot = puzzle.rows[0].slots[0];
+	const other = (slot.value + 1) % symbols.length;
+
+	slot.pencil(slot.value, false);
+	slot.pencil(other, false);
+	assert(puzzle.losses == 0, "contradicting pencil marks caused a loss");
+	assert(slot.row.elem.classList.contains("pencil-conflict"),
+	       "contradicting pencil marks did not mark their row");
+
+	slot.pencil(other, false);
+	assert(!slot.row.elem.classList.contains("pencil-conflict"),
+	       "removing the contradiction did not clear its display");
+});
+
+Deno.test("committed moves remove only affected pencil marks", function() {
+	const puzzle = makePuzzle(2);
+	const committed = puzzle.rows[0].slots[0];
+	const unrelated = puzzle.rows[1].slots[0];
+	const wrong = (committed.value + 1) % symbols.length;
+
+	committed.pencil(wrong, false);
+	unrelated.pencil(unrelated.value, false);
+	committed.choose(committed.value);
+	assert(puzzle.pencilMarks.length == 1,
+	       "committed move removed unrelated pencil marks");
+	assert(puzzle.pencilMarks[0].slot == unrelated,
+	       "committed move retained a conflicting pencil mark");
+	assert(unrelated.possibilityElems[unrelated.value].className.includes(
+	       "pencil-selected pencil-explicit"),
+	       "remaining pencil state was not recomputed");
 });
 
 Deno.test("a directly contradicting clue is highlighted", function() {

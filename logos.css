@@ -59,6 +59,7 @@ body[data-cursor="native"] {
 }
 
 #board {
+	--chalk-mark: rgb(240 232 211 / 88%);
 	grid-area: board;
 	flex: 0 0 auto;
 	font-family: sans-serif;
@@ -112,6 +113,71 @@ body[data-cursor="native"] {
 
 #board .dead-possibility {
 	visibility: hidden;
+}
+
+#board tr.pencil-conflict {
+	--chalk-mark: rgb(229 167 74 / 95%);
+}
+
+#board .pencil-selected,
+#board .pencil-removed {
+	position: relative;
+}
+
+#board .pencil-selected::after,
+#board .pencil-removed::before,
+#board .pencil-removed::after {
+	content: "";
+	pointer-events: none;
+	position: absolute;
+	z-index: 2;
+}
+
+#board .pencil-removed.pencil-derived::after {
+	background-color: var(--chalk-mark);
+	border: 0;
+	border-radius: 45%;
+	width: 2px;
+	height: 90%;
+	top: 5%;
+	left: calc(50% - 1px);
+	transform: rotate(38deg);
+}
+
+#board .pencil-removed.pencil-explicit::before,
+#board .pencil-removed.pencil-explicit::after {
+	background-color: var(--chalk-mark);
+	border: 0;
+	border-radius: 45%;
+	width: 2px;
+	height: 92%;
+	top: 4%;
+	left: calc(50% - 1px);
+}
+
+#board .pencil-removed.pencil-explicit::before {
+	transform: rotate(-38deg);
+}
+
+#board .pencil-removed.pencil-explicit::after {
+	transform: rotate(38deg);
+}
+
+#board .pencil-selected::after {
+	background: none;
+	border: 2px solid var(--chalk-mark);
+	border-radius: 48% 53% 46% 55%;
+	width: auto;
+	height: auto;
+	top: 0.12rem;
+	right: 0.1rem;
+	bottom: 0.1rem;
+	left: 0.12rem;
+	transform: rotate(-3deg);
+}
+
+#board .pencil-selected.pencil-derived::after {
+	opacity: 0.5;
 }
 
 #board .family-2 .possibility {
