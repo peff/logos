@@ -305,7 +305,7 @@ body[data-cursor="native"] {
 
 .slot-tray-panel {
 	box-sizing: border-box;
-	width: min(480px, calc(100vw - 16px));
+	width: min(340px, calc(100vw - 16px));
 	max-height: calc(100vh - 16px);
 	overflow-y: auto;
 	border: 1px solid #777267;
@@ -346,13 +346,14 @@ body[data-cursor="native"] {
 
 .slot-tray-body {
 	display: grid;
-	grid-template-columns: minmax(0, 1fr) 78px;
+	grid-template-columns: max-content 78px;
+	justify-content: center;
 	gap: 8px;
 }
 
 #slot-tray-options {
 	display: grid;
-	grid-template-columns: repeat(2, minmax(0, 1fr));
+	grid-template-columns: repeat(3, 72px);
 	gap: 6px;
 }
 
@@ -363,8 +364,8 @@ body[data-cursor="native"] {
 }
 
 .slot-tray-symbol {
-	min-width: 0;
-	height: 68px;
+	width: 72px;
+	height: 72px;
 	border: 2px solid var(--tile-accent);
 	border-radius: 4px;
 	background-color: var(--tile-bg);
