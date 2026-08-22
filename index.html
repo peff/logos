@@ -21,19 +21,19 @@
 					<legend>Inscribe</legend>
 					<input id="action-place" type="radio" name="tile-action"
 					       value="place" checked>
-					<label for="action-place">Place</label>
+					<label for="action-place">Choose</label>
 					<input id="action-remove" type="radio" name="tile-action"
 					       value="remove">
-					<label for="action-remove">Remove</label>
+					<label for="action-remove">Discard</label>
 				</fieldset>
 				<fieldset class="tile-action-group">
 					<legend>Sketch</legend>
 					<input id="action-pencil-select" type="radio" name="tile-action"
 					       value="pencil-select">
-					<label for="action-pencil-select">Place</label>
+					<label for="action-pencil-select">Choose</label>
 					<input id="action-pencil-remove" type="radio" name="tile-action"
 					       value="pencil-remove">
-					<label for="action-pencil-remove">Remove</label>
+					<label for="action-pencil-remove">Discard</label>
 				</fieldset>
 			</div>
 			<div class="control-buttons">
@@ -128,15 +128,15 @@
 
 						<h3>Making deductions</h3>
 						<ul>
-							<li><strong>Left-click</strong> a possibility to place it.</li>
-							<li><strong>Right-click</strong> a possibility to eliminate it.</li>
-							<li>A false placement or elimination ends the game.</li>
-							<li>Forced placements are filled in automatically.</li>
+							<li><strong>Left-click</strong> a possibility to choose it.</li>
+							<li><strong>Right-click</strong> a possibility to discard it.</li>
+							<li>A false choice or discard ends the game.</li>
+							<li>Forced choices are filled in automatically.</li>
 						</ul>
 						<h3>Chalk Marks</h3>
 						<ul>
-							<li><strong>Ctrl-click</strong> to tentatively select a possibility.</li>
-							<li><strong>Ctrl-right-click</strong> to tentatively eliminate a possibility.</li>
+							<li><strong>Ctrl-click</strong> to tentatively choose a possibility.</li>
+							<li><strong>Ctrl-right-click</strong> to tentatively discard a possibility.</li>
 							<li>Chalk marks propagate within a row, but are not checked against clues or the solution.</li>
 						</ul>
 					</section>
@@ -152,7 +152,7 @@
 							<td><span class="help-example">
 								<span class="help-tile family-1">A</span>
 							</span></td>
-							<td><span class="help-tile family-1">A</span> already placed
+							<td><span class="help-tile family-1">A</span> already chosen
 								on the board is fixed in that column.</td>
 						</tr>
 						<tr>
