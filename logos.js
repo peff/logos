@@ -95,7 +95,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.logoButton = logoButton;
 	this.slotTray = document.querySelector("#slot-tray");
 	this.slotTrayOptions = document.querySelector("#slot-tray-options");
-	this.slotTrayActions = document.querySelector("#slot-tray-actions");
 	this.boardActions = document.querySelector("#board-actions");
 	this.mobileOrientation = document.querySelector("#mobile-orientation");
 	this.expandedSlot = null;
@@ -327,8 +326,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 				return function() {
 					puzzle.tileAction = action;
 					puzzle.renderActionSelector(puzzle.boardActions);
-					if (puzzle.expandedSlot)
-						puzzle.renderSlotTray();
 				};
 			}(action));
 			container.appendChild(button);
@@ -340,7 +337,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		if (!slot)
 			return;
 		this.slotTrayOptions.replaceChildren();
-		this.renderActionSelector(this.slotTrayActions);
 		this.slotTray.querySelector(".slot-tray-panel").classList.remove(
 			"pencil-conflict");
 		if (slot.row.elem.classList.contains("pencil-conflict"))

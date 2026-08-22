@@ -192,7 +192,7 @@ Deno.test("coarse pointers use an expanded slot tray", function() {
 	       puzzle.slotTrayOptions.children.length == symbols.length,
 	       "expanded tray did not show all possibilities");
 
-	puzzle.slotTrayActions.children[1].listeners.click({});
+	puzzle.tileAction = "remove";
 	let tile = puzzle.slotTrayOptions.children[wrong];
 	tile.listeners.click({});
 	assert(!slot.possible[wrong], "tray removal did not commit");
@@ -200,14 +200,14 @@ Deno.test("coarse pointers use an expanded slot tray", function() {
 	       puzzle.slotTrayOptions.children[wrong].className.includes(
 	       "eliminated"), "tray did not stay open and refresh");
 
-	puzzle.slotTrayActions.children[2].listeners.click({});
+	puzzle.tileAction = "pencil-select";
 	tile = puzzle.slotTrayOptions.children[slot.value];
 	tile.listeners.click({});
 	assert(puzzle.pencilMarks.length == 1 &&
 	       puzzle.expandedSlot == slot,
 	       "tray pencil action did not remain open");
 
-	puzzle.slotTrayActions.children[0].listeners.click({});
+	puzzle.tileAction = "place";
 	tile = puzzle.slotTrayOptions.children[slot.value];
 	tile.listeners.click({});
 	assert(slot.single && puzzle.expandedSlot === null &&
