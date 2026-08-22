@@ -483,31 +483,32 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 				value: value,
 				discard: discard,
 			});
-		this.renderPencilMarks();
+		this.renderPencilMarks(slot.row);
 	}
 
-	this.reconcilePencilMarks = function() {
+	this.reconcilePencilMarks = function(row) {
 		if (!this.pencilMarks.length)
 			return;
 		this.pencilMarks = this.pencilMarks.filter(function(mark) {
 			return !mark.slot.single && mark.slot.possible[mark.value];
 		});
-		this.renderPencilMarks();
+		this.renderPencilMarks(row);
 	}
 
-	this.renderPencilMarks = function() {
+	this.renderPencilMarks = function(row) {
 		/* Rebuild tentative domains without changing committed slot state. */
-		var domains = domainsFromSlots(this);
+		var domains = domainsFromRow(row);
+		var marks = [];
 		for (var i = 0; i < this.pencilMarks.length; i++) {
 			var mark = this.pencilMarks[i];
-			applyPencilMark(domains, mark, this.rows);
+			if (mark.slot.row != row)
+				continue;
+			marks.push(mark);
+			applyPencilMark(domains, mark);
 		}
-		for (var i = 0; i < this.rows.length; i++) {
-			var conflict = propagatePencilRow(domains[i]);
-			this.rows[i].displayPencil(
-				domains[i], this.pencilMarks, conflict);
-		}
-		if (this.expandedSlot)
+		var conflict = propagatePencilRow(domains);
+		row.displayPencil(domains, marks, conflict);
+		if (this.expandedSlot && this.expandedSlot.row == row)
 			this.renderSlotTray();
 	}
 
@@ -1222,20 +1223,24 @@ function copyDomains(domains) {
 }
 
 function domainsFromSlots(puzzle) {
-	var rowSize = puzzle.rows[0].slots.length;
 	var domains = [];
-	for (var row = 0; row < puzzle.rows.length; row++) {
-		domains[row] = Array(rowSize).fill(0);
-		for (var col = 0; col < rowSize; col++) {
-			var slot = puzzle.rows[row].slots[col];
-			var bit = 1 << col;
-			if (slot.single)
-				domains[row][slot.value] |= bit;
-			else
-				for (var symbol = 0; symbol < rowSize; symbol++)
-					if (slot.possible[symbol])
-						domains[row][symbol] |= bit;
-		}
+	for (var row = 0; row < puzzle.rows.length; row++)
+		domains[row] = domainsFromRow(puzzle.rows[row]);
+	return domains;
+}
+
+function domainsFromRow(row) {
+	var rowSize = row.slots.length;
+	var domains = Array(rowSize).fill(0);
+	for (var col = 0; col < rowSize; col++) {
+		var slot = row.slots[col];
+		var bit = 1 << col;
+		if (slot.single)
+			domains[slot.value] |= bit;
+		else
+			for (var symbol = 0; symbol < rowSize; symbol++)
+				if (slot.possible[symbol])
+					domains[symbol] |= bit;
 	}
 	return domains;
 }
@@ -1253,17 +1258,16 @@ function applyMove(domains, slot, value, discard, rows) {
 	}
 }
 
-function applyPencilMark(domains, mark, rows) {
-	var row = rows.indexOf(mark.slot.row);
+function applyPencilMark(domains, mark) {
 	var col = mark.slot.row.slots.indexOf(mark.slot);
 	var bit = 1 << col;
 	if (mark.discard) {
-		domains[row][mark.value] &= ~bit;
+		domains[mark.value] &= ~bit;
 	} else {
-		domains[row][mark.value] &= bit;
-		for (var symbol = 0; symbol < domains[row].length; symbol++)
+		domains[mark.value] &= bit;
+		for (var symbol = 0; symbol < domains.length; symbol++)
 			if (symbol != mark.value)
-				domains[row][symbol] &= ~bit;
+				domains[symbol] &= ~bit;
 	}
 }
 
@@ -1619,7 +1623,7 @@ function Slot(row, symbols, display) {
 			this.row.puzzle.placeSoundPending = false;
 			this.displaySingle(value);
 			this.row.removePossible(value);
-			this.row.puzzle.reconcilePencilMarks();
+			this.row.puzzle.reconcilePencilMarks(this.row);
 			this.row.puzzle.checkWin();
 		} else {
 			var clues = this.row.puzzle.findContradictingClues(
@@ -1645,7 +1649,7 @@ function Slot(row, symbols, display) {
 			}
 			this.removePossible(value);
 			this.row.checkSingleton(value);
-			this.row.puzzle.reconcilePencilMarks();
+			this.row.puzzle.reconcilePencilMarks(this.row);
 			this.row.puzzle.placeSoundPending = false;
 		}
 	}

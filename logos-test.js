@@ -439,6 +439,32 @@ Deno.test("pencil marks coexist and show row consequences", function() {
 	       "explicit pencil elimination was not rendered");
 });
 
+Deno.test("pencil marks render only their changed row", function() {
+	const puzzle = makePuzzle(2);
+	const renders = [0, 0];
+	for (let i = 0; i < puzzle.rows.length; i++) {
+		const displayPencil = puzzle.rows[i].displayPencil;
+		puzzle.rows[i].displayPencil = function(...args) {
+			renders[i]++;
+			displayPencil.apply(this, args);
+		};
+	}
+
+	const first = puzzle.rows[0].slots[0];
+	first.pencil(first.value, false);
+	assert(renders[0] == 1 && renders[1] == 0,
+	       "pencil mark rendered an unchanged row");
+
+	const second = puzzle.rows[1].slots[0];
+	second.pencil(second.value, false);
+	assert(renders[0] == 1 && renders[1] == 1,
+	       "second pencil mark rerendered the first row");
+
+	first.choose(first.value);
+	assert(renders[0] == 2 && renders[1] == 1,
+	       "committed move rendered an unchanged row");
+});
+
 Deno.test("clues do not propagate pencil marks", function() {
 	const puzzle = makePuzzle(2);
 	const top = puzzle.rows[0].slots[0];
