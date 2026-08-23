@@ -377,7 +377,6 @@ body[data-cursor="native"] {
 	box-sizing: border-box;
 	padding: 8px;
 	background-color: rgb(20 25 25 / 55%);
-	backdrop-filter: blur(1px);
 }
 
 #slot-tray[hidden] {
@@ -471,7 +470,7 @@ body[data-cursor="native"] {
 }
 
 @keyframes slot-tray-backdrop-in {
-	from { background-color: transparent; backdrop-filter: blur(0); }
+	from { background-color: transparent; }
 }
 
 @keyframes slot-tray-open {
