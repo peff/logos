@@ -98,15 +98,15 @@
 						<label title="Open larger copies of a slot's tiles before choosing one. For small screens or large fingers.">
 						       <input id="expand-tile-choices" type="checkbox"
 						              onChange="puzzle.setExpandTileChoices(this.checked)">
-						       Expand tile choices</label>
+						       Expanded tiles</label>
 						<label class="option-dependent" title="Press a slot, drag to an expanded tile, and release to apply the selected tap action.">
 						       <input id="drag-tile-choices" type="checkbox"
 						              onChange="puzzle.setDragTileChoices(this.checked)">
-						       Drag expanded tiles</label>
-						<label title="Choose how taps on tiles are interpreted. Avoids long-press and enables chalk marks on mobile.">
+						       Drag tiles</label>
+						<label title="Choose how taps on tiles are interpreted. Avoids long-press and enables chalk marks on touchscreens.">
 						       <input id="show-action-selector" type="checkbox"
 						              onChange="puzzle.setShowActionSelector(this.checked)">
-						       Show tap controls</label>
+						       Tap controls</label>
 						<input id="fullscreen-button" class="option-action" type="button"
 						       onClick="puzzle.toggleFullscreen()" value="Enter full screen">
 					</fieldset>
@@ -124,16 +124,15 @@
 						<h3>Objective</h3>
 						<p>
 							The board has six rows, each containing a family of six
-							symbols, with each symbol appearing exactly once. The
-							symbols within each row have been scrambled, and you have
-							only a set of mysterious clues to guide you to the correct
-							order.
+							symbols. Use the clues to place each family's symbols in
+							the correct order, with every symbol appearing once in its
+							row.
 						</p>
 
 						<p>
-							Place all of the symbols correctly to prove your
-							wisdom. But beware! One false move will bring your logical
-							edifice tumbling down.
+							Place every symbol correctly to prove your wisdom. But
+							beware! One false move will bring your tower of deductions
+							tumbling to the ground.
 						</p>
 
 						<h3>Example</h3>
@@ -141,8 +140,8 @@
 						     aria-label="A partially solved row: the second slot contains 5, while the other slots show their remaining possibilities.">
 							<tr>
 							<td class="slot"><table>
-								<tr><td class="possibility">1</td><td class="possibility">2</td><td class="possibility">3</td></tr>
-								<tr><td class="possibility">4</td><td class="possibility dead-possibility">5</td><td class="possibility dead-possibility">6</td></tr>
+								<tr><td class="possibility">1</td><td class="possibility">2</td><td class="possibility dead-possibility">3</td></tr>
+								<tr><td class="possibility">4</td><td class="possibility dead-possibility">5</td><td class="possibility">6</td></tr>
 							</table></td>
 							<td class="slot">
 								<span class="single">5</span>
@@ -152,12 +151,12 @@
 								<tr><td class="possibility">4</td><td class="possibility dead-possibility">5</td><td class="possibility">6</td></tr>
 							</table></td>
 							<td class="slot"><table>
-								<tr><td class="possibility dead-possibility">1</td><td class="possibility">2</td><td class="possibility">3</td></tr>
-								<tr><td class="possibility">4</td><td class="possibility dead-possibility">5</td><td class="possibility dead-possibility">6</td></tr>
+								<tr><td class="possibility">1</td><td class="possibility">2</td><td class="possibility dead-possibility">3</td></tr>
+								<tr><td class="possibility">4</td><td class="possibility dead-possibility">5</td><td class="possibility">6</td></tr>
 							</table></td>
 							<td class="slot"><table>
 								<tr><td class="possibility">1</td><td class="possibility">2</td><td class="possibility">3</td></tr>
-								<tr><td class="possibility dead-possibility">4</td><td class="possibility dead-possibility">5</td><td class="possibility">6</td></tr>
+								<tr><td class="possibility">4</td><td class="possibility dead-possibility">5</td><td class="possibility">6</td></tr>
 							</table></td>
 							<td class="slot"><table>
 								<tr><td class="possibility">1</td><td class="possibility">2</td><td class="possibility">3</td></tr>
@@ -167,14 +166,13 @@
 						</table>
 
 						<p>
-							Each position shows either a large symbol that has been
-							placed, or a set of smaller tiles which have not yet been
-							eliminated. In this example,
+							Each of the six positions in a row shows either a large
+							symbol that has been placed, or smaller tiles
+							representing the remaining possibilities. Here,
 							<span class="help-tile family-0">5</span>
-							has been placed in the second position and removed as a
-							possibility from all others. In the first and fourth
-							positions, <span class="help-tile family-0">6</span> has
-							also been eliminated, along with some other tiles.
+							is fixed in the second position and eliminated from the
+							other five. The <span class="help-tile family-0">3</span> has
+							also been eliminated from the first and fourth positions.
 						</p>
 						</div>
 						<nav class="help-folio" aria-label="Help pages">
@@ -197,8 +195,7 @@
 							<td><span class="help-example">
 								<span class="help-tile family-1">A</span>
 							</span></td>
-							<td>A symbol already chosen
-								on the board is fixed in that column.</td>
+							<td>A large symbol on the board is fixed in its current column.</td>
 						</tr>
 						<tr>
 							<td><span class="help-example"><span class="help-stack">
@@ -231,11 +228,10 @@
 								<span class="help-tile family-4">△</span>
 								<span class="help-tile family-2">II</span>
 							</span></td>
-							<td>Three consecutive columns contain these symbols, either left-to-right or right-to-left.
-								<span class="help-tile family-4">△</span> is in the middle;
+							<td>These symbols occupy three consecutive columns, with
+								<span class="help-tile family-4">△</span>in the middle and
 								<span class="help-tile family-1">A</span> and
-								<span class="help-tile family-2">II</span> appear on
-								opposite sides.</td>
+								<span class="help-tile family-2">II</span> on opposite sides in either order.
 						</tr>
 						</table>
 
@@ -260,28 +256,30 @@
 						<ul>
 							<li><strong>Left-click</strong> a possibility to choose it.</li>
 							<li><strong>Right-click</strong> a possibility to discard it.</li>
-							<li>A false choice or discard ends the game.</li>
-							<li>Forced choices (when only one option remains) are filled in automatically.</li>
+							<li>Choosing or discarding the wrong possibility ends the game.</li>
+							<li>When a row’s remaining possibilities force a choice, it falls into place automatically.
 						</ul>
 						<h3>Chalk Marks</h3>
 						<p>
-							Hold <strong>Control</strong> (or <strong>Option</strong>
-							on macOS) while clicking to make chalk marks:
+							Hold <strong>Control</strong> (<strong>Option</strong>
+							on macOS) while clicking to make tentative chalk marks:
 						</p>
 						<ul>
-							<li><strong>Left-click</strong> to tentatively choose a possibility.</li>
-							<li><strong>Right-click</strong> to tentatively discard a possibility.</li>
-							<li>Chalk marks propagate within a row, but are not checked against clues or the solution.</li>
+							<li><strong>Left-click</strong> to mark a possibility as chosen.</li>
+							<li><strong>Right-click</strong> to mark a possibility as discarded.</li>
+							<li>Chalk marks automatically affect other possibilities in the same row, but are not checked against clues or the solution.</li>
 						</ul>
 						<h3>Touchscreens</h3>
 						<ul>
-							<li>The <span class="help-option">Tap Controls</span>
+							<li>The <span class="help-option">Tap controls</span>
 							option allows you to select the action performed by a
-							single tap: choosing vs discarding, and permanently
+							single tap: choosing versus discarding, and permanently
 							inscribing an action versus sketching a chalk mark.</li>
-							<li>The <span class="help-option">Expand Tile</span>
+							<li>The <span class="help-option">Expanded tiles</span>
 							option makes it easier to select small tiles,
-							at the expense of requiring multiple taps.</li>
+							at the expense of requiring multiple taps. Enabling
+							<span class="help-option">Drag tiles</span> allows you to
+							press to open the expanded tiles and release to select one.
 						</ul>
 						</div>
 						<nav class="help-folio" aria-label="Help pages">
