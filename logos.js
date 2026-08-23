@@ -57,16 +57,25 @@ var milestoneMessages = [
 		"The first signs align. A hidden order begins to emerge.",
 		"The scattered signs begin to speak.",
 		"The first seal is broken. The mystery stirs.",
+		"The seeds of wisdom take root in hard and stony soil.",
+		"The ancients begin to whisper of your deeds.",
+		"You have left the shadows, but the light lies still far ahead.",
 	],
 	[
 		"The pattern takes shape. The wisdom of the ancients draws near.",
 		"Half of the ancient design stands revealed.",
 		"Order rises from uncertainty. The path grows clearer.",
+		"The tree of wisdom grows greater.",
+		"The whispers of the ancients swell as your journey continues.",
+		"Your journey is half done; alea iacta est.",
 	],
 	[
 		"The veil grows thin. Only the final secrets remain.",
 		"The final veil trembles. Truth lies close at hand.",
 		"Nearly every sign has found its place. The answer awaits.",
+		"The branches of the great tree whisper softly in the wind.",
+		"The whispers reach a crescendo as you begin the final ascent.",
+		"Your journey draws towards it close. Make haste.",
 	],
 ];
 
