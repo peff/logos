@@ -104,6 +104,19 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.logoButton = logoButton;
 	this.slotTray = document.querySelector("#slot-tray");
 	this.slotTrayOptions = document.querySelector("#slot-tray-options");
+	this.slotTrayOptions.replaceChildren();
+	this.slotTrayTiles = [];
+	for (var i = 0; i < symbols[0].length; i++) {
+		var tile = document.createElement("button");
+		tile.type = "button";
+		tile.addEventListener("click", function(puzzle, value) {
+			return function() {
+				puzzle.applySlotTrayAction(value);
+			};
+		}(this, i));
+		this.slotTrayTiles.push(tile);
+		this.slotTrayOptions.appendChild(tile);
+	}
 	this.boardActions = document.querySelector("#board-actions");
 	this.mobileOrientation = document.querySelector("#mobile-orientation");
 	this.expandedSlot = null;
@@ -440,38 +453,30 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		var slot = this.expandedSlot;
 		if (!slot)
 			return;
-		this.slotTrayOptions.replaceChildren();
 		this.slotTray.querySelector(".slot-tray-panel").classList.remove(
 			"pencil-conflict");
 		if (slot.row.elem.classList.contains("pencil-conflict"))
 			this.slotTray.querySelector(".slot-tray-panel").classList.add(
 				"pencil-conflict");
 
-		var puzzle = this;
-
-		for (var value = 0; value < slot.symbols.length; value++) {
-			var tile = document.createElement("button");
-			tile.type = "button";
+		for (var value = 0; value < this.slotTrayTiles.length; value++) {
+			var tile = this.slotTrayTiles[value];
 			tile.className = "slot-tray-symbol " + slot.row.familyClass;
 			if (!slot.possible[value]) {
 				tile.className += " eliminated";
 				tile.disabled = true;
-				this.slotTrayOptions.appendChild(tile);
+				tile.textContent = "";
+				tile.setAttribute("aria-label", "");
 				continue;
 			}
+			tile.disabled = false;
 
 			var boardClasses = slot.possibilityElems[value].className.split(" ");
 			for (var i = 0; i < boardClasses.length; i++)
 				if (boardClasses[i].indexOf("pencil-") == 0)
 					tile.className += " " + boardClasses[i];
-			tile.innerHTML = slot.symbols[value];
+			tile.textContent = slot.symbols[value];
 			tile.setAttribute("aria-label", slot.symbols[value]);
-			tile.addEventListener("click", function(value) {
-				return function() {
-					puzzle.applySlotTrayAction(value);
-				};
-			}(value));
-			this.slotTrayOptions.appendChild(tile);
 		}
 		this.positionSlotTray();
 	}

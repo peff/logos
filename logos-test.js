@@ -273,6 +273,7 @@ Deno.test("coarse pointers use an expanded slot tray", function() {
 	       panel.style["--tray-start-x"] == "92px" &&
 	       panel.style["--tray-start-scale-x"] == String(30 / 260),
 	       "expanded tray did not animate from its source slot");
+	const trayTiles = puzzle.slotTrayOptions.children.slice();
 
 	selectTileAction(puzzle, "remove");
 	let tile = puzzle.slotTrayOptions.children[wrong];
@@ -282,6 +283,9 @@ Deno.test("coarse pointers use an expanded slot tray", function() {
 	       "tray removal did not close the slot");
 
 	puzzle.openSlotTray(slot);
+	assert(puzzle.slotTrayOptions.children.every(function(tile, i) {
+		return tile === trayTiles[i];
+	}), "expanded tray did not reuse its tiles");
 	selectTileAction(puzzle, "pencil-select");
 	tile = puzzle.slotTrayOptions.children[slot.value];
 	let rerendered = false;
