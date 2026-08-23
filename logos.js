@@ -989,10 +989,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		var audio = this.soundSamples[name];
 		if (!audio)
 			return;
-		for (var other in this.soundSamples) {
-			this.soundSamples[other].pause();
-			this.soundSamples[other].currentTime = 0;
-		}
+		audio.currentTime = 0;
 		audio.volume = this.soundVolumes[name];
 		var variation = this.soundVariations[name];
 		var position = this.soundSequencePositions[name] || 0;
