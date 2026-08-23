@@ -1497,8 +1497,10 @@ function Row(puzzle, symbols, display, family) {
 		this.slots[i] = new Slot(this, symbols, display.insertCell());
 
 	this.clear = function() {
-		for (var i = 0; i < this.slots.length; i++)
-			this.slots[i].displaySingle(i);
+		for (var i = 0; i < this.slots.length; i++) {
+			this.slots[i].singleElem.textContent = symbols[i];
+			this.slots[i].displaySingle();
+		}
 	}
 
 	this.newGame = function() {
@@ -1591,6 +1593,7 @@ function Slot(row, symbols, display) {
 
 	this.newGame = function(value) {
 		this.value = value;
+		this.singleElem.textContent = this.symbols[value];
 		this.possible = [];
 		for (var i = 0; i < this.symbols.length; i++)
 			this.possible.push(true);
@@ -1601,9 +1604,7 @@ function Slot(row, symbols, display) {
 		return this.symbols[this.value];
 	}
 
-	this.displaySingle = function(i) {
-		this.singleElem.className = "single";
-		this.singleElem.innerHTML = this.symbols[i];
+	this.displaySingle = function() {
 		this.singleElem.hidden = false;
 		this.possibleElem.hidden = true;
 		this.single = true;
@@ -1640,7 +1641,7 @@ function Slot(row, symbols, display) {
 			if (playerAction || this.row.puzzle.placeSoundPending)
 				this.row.puzzle.playSound("place");
 			this.row.puzzle.placeSoundPending = false;
-			this.displaySingle(value);
+			this.displaySingle();
 			this.row.removePossible(value);
 			this.row.puzzle.reconcilePencilMarks(this.row);
 			this.row.puzzle.checkWin();
@@ -1705,6 +1706,7 @@ function Slot(row, symbols, display) {
 	}
 
 	this.singleElem = document.createElement("div");
+	this.singleElem.className = "single";
 	this.singleElem.hidden = true;
 	this.possibleElem = document.createElement("table");
 	this.possibilityElems = [];

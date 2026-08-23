@@ -696,7 +696,7 @@ Deno.test("slot views are reused when switching displays", function() {
 	const single = slot.singleElem;
 	const possible = slot.possibleElem;
 
-	slot.displaySingle(slot.value);
+	slot.displaySingle();
 	assert(slot.singleElem === single, "single tile was replaced");
 	assert(slot.possibleElem === possible, "possibility table was replaced");
 	assert(!single.hidden && possible.hidden,
@@ -881,7 +881,7 @@ Deno.test("a winning high score opens the Pantheon", function() {
 	localStorage.removeItem("gameStats");
 	const puzzle = makePuzzle(1, true);
 	for (const slot of puzzle.rows[0].slots)
-		slot.displaySingle(slot.value);
+		slot.displaySingle();
 	puzzle.toggleScores = function() {
 		this.scoresShown = true;
 	};
