@@ -284,10 +284,18 @@ Deno.test("coarse pointers use an expanded slot tray", function() {
 	puzzle.openSlotTray(slot);
 	selectTileAction(puzzle, "pencil-select");
 	tile = puzzle.slotTrayOptions.children[slot.value];
+	let rerendered = false;
+	const renderSlotTray = puzzle.renderSlotTray;
+	puzzle.renderSlotTray = function() {
+		rerendered = true;
+		renderSlotTray.call(this);
+	};
 	tile.listeners.click({});
 	assert(puzzle.pencilMarks.length == 1 &&
 	       puzzle.expandedSlot === null && puzzle.slotTray.hidden,
 	       "tray pencil action did not close the slot");
+	assert(!rerendered, "tray pencil action rerendered before closing");
+	puzzle.renderSlotTray = renderSlotTray;
 
 	puzzle.openSlotTray(slot);
 	selectTileAction(puzzle, "place");

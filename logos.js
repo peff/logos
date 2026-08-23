@@ -343,8 +343,9 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		var slot = this.expandedSlot;
 		if (!slot)
 			return;
-		this.applyTileAction(slot, value, this.getTileAction());
+		var action = this.getTileAction();
 		this.closeSlotTray();
+		this.applyTileAction(slot, value, action);
 	}
 
 	this.beginSlotTrayDrag = function(slot, ev) {
