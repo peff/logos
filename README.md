@@ -6,6 +6,8 @@ game. The version I have played is made by Flowix Games, but that is
 apparently a port of an old DOS game called "Sherlock". Logos takes its
 gameplay from the Flowix version, but the code was written from scratch.
 
+<img src="screenshot.png" alt="A game of Logos in progress" width="800">
+
 Build/Install
 =============
 
