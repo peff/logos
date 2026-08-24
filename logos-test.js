@@ -963,7 +963,7 @@ Deno.test("high scores retain the ten fastest times", function() {
 	       scoreSeed.textContent == "Puzzle seed: 1234abcd",
 	       "the high score did not retain its puzzle seed");
 	scoreButton.listeners.click.call(scoreButton);
-	assert(!scoreSeed.hidden && scoreButton.title == "Hide puzzle seed",
+	assert(!scoreSeed.hidden,
 	       "activating a high score did not reveal its seed");
 	assert(puzzle.highScores[0].elapsed == 500,
 	       "new fastest time was not ranked first");

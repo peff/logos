@@ -718,7 +718,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			entry.className = "score-entry";
 			if (hasSeed) {
 				entry.type = "button";
-				entry.title = "Show puzzle seed";
 				entry.setAttribute("aria-expanded", "false");
 			}
 			var date = document.createElement("span");
@@ -753,8 +752,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 						seed.hidden = !seed.hidden;
 						this.setAttribute("aria-expanded",
 							String(!seed.hidden));
-						this.title = seed.hidden ?
-							"Show puzzle seed" : "Hide puzzle seed";
 					};
 				}(seed));
 				item.appendChild(seed);
