@@ -81,6 +81,35 @@ var milestoneMessages = [
 
 var milestoneThresholds = [9, 18, 27];
 
+var puzzleRandom = Math.random;
+
+function randomSeed() {
+	if (typeof crypto != "undefined" && crypto.getRandomValues) {
+		var value = new Uint32Array(1);
+		crypto.getRandomValues(value);
+		return value[0];
+	}
+	return Math.floor(Math.random() * 0x100000000);
+}
+
+function seedRandom(seed) {
+	var state = seed >>> 0;
+	return function() {
+		state = (Math.imul(1664525, state) + 1013904223) >>> 0;
+		return state / 0x100000000;
+	};
+}
+
+function withPuzzleRandom(seed, callback) {
+	var oldRandom = puzzleRandom;
+	puzzleRandom = seedRandom(seed);
+	try {
+		return callback();
+	} finally {
+		puzzleRandom = oldRandom;
+	}
+}
+
 document.addEventListener('contextmenu', function(ev) {
 	ev.preventDefault();
 });
@@ -214,7 +243,18 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.newGame = function() {
+		var supplied = arguments.length ? arguments[0] : null;
+		if (typeof supplied == "string" && !/^\d+$/.test(supplied))
+			return false;
+		var seed = arguments.length ? Number(supplied) : randomSeed();
+		if (!Number.isInteger(seed) || seed < 0 || seed > 0xffffffff)
+			return false;
+		this.seed = seed;
+		this.options.querySelector("#game-seed").value = String(seed);
 		this.gameOver = true;
+		/* A seed may be started from the paused Options modal. */
+		this.paused = false;
+		this.resumeAfterModal = false;
 		this.nextMilestone = 0;
 		this.closeSlotTray();
 		this.clearPencilMarks();
@@ -222,13 +262,28 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.timerElapsed = 0;
 		this.clearOutcome();
 		this.updateTimer(0);
-		for (var i = 0; i < this.rows.length; i++)
-			this.rows[i].newGame();
-		this.gameOver = false;
-		this.generateClues();
+		var puzzle = this;
+		withPuzzleRandom(seed, function() {
+			for (var i = 0; i < puzzle.rows.length; i++)
+				puzzle.rows[i].newGame();
+			puzzle.gameOver = false;
+			puzzle.generateClues();
+		});
 		this.startTimer();
 		this.say(randomChoice(startMessages));
 		this.updateActionControls();
+		return true;
+	}
+
+	this.playSeed = function() {
+		var input = this.options.querySelector("#game-seed");
+		if (!this.newGame(input.value)) {
+			input.setCustomValidity("Enter a whole number from 0 to 4294967295.");
+			input.reportValidity();
+			return;
+		}
+		input.setCustomValidity("");
+		this.toggleOptions();
 	}
 
 	this.checkWin = function() {
@@ -789,6 +844,9 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.toggleOptions = function() {
+		if (this.options.hidden && this.seed !== undefined)
+			this.options.querySelector("#game-seed").value =
+				String(this.seed);
 		this.toggleModal(this.options, this.optionsButton, "Close");
 	}
 
@@ -1212,7 +1270,7 @@ function limitDisplayedClues(clues, displayType, limit) {
 
 // Generate a random integer in the interval [lo, hi).
 function randInt(lo, hi) {
-	return lo + Math.floor(Math.random() * (hi - lo));
+	return lo + Math.floor(puzzleRandom() * (hi - lo));
 }
 
 function randomChoice(choices) {
@@ -1224,7 +1282,7 @@ function weightedChoice(choices) {
 	for (var i = 0; i < choices.length; i++)
 		total += choices[i].weight;
 
-	var value = Math.random() * total;
+	var value = puzzleRandom() * total;
 	for (var i = 0; i < choices.length; i++) {
 		value -= choices[i].weight;
 		if (value < 0)
@@ -1234,7 +1292,7 @@ function weightedChoice(choices) {
 
 function shuffle(array) {
 	for (var i = array.length - 1; i >= 0; i--) {
-		var r = Math.floor(Math.random() * (i+1));
+		var r = Math.floor(puzzleRandom() * (i+1));
 		var tmp = array[i];
 		array[i] = array[r];
 		array[r] = tmp;
@@ -1862,7 +1920,7 @@ function Adjacent2Clue(puzzle) {
 	this.rCol = this.lCol + 1;
 	this.displayType = "horizontal";
 
-	if (Math.random() < 0.5) {
+	if (puzzleRandom() < 0.5) {
 		var tmp = this.lCol;
 		this.lCol = this.rCol;
 		this.rCol = tmp;
@@ -1902,7 +1960,7 @@ function Adjacent3Clue(puzzle) {
 	this.rCol = this.mCol + 1;
 	this.displayType = "horizontal";
 
-	if (Math.random() < 0.5) {
+	if (puzzleRandom() < 0.5) {
 		var tmp = this.lCol;
 		this.lCol = this.rCol;
 		this.rCol = tmp;

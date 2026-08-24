@@ -598,6 +598,26 @@ body[data-cursor="native"] {
 	white-space: nowrap;
 }
 
+#options-menu .seed-options label {
+	gap: 0.4rem;
+}
+
+#game-seed {
+	box-sizing: border-box;
+	border: 1px solid #9b9385;
+	border-radius: 0.15rem;
+	background: #fffdf7;
+	padding: 0.18rem 0.3rem;
+	width: 9.5rem;
+	color: inherit;
+	font: 0.8rem sans-serif;
+	user-select: text;
+}
+
+#options-menu .seed-options .option-action {
+	margin: 0;
+}
+
 #options-menu .option-dependent {
 	margin-left: 1.08rem;
 }

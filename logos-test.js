@@ -44,6 +44,10 @@ class FakeElement {
 		this.focused = true;
 	}
 	setAttribute() {}
+	setCustomValidity(message) {
+		this.validationMessage = message;
+	}
+	reportValidity() {}
 	querySelector(selector) {
 		const match = selector.match(/^input\[name=([^\]]+)\]:checked$/);
 		if (match)
@@ -169,6 +173,74 @@ function withRandom(seed, callback) {
 		Math.random = oldRandom;
 	}
 }
+
+function puzzleSignature(puzzle) {
+	function locate(object) {
+		for (let row = 0; row < puzzle.rows.length; row++) {
+			if (object == puzzle.rows[row])
+				return "row:" + row;
+			const slot = puzzle.rows[row].slots.indexOf(object);
+			if (slot >= 0)
+				return "slot:" + row + ":" + slot;
+		}
+		return null;
+	}
+	return JSON.stringify({
+		rows: puzzle.rows.map(row => row.slots.map(slot => slot.value)),
+		clues: puzzle.clues.map(clue => {
+			const result = { type: clue.constructor.name };
+			for (const key of Object.keys(clue).sort()) {
+				const value = clue[key];
+				const location = locate(value);
+				if (location !== null)
+					result[key] = location;
+				else if (["boolean", "number", "string"].includes(typeof value))
+					result[key] = value;
+			}
+			return result;
+		}),
+	});
+}
+
+Deno.test("a puzzle seed reproduces the board and clues", function() {
+	const puzzle = makePuzzle(6);
+	puzzle.say = function() {};
+	puzzle.paused = true;
+	puzzle.resumeAfterModal = true;
+	puzzle.newGame(305419896);
+	const first = puzzleSignature(puzzle);
+	const exact = puzzle.clues.filter(clue => clue.applyInitialState);
+	assert(exact.length && exact.every(clue => clue.slot.single),
+	       "exact clues were not applied when starting a paused game");
+	assert(!puzzle.paused && !puzzle.resumeAfterModal,
+	       "the seeded game retained the modal's paused state");
+	puzzle.stopTimer();
+	puzzle.newGame(7);
+	const other = puzzleSignature(puzzle);
+	puzzle.stopTimer();
+	puzzle.newGame(305419896);
+	const repeated = puzzleSignature(puzzle);
+	puzzle.stopTimer();
+
+	assert(first == repeated, "the same seed made a different puzzle");
+	assert(first != other, "different seeds made the same puzzle");
+	assert(puzzle.seed == 305419896 &&
+	       puzzle.options.querySelector("#game-seed").value == "305419896",
+	       "the current seed was not exposed in the options");
+});
+
+Deno.test("invalid puzzle seeds do not replace the current game", function() {
+	const puzzle = makePuzzle(6);
+	puzzle.say = function() {};
+	puzzle.newGame(42);
+	const before = puzzleSignature(puzzle);
+	assert(!puzzle.newGame(""), "an empty seed was accepted");
+	assert(!puzzle.newGame("12.5"), "a fractional seed was accepted");
+	assert(!puzzle.newGame("4294967296"), "an oversized seed was accepted");
+	assert(puzzle.seed == 42 && puzzleSignature(puzzle) == before,
+	       "an invalid seed changed the puzzle");
+	puzzle.stopTimer();
+});
 
 Deno.test("a false placement loses the game", function() {
 	const puzzle = makePuzzle(1);
