@@ -100,6 +100,19 @@ function seedRandom(seed) {
 	};
 }
 
+function formatSeed(seed) {
+	return seed.toString(16).padStart(8, "0");
+}
+
+function parseSeed(seed) {
+	if (typeof seed == "number")
+		return Number.isInteger(seed) && seed >= 0 && seed <= 0xffffffff ?
+			seed : null;
+	if (typeof seed != "string" || !/^[0-9a-f]{1,8}$/i.test(seed))
+		return null;
+	return parseInt(seed, 16);
+}
+
 function withPuzzleRandom(seed, callback) {
 	var oldRandom = puzzleRandom;
 	puzzleRandom = seedRandom(seed);
@@ -243,14 +256,11 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.newGame = function() {
-		var supplied = arguments.length ? arguments[0] : null;
-		if (typeof supplied == "string" && !/^\d+$/.test(supplied))
-			return false;
-		var seed = arguments.length ? Number(supplied) : randomSeed();
-		if (!Number.isInteger(seed) || seed < 0 || seed > 0xffffffff)
+		var seed = arguments.length ? parseSeed(arguments[0]) : randomSeed();
+		if (seed === null)
 			return false;
 		this.seed = seed;
-		this.options.querySelector("#game-seed").value = String(seed);
+		this.options.querySelector("#game-seed").value = formatSeed(seed);
 		this.gameOver = true;
 		/* A seed may be started from the paused Options modal. */
 		this.paused = false;
@@ -278,7 +288,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.playSeed = function() {
 		var input = this.options.querySelector("#game-seed");
 		if (!this.newGame(input.value)) {
-			input.setCustomValidity("Enter a whole number from 0 to 4294967295.");
+			input.setCustomValidity("Enter up to eight hexadecimal digits.");
 			input.reportValidity();
 			return;
 		}
@@ -846,7 +856,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.toggleOptions = function() {
 		if (this.options.hidden && this.seed !== undefined)
 			this.options.querySelector("#game-seed").value =
-				String(this.seed);
+				formatSeed(this.seed);
 		this.toggleModal(this.options, this.optionsButton, "Close");
 	}
 

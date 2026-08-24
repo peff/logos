@@ -604,14 +604,29 @@ body[data-cursor="native"] {
 
 #game-seed {
 	box-sizing: border-box;
+	flex: 0 0 6.5rem;
 	border: 1px solid #9b9385;
 	border-radius: 0.15rem;
-	background: #fffdf7;
+	background-color: #eee8da;
+	box-shadow: inset 0.04rem 0.06rem 0.1rem rgb(70 60 45 / 22%);
 	padding: 0.18rem 0.3rem;
-	width: 9.5rem;
+	width: 6.5rem;
+	height: 1.45rem;
 	color: inherit;
-	font: 0.8rem sans-serif;
+	font: 0.8rem monospace;
+	letter-spacing: 0.04em;
+	line-height: 1;
 	user-select: text;
+}
+
+#options-menu .seed-options label:hover #game-seed {
+	border-color: #80633a;
+	background-color: #f7f3e9;
+}
+
+#game-seed:focus-visible {
+	outline: 2px solid #80633a;
+	outline-offset: 2px;
 }
 
 #options-menu .seed-options .option-action {

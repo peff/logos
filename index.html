@@ -113,8 +113,8 @@
 					<fieldset class="seed-options">
 						<legend>Puzzle seed</legend>
 						<label title="Share this number to let somebody else play the same puzzle.">
-						       <input id="game-seed" type="number" min="0" max="4294967295"
-						              step="1" inputmode="numeric"
+						       <input id="game-seed" type="text" maxlength="8"
+						              autocapitalize="none" autocomplete="off" spellcheck="false"
 						              onKeyDown="if (event.key == 'Enter') puzzle.playSeed()">
 						       <input class="option-action" type="button"
 						              onClick="puzzle.playSeed()" value="Start new game">

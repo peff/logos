@@ -225,7 +225,7 @@ Deno.test("a puzzle seed reproduces the board and clues", function() {
 	assert(first == repeated, "the same seed made a different puzzle");
 	assert(first != other, "different seeds made the same puzzle");
 	assert(puzzle.seed == 305419896 &&
-	       puzzle.options.querySelector("#game-seed").value == "305419896",
+	       puzzle.options.querySelector("#game-seed").value == "12345678",
 	       "the current seed was not exposed in the options");
 });
 
@@ -239,6 +239,16 @@ Deno.test("invalid puzzle seeds do not replace the current game", function() {
 	assert(!puzzle.newGame("4294967296"), "an oversized seed was accepted");
 	assert(puzzle.seed == 42 && puzzleSignature(puzzle) == before,
 	       "an invalid seed changed the puzzle");
+	puzzle.stopTimer();
+});
+
+Deno.test("hexadecimal puzzle seeds are accepted and normalized", function() {
+	const puzzle = makePuzzle(6);
+	puzzle.say = function() {};
+	assert(puzzle.newGame("DeAdBeEf"), "a hexadecimal seed was rejected");
+	assert(puzzle.seed == 0xdeadbeef &&
+	       puzzle.options.querySelector("#game-seed").value == "deadbeef",
+	       "the hexadecimal seed was not normalized");
 	puzzle.stopTimer();
 });
 
