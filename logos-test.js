@@ -699,18 +699,34 @@ Deno.test("slot views are reused when switching displays", function() {
 	const slot = puzzle.rows[0].slots[0];
 	const single = slot.singleElem;
 	const possible = slot.possibleElem;
+	const source = slot.possibilityElems[slot.value];
+	source.getBoundingClientRect = function() {
+		return { left: 20, top: 30, width: 10, height: 20 };
+	};
+	single.getBoundingClientRect = function() {
+		return { left: 10, top: 10, width: 30, height: 40 };
+	};
 
-	slot.displaySingle();
+	slot.displaySingle(source);
 	assert(slot.singleElem === single, "single tile was replaced");
 	assert(slot.possibleElem === possible, "possibility table was replaced");
 	assert(!single.hidden && possible.hidden,
 	       "single tile was not the only visible view");
+	assert(single.classList.contains("placing"),
+	       "placed tile was not animated");
+	assert(single.style["--tile-place-x"] == "0px" &&
+	       single.style["--tile-place-y"] == "10px" &&
+	       single.style["--tile-place-scale-x"] == String(1 / 3) &&
+	       single.style["--tile-place-scale-y"] == "0.5",
+	       "placed tile did not start at its possibility");
 
 	slot.displayPossible();
 	assert(slot.singleElem === single, "single tile was not reused");
 	assert(slot.possibleElem === possible, "possibility table was not reused");
 	assert(single.hidden && !possible.hidden,
 	       "possibility table was not the only visible view");
+	assert(!single.classList.contains("placing"),
+	       "placement animation was not reset");
 });
 
 Deno.test("revealing a slot preserves its deductions", function() {
