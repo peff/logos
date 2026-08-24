@@ -1609,33 +1609,13 @@ function Slot(row, symbols, display) {
 		return this.symbols[this.value];
 	}
 
-	this.displaySingle = function(source) {
-		var sourceRect;
-		if (source && source.getBoundingClientRect)
-			sourceRect = source.getBoundingClientRect();
-		this.singleElem.classList.remove("placing");
+	this.displaySingle = function(animate) {
+		if (animate)
+			this.singleElem.classList.add("placing");
+		else
+			this.singleElem.classList.remove("placing");
 		this.singleElem.hidden = false;
 		this.possibleElem.hidden = true;
-		if (source) {
-			var x = 0;
-			var y = -1;
-			var scaleX = 1.04;
-			var scaleY = 1.04;
-			if (sourceRect && this.singleElem.getBoundingClientRect) {
-				var destRect = this.singleElem.getBoundingClientRect();
-				x = sourceRect.left + sourceRect.width / 2 -
-					(destRect.left + destRect.width / 2);
-				y = sourceRect.top + sourceRect.height / 2 -
-					(destRect.top + destRect.height / 2);
-				scaleX = sourceRect.width / destRect.width;
-				scaleY = sourceRect.height / destRect.height;
-			}
-			this.singleElem.style.setProperty("--tile-place-x", x + "px");
-			this.singleElem.style.setProperty("--tile-place-y", y + "px");
-			this.singleElem.style.setProperty("--tile-place-scale-x", scaleX);
-			this.singleElem.style.setProperty("--tile-place-scale-y", scaleY);
-			this.singleElem.classList.add("placing");
-		}
 		this.single = true;
 	}
 
@@ -1671,7 +1651,7 @@ function Slot(row, symbols, display) {
 			if (playerAction || this.row.puzzle.placeSoundPending)
 				this.row.puzzle.playSound("place");
 			this.row.puzzle.placeSoundPending = false;
-			this.displaySingle(this.possibilityElems[value]);
+			this.displaySingle(true);
 			this.row.removePossible(value);
 			this.row.puzzle.reconcilePencilMarks(this.row);
 			this.row.puzzle.checkWin();
