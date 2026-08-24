@@ -840,6 +840,34 @@ body[data-cursor="native"] {
 	gap: 1.5rem;
 }
 
+button.score-entry {
+	border: 0;
+	background: transparent;
+	padding: 0;
+	width: 100%;
+	color: inherit;
+	cursor: var(--action-cursor);
+	font: inherit;
+	text-align: inherit;
+}
+
+button.score-entry:focus-visible {
+	outline: 2px solid #80633a;
+	outline-offset: 0.08rem;
+}
+
+.score-seed {
+	display: block;
+	margin-top: 0.05rem;
+	text-align: right;
+	color: #68685f;
+	font: 0.7em monospace;
+}
+
+.score-seed[hidden] {
+	display: none;
+}
+
 .score-date {
 	display: flex;
 	flex-direction: column;

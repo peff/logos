@@ -670,6 +670,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 
 	this.recordHighScore = function(elapsed) {
 		var score = { elapsed: elapsed, date: Date.now() };
+		if (this.seed !== undefined)
+			score.seed = this.seed;
 		this.highScores.push(score);
 		this.highScores.sort(function(a, b) {
 			return a.elapsed - b.elapsed;
@@ -711,8 +713,14 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 				item.className = "score-new";
 				item.setAttribute("aria-current", "true");
 			}
-			var entry = document.createElement("span");
+			var hasSeed = this.highScores[i].seed !== undefined;
+			var entry = document.createElement(hasSeed ? "button" : "span");
 			entry.className = "score-entry";
+			if (hasSeed) {
+				entry.type = "button";
+				entry.title = "Show puzzle seed";
+				entry.setAttribute("aria-expanded", "false");
+			}
 			var date = document.createElement("span");
 			date.className = "score-date";
 			var modern = document.createElement("span");
@@ -734,6 +742,23 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			time.textContent = formatTime(this.highScores[i].elapsed);
 			entry.appendChild(time);
 			item.appendChild(entry);
+			if (hasSeed) {
+				var seed = document.createElement("span");
+				seed.className = "score-seed";
+				seed.textContent = "Puzzle seed: " +
+					formatSeed(this.highScores[i].seed);
+				seed.hidden = true;
+				entry.addEventListener("click", function(seed) {
+					return function() {
+						seed.hidden = !seed.hidden;
+						this.setAttribute("aria-expanded",
+							String(!seed.hidden));
+						this.title = seed.hidden ?
+							"Show puzzle seed" : "Hide puzzle seed";
+					};
+				}(seed));
+				item.appendChild(seed);
+			}
 			list.appendChild(item);
 		}
 	}
@@ -1228,6 +1253,9 @@ function loadHighScores() {
 			return null;
 		if (!Number.isFinite(score.date) || score.date < 0)
 			score.date = null;
+		if (!Number.isInteger(score.seed) || score.seed < 0 ||
+		    score.seed > 0xffffffff)
+			delete score.seed;
 		return score;
 	}).filter(function(score) { return score !== null; });
 	return scores.sort(function(a, b) {

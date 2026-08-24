@@ -945,6 +945,7 @@ Deno.test("high scores retain the ten fastest times", function() {
 		4000, 8000, 2000, 10000, 6000,
 	]));
 	const puzzle = makePuzzle(1);
+	puzzle.seed = 0x1234abcd;
 
 	const entry = puzzle.recordHighScore(500);
 	assert(puzzle.highScores.length == 10,
@@ -953,8 +954,17 @@ Deno.test("high scores retain the ten fastest times", function() {
 	       "qualifying high score was not returned");
 	puzzle.highlightedScore = entry;
 	puzzle.renderHighScores();
-	assert(puzzle.scores.querySelector("ol").children[0].className ==
+	const scoreItem = puzzle.scores.querySelector("ol").children[0];
+	assert(scoreItem.className ==
 	       "score-new", "new high score was not highlighted");
+	const scoreButton = scoreItem.children[0];
+	const scoreSeed = scoreItem.children[1];
+	assert(entry.seed == 0x1234abcd && scoreSeed.hidden &&
+	       scoreSeed.textContent == "Puzzle seed: 1234abcd",
+	       "the high score did not retain its puzzle seed");
+	scoreButton.listeners.click.call(scoreButton);
+	assert(!scoreSeed.hidden && scoreButton.title == "Hide puzzle seed",
+	       "activating a high score did not reveal its seed");
 	assert(puzzle.highScores[0].elapsed == 500,
 	       "new fastest time was not ranked first");
 	assert(puzzle.highScores[9].elapsed == 9000,
