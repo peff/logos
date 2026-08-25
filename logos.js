@@ -1005,6 +1005,16 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		}
 	}
 
+	this.setStoneEffects = function(enabled) {
+		document.body.dataset.stoneEffects = String(enabled);
+		this.options.querySelector("#stone-effects").checked = enabled;
+		try {
+			localStorage.setItem("stoneEffects", enabled);
+		} catch (e) {
+			/* The choice still applies for the current page. */
+		}
+	}
+
 	this.setExpandTileChoices = function(enabled) {
 		this.expandTileChoices = enabled;
 		this.options.querySelector("#expand-tile-choices").checked = enabled;
@@ -1157,6 +1167,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	var showMilestones = true;
 	var showTimer = true;
 	var soundEffects = true;
+	var stoneEffects = true;
 	var expandTileChoices = this.expandTileChoices;
 	var dragTileChoices = this.dragTileChoices;
 	var showActionSelector = this.showActionSelector;
@@ -1165,6 +1176,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		var storedMilestones = localStorage.getItem("showMilestones");
 		var storedTimer = localStorage.getItem("showTimer");
 		var storedSoundEffects = localStorage.getItem("soundEffects");
+		var storedStoneEffects = localStorage.getItem("stoneEffects");
 		var storedExpandTileChoices = localStorage.getItem(
 			"expandTileChoices");
 		var storedDragTileChoices = localStorage.getItem(
@@ -1179,6 +1191,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			showTimer = storedTimer == "true";
 		if (storedSoundEffects !== null)
 			soundEffects = storedSoundEffects == "true";
+		if (storedStoneEffects !== null)
+			stoneEffects = storedStoneEffects == "true";
 		if (storedExpandTileChoices !== null)
 			expandTileChoices = storedExpandTileChoices == "true";
 		else if (oldSelectionActionMenu !== null)
@@ -1196,6 +1210,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.setMilestones(showMilestones);
 	this.setTimerVisible(showTimer);
 	this.setSoundEffects(soundEffects);
+	this.setStoneEffects(stoneEffects);
 	this.setExpandTileChoices(expandTileChoices);
 	this.setDragTileChoices(dragTileChoices);
 	this.setShowActionSelector(showActionSelector);

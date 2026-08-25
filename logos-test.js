@@ -434,6 +434,26 @@ Deno.test("touch options use independent defaults and saved settings",
 	localStorage.removeItem("selectionActionMenu");
 });
 
+Deno.test("stone effects can be disabled and saved", function() {
+	localStorage.removeItem("stoneEffects");
+	let puzzle = makePuzzle(1);
+	let option = puzzle.options.querySelector("#stone-effects");
+	assert(document.body.dataset.stoneEffects == "true" && option.checked,
+	       "stone effects did not default to enabled");
+
+	puzzle.setStoneEffects(false);
+	assert(document.body.dataset.stoneEffects == "false" && !option.checked &&
+	       localStorage.getItem("stoneEffects") == "false",
+	       "disabling stone effects did not update and save the setting");
+
+	puzzle = makePuzzle(1);
+	option = puzzle.options.querySelector("#stone-effects");
+	assert(document.body.dataset.stoneEffects == "false" && !option.checked,
+	       "saved stone effects setting was not restored");
+	puzzle.setStoneEffects(true);
+	localStorage.removeItem("stoneEffects");
+});
+
 Deno.test("expanded tiles support press-drag-release actions", function() {
 	const puzzle = makePuzzle(1);
 	const slot = puzzle.rows[0].slots[0];

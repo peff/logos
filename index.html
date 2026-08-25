@@ -7,7 +7,7 @@
 		<link rel="stylesheet" type="text/css" href="logos.css">
 		<script src="logos.js"></script>
 	</head>
-	<body>
+	<body data-stone-effects="true">
 		<div id="message">
 			<span id="status"></span>
 			<span id="timer">0:00</span>
@@ -97,6 +97,10 @@
 						       <input id="sound-effects" type="checkbox"
 						              onChange="puzzle.setSoundEffects(this.checked)">
 						       Sound effects</label>
+						<label title="Use photographic stone textures and carved controls.">
+						       <input id="stone-effects" type="checkbox" checked
+						              onChange="puzzle.setStoneEffects(this.checked)">
+						       Gaudy stone effects</label>
 						<label title="Open larger copies of a slot's tiles before choosing one. For small screens or large fingers.">
 						       <input id="expand-tile-choices" type="checkbox"
 						              onChange="puzzle.setExpandTileChoices(this.checked)">
