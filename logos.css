@@ -289,7 +289,7 @@ body[data-cursor="native"] {
 }
 
 #board-actions label {
-	padding: 0.24rem 0.3rem 0.36rem;
+	padding: 0.28rem 0.3rem;
 	font-size: 0.82rem;
 	white-space: nowrap;
 }
@@ -298,14 +298,17 @@ body[data-cursor="native"] {
 	position: relative;
 	display: grid;
 	grid-template-columns: repeat(2, 1fr);
-	gap: 0.1rem;
+	gap: 0;
 	min-width: 0;
 	margin: 0;
 	border: 0;
-	border-radius: 0.2rem;
-	background: rgb(73 68 59 / 5%);
-	box-shadow: inset 0 0 0 1px rgb(104 96 82 / 10%);
-	padding: 0.08rem 0.1rem 0.1rem;
+	border-radius: 0.28rem;
+	background: #bcb3a4;
+	box-shadow:
+		inset 0 0.08rem 0.16rem rgb(55 47 38 / 30%),
+		inset 0 0 0 1px rgb(89 79 66 / 28%),
+		0 0.04rem 0 rgb(255 255 255 / 45%);
+	padding: 0.1rem;
 	cursor: pointer;
 }
 
@@ -313,36 +316,28 @@ body[data-cursor="native"] {
 	content: "";
 	pointer-events: none;
 	position: absolute;
-	bottom: 0.3rem;
-	left: 8%;
-	width: 34%;
-	height: 0.1rem;
-	border-radius: 48% 55% 46% 52%;
-	background-color: #8a5732;
-	opacity: 0.9;
-	transform: translateX(0) rotate(-2deg);
-	transition:
-		background-color 120ms ease-out,
-		height 120ms ease-out,
-		opacity 120ms ease-out,
-		transform 180ms ease-out;
+	top: 0.1rem;
+	bottom: 0.1rem;
+	left: 0.1rem;
+	box-sizing: border-box;
+	width: calc(50% - 0.1rem);
+	border: 1px solid #a69b8a;
+	border-radius: 0.2rem;
+	background: linear-gradient(145deg, #eee7da, #d2c7b6 72%);
+	box-shadow:
+		inset 0.05rem 0.06rem 0 rgb(255 255 255 / 65%),
+		inset -0.05rem -0.06rem 0 rgb(91 77 60 / 14%),
+		0 0.08rem 0.12rem rgb(55 47 38 / 32%);
+	transform: translateX(0);
+	transition: transform 180ms ease-out;
 }
 
 .tile-operation:has(#action-remove:checked)::after {
-	transform: translateX(147.06%) rotate(-2deg);
-}
-
-.tile-mark::after {
-	height: 0.16rem;
-	background-color: #71372e;
-	box-shadow: 0 0.04rem 0 rgb(80 37 29 / 20%);
+	transform: translateX(100%);
 }
 
 .tile-mark:has(#action-sketch:checked)::after {
-	height: 0.07rem;
-	background-color: #a49a84;
-	opacity: 0.75;
-	transform: translateX(147.06%) rotate(1deg);
+	transform: translateX(100%);
 }
 
 .modal-done {
@@ -456,14 +451,23 @@ body[data-cursor="native"] {
 
 .tile-action-selector label {
 	position: relative;
+	z-index: 1;
 	display: flex;
 	align-items: center;
 	justify-content: center;
 	min-width: 0;
+	color: #746c60;
 	font-family: Forum, Georgia, "Times New Roman", serif;
 	font-weight: 600;
 	letter-spacing: 0.025em;
 	text-align: center;
+	transition: color 120ms ease-out, text-shadow 120ms ease-out;
+	user-select: none;
+}
+
+.tile-action-selector input:checked + label {
+	color: #483a2d;
+	text-shadow: 0 1px 0 rgb(255 255 255 / 55%);
 }
 
 #board .slot.expanded {
