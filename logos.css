@@ -1288,19 +1288,47 @@ button.score-entry:focus-visible {
 	line-height: 1;
 }
 
-.family-0 { --tile-bg: #1c2223; --tile-fg: #8eb9d8; --tile-accent: #78a9cc; }
-.family-1 { --tile-bg: #1c2223; --tile-fg: #91c39a; --tile-accent: #79ad83; }
-.family-2 { --tile-bg: #1c2223; --tile-fg: #bea4d1; --tile-accent: #a98bc0; }
+.family-0 {
+	--tile-bg: #1c2223;
+	--tile-fg: #8eb9d8;
+	--tile-accent: #78a9cc;
+	--slate-family-x: 0rem;
+	--slate-family-y: 0rem;
+}
+.family-1 {
+	--tile-bg: #1c2223;
+	--tile-fg: #91c39a;
+	--tile-accent: #79ad83;
+	--slate-family-x: -0.75rem;
+	--slate-family-y: -1.35rem;
+}
+.family-2 {
+	--tile-bg: #1c2223;
+	--tile-fg: #bea4d1;
+	--tile-accent: #a98bc0;
+	--slate-family-x: -1.55rem;
+	--slate-family-y: -0.45rem;
+}
 .family-3 {
 	--tile-bg: #1c2223;
 	--tile-fg: #d8bb76;
 	--tile-accent: #c4a253;
+	--slate-family-x: -2.3rem;
+	--slate-family-y: -1.8rem;
 }
-.family-4 { --tile-bg: #1c2223; --tile-fg: #d69aa1; --tile-accent: #c27e87; }
+.family-4 {
+	--tile-bg: #1c2223;
+	--tile-fg: #d69aa1;
+	--tile-accent: #c27e87;
+	--slate-family-x: -3.15rem;
+	--slate-family-y: -0.9rem;
+}
 .family-5 {
 	--tile-bg: #1c2223;
 	--tile-fg: #86c3bb;
 	--tile-accent: #6baaa2;
+	--slate-family-x: -3.85rem;
+	--slate-family-y: -2.45rem;
 }
 
 .board :is(.single, .possibility),
@@ -1309,20 +1337,75 @@ button.score-entry:focus-visible {
 .help-tile,
 .slot-tray-symbol {
 	background-image:
-		url("slate-noise.svg"),
 		radial-gradient(ellipse at 14% 18%,
-			rgb(255 255 255 / 11%), transparent 42%),
+			rgb(255 255 255 / 4%), transparent 42%),
 		radial-gradient(ellipse at 72% 76%,
-			rgb(255 255 255 / 6%), transparent 50%),
+			rgb(255 255 255 / 2%), transparent 50%),
 		radial-gradient(circle at 88% 28%,
-			rgb(0 0 0 / 18%), transparent 44%);
-	background-size: 4rem 4rem, auto, auto, auto;
+			rgb(0 0 0 / 8%), transparent 44%),
+		url("slate-texture.png");
+	background-position:
+		center, center, center,
+		calc(var(--slate-family-x, 0rem) +
+			var(--slate-slot-x, 0rem) + var(--slate-tile-x, 0rem))
+		calc(var(--slate-family-y, 0rem) +
+			var(--slate-slot-y, 0rem) + var(--slate-tile-y, 0rem));
+	background-size: auto, auto, auto, 5rem 5rem;
 	box-shadow:
-		inset 0 0 0.22rem rgb(0 0 0 / 52%),
-		inset 0 0.05rem 0.12rem rgb(255 255 255 / 7%);
+		inset 0 0 0.18rem rgb(0 0 0 / 32%),
+		inset 0 0.05rem 0.12rem rgb(255 255 255 / 5%);
 	font-family: "Logos Tiles";
 	font-synthesis: none;
 }
+
+.board .slot:nth-child(2) {
+	--slate-slot-x: -0.45rem;
+	--slate-slot-y: -0.7rem;
+}
+.board .slot:nth-child(3) {
+	--slate-slot-x: -0.9rem;
+	--slate-slot-y: -0.2rem;
+}
+.board .slot:nth-child(4) {
+	--slate-slot-x: -1.35rem;
+	--slate-slot-y: -1rem;
+}
+.board .slot:nth-child(5) {
+	--slate-slot-x: -1.8rem;
+	--slate-slot-y: -0.4rem;
+}
+.board .slot:nth-child(6) {
+	--slate-slot-x: -2.25rem;
+	--slate-slot-y: -1.2rem;
+}
+
+.board .possibility:nth-child(2) {
+	--slate-tile-x: -0.35rem;
+}
+.board .possibility:nth-child(3) {
+	--slate-tile-x: -0.7rem;
+}
+.board .slot table tr:nth-child(2) .possibility {
+	--slate-tile-y: -0.55rem;
+}
+
+#hclues tr:nth-child(3n + 2) .tile,
+#vclues tr:nth-child(3n + 2) .tile {
+	--slate-tile-x: -0.65rem;
+	--slate-tile-y: -0.35rem;
+}
+
+#hclues tr:nth-child(3n) .tile,
+#vclues tr:nth-child(3n) .tile {
+	--slate-tile-x: -1.25rem;
+	--slate-tile-y: -0.85rem;
+}
+
+#slot-tray-options > :nth-child(2) { --slate-tile-x: -0.4rem; }
+#slot-tray-options > :nth-child(3) { --slate-tile-x: -0.8rem; }
+#slot-tray-options > :nth-child(4) { --slate-tile-x: -1.2rem; }
+#slot-tray-options > :nth-child(5) { --slate-tile-x: -1.6rem; }
+#slot-tray-options > :nth-child(6) { --slate-tile-x: -2rem; }
 
 #board .possibility.answer {
 	background-color: #54262b;
