@@ -831,7 +831,7 @@ Deno.test("slot views are reused when switching displays", function() {
 	const single = slot.singleElem;
 	const possible = slot.possibleElem;
 
-	slot.displaySingle(true);
+	slot.displaySingle(slot.possibilityElems[slot.value]);
 	assert(slot.singleElem === single, "single tile was replaced");
 	assert(slot.possibleElem === possible, "possibility table was replaced");
 	assert(!single.hidden && possible.hidden,
@@ -846,6 +846,39 @@ Deno.test("slot views are reused when switching displays", function() {
 	       "possibility table was not the only visible view");
 	assert(!single.classList.contains("placing"),
 	       "placement animation was not reset");
+});
+
+Deno.test("placement animation choices are saved and restored", function() {
+	localStorage.removeItem("placementAnimation");
+	let puzzle = makePuzzle(1);
+	assert(puzzle.placementAnimation == "settle" &&
+	       document.body.dataset.placementAnimation == "settle" &&
+	       puzzle.options.querySelector("#placement-settle").checked,
+	       "placement animation did not default to settle");
+
+	puzzle.setPlacementAnimation("grow");
+	const slot = puzzle.rows[0].slots[0];
+	const source = slot.possibilityElems[slot.value];
+	source.getBoundingClientRect = function() {
+		return { left: 20, top: 30, width: 10, height: 20 };
+	};
+	slot.singleElem.getBoundingClientRect = function() {
+		return { left: 10, top: 10, width: 30, height: 40 };
+	};
+	slot.displaySingle(source);
+	assert(slot.singleElem.style["--tile-place-x"] == "0px" &&
+	       slot.singleElem.style["--tile-place-y"] == "10px" &&
+	       slot.singleElem.style["--tile-place-scale-x"] == String(1 / 3) &&
+	       slot.singleElem.style["--tile-place-scale-y"] == "0.5",
+	       "grow animation did not start at its possibility");
+	assert(localStorage.getItem("placementAnimation") == "grow",
+	       "placement animation choice was not saved");
+
+	puzzle = makePuzzle(1);
+	assert(puzzle.placementAnimation == "grow" &&
+	       puzzle.options.querySelector("#placement-grow").checked,
+	       "placement animation choice was not restored");
+	localStorage.removeItem("placementAnimation");
 });
 
 Deno.test("revealing a slot preserves its deductions", function() {

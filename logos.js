@@ -1005,6 +1005,19 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		}
 	}
 
+	this.setPlacementAnimation = function(style) {
+		if (["settle", "grow", "flip", "skid"].indexOf(style) < 0)
+			style = "settle";
+		this.placementAnimation = style;
+		document.body.dataset.placementAnimation = style;
+		this.options.querySelector("#placement-" + style).checked = true;
+		try {
+			localStorage.setItem("placementAnimation", style);
+		} catch (e) {
+			/* The choice still applies for the current page. */
+		}
+	}
+
 	this.setStoneEffects = function(enabled) {
 		document.body.dataset.stoneEffects = String(enabled);
 		this.options.querySelector("#stone-effects").checked = enabled;
@@ -1167,6 +1180,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	var showMilestones = true;
 	var showTimer = true;
 	var soundEffects = true;
+	var placementAnimation = "settle";
 	var stoneEffects = true;
 	var expandTileChoices = this.expandTileChoices;
 	var dragTileChoices = this.dragTileChoices;
@@ -1176,6 +1190,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		var storedMilestones = localStorage.getItem("showMilestones");
 		var storedTimer = localStorage.getItem("showTimer");
 		var storedSoundEffects = localStorage.getItem("soundEffects");
+		var storedPlacementAnimation = localStorage.getItem(
+			"placementAnimation");
 		var storedStoneEffects = localStorage.getItem("stoneEffects");
 		var storedExpandTileChoices = localStorage.getItem(
 			"expandTileChoices");
@@ -1191,6 +1207,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			showTimer = storedTimer == "true";
 		if (storedSoundEffects !== null)
 			soundEffects = storedSoundEffects == "true";
+		if (storedPlacementAnimation !== null)
+			placementAnimation = storedPlacementAnimation;
 		if (storedStoneEffects !== null)
 			stoneEffects = storedStoneEffects == "true";
 		if (storedExpandTileChoices !== null)
@@ -1210,6 +1228,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.setMilestones(showMilestones);
 	this.setTimerVisible(showTimer);
 	this.setSoundEffects(soundEffects);
+	this.setPlacementAnimation(placementAnimation);
 	this.setStoneEffects(stoneEffects);
 	this.setExpandTileChoices(expandTileChoices);
 	this.setDragTileChoices(dragTileChoices);
@@ -1733,13 +1752,41 @@ function Slot(row, symbols, display) {
 		return this.symbols[this.value];
 	}
 
-	this.displaySingle = function(animate) {
-		if (animate)
-			this.singleElem.classList.add("placing");
-		else
-			this.singleElem.classList.remove("placing");
+	this.displaySingle = function(source) {
+		var sourceRect;
+		var style = this.row.puzzle.placementAnimation;
+		if (source && (style == "grow" || style == "skid") &&
+		    source.getBoundingClientRect)
+			sourceRect = source.getBoundingClientRect();
+		this.singleElem.classList.remove("placing");
 		this.singleElem.hidden = false;
 		this.possibleElem.hidden = true;
+		if (source) {
+			if (style == "grow" || style == "skid") {
+				var x = 0;
+				var y = -1;
+				var scaleX = 1.04;
+				var scaleY = 1.04;
+				if (sourceRect && this.singleElem.getBoundingClientRect) {
+					var destRect = this.singleElem.getBoundingClientRect();
+					x = sourceRect.left + sourceRect.width / 2 -
+						(destRect.left + destRect.width / 2);
+					y = sourceRect.top + sourceRect.height / 2 -
+						(destRect.top + destRect.height / 2);
+					scaleX = sourceRect.width / destRect.width;
+					scaleY = sourceRect.height / destRect.height;
+				}
+				this.singleElem.style.setProperty("--tile-place-x", x + "px");
+				this.singleElem.style.setProperty("--tile-place-y", y + "px");
+				this.singleElem.style.setProperty("--tile-place-scale-x", scaleX);
+				this.singleElem.style.setProperty("--tile-place-scale-y", scaleY);
+				this.singleElem.style.setProperty("--tile-place-overshoot-x",
+					(x ? -Math.sign(x) * 2 : 0) + "px");
+				this.singleElem.style.setProperty("--tile-place-overshoot-y",
+					(y ? -Math.sign(y) * 2 : 0) + "px");
+			}
+			this.singleElem.classList.add("placing");
+		}
 		this.single = true;
 	}
 
@@ -1775,7 +1822,7 @@ function Slot(row, symbols, display) {
 			if (playerAction || this.row.puzzle.placeSoundPending)
 				this.row.puzzle.playSound("place");
 			this.row.puzzle.placeSoundPending = false;
-			this.displaySingle(true);
+			this.displaySingle(this.possibilityElems[value]);
 			this.row.removePossible(value);
 			this.row.puzzle.reconcilePencilMarks(this.row);
 			this.row.puzzle.checkWin();
