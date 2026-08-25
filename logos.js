@@ -75,7 +75,7 @@ var milestoneMessages = [
 		"Nearly every sign has found its place. The answer awaits.",
 		"The branches of the great tree whisper softly in the wind.",
 		"The whispers reach a crescendo as you begin the final ascent.",
-		"Your journey draws towards it close. Make haste.",
+		"Your journey draws towards its close. Make haste.",
 	],
 ];
 
