@@ -218,14 +218,26 @@ body[data-cursor="native"] {
 .control-buttons > input,
 .modal-done,
 .option-action {
-	border: 1px solid #777267;
-	border-radius: 0.2rem;
-	background-color: #e7dfd1;
-	background-image: linear-gradient(to bottom, #f0eadf, #ddd2c1);
-	box-shadow: 0 0.08rem 0.13rem rgb(42 37 30 / 24%);
-	color: #303637;
+	border: 1px solid #8f826e;
+	border-radius: 0.13rem 0.21rem 0.15rem 0.19rem;
+	background-color: #d7cbb5;
+	background-image:
+		linear-gradient(to bottom,
+			rgb(239 233 219 / 70%), rgb(190 176 151 / 64%)),
+		url("stone-texture.png");
+	background-position: center, center;
+	background-size: auto, 4rem 2rem;
+	box-shadow:
+		inset 0.05rem 0.06rem 0 rgb(255 255 255 / 45%),
+		inset -0.05rem -0.06rem 0 rgb(75 61 44 / 22%),
+		inset 0 0 0.12rem rgb(89 74 54 / 16%),
+		0 0.08rem 0.13rem rgb(42 37 30 / 28%);
+	color: #5a4d3d;
 	font-family: Forum, Georgia, "Times New Roman", serif;
 	font-weight: 600;
+	text-shadow:
+		0 -0.035rem 0.02rem rgb(55 43 29 / 58%),
+		0 0.045rem 0 rgb(255 250 232 / 72%);
 	transition:
 		background-color 80ms ease-out,
 		border-color 80ms ease-out,
@@ -242,17 +254,37 @@ body[data-cursor="native"] {
 .control-buttons > input:hover,
 .modal-done:hover,
 .option-action:hover {
-	background-color: #eee6d8;
-	background-image: linear-gradient(to bottom, #f7f1e6, #e3d8c7);
+	background-color: #e2d7c3;
+	background-image:
+		linear-gradient(to bottom,
+			rgb(246 240 226 / 76%), rgb(201 187 162 / 59%)),
+		url("stone-texture.png");
 }
 
 .control-buttons > input:active,
 .modal-done:active,
 .option-action:active {
-	background-color: #eee8dc;
-	background-image: linear-gradient(to bottom, #d8cdbc, #e8dece);
-	box-shadow: inset 0 0.04rem 0.08rem rgb(73 62 47 / 22%);
+	background-color: #cbbda5;
+	background-image:
+		linear-gradient(to bottom,
+			rgb(165 149 124 / 67%), rgb(224 215 198 / 70%)),
+		url("stone-texture.png");
+	box-shadow:
+		inset 0 0.05rem 0.12rem rgb(73 62 47 / 38%),
+		inset 0 -0.04rem 0 rgb(255 255 255 / 25%);
 	transform: translateY(0.04rem);
+}
+
+.control-buttons > input:nth-child(2) {
+	background-position: center, 25% 65%;
+}
+
+.control-buttons > input:nth-child(3) {
+	background-position: center, 72% 28%;
+}
+
+.control-buttons > input:nth-child(4) {
+	background-position: center, 42% 78%;
 }
 
 .control-buttons > input:focus-visible,
@@ -321,13 +353,23 @@ body[data-cursor="native"] {
 	left: 0.1rem;
 	box-sizing: border-box;
 	width: calc(50% - 0.1rem);
-	border: 1px solid #a69b8a;
-	border-radius: 0.2rem;
-	background: linear-gradient(145deg, #eee7da, #d2c7b6 72%);
+	border: 1px solid #9d917c;
+	border-radius: 0.11rem 0.19rem 0.13rem 0.17rem;
+	background:
+		linear-gradient(145deg,
+			rgb(239 233 219 / 70%), rgb(190 176 151 / 64%)),
+		url("stone-texture.png");
+	background-position: center;
+	background-size: auto, 4rem 2rem;
 	box-shadow:
-		inset 0.05rem 0.06rem 0 rgb(255 255 255 / 65%),
-		inset -0.05rem -0.06rem 0 rgb(91 77 60 / 14%),
+		inset 0.06rem 0.07rem 0 rgb(255 255 255 / 52%),
+		inset -0.07rem -0.08rem 0 rgb(75 61 44 / 34%),
+		inset 0 0 0.15rem rgb(89 74 54 / 28%),
 		0 0.08rem 0.12rem rgb(55 47 38 / 32%);
+	clip-path: polygon(
+		1% 5%, 5% 1%, 35% 2%, 58% 0, 82% 2%, 98% 1%,
+		100% 13%, 99% 39%, 100% 67%, 97% 98%, 76% 99%,
+		53% 100%, 29% 98%, 3% 100%, 0 84%, 1% 58%, 0 31%);
 	transform: translateX(0);
 	transition: transform 180ms ease-out;
 }
@@ -461,13 +503,15 @@ body[data-cursor="native"] {
 	font-weight: 600;
 	letter-spacing: 0.025em;
 	text-align: center;
+	text-shadow:
+		0 -0.035rem 0.02rem rgb(55 43 29 / 58%),
+		0 0.045rem 0 rgb(255 250 232 / 72%);
 	transition: color 120ms ease-out, text-shadow 120ms ease-out;
 	user-select: none;
 }
 
 .tile-action-selector input:checked + label {
-	color: #483a2d;
-	text-shadow: 0 1px 0 rgb(255 255 255 / 55%);
+	color: #5a4d3d;
 }
 
 #board .slot.expanded {
@@ -570,10 +614,20 @@ body[data-cursor="native"] {
 
 .modal-panel {
 	box-sizing: border-box;
-	border: 1px solid #777267;
-	border-radius: 0.2rem;
+	border: 1px solid #8d816e;
+	border-radius: 0.22rem 0.27rem 0.2rem 0.25rem;
 	background-color: #f7f3e9;
-	box-shadow: 0.18rem 0.22rem 0.5rem rgb(20 18 15 / 55%);
+	background-image:
+		linear-gradient(145deg,
+			rgb(247 243 233 / 91%), rgb(224 214 195 / 88%)),
+		url("stone-texture.png");
+	background-position: center;
+	background-size: auto, 6rem 3rem;
+	box-shadow:
+		inset 0.05rem 0.06rem 0 rgb(255 255 255 / 55%),
+		inset -0.05rem -0.06rem 0 rgb(82 67 47 / 14%),
+		inset 0 0 0.28rem rgb(102 84 60 / 10%),
+		0.18rem 0.22rem 0.5rem rgb(20 18 15 / 55%);
 	padding: 0.55rem 0.7rem 0.65rem;
 	color: #303637;
 }
