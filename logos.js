@@ -514,6 +514,22 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		return operation == "place" ? "pencil-select" : "pencil-remove";
 	}
 
+	this.toggleTileAction = function(ev) {
+		ev.preventDefault();
+		var inputs = ev.currentTarget.children;
+		var radios = [];
+		var checked = 0;
+		for (var i = 0; i < inputs.length; i++)
+			if (inputs[i].type == "radio") {
+				if (inputs[i].checked)
+					checked = radios.length;
+				radios.push(inputs[i]);
+			}
+		var next = (checked + 1) % radios.length;
+		for (var i = 0; i < radios.length; i++)
+			radios[i].checked = i == next;
+	}
+
 	this.renderSlotTray = function() {
 		var slot = this.expandedSlot;
 		if (!slot)

@@ -18,7 +18,8 @@
 			<div id="board-actions" class="tile-action-selector" hidden
 			     role="group" aria-label="Tile action">
 				<fieldset class="tile-action-group tile-operation"
-				          aria-label="Deduction">
+				          aria-label="Deduction"
+				          onClick="puzzle.toggleTileAction(event)">
 					<input id="action-place" type="radio" name="tile-operation"
 					       value="place" checked>
 					<label for="action-place">Choose</label>
@@ -26,7 +27,8 @@
 					       value="remove">
 					<label for="action-remove">Discard</label>
 				</fieldset>
-				<fieldset class="tile-action-group tile-mark" aria-label="Mark">
+				<fieldset class="tile-action-group tile-mark" aria-label="Mark"
+				          onClick="puzzle.toggleTileAction(event)">
 					<input id="action-inscribe" type="radio" name="tile-mark"
 					       value="inscribe" checked>
 					<label for="action-inscribe">Inscribe</label>

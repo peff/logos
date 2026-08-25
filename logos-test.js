@@ -503,6 +503,35 @@ Deno.test("the persistent selector applies actions directly", function() {
 	       "direct removal opened the expanded tray");
 });
 
+Deno.test("tile action groups toggle when clicked anywhere", function() {
+	const puzzle = makePuzzle(1);
+	const operation = new FakeElement();
+	const place = new FakeElement();
+	const remove = new FakeElement();
+	place.type = remove.type = "radio";
+	place.checked = true;
+	remove.checked = false;
+	operation.appendChild(place);
+	operation.appendChild(new FakeElement());
+	operation.appendChild(remove);
+	operation.appendChild(new FakeElement());
+	let prevented = false;
+
+	puzzle.toggleTileAction({
+		currentTarget: operation,
+		preventDefault() { prevented = true; },
+	});
+	assert(prevented, "group click retained the label's default action");
+	assert(!place.checked && remove.checked,
+	       "group click did not toggle the selected action");
+	puzzle.toggleTileAction({
+		currentTarget: operation,
+		preventDefault() {},
+	});
+	assert(place.checked && !remove.checked,
+	       "second group click did not toggle the action back");
+});
+
 Deno.test("the persistent selector replaces the logo only during play",
 		function() {
 	const puzzle = makePuzzle(1);
