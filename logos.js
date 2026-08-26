@@ -1903,11 +1903,11 @@ function adjacent3DeductionMessage(puzzle, step, before, after, domains) {
 			if (!(leftDomain & adjacent))
 				return name + " cannot be in the " + ordinalName(col) +
 					" position because " + leftName +
-					" cannot be adjacent.";
+					" must be adjacent.";
 			if (!(rightDomain & adjacent))
 				return name + " cannot be in the " + ordinalName(col) +
 					" position because " + rightName +
-					" cannot be adjacent.";
+					" must be adjacent.";
 			if (!(leftDomain & low) && !(rightDomain & low))
 				return name + " cannot be in the " + ordinalName(col) +
 					" position because neither " + leftName +
@@ -1920,7 +1920,7 @@ function adjacent3DeductionMessage(puzzle, step, before, after, domains) {
 					ordinalName(col + 1) + " position.";
 			return name + " cannot be in the " + ordinalName(col) +
 				" position because " + leftName + " and " + rightName +
-				" cannot fit on opposite sides.";
+				" must fit on opposite sides.";
 		}
 		return deductionMessage(puzzle, row, symbol, before, after);
 	}
@@ -1954,11 +1954,11 @@ function adjacent3DeductionMessage(puzzle, step, before, after, domains) {
 		if (middleCannotFit)
 			return "The possible positions for " + name +
 				" are narrowed because " + middleName +
-				" cannot be adjacent.";
+				" must be adjacent.";
 		if (otherCannotFit)
 			return "The possible positions for " + name +
 				" are narrowed because " + otherName +
-				" cannot be two positions away.";
+				" must be two positions away.";
 	}
 
 	if (countBits(removed) == 1) {
@@ -1978,11 +1978,11 @@ function adjacent3DeductionMessage(puzzle, step, before, after, domains) {
 		if (!(domains[middleRow][middleSymbol] & adjacent))
 			return name + " cannot be in the " + ordinalName(col) +
 				" position because " + middleName +
-				" cannot be adjacent.";
+				" must be adjacent.";
 		if (!(domains[otherRow][otherSymbol] & twoAway))
 			return name + " cannot be in the " + ordinalName(col) +
 				" position because " + otherName +
-				" cannot be two positions away.";
+				" must be two positions away.";
 		return name + " cannot be in the " + ordinalName(col) +
 			" position because " + middleName + " and " + otherName +
 			" cannot fit beside it in either orientation.";
@@ -2036,7 +2036,7 @@ function orderDeductionMessage(puzzle, step, before, after) {
 	var otherSymbol = isLeft ? step.clue.rRow.slots[step.clue.rCol].value :
 		leftSymbol;
 	return message + proofSymbolReference(puzzle, otherRow, otherSymbol) +
-		" cannot be to its " + (isLeft ? "right" : "left") + ".";
+		" must be to its " + (isLeft ? "right" : "left") + ".";
 }
 
 function columnDeductionMessage(puzzle, step, before, after) {
