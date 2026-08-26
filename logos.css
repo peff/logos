@@ -299,7 +299,6 @@ body[data-placement-animation="skid"] .board .single.placing {
 
 #proof-controls button:disabled {
 	opacity: 0.3;
-	cursor: default;
 }
 
 .proof-step {
@@ -444,7 +443,6 @@ body.proof-active #logo {
 
 #explain-button:disabled {
 	opacity: 0.35;
-	cursor: default;
 }
 
 #explain-button {
@@ -867,11 +865,6 @@ body[data-stone-effects="true"] :is(
 
 #options-menu label:has(input:disabled) {
 	opacity: 0.5;
-	cursor: default;
-}
-
-#options-menu input:disabled {
-	cursor: default;
 }
 
 #options-menu input[type="radio"],
@@ -1624,10 +1617,6 @@ button.score-entry:focus-visible {
 
 #board .solution .possibility.answer.failed-action::after {
 	background-color: transparent;
-}
-
-#board .proof .possibility {
-	cursor: default;
 }
 
 #board .proof .possibility.proof-impossible {
