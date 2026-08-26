@@ -447,6 +447,12 @@ body.proof-active #logo {
 	cursor: default;
 }
 
+#explain-button {
+	font-family: "Logos Tiles";
+	font-synthesis: none;
+	font-weight: 400;
+}
+
 #explain-button.active {
 	background-color: #cbbda5;
 	background-image:

@@ -24,6 +24,7 @@ TEXT_SYMBOLS = {
 DICE_BASE = 0x2680
 SHAPE_CODEPOINTS = [0x25B3, 0x25BD, 0x25A1, 0x25C7, 0x2B20, 0x25CB]
 CLUE_ARROW = 0x2194
+BECAUSE = 0x2235
 
 
 def glyph_run(font, text, tracking=0):
@@ -224,6 +225,16 @@ def clue_arrow_glyph():
 	return geometry_glyph(draw)
 
 
+def because_glyph():
+	def draw(pen):
+		for cx, cy in [(265, 250), (735, 250), (500, 700)]:
+			add_polygon(pen, [
+				(cx - 80, cy - 80), (cx + 80, cy - 80),
+				(cx + 80, cy + 80), (cx - 80, cy + 80),
+			])
+	return geometry_glyph(draw)
+
+
 def die_glyph(value):
 	positions = {
 		1: [(500, 500)],
@@ -332,6 +343,11 @@ def main():
 	glyphs[name] = clue_arrow_glyph()
 	glyph_order.append(name)
 	cmap[CLUE_ARROW] = name
+
+	name = "because"
+	glyphs[name] = because_glyph()
+	glyph_order.append(name)
+	cmap[BECAUSE] = name
 
 	builder = FontBuilder(UNITS_PER_EM, isTTF=True)
 	builder.setupGlyphOrder(glyph_order)
