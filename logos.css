@@ -288,25 +288,62 @@ body[data-placement-animation="skid"] .board .single.placing {
 	display: none;
 }
 
+#proof-controls :where(button, .proof-step) {
+	--proof-paper-wash: linear-gradient(145deg,
+		rgb(247 243 233 / 91%), rgb(224 214 195 / 88%));
+	border: 1px solid #a48c65;
+	background-color: #f7f3e9;
+	background-image:
+		var(--proof-paper-wash),
+		url("stone-texture.png");
+	background-position: center;
+	background-size: auto, 6rem 3rem;
+	box-shadow:
+		inset 0.05rem 0.06rem 0 rgb(255 255 255 / 55%),
+		inset -0.05rem -0.06rem 0 rgb(82 67 47 / 14%),
+		inset 0 0 0.28rem rgb(102 84 60 / 10%),
+		0 0.04rem 0.1rem rgb(75 55 31 / 18%);
+}
+
 #proof-controls button {
-	border: 1px solid #8f826e;
-	border-radius: 0.18rem;
-	background: #d7cbb5;
-	color: #4b4033;
-	font: 1.4rem/1 Forum, Georgia, serif;
+	--proof-paper-wash: linear-gradient(to right,
+		rgb(126 87 46 / 72%),
+		rgb(184 145 87 / 68%) 48%,
+		rgb(121 82 43 / 72%));
+	border-color: #624325;
+	background-color: #876038;
+	box-shadow:
+		inset 0.18rem 0 0.25rem rgb(63 38 18 / 22%),
+		inset -0.12rem 0 0.2rem rgb(67 41 19 / 17%),
+		inset 0 0.05rem 0.08rem rgb(255 231 174 / 28%),
+		0 0.04rem 0.1rem rgb(75 55 31 / 20%);
+	color: #432719;
+	font: 1.5rem/1 Forum, Georgia, serif;
+	text-shadow: 0 1px 0 rgb(255 237 190 / 48%);
 	cursor: var(--action-cursor);
 }
 
+#proof-controls .proof-previous {
+	border-radius: 0.32rem 0.12rem 0.12rem 0.32rem;
+}
+
+#proof-controls .proof-next {
+	border-radius: 0.12rem 0.32rem 0.32rem 0.12rem;
+}
+
+#proof-controls button:not(:disabled):hover {
+	filter: brightness(1.04);
+}
+
 #proof-controls button:disabled {
-	opacity: 0.3;
+	color: rgb(80 48 30 / 28%);
+	text-shadow: none;
 }
 
 .proof-step {
 	box-sizing: border-box;
 	min-width: 0;
-	border: 1px solid #9d8c72;
 	border-radius: 0.18rem;
-	background: rgb(244 240 229 / 78%);
 	padding: 0.28rem 0.38rem;
 	text-align: center;
 }
@@ -1714,6 +1751,10 @@ body[data-stone-effects="false"] .modal-panel {
 	background-color: #f7f3e9;
 	background-image: none;
 	box-shadow: 0.18rem 0.22rem 0.5rem rgb(20 18 15 / 55%);
+}
+
+body[data-stone-effects="false"] #proof-controls :is(button, .proof-step) {
+	background-image: none;
 }
 
 body[data-stone-effects="false"] :is(
