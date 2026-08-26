@@ -1391,11 +1391,6 @@ button.score-entry:focus-visible {
 	opacity: 0.2;
 }
 
-#hclues .clue.contradiction,
-#vclues .clue.contradiction {
-	background-color: #74191d;
-}
-
 #hclues .clue.proof-clue,
 #vclues .clue.proof-clue {
 	background-color: #4c2022;
@@ -1405,6 +1400,8 @@ button.score-entry:focus-visible {
 		opacity 140ms ease;
 }
 
+#hclues .clue.contradiction:not(.proof-clue),
+#vclues .clue.contradiction:not(.proof-clue),
 #hclues .clue.proof-ready,
 #vclues .clue.proof-ready {
 	background-color: #74191d;
