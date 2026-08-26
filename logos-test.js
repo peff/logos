@@ -67,7 +67,8 @@ class FakeElement {
 }
 
 globalThis.document = {
-	addEventListener() {},
+	listeners: {},
+	addEventListener(type, listener) { this.listeners[type] = listener; },
 	createElement() { return new FakeElement(); },
 	createTextNode(text) { return { textContent: text }; },
 	querySelector(selector) { return this.body.querySelector(selector); },
@@ -1333,6 +1334,38 @@ Deno.test("correct mixed play never causes an automatic loss", function() {
 			       "correct play caused a loss with seed " + seed);
 		});
 	}
+});
+
+Deno.test("arrow keys navigate proof steps", function() {
+	const puzzle = makePuzzle(6);
+	puzzle.say = function() {};
+	puzzle.newGame("7998093c");
+	puzzle.rows[2].slots[5].discard(2);
+	puzzle.explainLoss();
+	let prevented = 0;
+	const keydown = document.listeners.keydown;
+	keydown({
+		key: "ArrowRight",
+		target: { tagName: "INPUT", type: "button" },
+		preventDefault() { prevented++; },
+	});
+	assert(puzzle.proof.position == 2 && prevented == 1,
+	       "right arrow did not advance the proof");
+	keydown({
+		key: "ArrowLeft",
+		preventDefault() { prevented++; },
+	});
+	assert(puzzle.proof.position == 1 && prevented == 2,
+	       "left arrow did not rewind the proof");
+	keydown({
+		key: "ArrowRight",
+		shiftKey: true,
+		preventDefault() { prevented++; },
+	});
+	assert(puzzle.proof.position == 1 && prevented == 2,
+	       "a modified arrow key moved the proof");
+	puzzle.explainLoss();
+	puzzle.stopTimer();
 });
 
 Deno.test("7998093c gives a coherent clue set for discarding III", function() {

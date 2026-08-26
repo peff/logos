@@ -1080,6 +1080,20 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		puzzle.updateFullscreenButton();
 		puzzle.updateMobileOrientation();
 	});
+	document.addEventListener("keydown", function(ev) {
+		if (!puzzle.proof || puzzle.paused || ev.altKey || ev.ctrlKey ||
+		    ev.metaKey || ev.shiftKey)
+			return;
+		var direction;
+		if (ev.key == "ArrowLeft")
+			direction = -1;
+		else if (ev.key == "ArrowRight")
+			direction = 1;
+		else
+			return;
+		ev.preventDefault();
+		puzzle.moveProof(direction);
+	});
 	if (typeof window != "undefined")
 		window.addEventListener("resize", function() {
 			puzzle.updateMobileOrientation();
