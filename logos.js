@@ -349,8 +349,11 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		if (clues && clues.length) {
 			this.hClues.classList.add("solution");
 			this.vClues.classList.add("solution");
-			for (var i = 0; i < clues.length; i++)
+			for (var i = 0; i < clues.length; i++) {
+				clues[i].active = true;
+				clues[i].display.classList.remove("clue-hidden");
 				clues[i].display.classList.add("contradiction");
+			}
 		}
 		this.say(msg);
 	}

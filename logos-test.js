@@ -768,10 +768,15 @@ Deno.test("a directly contradicting clue is highlighted", function() {
 		},
 	};
 	puzzle.clues = [clue, fixRight];
+	clue.active = false;
+	clue.display.classList.add("clue-hidden");
 
 	target.choose(left.value);
 	assert(clue.display.classList.contains("contradiction"),
 	       "contradicting clue was not highlighted");
+	assert(clue.active &&
+	       !clue.display.classList.contains("clue-hidden"),
+	       "contradicting clue remained dismissed");
 	assert(puzzle.hClues.classList.contains("solution") &&
 	       puzzle.vClues.classList.contains("solution"),
 	       "clue displays were not marked as a solution");
