@@ -286,7 +286,7 @@ body[data-placement-animation="skid"] .board .single.placing {
 		inset -0.05rem -0.06rem 0 rgb(75 61 44 / 22%),
 		inset 0 0 0.12rem rgb(89 74 54 / 16%),
 		0 0.08rem 0.13rem rgb(42 37 30 / 28%);
-	color: #5a4d3d;
+	color: #4b4033;
 	font-family: Forum, Georgia, "Times New Roman", serif;
 	font-weight: 600;
 	text-shadow:
@@ -565,7 +565,7 @@ body[data-placement-animation="skid"] .board .single.placing {
 }
 
 .tile-action-selector input:checked + label {
-	color: #5a4d3d;
+	color: #4b4033;
 }
 
 body[data-stone-effects="true"] :is(
