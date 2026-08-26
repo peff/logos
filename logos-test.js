@@ -1529,3 +1529,18 @@ Deno.test("a row's only candidate is one proof placement", function() {
 	       "the only-candidate rule did not render a large tile");
 	puzzle.stopTimer();
 });
+
+Deno.test("a multi-position clue deduction explains its common cause", function() {
+	const puzzle = makePuzzle(6);
+	puzzle.say = function() {};
+	puzzle.newGame("c0f65304");
+	puzzle.rows[4].slots[1].choose(5);
+	puzzle.explainLoss();
+	const romanOne = puzzle.proof.steps.find(step =>
+		step.row == 2 && step.symbol == 0 && step.removed == 17);
+	assert(romanOne && Logos.proofMessageText(puzzle, romanOne.message) ==
+	       "The possible positions for 0 are narrowed because 3 cannot be " +
+	       "two positions away.",
+	       "a shared reason for multiple eliminations was not explained");
+	puzzle.stopTimer();
+});

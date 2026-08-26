@@ -1922,17 +1922,49 @@ function adjacent3DeductionMessage(puzzle, step, before, after, domains) {
 				" position because " + leftName + " and " + rightName +
 				" cannot fit on opposite sides.";
 		}
+		return deductionMessage(puzzle, row, symbol, before, after);
+	}
+
+	var otherRow = row == leftRow && symbol == leftSymbol ?
+		rightRow : leftRow;
+	var otherSymbol = row == leftRow && symbol == leftSymbol ?
+		rightSymbol : leftSymbol;
+	var otherName = proofSymbolReference(puzzle, otherRow, otherSymbol);
+	if (countBits(removed) > 1) {
+		var middleCannotFit = true;
+		var otherCannotFit = true;
+		for (var col = 0; col < rowSize; col++) {
+			if (!(removed & (1 << col)))
+				continue;
+			var adjacent = 0;
+			var twoAway = 0;
+			if (col > 0)
+				adjacent |= 1 << (col - 1);
+			if (col + 1 < rowSize)
+				adjacent |= 1 << (col + 1);
+			if (col > 1)
+				twoAway |= 1 << (col - 2);
+			if (col + 2 < rowSize)
+				twoAway |= 1 << (col + 2);
+			if (domains[middleRow][middleSymbol] & adjacent)
+				middleCannotFit = false;
+			if (domains[otherRow][otherSymbol] & twoAway)
+				otherCannotFit = false;
+		}
+		if (middleCannotFit)
+			return "The possible positions for " + name +
+				" are narrowed because " + middleName +
+				" cannot be adjacent.";
+		if (otherCannotFit)
+			return "The possible positions for " + name +
+				" are narrowed because " + otherName +
+				" cannot be two positions away.";
 	}
 
 	if (countBits(removed) == 1) {
 		var col = 0;
 		while (!(removed & (1 << col)))
 			col++;
-		var otherRow = row == leftRow && symbol == leftSymbol ?
-			rightRow : leftRow;
-		var otherSymbol = row == leftRow && symbol == leftSymbol ?
-			rightSymbol : leftSymbol;
-		var otherName = proofSymbolReference(puzzle, otherRow, otherSymbol);
 		var adjacent = 0;
 		var twoAway = 0;
 		if (col > 0)
