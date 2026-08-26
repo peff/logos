@@ -1482,15 +1482,8 @@ button.score-entry:focus-visible {
 #slot-tray-options > :nth-child(5) { --slate-tile-x: -1.6rem; }
 #slot-tray-options > :nth-child(6) { --slate-tile-x: -2rem; }
 
-#board .possibility.answer {
-	outline: 2px solid #d4777f;
-	outline-offset: -2px;
-	position: relative;
-	z-index: 1;
-}
-
 #board .solution .possibility:not(.answer) {
-	opacity: 0.5;
+	opacity: 0.2;
 }
 
 .arrow {
