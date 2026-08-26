@@ -388,13 +388,14 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.say(msg);
 	}
 
-	this.renderProofDomains = function(domains, placements) {
+	this.renderProofDomains = function(domains, placements, change) {
 		for (var row = 0; row < this.rows.length; row++) {
 			for (var col = 0; col < this.rows[row].slots.length; col++) {
 				var slot = this.rows[row].slots[col];
 				if (slot.single)
 					continue;
-				slot.displayProof(domains[row], col, placements[row]);
+				slot.displayProof(domains[row], col, placements[row],
+					change && change.row == row ? change : null);
 			}
 		}
 	}
@@ -488,7 +489,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 				"The board as it stood before the mistake.";
 		} else {
 			var step = this.proof.steps[position - 1];
-			this.renderProofDomains(step.domains, step.placements);
+			this.renderProofDomains(step.domains, step.placements, step);
 			if (step.conclusion) {
 				positionElem.textContent = "Conclusion";
 			} else {
@@ -2800,7 +2801,7 @@ function Slot(row, symbols, display) {
 		this.single = false;
 	}
 
-	this.displayProof = function(domains, col, placements) {
+	this.displayProof = function(domains, col, placements, change) {
 		this.singleElem.classList.remove("placing");
 		var bit = 1 << col;
 		var placed = -1;
@@ -2810,9 +2811,11 @@ function Slot(row, symbols, display) {
 				break;
 			}
 		}
-		this.singleElem.classList.remove("failed-action");
+		this.singleElem.classList.remove("failed-action", "proof-change");
 		if (placed >= 0) {
 			this.singleElem.textContent = this.symbols[placed];
+			if (change && change.placement && change.symbol == placed)
+				this.singleElem.classList.add("proof-change");
 			if (this.row.puzzle.proof &&
 			    this.row.puzzle.proof.failedSlot == this &&
 			    this.row.puzzle.proof.failedValue == placed)
@@ -2826,8 +2829,11 @@ function Slot(row, symbols, display) {
 			var failed = this.row.puzzle.proof &&
 				this.row.puzzle.proof.failedSlot == this &&
 				this.row.puzzle.proof.failedValue == i;
+			var changed = change && !change.placement &&
+				change.symbol == i && change.removed & bit;
 			this.possibilityElems[i].className = "possibility" +
 				(domains[i] & bit ? "" : " proof-impossible") +
+				(changed ? " proof-change" : "") +
 				(failed ? " failed-action" : "");
 		}
 		this.singleElem.hidden = true;

@@ -1633,12 +1633,27 @@ button.score-entry:focus-visible {
 
 #board .proof .possibility {
 	cursor: default;
-	transition: opacity 180ms ease, visibility 0s linear 180ms;
 }
 
 #board .proof .possibility.proof-impossible {
 	opacity: 0;
 	visibility: hidden;
+}
+
+#board .proof .possibility.proof-impossible.proof-change {
+	visibility: visible;
+	opacity: 1;
+	border: 2px solid #f1d47a;
+	background-color: transparent;
+	background-image: none;
+	color: transparent;
+	box-shadow: 0 0 0.26rem rgb(215 168 62 / 72%);
+}
+
+#board .single.proof-change {
+	outline: 2px solid #f1d47a;
+	outline-offset: 1px;
+	box-shadow: 0 0 0.34rem rgb(215 168 62 / 82%);
 }
 
 .arrow {

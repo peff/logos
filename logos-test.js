@@ -904,12 +904,18 @@ Deno.test("proof traces prune deductions unrelated to the mistake", function() {
 	const deducedTile = failed.row.slots[1].possibilityElems[failed.value];
 	assert(deducedTile.className.includes("proof-impossible"),
 	       "the first proof deduction was not displayed");
+	assert(failed.singleElem.classList.contains("proof-change"),
+	       "the current proof placement was not highlighted");
 	puzzle.moveProof(-1);
 	assert(!deducedTile.className.includes("proof-impossible"),
 	       "moving backward did not restore the board");
+	assert(!failed.singleElem.classList.contains("proof-change"),
+	       "moving backward did not clear the change highlight");
 	puzzle.moveProof(1);
 	assert(deducedTile.className.includes("proof-impossible"),
 	       "moving forward did not restore the deduction");
+	assert(failed.singleElem.classList.contains("proof-change"),
+	       "moving forward did not restore the change highlight");
 	assert(!failed.single,
 	       "a proof deduction was promoted to a placed tile");
 });
@@ -1026,6 +1032,26 @@ Deno.test("slot views are reused when switching displays", function() {
 	       "possibility table was not the only visible view");
 	assert(!single.classList.contains("placing"),
 	       "placement animation was not reset");
+});
+
+Deno.test("proof displays highlight current removals", function() {
+	const puzzle = makePuzzle(1);
+	const slot = puzzle.rows[0].slots[1];
+	const full = (1 << 6) - 1;
+	const domains = Array(6).fill(full);
+	domains[2] &= ~(1 << 1);
+	slot.displayProof(domains, 1, 0, {
+		row: 0,
+		symbol: 2,
+		removed: 1 << 1,
+		placement: false,
+	});
+	assert(slot.possibilityElems[2].className.includes("proof-impossible") &&
+	       slot.possibilityElems[2].className.includes("proof-change"),
+	       "a removed possibility did not retain a highlighted spot");
+	slot.displayProof(domains, 1, 0, null);
+	assert(!slot.possibilityElems[2].className.includes("proof-change"),
+	       "an old removal remained highlighted");
 });
 
 Deno.test("placement animation choices are saved and restored", function() {
@@ -1511,10 +1537,14 @@ Deno.test("a column clue presents a forced placement as one proof step", functio
 	puzzle.showProofPosition();
 	assert(!diamondSlot.singleElem.hidden && diamondSlot.possibleElem.hidden,
 	       "the proof rendered a forced placement as a small tile");
+	assert(diamondSlot.singleElem.classList.contains("proof-change"),
+	       "the current proof placement was not highlighted");
 	puzzle.proof.position = diamondIndex;
 	puzzle.showProofPosition();
 	assert(diamondSlot.singleElem.hidden && !diamondSlot.possibleElem.hidden,
 	       "moving backward did not undo the proof placement");
+	assert(!diamondSlot.singleElem.classList.contains("proof-change"),
+	       "moving backward did not clear the placement highlight");
 	const minusFourth = puzzle.proof.steps.find(step =>
 		step.row == 5 && step.symbol == 1 && step.removed & 1 << 3);
 	assert(minusFourth && Logos.proofMessageText(puzzle,
