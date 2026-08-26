@@ -407,17 +407,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			failedSlot, failedValue);
 		if (!steps.length)
 			return;
-		var proofClues = clues.slice();
-		for (var i = 0; i < steps.length; i++) {
-			for (var j = 0; j < steps[i].clues.length; j++) {
-				var clue = steps[i].clues[j];
-				if (proofClues.indexOf(clue) < 0)
-					proofClues.push(clue);
-			}
-		}
 		this.proof = {
 			blamedClues: clues,
-			clues: proofClues,
 			steps: steps,
 			base: base,
 			basePlacements: basePlacements,
@@ -425,8 +416,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			failedSlot: failedSlot,
 			failedValue: failedValue,
 		};
-		for (var i = 0; i < proofClues.length; i++)
-			proofClues[i].display.classList.add("proof-clue");
 		this.proofControls.hidden = false;
 		document.body.classList.add("proof-active");
 		this.explainButton.disabled = false;
@@ -452,9 +441,9 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		if (!this.proof)
 			return;
 		var proof = this.proof;
-		for (var i = 0; i < proof.clues.length; i++)
-			proof.clues[i].display.classList.remove(
-				"proof-clue", "proof-ready");
+		for (var i = 0; i < this.clues.length; i++)
+			if (this.clues[i].display)
+				this.clues[i].display.classList.remove("proof-ready");
 		this.pendingProof = {
 			clues: proof.blamedClues,
 			failedSlot: proof.failedSlot,
@@ -473,8 +462,9 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.showProofPosition = function() {
 		if (!this.proof)
 			return;
-		for (var i = 0; i < this.proof.clues.length; i++)
-			this.proof.clues[i].display.classList.remove("proof-ready");
+		for (var i = 0; i < this.clues.length; i++)
+			if (this.clues[i].display)
+				this.clues[i].display.classList.remove("proof-ready");
 
 		var position = this.proof.position;
 		var positionElem = this.proofControls.querySelector(
@@ -2874,8 +2864,7 @@ function renderClue(puzzle, clue, slot, type, elements, horizontal) {
 	if (!clue.listener) {
 		clue.listener = function(ev) {
 			ev.preventDefault();
-			if (puzzle.proof &&
-			    puzzle.proof.clues.indexOf(clue) >= 0)
+			if (puzzle.proof)
 				return;
 			if (clue.active)
 				puzzle.playSound("clue");

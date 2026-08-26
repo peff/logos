@@ -1380,22 +1380,19 @@ button.score-entry:focus-visible {
 	user-select: none;
 }
 
-.clue-hidden > * {
+.clue-hidden:not(.proof-ready) > * {
 	opacity: 0.2;
 }
 
-#hclues .clue.proof-clue,
-#vclues .clue.proof-clue {
-	background-color: #4c2022;
+body.proof-active #hclues .clue,
+body.proof-active #vclues .clue {
 	opacity: 0.45;
-	transition: background-color 140ms ease, box-shadow 140ms ease,
-		opacity 140ms ease;
 }
 
-#hclues .clue.contradiction:not(.proof-clue),
-#vclues .clue.contradiction:not(.proof-clue),
-#hclues .clue.proof-ready,
-#vclues .clue.proof-ready {
+body:not(.proof-active) #hclues .clue.contradiction,
+body:not(.proof-active) #vclues .clue.contradiction,
+body.proof-active #hclues .clue.proof-ready,
+body.proof-active #vclues .clue.proof-ready {
 	background-color: #74191d;
 	opacity: 1;
 	box-shadow:
@@ -1403,8 +1400,8 @@ button.score-entry:focus-visible {
 		0 0 0.35rem rgb(226 178 125 / 75%);
 }
 
-#hclues.solution .clue:not(.contradiction):not(.proof-ready):not(.clue-hidden) > *,
-#vclues.solution .clue:not(.contradiction):not(.proof-ready):not(.clue-hidden) > * {
+body:not(.proof-active) #hclues.solution .clue:not(.contradiction):not(.clue-hidden) > *,
+body:not(.proof-active) #vclues.solution .clue:not(.contradiction):not(.clue-hidden) > * {
 	opacity: 0.5;
 }
 

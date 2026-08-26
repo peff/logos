@@ -1353,6 +1353,12 @@ Deno.test("7998093c gives a coherent clue set for discarding III", function() {
 	       "opening the proof did not press the Why control");
 	assert(puzzle.proof && puzzle.proof.blamedClues.length == 0,
 	       "a complex clue set was highlighted before the proof");
+	const firstClues = puzzle.proof.steps[0].clues;
+	const highlighted = puzzle.clues.filter(clue => clue.display &&
+		clue.display.classList.contains("proof-ready"));
+	assert(highlighted.length == firstClues.length &&
+	       highlighted.every(clue => firstClues.includes(clue)),
+	       "proof mode highlighted clues from other steps");
 	assert(puzzle.proof.steps.some(step => step.clues.some(clue =>
 	       !clue.display.classList.contains("contradiction"))),
 	       "the proof did not introduce its own supporting clues");
