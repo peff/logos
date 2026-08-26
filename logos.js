@@ -1887,14 +1887,14 @@ function adjacent3DeductionMessage(puzzle, step, before, after, domains) {
 	if (row == middleRow && symbol == middleSymbol) {
 		if (removed == edges)
 			return name + " cannot be on either edge because it is " +
-				"between two clues.";
+				"between two symbols.";
 		if (countBits(removed) == 1) {
 			var col = 0;
 			while (!(removed & (1 << col)))
 				col++;
 			if (col == 0 || col == rowSize - 1)
 				return name + " cannot be in the " + ordinalName(col) +
-					" position because it is between two clues.";
+					" position because it is between two symbols.";
 			var low = col > 0 ? 1 << (col - 1) : 0;
 			var high = col + 1 < rowSize ? 1 << (col + 1) : 0;
 			var leftDomain = domains[leftRow][leftSymbol];

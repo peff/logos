@@ -1352,7 +1352,7 @@ Deno.test("7998093c gives a coherent clue set for discarding III", function() {
 	       triangleFifth == aEdge + 1,
 	       "the proof did not group the related A deductions");
 	assert(puzzle.proof.steps[aFourth].message.includes("two positions away") &&
-	       puzzle.proof.steps[aEdge].message.includes("between two clues") &&
+	       puzzle.proof.steps[aEdge].message.includes("between two symbols") &&
 	       puzzle.proof.steps[triangleFifth].message.includes("must be adjacent"),
 	       "the proof did not explain its three-tile deductions");
 	const romanTwoSixth = puzzle.proof.steps.find(step =>
