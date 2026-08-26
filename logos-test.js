@@ -841,7 +841,7 @@ Deno.test("proof traces prune deductions unrelated to the mistake", function() {
 	relevant.slot = failed;
 	relevant.display = new FakeElement();
 	puzzle.clues = [noise, relevant];
-	puzzle.startProof([relevant], failed, failed.value);
+	puzzle.startProof(failed, failed.value);
 
 	assert(puzzle.proof.steps.every(step =>
 	       !step.clues.length || step.clues[0] == relevant),
@@ -1351,11 +1351,10 @@ Deno.test("7998093c gives a coherent clue set for discarding III", function() {
 	puzzle.explainLoss();
 	assert(puzzle.explainButton.classList.contains("active"),
 	       "opening the proof did not press the Why control");
-	assert(puzzle.proof && puzzle.proof.blamedClues.length == 0,
-	       "a complex clue set was highlighted before the proof");
+	assert(puzzle.proof, "the proof did not open");
 	const firstClues = puzzle.proof.steps[0].clues;
 	const highlighted = puzzle.clues.filter(clue => clue.display &&
-		clue.display.classList.contains("proof-ready"));
+		clue.display.classList.contains("proof-current"));
 	assert(highlighted.length == firstClues.length &&
 	       highlighted.every(clue => firstClues.includes(clue)),
 	       "proof mode highlighted clues from other steps");

@@ -376,7 +376,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.revealSolution();
 		if (failedSlot) {
 			this.pendingProof = {
-				clues: clues || [],
 				failedSlot: failedSlot,
 				failedValue: failedValue,
 			};
@@ -400,7 +399,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		}
 	}
 
-	this.startProof = function(clues, failedSlot, failedValue) {
+	this.startProof = function(failedSlot, failedValue) {
 		var base = domainsFromSlots(this);
 		var basePlacements = proofPlacementsFromSlots(this);
 		var steps = buildProofSteps(this, base, basePlacements,
@@ -408,7 +407,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		if (!steps.length)
 			return;
 		this.proof = {
-			blamedClues: clues,
 			steps: steps,
 			base: base,
 			basePlacements: basePlacements,
@@ -433,8 +431,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			return;
 		var request = this.pendingProof;
 		this.pendingProof = null;
-		this.startProof(request.clues, request.failedSlot,
-			request.failedValue);
+		this.startProof(request.failedSlot, request.failedValue);
 	}
 
 	this.closeProof = function() {
@@ -443,9 +440,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		var proof = this.proof;
 		for (var i = 0; i < this.clues.length; i++)
 			if (this.clues[i].display)
-				this.clues[i].display.classList.remove("proof-ready");
+				this.clues[i].display.classList.remove("proof-current");
 		this.pendingProof = {
-			clues: proof.blamedClues,
 			failedSlot: proof.failedSlot,
 			failedValue: proof.failedValue,
 		};
@@ -464,7 +460,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			return;
 		for (var i = 0; i < this.clues.length; i++)
 			if (this.clues[i].display)
-				this.clues[i].display.classList.remove("proof-ready");
+				this.clues[i].display.classList.remove("proof-current");
 
 		var position = this.proof.position;
 		var positionElem = this.proofControls.querySelector(
@@ -489,7 +485,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			renderProofMessage(this, deductionElem, step.message,
 				step.conclusion);
 			for (var i = 0; i < step.clues.length; i++)
-				step.clues[i].display.classList.add("proof-ready");
+				step.clues[i].display.classList.add("proof-current");
 		}
 		this.proofControls.querySelector(".proof-previous").disabled =
 			position == 0;

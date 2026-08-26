@@ -1380,19 +1380,16 @@ button.score-entry:focus-visible {
 	user-select: none;
 }
 
-.clue-hidden:not(.proof-ready) > * {
+.clue-hidden:not(.proof-current) > * {
 	opacity: 0.2;
 }
 
-body.proof-active #hclues .clue,
-body.proof-active #vclues .clue {
+body.proof-active :is(#hclues, #vclues) .clue {
 	opacity: 0.45;
 }
 
-body:not(.proof-active) #hclues .clue.contradiction,
-body:not(.proof-active) #vclues .clue.contradiction,
-body.proof-active #hclues .clue.proof-ready,
-body.proof-active #vclues .clue.proof-ready {
+body:not(.proof-active) :is(#hclues, #vclues) .clue.contradiction,
+body.proof-active :is(#hclues, #vclues) .clue.proof-current {
 	background-color: #74191d;
 	opacity: 1;
 	box-shadow:
@@ -1400,8 +1397,8 @@ body.proof-active #vclues .clue.proof-ready {
 		0 0 0.35rem rgb(226 178 125 / 75%);
 }
 
-body:not(.proof-active) #hclues.solution .clue:not(.contradiction):not(.clue-hidden) > *,
-body:not(.proof-active) #vclues.solution .clue:not(.contradiction):not(.clue-hidden) > * {
+body:not(.proof-active) :is(#hclues, #vclues).solution
+	.clue:not(.contradiction):not(.clue-hidden) > * {
 	opacity: 0.5;
 }
 
