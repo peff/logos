@@ -108,7 +108,10 @@ const source = await Deno.readTextFile(
 const Logos = eval(source +
 	"\n;({ Puzzle: Puzzle, ExactClue: ExactClue, " +
 	"Adjacent2Clue: Adjacent2Clue, " +
+	"Adjacent3Clue: Adjacent3Clue, " +
 	"ColumnClue: ColumnClue, " +
+	"adjacent3DeductionMessage: adjacent3DeductionMessage, " +
+	"clueProofStep: clueProofStep, " +
 	"orderDeductionMessage: orderDeductionMessage, " +
 	"proofMessageText: proofMessageText, " +
 	"nextForcedProofStep: nextForcedProofStep, " +
@@ -934,6 +937,48 @@ Deno.test("inner ordering deductions name the obstructing tile", function() {
 	       "1 cannot be in the first position because it is to the right " +
 	       "of another tile.",
 	       "an edge ordering deduction needlessly named the other tile");
+});
+
+Deno.test("three-adjacent middle deductions remove edges first", function() {
+	const puzzle = makePuzzle(3);
+	const middle = puzzle.rows[0];
+	const left = puzzle.rows[1];
+	const right = puzzle.rows[2];
+	middle.slots[0].value = 0;
+	left.slots[0].value = 1;
+	right.slots[0].value = 2;
+	const clue = new Logos.Adjacent3Clue(puzzle);
+	clue.mRow = middle;
+	clue.mCol = 0;
+	clue.lRow = left;
+	clue.lCol = 0;
+	clue.rRow = right;
+	clue.rCol = 0;
+	const full = (1 << 6) - 1;
+	const domains = Array.from({ length: 3 }, () => Array(6).fill(full));
+	domains[1][1] &= ~1;
+	domains[2][2] &= ~1;
+
+	const edgeStep = Logos.clueProofStep(puzzle, clue, domains);
+	assert(edgeStep.row == 0 && edgeStep.symbol == 0 &&
+	       edgeStep.removed == 33,
+	       "edge and domain-dependent removals were grouped together");
+	domains[0][0] &= ~edgeStep.removed;
+	const innerStep = Logos.clueProofStep(puzzle, clue, domains);
+	assert(innerStep.row == 0 && innerStep.symbol == 0 &&
+	       innerStep.removed == 2,
+	       "the adjacent inner position did not follow the edge deduction");
+	const edgeMessage = Logos.adjacent3DeductionMessage(puzzle, edgeStep,
+		full, domains[0][0], domains);
+	assert(Logos.proofMessageText(puzzle, edgeMessage) ==
+	       "0 cannot be on either edge because it is between two symbols.",
+	       "the edge deduction was not explained independently");
+	const innerMessage = Logos.adjacent3DeductionMessage(puzzle, innerStep,
+		domains[0][0], domains[0][0] & ~innerStep.removed, domains);
+	assert(Logos.proofMessageText(puzzle, innerMessage) ==
+	       "0 cannot be in the second position because neither 1 nor 2 can " +
+	       "be in the first position.",
+	       "the adjacent inner deduction was not explained independently");
 });
 
 Deno.test("a direct clue is preferred to global clue blame", function() {

@@ -1951,14 +1951,14 @@ function adjacent3DeductionMessage(puzzle, step, before, after, domains) {
 			if (domains[otherRow][otherSymbol] & twoAway)
 				otherCannotFit = false;
 		}
-		if (middleCannotFit)
-			return "The possible positions for " + name +
-				" are narrowed because " + middleName +
-				" must be adjacent.";
 		if (otherCannotFit)
 			return "The possible positions for " + name +
 				" are narrowed because " + otherName +
 				" must be two positions away.";
+		if (middleCannotFit)
+			return "The possible positions for " + name +
+				" are narrowed because " + middleName +
+				" must be adjacent.";
 	}
 
 	if (countBits(removed) == 1) {
@@ -2192,8 +2192,17 @@ function clueProofStep(puzzle, clue, domains) {
 		var after = domains[row][symbol] & trial[row][symbol];
 		if (after == domains[row][symbol])
 			continue;
-		after = proofStepDomain(domains[row][symbol], after,
-			domains[row].length);
+		var middleRow = clue.mRow ? puzzle.rows.indexOf(clue.mRow) : -1;
+		var middleSymbol = clue.mRow ?
+			clue.mRow.slots[clue.mCol].value : -1;
+		var edges = 1 | (1 << (domains[row].length - 1));
+		var removedEdges = domains[row][symbol] & ~after & edges;
+		if (row == middleRow && symbol == middleSymbol &&
+		    removedEdges == edges)
+			after = domains[row][symbol] & ~removedEdges;
+		else
+			after = proofStepDomain(domains[row][symbol], after,
+				domains[row].length);
 		return {
 			clues: clue.display ? [clue] : [],
 			clue: clue,
