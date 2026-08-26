@@ -1477,7 +1477,6 @@ button.score-entry:focus-visible {
 #slot-tray-options > :nth-child(6) { --slate-tile-x: -2rem; }
 
 #board .possibility.answer {
-	background-color: #54262b;
 	outline: 2px solid #d4777f;
 	outline-offset: -2px;
 	position: relative;
