@@ -926,7 +926,7 @@ Deno.test("inner ordering deductions name the obstructing tile", function() {
 	assert(Logos.proofMessageText(puzzle,
 	       Logos.orderDeductionMessage(puzzle, step, full,
 	       full & ~(1 << 3))) ==
-	       "1 cannot be in the fourth position because 0 cannot be to its left.",
+	       "1 cannot be in the fourth position because 0 must be to its left.",
 	       "an inner ordering deduction did not name the other tile");
 	assert(Logos.proofMessageText(puzzle,
 	       Logos.orderDeductionMessage(puzzle, step, full,
@@ -1352,7 +1352,7 @@ Deno.test("7998093c gives a coherent clue set for discarding III", function() {
 	       "the proof did not group the related A deductions");
 	assert(puzzle.proof.steps[aFourth].message.includes("two positions away") &&
 	       puzzle.proof.steps[aEdge].message.includes("between two clues") &&
-	       puzzle.proof.steps[triangleFifth].message.includes("cannot be adjacent"),
+	       puzzle.proof.steps[triangleFifth].message.includes("must be adjacent"),
 	       "the proof did not explain its three-tile deductions");
 	const romanTwoSixth = puzzle.proof.steps.find(step =>
 		step.row == 2 && step.symbol == 1 && step.removed & (1 << 5));
@@ -1472,7 +1472,7 @@ Deno.test("a column clue presents a forced placement as one proof step", functio
 	const minusFourth = puzzle.proof.steps.find(step =>
 		step.row == 5 && step.symbol == 1 && step.removed & 1 << 3);
 	assert(minusFourth && Logos.proofMessageText(puzzle,
-	       minusFourth.message).includes("2 cannot be adjacent"),
+	       minusFourth.message).includes("2 must be adjacent"),
 	       "the proof blamed both sides when Roman III alone could not fit");
 	const columnDiscard = puzzle.proof.steps.find(step =>
 		step.clue && step.clue.constructor == ColumnClue &&
@@ -1539,7 +1539,7 @@ Deno.test("a multi-position clue deduction explains its common cause", function(
 	const romanOne = puzzle.proof.steps.find(step =>
 		step.row == 2 && step.symbol == 0 && step.removed == 17);
 	assert(romanOne && Logos.proofMessageText(puzzle, romanOne.message) ==
-	       "The possible positions for 0 are narrowed because 3 cannot be " +
+	       "The possible positions for 0 are narrowed because 3 must be " +
 	       "two positions away.",
 	       "a shared reason for multiple eliminations was not explained");
 	puzzle.stopTimer();
