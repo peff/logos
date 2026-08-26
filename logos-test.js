@@ -1513,6 +1513,22 @@ Deno.test("860f9efd gives a direct proof against placing die one", function() {
 	puzzle.stopTimer();
 });
 
+Deno.test("proof reconstruction reaches a wrong placement", function() {
+	const puzzle = makePuzzle(6);
+	puzzle.say = function() {};
+	puzzle.newGame("ae9a519e");
+	puzzle.rows[5].slots[2].choose(4);
+	puzzle.explainLoss();
+	const last = puzzle.proof.steps[puzzle.proof.steps.length - 1];
+	assert(last.conclusion && last.row == 5 && last.symbol == 4 &&
+	       last.removed == 1 << 2,
+	       "the proof ended before removing the failed placement");
+	assert(Logos.proofMessageText(puzzle, last.message) ==
+	       "4 cannot be in the third position because 0 must be adjacent.",
+	       "the final adjacency deduction was left implicit");
+	puzzle.stopTimer();
+});
+
 Deno.test("a column clue presents a forced placement as one proof step", function() {
 	const puzzle = makePuzzle(6);
 	puzzle.say = function() {};

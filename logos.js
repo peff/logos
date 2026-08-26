@@ -2405,6 +2405,32 @@ function proofConclusionMessage(puzzle, failedSlot, failedValue) {
 		" position.";
 }
 
+function directFailedProofStep(puzzle, domains, failedSlot, failedValue) {
+	var row = puzzle.rows.indexOf(failedSlot.row);
+	var col = failedSlot.row.slots.indexOf(failedSlot);
+	var bit = 1 << col;
+	if (!(domains[row][failedValue] & bit))
+		return null;
+	var fullDomain = (1 << domains[row].length) - 1;
+	for (var i = 0; i < puzzle.clues.length; i++) {
+		var clue = puzzle.clues[i];
+		var trial = copyDomains(domains);
+		clue.constrain(trial, fullDomain);
+		if (trial[row][failedValue] & bit)
+			continue;
+		return {
+			clues: clue.display ? [clue] : [],
+			clue: clue,
+			rule: "clue",
+			placement: false,
+			row: row,
+			symbol: failedValue,
+			removed: bit,
+		};
+	}
+	return null;
+}
+
 function buildProofSteps(puzzle, base, basePlacements,
 			 failedSlot, failedValue) {
 	var current = copyDomains(base);
@@ -2453,6 +2479,20 @@ function buildProofSteps(puzzle, base, basePlacements,
 			});
 	}
 	steps = replay;
+	if (!proofConcluded(puzzle, current, failedSlot, failedValue)) {
+		var step = directFailedProofStep(puzzle, current,
+			failedSlot, failedValue);
+		if (!step)
+			return [];
+		var before = current[step.row][step.symbol];
+		applyProofStep(current, placements, step);
+		step.domain = current[step.row][step.symbol];
+		step.domains = copyDomains(current);
+		step.placements = placements.slice();
+		step.message = proofDeductionMessage(puzzle, step, before,
+			step.domain, current);
+		steps.push(step);
+	}
 	var conclusion = proofConclusionMessage(puzzle, failedSlot, failedValue);
 	if (steps.length && failedSlot.value != failedValue)
 		steps[steps.length - 1].conclusion = true;
