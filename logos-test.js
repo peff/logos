@@ -1022,13 +1022,14 @@ Deno.test("revealing a slot preserves its deductions", function() {
 	const discarded = (slot.value + 1) % symbols.length;
 
 	slot.removePossible(discarded, true);
+	slot.removePossible(slot.value, true);
 	slot.reveal();
 	assert(slot.singleElem.hidden && !slot.possibleElem.hidden,
 	       "reveal replaced the possibility table");
 	assert(slot.possibleElem.className == "solution",
 	       "possibility table was not marked as a solution");
 	assert(slot.possibilityElems[slot.value].className ==
-	       "possibility answer", "answer was not marked");
+	       "possibility answer", "a discarded answer was not restored");
 	assert(slot.possibilityElems[discarded].className ==
 	       "possibility dead-possibility",
 	       "reveal restored a discarded possibility");
@@ -1419,7 +1420,7 @@ Deno.test("7998093c gives a coherent clue set for discarding III", function() {
 	assert(!puzzle.proof && puzzle.pendingProof &&
 	       !puzzle.explainButton.classList.contains("active") &&
 	       target.possibleElem.className == "solution" &&
-	       target.possibilityElems[2].className.includes("failed-action"),
+	       target.possibilityElems[2].classList.contains("failed-action"),
 	       "closing the proof did not restore the revealed solution");
 	puzzle.stopTimer();
 });

@@ -2778,7 +2778,7 @@ function Slot(row, symbols, display) {
 		this.singleElem.hidden = true;
 		this.possibleElem.hidden = false;
 		this.possibleElem.className = "solution";
-		this.possibilityElems[this.value].className += " answer";
+		this.possibilityElems[this.value].className = "possibility answer";
 	}
 
 	this.displayPossible = function() {

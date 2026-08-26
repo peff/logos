@@ -1621,6 +1621,10 @@ button.score-entry:focus-visible {
 	pointer-events: none;
 }
 
+#board .solution .possibility.answer.failed-action::after {
+	background-color: transparent;
+}
+
 #board .proof .possibility {
 	cursor: default;
 	transition: opacity 180ms ease, visibility 0s linear 180ms;
