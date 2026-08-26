@@ -779,14 +779,13 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 
 		if (!cluesAllow(this, [], domains))
 			return [];
-		var direct = [];
 		for (var i = 0; i < this.clues.length; i++) {
 			var clue = this.clues[i];
 			if (clue.display && !cluesAllow(this, [clue],
 						       copyDomains(domains)))
-				direct.push(clue);
+				return [clue];
 		}
-		return direct;
+		return [];
 	}
 
 	this.revealSolution = function() {

@@ -789,6 +789,20 @@ Deno.test("a directly contradicting clue is highlighted", function() {
 	       "clue displays were not marked as a solution");
 });
 
+Deno.test("only one directly contradicting clue is highlighted", function() {
+	const puzzle = makePuzzle(6);
+	puzzle.say = function() {};
+	puzzle.newGame("ae9a519e");
+	const target = puzzle.rows[2].slots[5];
+	assert(target.value != 5, "seed unexpectedly places VI in position six");
+	target.choose(5);
+	const highlighted = puzzle.clues.filter(clue => clue.display &&
+		clue.display.classList.contains("contradiction"));
+	assert(highlighted.length == 1,
+	       "more than one direct contradiction was highlighted");
+	puzzle.stopTimer();
+});
+
 Deno.test("multi-clue contradictions are not highlighted", function() {
 	const puzzle = makePuzzle(1);
 	const slot = puzzle.rows[0].slots[0];
