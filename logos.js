@@ -374,9 +374,9 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			}
 		}
 		this.revealSolution();
-		if (failedSlot && clues && clues.length) {
+		if (failedSlot) {
 			this.pendingProof = {
-				clues: clues,
+				clues: clues || [],
 				failedSlot: failedSlot,
 				failedValue: failedValue,
 			};
@@ -777,44 +777,16 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		var domains = domainsFromSlots(this);
 		applyMove(domains, slot, value, discard, this.rows);
 
-		if (cluesAllow(this, [], domains)) {
-			var direct = [];
-			for (var i = 0; i < this.clues.length; i++) {
-				var clue = this.clues[i];
-				if (clue.display && !cluesAllow(this, [clue],
-							       copyDomains(domains)))
-					direct.push(clue);
-			}
-			if (direct.length) {
-				return direct;
-			}
-		}
-
-		var displayed = [];
-		var fixed = [];
+		if (!cluesAllow(this, [], domains))
+			return [];
+		var direct = [];
 		for (var i = 0; i < this.clues.length; i++) {
 			var clue = this.clues[i];
-			if (clue.display)
-				displayed.push(clue);
-			else
-				fixed.push(clue);
+			if (clue.display && !cluesAllow(this, [clue],
+						       copyDomains(domains)))
+				direct.push(clue);
 		}
-
-		var assumptions = [
-			domainsFromFoundSlots(this),
-			domainsFromSlots(this),
-			unconstrainedDomains(this),
-		];
-		for (var i = 0; i < assumptions.length; i++) {
-			domains = assumptions[i];
-			applyMove(domains, slot, value, discard, this.rows);
-			var background = i < 2 ? [] : fixed;
-			var core = minimalContradictingClues(this, displayed,
-				background, domains, slot, value);
-			if (core !== null)
-				return core;
-		}
-		return [];
+		return direct;
 	}
 
 	this.revealSolution = function() {
@@ -1575,28 +1547,6 @@ function proofPlacementsFromSlots(puzzle) {
 	return placements;
 }
 
-function unconstrainedDomains(puzzle) {
-	var rowSize = puzzle.rows[0].slots.length;
-	var fullDomain = (1 << rowSize) - 1;
-	var domains = [];
-	for (var row = 0; row < puzzle.rows.length; row++)
-		domains[row] = Array(rowSize).fill(fullDomain);
-	return domains;
-}
-
-function domainsFromFoundSlots(puzzle) {
-	var domains = unconstrainedDomains(puzzle);
-	for (var row = 0; row < puzzle.rows.length; row++) {
-		for (var col = 0; col < puzzle.rows[row].slots.length; col++) {
-			var slot = puzzle.rows[row].slots[col];
-			if (slot.single)
-				applyMove(domains, slot, slot.value, false,
-					  puzzle.rows);
-		}
-	}
-	return domains;
-}
-
 function domainsFromRow(row) {
 	var rowSize = row.slots.length;
 	var domains = Array(rowSize).fill(0);
@@ -1763,41 +1713,6 @@ function cluesAllow(puzzle, clues, domains) {
 		}
 	} while (changed);
 	return true;
-}
-
-function cluesHaveSolution(puzzle, clues, domains) {
-	if (!cluesAllow(puzzle, clues, domains))
-		return false;
-
-	var bestRow = -1;
-	var bestSymbol = -1;
-	var bestCount = Infinity;
-	for (var row = 0; row < domains.length; row++) {
-		for (var symbol = 0; symbol < domains[row].length; symbol++) {
-			var domain = domains[row][symbol];
-			var count = 0;
-			for (var bits = domain; bits; bits &= bits - 1)
-				count++;
-			if (count > 1 && count < bestCount) {
-				bestRow = row;
-				bestSymbol = symbol;
-				bestCount = count;
-			}
-		}
-	}
-	if (bestRow < 0)
-		return true;
-
-	var domain = domains[bestRow][bestSymbol];
-	for (var bit = 1; bit <= domain; bit <<= 1) {
-		if (!(domain & bit))
-			continue;
-		var trial = copyDomains(domains);
-		trial[bestRow][bestSymbol] = bit;
-		if (cluesHaveSolution(puzzle, clues, trial))
-			return true;
-	}
-	return false;
 }
 
 function countBits(bits) {
@@ -2534,101 +2449,6 @@ function clueSlots(clue) {
 			clue.rRow.slots[clue.rCol]];
 	}
 	return [];
-}
-
-function clueRelevance(clue, failedSlot, failedValue) {
-	var failedCol = failedSlot.row.slots.indexOf(failedSlot);
-	var score = 0;
-	var slots = clueSlots(clue);
-	for (var i = 0; i < slots.length; i++) {
-		var slot = slots[i];
-		var col = slot.row.slots.indexOf(slot);
-		if (slot == failedSlot)
-			score += 100;
-		if (slot.row == failedSlot.row && slot.value == failedValue)
-			score += 50;
-		if (col == failedCol)
-			score += 10;
-		if (slot.row == failedSlot.row)
-			score += 5;
-	}
-	return score;
-}
-
-function shrinkContradictingClues(puzzle, candidates, fixed, domains,
-				  removals) {
-	var core = candidates.slice();
-	for (var i = 0; i < removals.length; i++) {
-		var pos = core.indexOf(removals[i]);
-		if (pos < 0)
-			continue;
-		var trial = core.slice();
-		trial.splice(pos, 1);
-		if (!cluesHaveSolution(puzzle, fixed.concat(trial),
-				       copyDomains(domains)))
-			core = trial;
-	}
-	return core;
-}
-
-function clueCoreRelevance(core, failedSlot, failedValue) {
-	var score = 0;
-	for (var i = 0; i < core.length; i++)
-		score += clueRelevance(core[i], failedSlot, failedValue);
-	return score;
-}
-
-function shuffledClues(candidates, pass) {
-	var order = candidates.map(function(clue, index) {
-		var key = Math.imul(index + 1, 0x9e3779b1) ^
-			Math.imul(pass + 1, 0x85ebca6b);
-		key ^= key >>> 16;
-		key = Math.imul(key, 0x7feb352d);
-		key ^= key >>> 15;
-		return { clue: clue, key: key >>> 0, index: index };
-	});
-	order.sort(function(a, b) {
-		return a.key - b.key || a.index - b.index;
-	});
-	return order.map(function(entry) { return entry.clue; });
-}
-
-function minimalContradictingClues(puzzle, candidates, fixed, domains,
-				   failedSlot, failedValue) {
-	if (cluesHaveSolution(puzzle, fixed.concat(candidates),
-			      copyDomains(domains)))
-		return null;
-
-	var relevanceOrder = candidates.map(function(clue, index) {
-		return {
-			clue: clue,
-			index: index,
-			relevance: clueRelevance(clue, failedSlot, failedValue),
-		};
-	});
-	relevanceOrder.sort(function(a, b) {
-		return a.relevance - b.relevance || a.index - b.index;
-	});
-	var removals = relevanceOrder.map(function(entry) {
-		return entry.clue;
-	});
-	var best = shrinkContradictingClues(puzzle, candidates, fixed,
-					     domains, removals);
-	var bestRelevance = clueCoreRelevance(best, failedSlot, failedValue);
-
-	for (var pass = 0; pass < 31; pass++) {
-		var core = shrinkContradictingClues(puzzle, candidates, fixed,
-						    domains,
-						    shuffledClues(candidates,
-								  pass));
-		var relevance = clueCoreRelevance(core, failedSlot, failedValue);
-		if (core.length < best.length ||
-		    core.length == best.length && relevance > bestRelevance) {
-			best = core;
-			bestRelevance = relevance;
-		}
-	}
-	return best;
 }
 
 /* Try to solve the puzzle using only deductions from the given clues. */

@@ -773,17 +773,11 @@ Deno.test("a directly contradicting clue is highlighted", function() {
 	clue.rCol = 1;
 	clue.display = new FakeElement();
 	clue.display.classList.add("clue");
-	const fixRight = {
-		constrain(domains) {
-			const old = domains[1][right.value];
-			domains[1][right.value] &= 1 << 1;
-			return old != domains[1][right.value];
-		},
-	};
-	puzzle.clues = [clue, fixRight];
+	puzzle.clues = [clue];
 	clue.active = false;
 	clue.display.classList.add("clue-hidden");
 
+	right.choose(right.value);
 	target.choose(left.value);
 	assert(clue.display.classList.contains("contradiction"),
 	       "contradicting clue was not highlighted");
@@ -795,7 +789,7 @@ Deno.test("a directly contradicting clue is highlighted", function() {
 	       "clue displays were not marked as a solution");
 });
 
-Deno.test("all clues essential to a contradiction are highlighted", function() {
+Deno.test("multi-clue contradictions are not highlighted", function() {
 	const puzzle = makePuzzle(1);
 	const slot = puzzle.rows[0].slots[0];
 	const correct = 1 << 0;
@@ -815,73 +809,10 @@ Deno.test("all clues essential to a contradiction are highlighted", function() {
 
 	slot.discard(slot.value);
 	for (const clue of clues)
-		assert(clue.display.classList.contains("contradiction"),
-		       "essential clue was not highlighted");
-});
-
-Deno.test("contradictions highlight a minimal set of clues", function() {
-	const puzzle = makePuzzle(1);
-	const slot = puzzle.rows[0].slots[0];
-	const makeClue = function(allowed) {
-		return {
-			display: new FakeElement(),
-			constrain(domains) {
-				const old = domains[0][slot.value];
-				domains[0][slot.value] &= allowed;
-				return old != domains[0][slot.value];
-			},
-		};
-	};
-	/*
-	 * The first pruning order finds the three-clue core at the end;
-	 * another order can find one of the two-clue cores involving the
-	 * first two clues.
-	 */
-	const clues = [
-		makeClue(1 << 1),
-		makeClue(1 << 2),
-		makeClue((1 << 1) | (1 << 2)),
-		makeClue((1 << 2) | (1 << 3)),
-		makeClue((1 << 1) | (1 << 3)),
-	];
-	puzzle.clues = clues;
-
-	slot.discard(slot.value);
-	const blamed = clues.filter(function(clue) {
-		return clue.display.classList.contains("contradiction");
-	});
-	assert(blamed.length == 2,
-	       "blame did not shrink to a minimal contradiction");
-});
-
-Deno.test("found tiles are assumptions when blaming clues", function() {
-	const puzzle = makePuzzle(1);
-	const row = puzzle.rows[0];
-	const found = row.slots[0];
-	const target = row.slots[1];
-	const common = 1 << 2;
-	found.choose(found.value);
-
-	const restrict = function(value, allowed) {
-		return {
-			display: new FakeElement(),
-			constrain(domains) {
-				const old = domains[0][value];
-				domains[0][value] &= allowed;
-				return old != domains[0][value];
-			},
-		};
-	};
-	const clues = [
-		restrict(target.value, (1 << 1) | common),
-		restrict(row.slots[2].value, (1 << 0) | common),
-	];
-	puzzle.clues = clues;
-
-	target.discard(target.value);
-	for (const clue of clues)
-		assert(clue.display.classList.contains("contradiction"),
-		       "found tile was not retained as a background fact");
+		assert(!clue.display.classList.contains("contradiction"),
+		       "a multi-clue explanation was highlighted");
+	assert(puzzle.pendingProof && !puzzle.explainButton.disabled,
+	       "the detailed proof was not offered without highlighted clues");
 });
 
 Deno.test("proof traces prune deductions unrelated to the mistake", function() {
@@ -1406,11 +1337,11 @@ Deno.test("7998093c gives a coherent clue set for discarding III", function() {
 	puzzle.explainLoss();
 	assert(puzzle.explainButton.classList.contains("active"),
 	       "opening the proof did not press the Why control");
-	assert(puzzle.proof && puzzle.proof.blamedClues.length > 1,
-	       "blame collapsed to the unrelated 6die-VI-5 clue");
+	assert(puzzle.proof && puzzle.proof.blamedClues.length == 0,
+	       "a complex clue set was highlighted before the proof");
 	assert(puzzle.proof.steps.some(step => step.clues.some(clue =>
 	       !clue.display.classList.contains("contradiction"))),
-	       "the proof was limited to the blamed clue set");
+	       "the proof did not introduce its own supporting clues");
 	assert(puzzle.proof.steps.length >= 10,
 	       "the proof skipped over its causal deductions");
 	const aEdge = puzzle.proof.steps.findIndex(step =>
