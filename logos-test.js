@@ -33,8 +33,8 @@ class FakeElement {
 	appendChild(child) {
 		this.children.push(child);
 	}
-	replaceChildren() {
-		this.children = [];
+	replaceChildren(...children) {
+		this.children = children;
 	}
 
 	addEventListener(type, listener) {
@@ -69,6 +69,7 @@ class FakeElement {
 globalThis.document = {
 	addEventListener() {},
 	createElement() { return new FakeElement(); },
+	createTextNode(text) { return { textContent: text }; },
 	querySelector(selector) { return this.body.querySelector(selector); },
 	body: new FakeElement(),
 };
@@ -108,6 +109,9 @@ const Logos = eval(source +
 	"\n;({ Puzzle: Puzzle, ExactClue: ExactClue, " +
 	"Adjacent2Clue: Adjacent2Clue, " +
 	"ColumnClue: ColumnClue, " +
+	"orderDeductionMessage: orderDeductionMessage, " +
+	"proofMessageText: proofMessageText, " +
+	"nextForcedProofStep: nextForcedProofStep, " +
 	"formatOlympiad: formatOlympiad, greekNumeralDay: greekNumeralDay });");
 const Puzzle = Logos.Puzzle;
 const ExactClue = Logos.ExactClue;
@@ -259,6 +263,8 @@ Deno.test("a false placement loses the game", function() {
 
 	slot.choose(wrong);
 	assert(puzzle.losses == 1, "false placement did not cause a loss");
+	assert(slot.possibleElem.className == "solution" && !puzzle.proof,
+	       "a loss did not reveal the solution before opening a proof");
 	assert(slot.possibilityElems[wrong].classList.contains("failed-action"),
 	       "false placement did not mark the chosen tile");
 });
@@ -810,6 +816,126 @@ Deno.test("all clues essential to a contradiction are highlighted", function() {
 		       "essential clue was not highlighted");
 });
 
+Deno.test("contradictions highlight a minimal set of clues", function() {
+	const puzzle = makePuzzle(1);
+	const slot = puzzle.rows[0].slots[0];
+	const makeClue = function(allowed) {
+		return {
+			display: new FakeElement(),
+			constrain(domains) {
+				const old = domains[0][slot.value];
+				domains[0][slot.value] &= allowed;
+				return old != domains[0][slot.value];
+			},
+		};
+	};
+	/*
+	 * The first pruning order finds the three-clue core at the end;
+	 * another order can find one of the two-clue cores involving the
+	 * first two clues.
+	 */
+	const clues = [
+		makeClue(1 << 1),
+		makeClue(1 << 2),
+		makeClue((1 << 1) | (1 << 2)),
+		makeClue((1 << 2) | (1 << 3)),
+		makeClue((1 << 1) | (1 << 3)),
+	];
+	puzzle.clues = clues;
+
+	slot.discard(slot.value);
+	const blamed = clues.filter(function(clue) {
+		return clue.display.classList.contains("contradiction");
+	});
+	assert(blamed.length == 2,
+	       "blame did not shrink to a minimal contradiction");
+});
+
+Deno.test("found tiles are assumptions when blaming clues", function() {
+	const puzzle = makePuzzle(1);
+	const row = puzzle.rows[0];
+	const found = row.slots[0];
+	const target = row.slots[1];
+	const common = 1 << 2;
+	found.choose(found.value);
+
+	const restrict = function(value, allowed) {
+		return {
+			display: new FakeElement(),
+			constrain(domains) {
+				const old = domains[0][value];
+				domains[0][value] &= allowed;
+				return old != domains[0][value];
+			},
+		};
+	};
+	const clues = [
+		restrict(target.value, (1 << 1) | common),
+		restrict(row.slots[2].value, (1 << 0) | common),
+	];
+	puzzle.clues = clues;
+
+	target.discard(target.value);
+	for (const clue of clues)
+		assert(clue.display.classList.contains("contradiction"),
+		       "found tile was not retained as a background fact");
+});
+
+Deno.test("proof traces prune deductions unrelated to the mistake", function() {
+	const puzzle = makePuzzle(2);
+	const failed = puzzle.rows[1].slots[0];
+	const noise = new ExactClue(puzzle);
+	noise.row = puzzle.rows[0];
+	noise.slot = noise.row.slots[0];
+	noise.display = new FakeElement();
+	const relevant = new ExactClue(puzzle);
+	relevant.row = failed.row;
+	relevant.slot = failed;
+	relevant.display = new FakeElement();
+	puzzle.clues = [noise, relevant];
+	puzzle.startProof([relevant], failed, failed.value);
+
+	assert(puzzle.proof.steps.every(step =>
+	       !step.clues.length || step.clues[0] == relevant),
+	       "the proof retained an unrelated clue deduction");
+	const deducedTile = failed.row.slots[1].possibilityElems[failed.value];
+	assert(deducedTile.className.includes("proof-impossible"),
+	       "the first proof deduction was not displayed");
+	puzzle.moveProof(-1);
+	assert(!deducedTile.className.includes("proof-impossible"),
+	       "moving backward did not restore the board");
+	puzzle.moveProof(1);
+	assert(deducedTile.className.includes("proof-impossible"),
+	       "moving forward did not restore the deduction");
+	assert(!failed.single,
+	       "a proof deduction was promoted to a placed tile");
+});
+
+Deno.test("inner ordering deductions name the obstructing tile", function() {
+	const puzzle = makePuzzle(2);
+	const clue = {
+		lRow: puzzle.rows[0],
+		lCol: 0,
+		rRow: puzzle.rows[1],
+		rCol: 0,
+	};
+	clue.lRow.slots[0].value = 0;
+	clue.rRow.slots[0].value = 1;
+	const step = { clue, row: 1, symbol: 1 };
+	const full = (1 << 6) - 1;
+	assert(Logos.proofMessageText(puzzle,
+	       Logos.orderDeductionMessage(puzzle, step, full,
+	       full & ~(1 << 3))) ==
+	       "1 cannot be in the fourth position because 0 cannot be to its left.",
+	       "an inner ordering deduction did not name the other tile");
+	assert(Logos.proofMessageText(puzzle,
+	       Logos.orderDeductionMessage(puzzle, step, full,
+	       full & ~1)) ==
+	       "1 cannot be in the first position because it is to the right " +
+	       "of another tile.",
+	       "an edge ordering deduction needlessly named the other tile");
+});
+
 Deno.test("a direct clue is preferred to global clue blame", function() {
 	const puzzle = makePuzzle(2);
 	const top = puzzle.rows[0].slots[0];
@@ -1190,4 +1316,216 @@ Deno.test("correct mixed play never causes an automatic loss", function() {
 			       "correct play caused a loss with seed " + seed);
 		});
 	}
+});
+
+Deno.test("7998093c gives a coherent clue set for discarding III", function() {
+	const puzzle = makePuzzle(6);
+	puzzle.say = function() {};
+	puzzle.newGame("7998093c");
+	for (const row of puzzle.rows)
+		for (const slot of row.slots)
+			assert(!slot.single, "seed unexpectedly began with a found tile");
+	const target = puzzle.rows[2].slots[5];
+	target.discard(2);
+	assert(!puzzle.proof && puzzle.pendingProof &&
+	       !puzzle.explainButton.disabled && !puzzle.scoresButton.hidden &&
+	       target.possibleElem.className == "solution",
+	       "the proof opened before it was requested");
+	puzzle.explainLoss();
+	assert(puzzle.explainButton.classList.contains("active"),
+	       "opening the proof did not press the Why control");
+	assert(puzzle.proof && puzzle.proof.blamedClues.length > 1,
+	       "blame collapsed to the unrelated 6die-VI-5 clue");
+	assert(puzzle.proof.steps.some(step => step.clues.some(clue =>
+	       !clue.display.classList.contains("contradiction"))),
+	       "the proof was limited to the blamed clue set");
+	assert(puzzle.proof.steps.length >= 10,
+	       "the proof skipped over its causal deductions");
+	const aEdge = puzzle.proof.steps.findIndex(step =>
+		step.row == 1 && step.symbol == 0 && step.removed & (1 << 5));
+	const aFourth = puzzle.proof.steps.findIndex(step =>
+		step.row == 1 && step.symbol == 0 && step.removed & (1 << 3));
+	const triangleFifth = puzzle.proof.steps.findIndex(step =>
+		step.row == 4 && step.symbol == 0 && step.removed & (1 << 4));
+	assert(aFourth >= 0 && aEdge == aFourth + 1 &&
+	       triangleFifth == aEdge + 1,
+	       "the proof did not group the related A deductions");
+	assert(puzzle.proof.steps[aFourth].message.includes("two positions away") &&
+	       puzzle.proof.steps[aEdge].message.includes("between two clues") &&
+	       puzzle.proof.steps[triangleFifth].message.includes("cannot be adjacent"),
+	       "the proof did not explain its three-tile deductions");
+	const romanTwoSixth = puzzle.proof.steps.find(step =>
+		step.row == 2 && step.symbol == 1 && step.removed & (1 << 5));
+	assert(romanTwoSixth && romanTwoSixth.message.includes("not adjacent"),
+	       "the proof did not explain its strict-adjacency deduction");
+	const romanFiveSixth = puzzle.proof.steps.find(step =>
+		step.row == 2 && step.symbol == 4 && step.removed & (1 << 5));
+	assert(romanFiveSixth &&
+	       romanFiveSixth.message.includes("to the left of another tile"),
+	       "the proof did not explain its ordering deduction");
+	assert(!puzzle.proof.steps.some(step =>
+	       !step.conclusion && step.row == 2 && step.symbol == 2),
+	       "the proof continued after III was the only sixth-position tile");
+	assert(Logos.proofMessageText(puzzle,
+	       puzzle.proof.steps[puzzle.proof.steps.length - 1].message) ==
+	       "Only 2 can occupy the sixth position, so it must be placed.",
+	       "the proof did not state its conclusion");
+	let previous = puzzle.proof.base;
+	for (const step of puzzle.proof.steps) {
+		const changed = [];
+		for (let row = 0; row < step.domains.length; row++)
+			for (let symbol = 0; symbol < step.domains[row].length;
+			     symbol++)
+				if (step.domains[row][symbol] != previous[row][symbol])
+					changed.push([row, symbol]);
+		if (step.conclusion) {
+			assert(changed.length == 0 ||
+			       changed.length == 1 && changed[0][0] == step.row &&
+			       changed[0][1] == step.symbol,
+			       "the conclusion silently changed another tile");
+			previous = step.domains;
+			continue;
+		}
+		assert(changed.length == 1 &&
+		       changed[0][0] == step.row && changed[0][1] == step.symbol,
+		       "a proof step silently changed another tile");
+		const removed = previous[step.row][step.symbol] & ~step.domain;
+		const edges = 1 | (1 << (step.domains[step.row].length - 1));
+		assert(removed == edges || (removed & (removed - 1)) == 0 ||
+		       step.domain && !(step.domain & (step.domain - 1)),
+		       "a proof step skipped over individual eliminations");
+		previous = step.domains;
+	}
+	while (puzzle.proof.position < puzzle.proof.steps.length - 1)
+		puzzle.moveProof(1);
+	const lettersBefore = puzzle.rows[1].slots.map(slot =>
+		slot.possibilityElems.map(elem => elem.className));
+	puzzle.moveProof(1);
+	const lettersAfter = puzzle.rows[1].slots.map(slot =>
+		slot.possibilityElems.map(elem => elem.className));
+	assert(puzzle.proofControls.querySelector(".proof-position").textContent ==
+	       "Conclusion" &&
+	       puzzle.proofControls.querySelector(".proof-deduction").textContent
+	       .endsWith(" Q.E.D."),
+	       "the final proof step was not presented as a conclusion");
+	assert(JSON.stringify(lettersBefore) == JSON.stringify(lettersAfter),
+	       "the concluding deduction unexpectedly changed the letter row");
+	assert(!target.single && !target.singleElem.hidden &&
+	       target.possibleElem.hidden,
+	       "the proof did not place its forced conclusion");
+	assert(target.singleElem.classList.contains("failed-action"),
+	       "the proof lost track of the failed action");
+	puzzle.explainLoss();
+	assert(!puzzle.proof && puzzle.pendingProof &&
+	       !puzzle.explainButton.classList.contains("active") &&
+	       target.possibleElem.className == "solution" &&
+	       target.possibilityElems[2].className.includes("failed-action"),
+	       "closing the proof did not restore the revealed solution");
+	puzzle.stopTimer();
+});
+
+Deno.test("860f9efd gives a direct proof against placing die one", function() {
+	const puzzle = makePuzzle(6);
+	puzzle.say = function() {};
+	puzzle.newGame("860f9efd");
+	const target = puzzle.rows[3].slots[2];
+	target.choose(0);
+	assert(!puzzle.proof && puzzle.pendingProof,
+	       "the direct proof opened before it was requested");
+	puzzle.explainLoss();
+	assert(puzzle.proof.steps.length == 1,
+	       "the direct contradiction retained unrelated deductions");
+	assert(puzzle.proof.steps[0].conclusion &&
+	       puzzle.proof.steps[0].message.includes("neither"),
+	       "the direct contradiction was restated instead of explained");
+	puzzle.stopTimer();
+});
+
+Deno.test("a column clue presents a forced placement as one proof step", function() {
+	const puzzle = makePuzzle(6);
+	puzzle.say = function() {};
+	puzzle.newGame("8f5e3c76");
+	const xSlot = puzzle.rows[5].slots[5];
+	xSlot.choose(3);
+	const target = puzzle.rows[5].slots[4];
+	target.discard(0);
+	puzzle.explainLoss();
+	const diamondSteps = puzzle.proof.steps.filter(step =>
+		step.row == 4 && step.symbol == 3);
+	assert(diamondSteps.length == 1 && diamondSteps[0].domain == 1 << 5 &&
+	       Logos.proofMessageText(puzzle, diamondSteps[0].message) ==
+	       "3 must be in the sixth position.",
+	       "the column clue split a forced placement into eliminations");
+	for (let symbol = 0; symbol < 6; symbol++)
+		assert(symbol == 3 || !(diamondSteps[0].domains[4][symbol] & 1 << 5),
+		       "the proof placement left another tile in its column");
+	const diamondIndex = puzzle.proof.steps.indexOf(diamondSteps[0]);
+	const diamondSlot = puzzle.rows[4].slots[5];
+	puzzle.proof.position = diamondIndex + 1;
+	puzzle.showProofPosition();
+	assert(!diamondSlot.singleElem.hidden && diamondSlot.possibleElem.hidden,
+	       "the proof rendered a forced placement as a small tile");
+	puzzle.proof.position = diamondIndex;
+	puzzle.showProofPosition();
+	assert(diamondSlot.singleElem.hidden && !diamondSlot.possibleElem.hidden,
+	       "moving backward did not undo the proof placement");
+	const minusFourth = puzzle.proof.steps.find(step =>
+		step.row == 5 && step.symbol == 1 && step.removed & 1 << 3);
+	assert(minusFourth && Logos.proofMessageText(puzzle,
+	       minusFourth.message).includes("2 cannot be adjacent"),
+	       "the proof blamed both sides when Roman III alone could not fit");
+	const columnDiscard = puzzle.proof.steps.find(step =>
+		step.clue && step.clue.constructor == ColumnClue &&
+		step.removed && !(step.removed & (step.removed - 1)) &&
+		step.domain & (step.domain - 1));
+	assert(columnDiscard && / because .+ is not\.$/.test(
+	       Logos.proofMessageText(puzzle, columnDiscard.message)),
+	       "a vertical-clue elimination did not name the other tile");
+	puzzle.stopTimer();
+});
+
+Deno.test("a row's only candidate is one proof placement", function() {
+	const puzzle = makePuzzle(6);
+	puzzle.say = function() {};
+	puzzle.newGame("b7a26fba");
+	const target = puzzle.rows[4].slots[2];
+	target.choose(3);
+	puzzle.explainLoss();
+	const placement = puzzle.proof.steps.find(step =>
+		step.rule == "only-candidate" && step.row == 2 && step.symbol == 4);
+	assert(placement && placement.domain == 1 &&
+	       placement.removed & (placement.removed - 1) &&
+	       Logos.proofMessageText(puzzle, placement.message) ==
+	       "Only 4 can occupy the first position, so it must be placed.",
+	       "the only-candidate rule split a placement into eliminations");
+	const placementIndex = puzzle.proof.steps.indexOf(placement);
+	const romanTwo = puzzle.proof.steps.find(step =>
+		step.rule == "only-candidate" && step.row == 2 && step.symbol == 1 &&
+		step.domain == 1 << 5);
+	assert(romanTwo && puzzle.proof.steps.indexOf(romanTwo) == placementIndex + 1,
+	       "a placement newly forced by another placement was separated from it");
+	for (let i = 0; i < puzzle.proof.steps.length; i++) {
+		const step = puzzle.proof.steps[i];
+		const forced = Logos.nextForcedProofStep(
+			step.domains, step.placements);
+		if (!forced)
+			continue;
+		const next = puzzle.proof.steps[i + 1];
+		assert(next && next.rule == forced.rule &&
+		       next.row == forced.row && next.symbol == forced.symbol,
+		       "the replay postponed an available forced placement");
+	}
+	const dieThree = puzzle.proof.steps.find(step =>
+		step.clue && step.clue.constructor == ColumnClue &&
+		step.row == 3 && step.symbol == 2);
+	assert(dieThree && dieThree.placement && dieThree.domain == 1 << 3 &&
+	       Logos.proofMessageText(puzzle, dieThree.message) ==
+	       "2 must be in the fourth position.",
+	       "a reordered vertical clue replayed its stale partial deduction");
+	puzzle.proof.position = placementIndex + 1;
+	puzzle.showProofPosition();
+	const romanFiveSlot = puzzle.rows[2].slots[0];
+	assert(!romanFiveSlot.singleElem.hidden && romanFiveSlot.possibleElem.hidden,
+	       "the only-candidate rule did not render a large tile");
+	puzzle.stopTimer();
 });

@@ -48,6 +48,22 @@
 				<input id="scores-button" type="button"
 				       onClick="puzzle.toggleScores()" value="Pantheon"
 				       aria-expanded="false" aria-controls="scores-menu">
+				<input id="explain-button" type="button"
+				       onClick="puzzle.explainLoss()" value="∵" disabled
+				       title="Explain this mistake"
+				       aria-label="Explain this mistake" aria-pressed="false">
+			</div>
+			<div id="proof-controls" hidden aria-live="polite">
+				<button class="proof-previous" type="button"
+				        onClick="puzzle.moveProof(-1)"
+				        aria-label="Previous deduction">←</button>
+				<div class="proof-step">
+					<div class="proof-position"></div>
+					<div class="proof-deduction"></div>
+				</div>
+				<button class="proof-next" type="button"
+				        onClick="puzzle.moveProof(1)"
+				        aria-label="Next deduction">→</button>
 			</div>
 			<div id="scores-menu" class="modal" hidden role="dialog"
 			     aria-modal="true" aria-labelledby="scores-title">

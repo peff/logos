@@ -266,7 +266,88 @@ body[data-placement-animation="skid"] .board .single.placing {
 	grid-area: controls;
 	position: relative;
 	margin: 0;
+	min-width: 0;
 	width: 100%;
+}
+
+#proof-controls {
+	box-sizing: border-box;
+	align-items: stretch;
+	width: 18rem;
+	height: 3.7rem;
+	margin: 0.22rem auto 0;
+}
+
+#proof-controls {
+	display: grid;
+	grid-template-columns: 2rem 1fr 2rem;
+	gap: 0.18rem;
+}
+
+#proof-controls[hidden] {
+	display: none;
+}
+
+#proof-controls button {
+	border: 1px solid #8f826e;
+	border-radius: 0.18rem;
+	background: #d7cbb5;
+	color: #4b4033;
+	font: 1.4rem/1 Forum, Georgia, serif;
+	cursor: var(--action-cursor);
+}
+
+#proof-controls button:disabled {
+	opacity: 0.3;
+	cursor: default;
+}
+
+.proof-step {
+	box-sizing: border-box;
+	min-width: 0;
+	border: 1px solid #9d8c72;
+	border-radius: 0.18rem;
+	background: rgb(244 240 229 / 78%);
+	padding: 0.28rem 0.38rem;
+	text-align: center;
+}
+
+.proof-position {
+	color: #74191d;
+	font: 600 0.62rem/1 Forum, Georgia, serif;
+	letter-spacing: 0.05em;
+}
+
+.proof-deduction {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	height: 2.25rem;
+	font: 0.63rem/1.15 Georgia, "Times New Roman", serif;
+}
+
+.proof-message {
+	max-width: 100%;
+}
+
+.proof-tile {
+	box-sizing: border-box;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 0.78rem;
+	height: 0.78rem;
+	margin: 0 0.04rem;
+	border: 1px solid var(--tile-accent);
+	border-radius: 0.08rem;
+	background-color: var(--tile-bg);
+	color: var(--tile-fg);
+	vertical-align: 0.08rem;
+	font: 0.56rem/1 "Logos Tiles";
+}
+
+body.proof-active #logo {
+	display: none;
 }
 
 .control-buttons > input,
@@ -357,8 +438,24 @@ body[data-placement-animation="skid"] .board .single.placing {
 }
 
 .control-buttons > input {
-	padding: 0.28rem 0.45rem;
+	padding: 0.28rem 0.38rem;
 	font-size: 0.78rem;
+}
+
+#explain-button:disabled {
+	opacity: 0.35;
+	cursor: default;
+}
+
+#explain-button.active {
+	background-color: #cbbda5;
+	background-image:
+		linear-gradient(to bottom,
+			rgb(165 149 124 / 67%), rgb(224 215 198 / 70%)),
+		url("stone-texture.png");
+	box-shadow:
+		inset 0 0.05rem 0.12rem rgb(73 62 47 / 38%),
+		inset 0 -0.04rem 0 rgb(255 255 255 / 25%);
 }
 
 #board-actions {
@@ -1293,8 +1390,27 @@ button.score-entry:focus-visible {
 	background-color: #74191d;
 }
 
-#hclues.solution .clue:not(.contradiction):not(.clue-hidden) > *,
-#vclues.solution .clue:not(.contradiction):not(.clue-hidden) > * {
+#hclues .clue.proof-clue,
+#vclues .clue.proof-clue {
+	background-color: #4c2022;
+	opacity: 0.45;
+	cursor: default;
+	transition: background-color 140ms ease, box-shadow 140ms ease,
+		opacity 140ms ease;
+}
+
+#hclues .clue.proof-ready,
+#vclues .clue.proof-ready {
+	background-color: #74191d;
+	opacity: 1;
+	cursor: default;
+	box-shadow:
+		inset 0 0 0 2px #e2b27d,
+		0 0 0.35rem rgb(226 178 125 / 75%);
+}
+
+#hclues.solution .clue:not(.contradiction):not(.proof-ready):not(.clue-hidden) > *,
+#vclues.solution .clue:not(.contradiction):not(.proof-ready):not(.clue-hidden) > * {
 	opacity: 0.5;
 }
 
@@ -1409,6 +1525,7 @@ button.score-entry:focus-visible {
 .board :is(.single, .possibility),
 #hclues .tile,
 #vclues .tile,
+.proof-tile,
 .help-tile,
 .slot-tray-symbol {
 	background-image:
@@ -1486,13 +1603,15 @@ button.score-entry:focus-visible {
 	opacity: 0.2;
 }
 
-#board .solution .possibility.failed-action {
+#board :is(.solution, .proof) .possibility.failed-action,
+#board .single.failed-action {
 	opacity: 1;
 	position: relative;
 	z-index: 1;
 }
 
-#board .solution .possibility.failed-action::after {
+#board :is(.solution, .proof) .possibility.failed-action::after,
+#board .single.failed-action::after {
 	content: "";
 	position: absolute;
 	inset: -1px;
@@ -1500,6 +1619,16 @@ button.score-entry:focus-visible {
 	background-color: rgb(115 123 122 / 80%);
 	box-shadow: inset 0 0 0 2px #d4777f;
 	pointer-events: none;
+}
+
+#board .proof .possibility {
+	cursor: default;
+	transition: opacity 180ms ease, visibility 0s linear 180ms;
+}
+
+#board .proof .possibility.proof-impossible {
+	opacity: 0;
+	visibility: hidden;
 }
 
 .arrow {
@@ -1588,6 +1717,7 @@ body[data-stone-effects="false"] :is(
 	.board :is(.single, .possibility),
 	#hclues .tile,
 	#vclues .tile,
+	.proof-tile,
 	.help-tile,
 	.slot-tray-symbol) {
 	background-image:

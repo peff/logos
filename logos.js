@@ -215,6 +215,11 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	];
 	this.showMilestones = true;
 	this.pencilMarks = [];
+	this.proof = null;
+	this.pendingProof = null;
+	this.explainButton = document.querySelector("#explain-button");
+	this.explainButton.disabled = true;
+	this.proofControls = document.querySelector("#proof-controls");
 	this.rows = [];
 	this.clues = [];
 	this.hClueSlots = [];
@@ -240,6 +245,13 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 
 	this.clear = function() {
 		this.gameOver = true;
+		this.proof = null;
+		this.pendingProof = null;
+		this.explainButton.disabled = true;
+		this.explainButton.classList.remove("active");
+		this.explainButton.setAttribute("aria-pressed", "false");
+		this.proofControls.hidden = true;
+		document.body.classList.remove("proof-active");
 		this.nextMilestone = 0;
 		this.closeSlotTray();
 		this.clearPencilMarks();
@@ -262,6 +274,13 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.seed = seed;
 		this.options.querySelector("#game-seed").value = formatSeed(seed);
 		this.gameOver = true;
+		this.proof = null;
+		this.pendingProof = null;
+		this.explainButton.disabled = true;
+		this.explainButton.classList.remove("active");
+		this.explainButton.setAttribute("aria-pressed", "false");
+		this.proofControls.hidden = true;
+		document.body.classList.remove("proof-active");
 		/* A seed may be started from the paused Options modal. */
 		this.paused = false;
 		this.resumeAfterModal = false;
@@ -345,11 +364,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.timer.classList.add("lost");
 		this.messages.classList.add("lost");
 		this.closeSlotTray();
-		this.revealSolution();
-		if (failedSlot) {
-			failedSlot.possibilityElems[failedValue].classList.add(
-				"failed-action");
-		}
 		if (clues && clues.length) {
 			this.hClues.classList.add("solution");
 			this.vClues.classList.add("solution");
@@ -359,7 +373,148 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 				clues[i].display.classList.add("contradiction");
 			}
 		}
+		this.revealSolution();
+		if (failedSlot && clues && clues.length) {
+			this.pendingProof = {
+				clues: clues,
+				failedSlot: failedSlot,
+				failedValue: failedValue,
+			};
+			this.explainButton.disabled = false;
+		}
+		if (failedSlot)
+			failedSlot.possibilityElems[failedValue].classList.add(
+				"failed-action");
 		this.say(msg);
+	}
+
+	this.renderProofDomains = function(domains, placements) {
+		for (var row = 0; row < this.rows.length; row++) {
+			for (var col = 0; col < this.rows[row].slots.length; col++) {
+				var slot = this.rows[row].slots[col];
+				if (slot.single)
+					continue;
+				slot.displayProof(domains[row], col, placements[row]);
+			}
+		}
+	}
+
+	this.startProof = function(clues, failedSlot, failedValue) {
+		var base = domainsFromSlots(this);
+		var basePlacements = proofPlacementsFromSlots(this);
+		var steps = buildProofSteps(this, base, basePlacements,
+			failedSlot, failedValue);
+		if (!steps.length)
+			return;
+		var proofClues = clues.slice();
+		for (var i = 0; i < steps.length; i++) {
+			for (var j = 0; j < steps[i].clues.length; j++) {
+				var clue = steps[i].clues[j];
+				if (proofClues.indexOf(clue) < 0)
+					proofClues.push(clue);
+			}
+		}
+		this.proof = {
+			blamedClues: clues,
+			clues: proofClues,
+			steps: steps,
+			base: base,
+			basePlacements: basePlacements,
+			position: 1,
+			failedSlot: failedSlot,
+			failedValue: failedValue,
+		};
+		for (var i = 0; i < proofClues.length; i++)
+			proofClues[i].display.classList.add("proof-clue");
+		this.proofControls.hidden = false;
+		document.body.classList.add("proof-active");
+		this.explainButton.disabled = false;
+		this.explainButton.classList.add("active");
+		this.explainButton.setAttribute("aria-pressed", "true");
+		this.showProofPosition();
+	}
+
+	this.explainLoss = function() {
+		if (this.proof) {
+			this.closeProof();
+			return;
+		}
+		if (!this.pendingProof)
+			return;
+		var request = this.pendingProof;
+		this.pendingProof = null;
+		this.startProof(request.clues, request.failedSlot,
+			request.failedValue);
+	}
+
+	this.closeProof = function() {
+		if (!this.proof)
+			return;
+		var proof = this.proof;
+		for (var i = 0; i < proof.clues.length; i++)
+			proof.clues[i].display.classList.remove(
+				"proof-clue", "proof-ready");
+		this.pendingProof = {
+			clues: proof.blamedClues,
+			failedSlot: proof.failedSlot,
+			failedValue: proof.failedValue,
+		};
+		this.proof = null;
+		this.proofControls.hidden = true;
+		document.body.classList.remove("proof-active");
+		this.explainButton.classList.remove("active");
+		this.explainButton.setAttribute("aria-pressed", "false");
+		this.revealSolution();
+		proof.failedSlot.possibilityElems[proof.failedValue].classList.add(
+			"failed-action");
+	}
+
+	this.showProofPosition = function() {
+		if (!this.proof)
+			return;
+		for (var i = 0; i < this.proof.clues.length; i++)
+			this.proof.clues[i].display.classList.remove("proof-ready");
+
+		var position = this.proof.position;
+		var positionElem = this.proofControls.querySelector(
+			".proof-position");
+		var deductionElem = this.proofControls.querySelector(
+			".proof-deduction");
+		if (position == 0) {
+			this.renderProofDomains(this.proof.base,
+				this.proof.basePlacements);
+			positionElem.textContent = "Before the proof";
+			deductionElem.textContent =
+				"The board as it stood before the mistake.";
+		} else {
+			var step = this.proof.steps[position - 1];
+			this.renderProofDomains(step.domains, step.placements);
+			if (step.conclusion) {
+				positionElem.textContent = "Conclusion";
+			} else {
+				positionElem.textContent = "Step " + position + " of " +
+					this.proof.steps.length;
+			}
+			renderProofMessage(this, deductionElem, step.message,
+				step.conclusion);
+			for (var i = 0; i < step.clues.length; i++)
+				step.clues[i].display.classList.add("proof-ready");
+		}
+		this.proofControls.querySelector(".proof-previous").disabled =
+			position == 0;
+		this.proofControls.querySelector(".proof-next").disabled =
+			position == this.proof.steps.length;
+	}
+
+	this.moveProof = function(direction) {
+		if (!this.proof)
+			return;
+		var position = this.proof.position + direction;
+		if (position < 0 || position > this.proof.steps.length)
+			return;
+		this.proof.position = position;
+		this.playSound("clue");
+		this.showProofPosition();
 	}
 
 	this.clearPencilMarks = function() {
@@ -618,8 +773,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.findContradictingClues = function(slot, value, discard) {
-		var rowSize = this.rows[0].slots.length;
-		var fullDomain = (1 << rowSize) - 1;
 		var domains = domainsFromSlots(this);
 		applyMove(domains, slot, value, discard, this.rows);
 
@@ -631,29 +784,36 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 							       copyDomains(domains)))
 					direct.push(clue);
 			}
-			if (direct.length)
+			if (direct.length) {
 				return direct;
+			}
 		}
 
-		domains = [];
-		for (var i = 0; i < this.rows.length; i++)
-			domains[i] = Array(rowSize).fill(fullDomain);
-		applyMove(domains, slot, value, discard, this.rows);
-
-		if (cluesHaveSolution(this, this.clues, copyDomains(domains)))
-			return [];
-
-		var contradicting = [];
+		var displayed = [];
+		var fixed = [];
 		for (var i = 0; i < this.clues.length; i++) {
 			var clue = this.clues[i];
-			if (!clue.display)
-				continue;
-			var without = this.clues.slice();
-			without.splice(i, 1);
-			if (cluesHaveSolution(this, without, copyDomains(domains)))
-				contradicting.push(clue);
+			if (clue.display)
+				displayed.push(clue);
+			else
+				fixed.push(clue);
 		}
-		return contradicting;
+
+		var assumptions = [
+			domainsFromFoundSlots(this),
+			domainsFromSlots(this),
+			unconstrainedDomains(this),
+		];
+		for (var i = 0; i < assumptions.length; i++) {
+			domains = assumptions[i];
+			applyMove(domains, slot, value, discard, this.rows);
+			var background = i < 2 ? [] : fixed;
+			var core = minimalContradictingClues(this, displayed,
+				background, domains, slot, value);
+			if (core !== null)
+				return core;
+		}
+		return [];
 	}
 
 	this.revealSolution = function() {
@@ -1403,6 +1563,39 @@ function domainsFromSlots(puzzle) {
 	return domains;
 }
 
+function proofPlacementsFromSlots(puzzle) {
+	var placements = Array(puzzle.rows.length).fill(0);
+	for (var row = 0; row < puzzle.rows.length; row++)
+		for (var col = 0; col < puzzle.rows[row].slots.length; col++) {
+			var slot = puzzle.rows[row].slots[col];
+			if (slot.single)
+				placements[row] |= 1 << slot.value;
+		}
+	return placements;
+}
+
+function unconstrainedDomains(puzzle) {
+	var rowSize = puzzle.rows[0].slots.length;
+	var fullDomain = (1 << rowSize) - 1;
+	var domains = [];
+	for (var row = 0; row < puzzle.rows.length; row++)
+		domains[row] = Array(rowSize).fill(fullDomain);
+	return domains;
+}
+
+function domainsFromFoundSlots(puzzle) {
+	var domains = unconstrainedDomains(puzzle);
+	for (var row = 0; row < puzzle.rows.length; row++) {
+		for (var col = 0; col < puzzle.rows[row].slots.length; col++) {
+			var slot = puzzle.rows[row].slots[col];
+			if (slot.single)
+				applyMove(domains, slot, slot.value, false,
+					  puzzle.rows);
+		}
+	}
+	return domains;
+}
+
 function domainsFromRow(row) {
 	var rowSize = row.slots.length;
 	var domains = Array(rowSize).fill(0);
@@ -1606,6 +1799,756 @@ function cluesHaveSolution(puzzle, clues, domains) {
 	return false;
 }
 
+function countBits(bits) {
+	var count = 0;
+	for (; bits; bits &= bits - 1)
+		count++;
+	return count;
+}
+
+function proofSymbolReference(puzzle, row, symbol) {
+	return "\ue000" + row + ":" + symbol + "\ue001";
+}
+
+function proofMessageText(puzzle, message) {
+	return message.replace(/\ue000(\d+):(\d+)\ue001/g,
+		function(match, row, symbol) {
+			return puzzle.rows[row].slots[0].symbols[symbol];
+		});
+}
+
+function renderProofMessage(puzzle, elem, message, qed) {
+	var suffix = qed ? " Q.E.D." : "";
+	elem.textContent = proofMessageText(puzzle, message) + suffix;
+	var wrapper = document.createElement("span");
+	wrapper.className = "proof-message";
+	var pattern = /\ue000(\d+):(\d+)\ue001/g;
+	var offset = 0;
+	var match;
+	while ((match = pattern.exec(message))) {
+		wrapper.appendChild(document.createTextNode(
+			message.slice(offset, match.index)));
+		var row = Number(match[1]);
+		var symbol = Number(match[2]);
+		var tile = document.createElement("span");
+		tile.className = "proof-tile " + puzzle.rows[row].familyClass;
+		tile.textContent = puzzle.rows[row].slots[0].symbols[symbol];
+		wrapper.appendChild(tile);
+		offset = pattern.lastIndex;
+	}
+	wrapper.appendChild(document.createTextNode(message.slice(offset) + suffix));
+	elem.replaceChildren(wrapper);
+}
+
+function deductionMessage(puzzle, row, symbol, before, after) {
+	var name = proofSymbolReference(puzzle, row, symbol);
+	var removed = before & ~after;
+	var rowSize = puzzle.rows[row].slots.length;
+	var fullDomain = (1 << rowSize) - 1;
+	if (countBits(after) == 1) {
+		var col = 0;
+		while (!(after & (1 << col)))
+			col++;
+		return name + " must be in the " + ordinalName(col) +
+			" position.";
+	}
+	if (removed == ((1 << 0) | (1 << (rowSize - 1))))
+		return name + " cannot be on either edge.";
+	if (countBits(removed) == 1) {
+		var col = 0;
+		while (!(removed & (1 << col)))
+			col++;
+		return name + " cannot be in the " + ordinalName(col) +
+			" position.";
+	}
+	if (after != fullDomain)
+		return "The possible positions for " + name + " are narrowed.";
+	return name + " has fewer possible positions.";
+}
+
+function adjacent3DeductionMessage(puzzle, step, before, after, domains) {
+	var clue = step.clue;
+	var row = step.row;
+	var symbol = step.symbol;
+	var removed = before & ~after;
+	var rowSize = domains[row].length;
+	var middleRow = puzzle.rows.indexOf(clue.mRow);
+	var middleSymbol = clue.mRow.slots[clue.mCol].value;
+	var leftRow = puzzle.rows.indexOf(clue.lRow);
+	var leftSymbol = clue.lRow.slots[clue.lCol].value;
+	var rightRow = puzzle.rows.indexOf(clue.rRow);
+	var rightSymbol = clue.rRow.slots[clue.rCol].value;
+	var name = proofSymbolReference(puzzle, row, symbol);
+	var middleName = proofSymbolReference(puzzle, middleRow, middleSymbol);
+	var leftName = proofSymbolReference(puzzle, leftRow, leftSymbol);
+	var rightName = proofSymbolReference(puzzle, rightRow, rightSymbol);
+	var edges = 1 | (1 << (rowSize - 1));
+
+	if (row == middleRow && symbol == middleSymbol) {
+		if (removed == edges)
+			return name + " cannot be on either edge because it is " +
+				"between two clues.";
+		if (countBits(removed) == 1) {
+			var col = 0;
+			while (!(removed & (1 << col)))
+				col++;
+			if (col == 0 || col == rowSize - 1)
+				return name + " cannot be in the " + ordinalName(col) +
+					" position because it is between two clues.";
+			var low = col > 0 ? 1 << (col - 1) : 0;
+			var high = col + 1 < rowSize ? 1 << (col + 1) : 0;
+			var leftDomain = domains[leftRow][leftSymbol];
+			var rightDomain = domains[rightRow][rightSymbol];
+			var adjacent = low | high;
+			if (!(leftDomain & adjacent))
+				return name + " cannot be in the " + ordinalName(col) +
+					" position because " + leftName +
+					" cannot be adjacent.";
+			if (!(rightDomain & adjacent))
+				return name + " cannot be in the " + ordinalName(col) +
+					" position because " + rightName +
+					" cannot be adjacent.";
+			if (!(leftDomain & low) && !(rightDomain & low))
+				return name + " cannot be in the " + ordinalName(col) +
+					" position because neither " + leftName +
+					" nor " + rightName + " can be in the " +
+					ordinalName(col - 1) + " position.";
+			if (!(leftDomain & high) && !(rightDomain & high))
+				return name + " cannot be in the " + ordinalName(col) +
+					" position because neither " + leftName +
+					" nor " + rightName + " can be in the " +
+					ordinalName(col + 1) + " position.";
+			return name + " cannot be in the " + ordinalName(col) +
+				" position because " + leftName + " and " + rightName +
+				" cannot fit on opposite sides.";
+		}
+	}
+
+	if (countBits(removed) == 1) {
+		var col = 0;
+		while (!(removed & (1 << col)))
+			col++;
+		var otherRow = row == leftRow && symbol == leftSymbol ?
+			rightRow : leftRow;
+		var otherSymbol = row == leftRow && symbol == leftSymbol ?
+			rightSymbol : leftSymbol;
+		var otherName = proofSymbolReference(puzzle, otherRow, otherSymbol);
+		var adjacent = 0;
+		var twoAway = 0;
+		if (col > 0)
+			adjacent |= 1 << (col - 1);
+		if (col + 1 < rowSize)
+			adjacent |= 1 << (col + 1);
+		if (col > 1)
+			twoAway |= 1 << (col - 2);
+		if (col + 2 < rowSize)
+			twoAway |= 1 << (col + 2);
+		if (!(domains[middleRow][middleSymbol] & adjacent))
+			return name + " cannot be in the " + ordinalName(col) +
+				" position because " + middleName +
+				" cannot be adjacent.";
+		if (!(domains[otherRow][otherSymbol] & twoAway))
+			return name + " cannot be in the " + ordinalName(col) +
+				" position because " + otherName +
+				" cannot be two positions away.";
+		return name + " cannot be in the " + ordinalName(col) +
+			" position because " + middleName + " and " + otherName +
+			" cannot fit beside it in either orientation.";
+	}
+	return deductionMessage(puzzle, row, symbol, before, after);
+}
+
+function adjacent2DeductionMessage(puzzle, step, before, after) {
+	var clue = step.clue;
+	var removed = before & ~after;
+	if (countBits(removed) != 1)
+		return deductionMessage(puzzle, step.row, step.symbol,
+			before, after);
+	var leftRow = puzzle.rows.indexOf(clue.lRow);
+	var leftSymbol = clue.lRow.slots[clue.lCol].value;
+	var rightRow = puzzle.rows.indexOf(clue.rRow);
+	var rightSymbol = clue.rRow.slots[clue.rCol].value;
+	var otherRow = step.row == leftRow && step.symbol == leftSymbol ?
+		rightRow : leftRow;
+	var otherSymbol = step.row == leftRow && step.symbol == leftSymbol ?
+		rightSymbol : leftSymbol;
+	var col = 0;
+	while (!(removed & (1 << col)))
+		col++;
+	return proofSymbolReference(puzzle, step.row, step.symbol) +
+		" cannot be in the " + ordinalName(col) +
+		" position because " +
+		proofSymbolReference(puzzle, otherRow, otherSymbol) +
+		" is not adjacent.";
+}
+
+function orderDeductionMessage(puzzle, step, before, after) {
+	var removed = before & ~after;
+	if (countBits(removed) != 1)
+		return deductionMessage(puzzle, step.row, step.symbol,
+			before, after);
+	var col = 0;
+	while (!(removed & (1 << col)))
+		col++;
+	var leftRow = puzzle.rows.indexOf(step.clue.lRow);
+	var leftSymbol = step.clue.lRow.slots[step.clue.lCol].value;
+	var isLeft = step.row == leftRow && step.symbol == leftSymbol;
+	var direction = isLeft ? "left" : "right";
+	var message = proofSymbolReference(puzzle, step.row, step.symbol) +
+		" cannot be in the " + ordinalName(col) + " position because ";
+	if ((isLeft && col == puzzle.rows[step.row].slots.length - 1) ||
+	    (!isLeft && col == 0))
+		return message + "it is to the " + direction +
+			" of another tile.";
+	var otherRow = isLeft ? puzzle.rows.indexOf(step.clue.rRow) : leftRow;
+	var otherSymbol = isLeft ? step.clue.rRow.slots[step.clue.rCol].value :
+		leftSymbol;
+	return message + proofSymbolReference(puzzle, otherRow, otherSymbol) +
+		" cannot be to its " + (isLeft ? "right" : "left") + ".";
+}
+
+function columnDeductionMessage(puzzle, step, before, after) {
+	var removed = before & ~after;
+	if (countBits(removed) != 1)
+		return deductionMessage(puzzle, step.row, step.symbol,
+			before, after);
+	var clue = step.clue;
+	var topRow = puzzle.rows.indexOf(clue.tRow);
+	var topSymbol = clue.tRow.slots[clue.col].value;
+	var otherRow = step.row == topRow && step.symbol == topSymbol ?
+		puzzle.rows.indexOf(clue.bRow) : topRow;
+	var otherSymbol = step.row == topRow && step.symbol == topSymbol ?
+		clue.bRow.slots[clue.col].value : topSymbol;
+	var col = 0;
+	while (!(removed & (1 << col)))
+		col++;
+	return proofSymbolReference(puzzle, step.row, step.symbol) +
+		" cannot be in the " + ordinalName(col) +
+		" position because " +
+		proofSymbolReference(puzzle, otherRow, otherSymbol) + " is not.";
+}
+
+function proofDeductionMessage(puzzle, step, before, after, domains) {
+	if (step.clue && step.clue.mRow)
+		return adjacent3DeductionMessage(puzzle, step, before, after,
+			domains);
+	if (step.clue && step.clue.constructor == Adjacent2Clue)
+		return adjacent2DeductionMessage(puzzle, step, before, after);
+	if (step.clue && step.clue.constructor == OrderClue)
+		return orderDeductionMessage(puzzle, step, before, after);
+	if (step.clue && step.clue.constructor == ColumnClue)
+		return columnDeductionMessage(puzzle, step, before, after);
+	return deductionMessage(puzzle, step.row, step.symbol, before, after);
+}
+
+function forcedProofMessage(puzzle, step) {
+	var name = proofSymbolReference(puzzle, step.row, step.symbol);
+	if (step.rule == "only-position")
+		return name + " has only the " + ordinalName(step.column) +
+			" position remaining, so it must be placed.";
+	return "Only " + name + " can occupy the " +
+		ordinalName(step.column) +
+		" position, so it must be placed.";
+}
+
+function ordinalName(col) {
+	var names = ["first", "second", "third", "fourth", "fifth", "sixth"];
+	return names[col] || String(col + 1);
+}
+
+function proofConcluded(puzzle, domains, failedSlot, failedValue) {
+	var row = puzzle.rows.indexOf(failedSlot.row);
+	var col = failedSlot.row.slots.indexOf(failedSlot);
+	var bit = 1 << col;
+	if (failedSlot.value == failedValue) {
+		if (!(domains[row][failedValue] & bit))
+			return false;
+		for (var symbol = 0; symbol < domains[row].length; symbol++)
+			if (symbol != failedValue && domains[row][symbol] & bit)
+				return false;
+		return true;
+	}
+	return !(domains[row][failedValue] & bit);
+}
+
+function proofStepDomain(before, after, rowSize) {
+	var removed = before & ~after;
+	var edges = 1 | (1 << (rowSize - 1));
+	if (countBits(after) == 1 || removed == edges ||
+	    countBits(removed) <= 1)
+		return after;
+	return before & ~(removed & -removed);
+}
+
+function nextForcedProofStep(domains, placements) {
+	for (var row = 0; row < domains.length; row++) {
+		for (var symbol = 0; symbol < domains[row].length; symbol++) {
+			var domain = domains[row][symbol];
+			if (domain && !(domain & (domain - 1)) &&
+			    !(placements[row] & (1 << symbol))) {
+				var col = 0;
+				while (!(domain & (1 << col)))
+					col++;
+				return {
+					clues: [],
+					rule: "only-position",
+					placement: true,
+					column: col,
+					row: row,
+					symbol: symbol,
+					removed: 0,
+				};
+			}
+		}
+
+		for (var col = 0; col < domains[row].length; col++) {
+			var bit = 1 << col;
+			var candidate = -1;
+			for (var symbol = 0; symbol < domains[row].length; symbol++) {
+				if (!(domains[row][symbol] & bit))
+					continue;
+				if (candidate >= 0) {
+					candidate = -2;
+					break;
+				}
+				candidate = symbol;
+			}
+			if (candidate >= 0 &&
+			    !(placements[row] & (1 << candidate))) {
+				var removed = domains[row][candidate] & ~bit;
+				return {
+					clues: [],
+					rule: "only-candidate",
+					placement: true,
+					column: col,
+					row: row,
+					symbol: candidate,
+					removed: removed,
+				};
+			}
+		}
+	}
+	return null;
+}
+
+function clueProofStep(puzzle, clue, domains) {
+	var fullDomain = (1 << domains[0].length) - 1;
+	var trial = copyDomains(domains);
+	clue.constrain(trial, fullDomain);
+	var variables = [];
+	if (clue.mRow) {
+		variables.push({
+			row: puzzle.rows.indexOf(clue.mRow),
+			symbol: clue.mRow.slots[clue.mCol].value,
+		});
+	}
+	var slots = clueSlots(clue);
+	for (var i = 0; i < slots.length; i++) {
+		var variable = {
+			row: puzzle.rows.indexOf(slots[i].row),
+			symbol: slots[i].value,
+		};
+		if (!variables.some(function(existing) {
+			return existing.row == variable.row &&
+				existing.symbol == variable.symbol;
+		}))
+			variables.push(variable);
+	}
+	for (var i = 0; i < variables.length; i++) {
+		var row = variables[i].row;
+		var symbol = variables[i].symbol;
+		var after = domains[row][symbol] & trial[row][symbol];
+		if (after == domains[row][symbol])
+			continue;
+		after = proofStepDomain(domains[row][symbol], after,
+			domains[row].length);
+		return {
+			clues: clue.display ? [clue] : [],
+			clue: clue,
+			rule: "clue",
+			placement: countBits(after) == 1,
+			row: row,
+			symbol: symbol,
+			removed: domains[row][symbol] & ~after,
+		};
+	}
+	return null;
+}
+
+function nextClueProofStep(puzzle, clues, domains) {
+	for (var i = 0; i < clues.length; i++) {
+		var step = clueProofStep(puzzle, clues[i], domains);
+		if (step)
+			return step;
+	}
+	return null;
+}
+
+function proofStepSupported(puzzle, step, domains, placements) {
+	var row = step.row;
+	var symbol = step.symbol;
+	if (step.rule == "only-position") {
+		var bit = 1 << step.column;
+		return !(placements[row] & (1 << symbol)) &&
+			domains[row][symbol] == bit;
+	}
+	if (step.rule == "only-candidate") {
+		var bit = 1 << step.column;
+		if (placements[row] & (1 << symbol) ||
+		    !(domains[row][symbol] & bit))
+			return false;
+		for (var other = 0; other < domains[row].length; other++)
+			if (other != symbol && domains[row][other] & bit)
+				return false;
+		return true;
+	}
+	var fullDomain = (1 << domains[row].length) - 1;
+	var trial = copyDomains(domains);
+	step.clue.constrain(trial, fullDomain);
+	if (step.clue.mRow) {
+		var middleRow = puzzle.rows.indexOf(step.clue.mRow);
+		var middleSymbol = step.clue.mRow.slots[step.clue.mCol].value;
+		if ((row != middleRow || symbol != middleSymbol) &&
+		    trial[middleRow][middleSymbol] !=
+		    domains[middleRow][middleSymbol])
+			return false;
+	}
+	return trial[row][symbol] != domains[row][symbol];
+}
+
+function refreshProofStep(puzzle, step, domains) {
+	if (!step.clue)
+		return step;
+	var fullDomain = (1 << domains[step.row].length) - 1;
+	var trial = copyDomains(domains);
+	step.clue.constrain(trial, fullDomain);
+	var before = domains[step.row][step.symbol];
+	var after = before & trial[step.row][step.symbol];
+	if (after == before)
+		return null;
+	var anchored = before & ~after & step.removed;
+	if (countBits(after) != 1 && anchored)
+		after = before & ~anchored;
+	else
+		after = proofStepDomain(before, after, domains[step.row].length);
+	var refreshed = Object.assign({}, step);
+	refreshed.removed = before & ~after;
+	refreshed.placement = countBits(after) == 1;
+	return refreshed;
+}
+
+function applyProofStep(domains, placements, step) {
+	var row = step.row;
+	var symbol = step.symbol;
+	domains[row][symbol] &= ~step.removed;
+	if (!step.placement)
+		return;
+	var placed = domains[row][symbol];
+	placements[row] |= 1 << symbol;
+	for (var other = 0; other < domains[row].length; other++)
+		if (other != symbol)
+			domains[row][other] &= ~placed;
+}
+
+function drainForcedProofSteps(domains, placements, output) {
+	var step;
+	while ((step = nextForcedProofStep(domains, placements))) {
+		var before = domains[step.row][step.symbol];
+		applyProofStep(domains, placements, step);
+		if (output)
+			output(step, before);
+	}
+}
+
+function replayProofSteps(puzzle, base, basePlacements, steps,
+			  failedSlot, failedValue) {
+	var current = copyDomains(base);
+	var placements = basePlacements.slice();
+	for (var i = 0; i < steps.length; i++) {
+		if (!proofStepSupported(puzzle, steps[i], current, placements))
+			return null;
+		var step = refreshProofStep(puzzle, steps[i], current);
+		if (!step)
+			return null;
+		applyProofStep(current, placements, step);
+		drainForcedProofSteps(current, placements);
+	}
+	return proofConcluded(puzzle, current, failedSlot, failedValue) ?
+		current : null;
+}
+
+function pruneProofSteps(puzzle, base, basePlacements, steps,
+			 failedSlot, failedValue) {
+	var orders = [steps.slice(), steps.slice().reverse()];
+	var best = steps;
+	for (var pass = 0; pass < orders.length; pass++) {
+		var kept = steps.slice();
+		for (var i = 0; i < orders[pass].length; i++) {
+			var candidate = orders[pass][i];
+			var trial = kept.filter(function(step) {
+				return step != candidate;
+			});
+			if (replayProofSteps(puzzle, base, basePlacements, trial,
+					     failedSlot, failedValue))
+				kept = trial;
+		}
+		if (kept.length < best.length)
+			best = kept;
+	}
+	return best;
+}
+
+function proofStepSubjects(puzzle, step) {
+	var subjects = [step.row + ":" + step.symbol];
+	if (!step.clue)
+		return subjects;
+	var slots = clueSlots(step.clue);
+	for (var i = 0; i < slots.length; i++) {
+		var subject = puzzle.rows.indexOf(slots[i].row) + ":" +
+			slots[i].value;
+		if (subjects.indexOf(subject) < 0)
+			subjects.push(subject);
+	}
+	return subjects;
+}
+
+function orderProofSteps(puzzle, base, basePlacements, steps) {
+	var current = copyDomains(base);
+	var placements = basePlacements.slice();
+	var remaining = steps.slice();
+	var ordered = [];
+	var previousSubjects = [];
+	while (remaining.length) {
+		var best = null;
+		var bestScore = -1;
+		for (var i = 0; i < remaining.length; i++) {
+			var step = remaining[i];
+			if (!proofStepSupported(puzzle, step, current, placements))
+				continue;
+			var subjects = proofStepSubjects(puzzle, step);
+			var score = 0;
+			for (var j = 0; j < subjects.length; j++)
+				if (previousSubjects.indexOf(subjects[j]) >= 0)
+					score++;
+			if (ordered.length && step.row == ordered[ordered.length - 1].row &&
+			    step.symbol == ordered[ordered.length - 1].symbol)
+				score += 10;
+			if (score > bestScore) {
+				best = i;
+				bestScore = score;
+			}
+		}
+		if (best === null)
+			return steps;
+		var step = remaining.splice(best, 1)[0];
+		step = refreshProofStep(puzzle, step, current);
+		if (!step)
+			return steps;
+		applyProofStep(current, placements, step);
+		drainForcedProofSteps(current, placements);
+		ordered.push(step);
+		previousSubjects = proofStepSubjects(puzzle, step);
+	}
+	return ordered;
+}
+
+function proofConclusionMessage(puzzle, failedSlot, failedValue) {
+	var row = puzzle.rows.indexOf(failedSlot.row);
+	var col = failedSlot.row.slots.indexOf(failedSlot);
+	var name = proofSymbolReference(puzzle, row, failedValue);
+	if (failedSlot.value == failedValue)
+		return name + " must be in the " + ordinalName(col) +
+			" position.";
+	return name + " cannot be in the " + ordinalName(col) +
+		" position.";
+}
+
+function buildProofSteps(puzzle, base, basePlacements,
+			 failedSlot, failedValue) {
+	var current = copyDomains(base);
+	var placements = basePlacements.slice();
+	var steps = [];
+	while (true) {
+		var step = nextForcedProofStep(current, placements);
+		if (!step && proofConcluded(puzzle, current,
+					    failedSlot, failedValue))
+			break;
+		if (!step)
+			step = nextClueProofStep(puzzle, puzzle.clues, current);
+		if (!step || steps.length > 500)
+			return [];
+		applyProofStep(current, placements, step);
+		steps.push(step);
+	}
+
+	steps = steps.filter(function(step) { return step.rule == "clue"; });
+	steps = pruneProofSteps(puzzle, base, basePlacements, steps,
+		failedSlot, failedValue);
+	steps = orderProofSteps(puzzle, base, basePlacements, steps);
+	current = copyDomains(base);
+	placements = basePlacements.slice();
+	var replay = [];
+	for (var i = 0; i < steps.length; i++) {
+		var step = refreshProofStep(puzzle, steps[i], current);
+		if (!step)
+			return [];
+		var before = current[step.row][step.symbol];
+		applyProofStep(current, placements, step);
+		step.domain = current[step.row][step.symbol];
+		step.domains = copyDomains(current);
+		step.placements = placements.slice();
+		step.message = proofDeductionMessage(puzzle, step, before,
+			step.domain, current);
+		replay.push(step);
+		drainForcedProofSteps(current, placements,
+			function(forced, forcedBefore) {
+				forced.domain = current[forced.row][forced.symbol];
+				forced.domains = copyDomains(current);
+				forced.placements = placements.slice();
+				forced.message = forcedProofMessage(puzzle, forced,
+					forcedBefore);
+				replay.push(forced);
+			});
+	}
+	steps = replay;
+	var conclusion = proofConclusionMessage(puzzle, failedSlot, failedValue);
+	if (steps.length && failedSlot.value != failedValue)
+		steps[steps.length - 1].conclusion = true;
+	else if (steps.length && steps[steps.length - 1].placement &&
+		 steps[steps.length - 1].row == puzzle.rows.indexOf(failedSlot.row) &&
+		 steps[steps.length - 1].symbol == failedValue &&
+		 steps[steps.length - 1].domain ==
+			1 << failedSlot.row.slots.indexOf(failedSlot))
+		steps[steps.length - 1].conclusion = true;
+	else if (steps.length && steps[steps.length - 1].message == conclusion)
+		steps[steps.length - 1].conclusion = true;
+	else
+		steps.push({
+			clues: [],
+			conclusion: true,
+			domains: copyDomains(current),
+			placements: placements.slice(),
+			message: conclusion,
+			row: puzzle.rows.indexOf(failedSlot.row),
+			symbol: failedValue,
+		});
+	return steps;
+}
+
+function clueSlots(clue) {
+	if (clue.slot)
+		return [clue.slot];
+	if (clue.mRow) {
+		return [clue.lRow.slots[clue.lCol],
+			clue.mRow.slots[clue.mCol],
+			clue.rRow.slots[clue.rCol]];
+	}
+	if (clue.tRow) {
+		return [clue.tRow.slots[clue.col],
+			clue.bRow.slots[clue.col]];
+	}
+	if (clue.lRow) {
+		return [clue.lRow.slots[clue.lCol],
+			clue.rRow.slots[clue.rCol]];
+	}
+	return [];
+}
+
+function clueRelevance(clue, failedSlot, failedValue) {
+	var failedCol = failedSlot.row.slots.indexOf(failedSlot);
+	var score = 0;
+	var slots = clueSlots(clue);
+	for (var i = 0; i < slots.length; i++) {
+		var slot = slots[i];
+		var col = slot.row.slots.indexOf(slot);
+		if (slot == failedSlot)
+			score += 100;
+		if (slot.row == failedSlot.row && slot.value == failedValue)
+			score += 50;
+		if (col == failedCol)
+			score += 10;
+		if (slot.row == failedSlot.row)
+			score += 5;
+	}
+	return score;
+}
+
+function shrinkContradictingClues(puzzle, candidates, fixed, domains,
+				  removals) {
+	var core = candidates.slice();
+	for (var i = 0; i < removals.length; i++) {
+		var pos = core.indexOf(removals[i]);
+		if (pos < 0)
+			continue;
+		var trial = core.slice();
+		trial.splice(pos, 1);
+		if (!cluesHaveSolution(puzzle, fixed.concat(trial),
+				       copyDomains(domains)))
+			core = trial;
+	}
+	return core;
+}
+
+function clueCoreRelevance(core, failedSlot, failedValue) {
+	var score = 0;
+	for (var i = 0; i < core.length; i++)
+		score += clueRelevance(core[i], failedSlot, failedValue);
+	return score;
+}
+
+function shuffledClues(candidates, pass) {
+	var order = candidates.map(function(clue, index) {
+		var key = Math.imul(index + 1, 0x9e3779b1) ^
+			Math.imul(pass + 1, 0x85ebca6b);
+		key ^= key >>> 16;
+		key = Math.imul(key, 0x7feb352d);
+		key ^= key >>> 15;
+		return { clue: clue, key: key >>> 0, index: index };
+	});
+	order.sort(function(a, b) {
+		return a.key - b.key || a.index - b.index;
+	});
+	return order.map(function(entry) { return entry.clue; });
+}
+
+function minimalContradictingClues(puzzle, candidates, fixed, domains,
+				   failedSlot, failedValue) {
+	if (cluesHaveSolution(puzzle, fixed.concat(candidates),
+			      copyDomains(domains)))
+		return null;
+
+	var relevanceOrder = candidates.map(function(clue, index) {
+		return {
+			clue: clue,
+			index: index,
+			relevance: clueRelevance(clue, failedSlot, failedValue),
+		};
+	});
+	relevanceOrder.sort(function(a, b) {
+		return a.relevance - b.relevance || a.index - b.index;
+	});
+	var removals = relevanceOrder.map(function(entry) {
+		return entry.clue;
+	});
+	var best = shrinkContradictingClues(puzzle, candidates, fixed,
+					     domains, removals);
+	var bestRelevance = clueCoreRelevance(best, failedSlot, failedValue);
+
+	for (var pass = 0; pass < 31; pass++) {
+		var core = shrinkContradictingClues(puzzle, candidates, fixed,
+						    domains,
+						    shuffledClues(candidates,
+								  pass));
+		var relevance = clueCoreRelevance(core, failedSlot, failedValue);
+		if (core.length < best.length ||
+		    core.length == best.length && relevance > bestRelevance) {
+			best = core;
+			bestRelevance = relevance;
+		}
+	}
+	return best;
+}
+
 /* Try to solve the puzzle using only deductions from the given clues. */
 function cluesSolve(puzzle, clues) {
 	var numRows = puzzle.rows.length;
@@ -1800,6 +2743,8 @@ function Slot(row, symbols, display) {
 	this.reveal = function() {
 		if (this.single)
 			return;
+		this.singleElem.hidden = true;
+		this.possibleElem.hidden = false;
 		this.possibleElem.className = "solution";
 		this.possibilityElems[this.value].className += " answer";
 	}
@@ -1812,6 +2757,40 @@ function Slot(row, symbols, display) {
 		this.singleElem.hidden = true;
 		this.possibleElem.hidden = false;
 		this.single = false;
+	}
+
+	this.displayProof = function(domains, col, placements) {
+		this.singleElem.classList.remove("placing");
+		var bit = 1 << col;
+		var placed = -1;
+		for (var i = 0; i < domains.length; i++) {
+			if (placements & (1 << i) && domains[i] == bit) {
+				placed = i;
+				break;
+			}
+		}
+		this.singleElem.classList.remove("failed-action");
+		if (placed >= 0) {
+			this.singleElem.textContent = this.symbols[placed];
+			if (this.row.puzzle.proof &&
+			    this.row.puzzle.proof.failedSlot == this &&
+			    this.row.puzzle.proof.failedValue == placed)
+				this.singleElem.classList.add("failed-action");
+			this.singleElem.hidden = false;
+			this.possibleElem.hidden = true;
+			return;
+		}
+		this.possibleElem.className = "proof";
+		for (var i = 0; i < this.possibilityElems.length; i++) {
+			var failed = this.row.puzzle.proof &&
+				this.row.puzzle.proof.failedSlot == this &&
+				this.row.puzzle.proof.failedValue == i;
+			this.possibilityElems[i].className = "possibility" +
+				(domains[i] & bit ? "" : " proof-impossible") +
+				(failed ? " failed-action" : "");
+		}
+		this.singleElem.hidden = true;
+		this.possibleElem.hidden = false;
 	}
 
 	this.clearPencilDisplay = function() {
@@ -1989,6 +2968,9 @@ function renderClue(puzzle, clue, slot, type, elements, horizontal) {
 	if (!clue.listener) {
 		clue.listener = function(ev) {
 			ev.preventDefault();
+			if (puzzle.proof &&
+			    puzzle.proof.clues.indexOf(clue) >= 0)
+				return;
 			if (clue.active)
 				puzzle.playSound("clue");
 			clue.active = !clue.active;
