@@ -1968,13 +1968,19 @@ function checkClueDisplay(clue) {
 		clue.display.classList.add("clue-hidden");
 }
 
-function renderClue(puzzle, clue, slot, type, elements) {
+function renderClue(puzzle, clue, slot, type, elements, horizontal) {
 	slot.innerHTML = "";
+	var content = slot;
+	if (horizontal) {
+		content = document.createElement("div");
+		content.className = "clue-content";
+		slot.appendChild(content);
+	}
 	for (var i = 0; i < elements.length; i++) {
 		var elem = document.createElement(type);
 		elem.className = elements[i][0];
 		elem.innerHTML = elements[i][1];
-		slot.appendChild(elem);
+		content.appendChild(elem);
 	}
 	if (!clue.listener) {
 		clue.listener = function(ev) {
@@ -2024,7 +2030,7 @@ function OrderClue(puzzle) {
 			    ["dots", "..."],
 			    ["tile " + this.rRow.familyClass,
 			     this.rRow.slots[this.rCol].symbol()]
-		]);
+		], true);
 	}
 }
 OrderClue.weight = 5;
@@ -2062,7 +2068,7 @@ function Adjacent2Clue(puzzle) {
 			    ["arrow", clueArrow],
 			    ["tile " + this.rRow.familyClass,
 			     this.rRow.slots[this.rCol].symbol()]
-		]);
+		], true);
 	}
 }
 Adjacent2Clue.weight = 5;
@@ -2122,7 +2128,7 @@ function Adjacent3Clue(puzzle) {
 			     this.mRow.slots[this.mCol].symbol()],
 			    ["tile " + this.rRow.familyClass,
 			     this.rRow.slots[this.rCol].symbol()]
-		]);
+		], true);
 	}
 }
 Adjacent3Clue.weight = 5;
