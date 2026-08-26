@@ -1395,7 +1395,6 @@ button.score-entry:focus-visible {
 #vclues .clue.proof-clue {
 	background-color: #4c2022;
 	opacity: 0.45;
-	cursor: default;
 	transition: background-color 140ms ease, box-shadow 140ms ease,
 		opacity 140ms ease;
 }
@@ -1406,7 +1405,6 @@ button.score-entry:focus-visible {
 #vclues .clue.proof-ready {
 	background-color: #74191d;
 	opacity: 1;
-	cursor: default;
 	box-shadow:
 		inset 0 0 0 2px #e2b27d,
 		0 0 0.35rem rgb(226 178 125 / 75%);
