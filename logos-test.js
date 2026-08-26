@@ -139,9 +139,9 @@ function makePuzzle(numRows, checkWin) {
 		Array(numRows).fill(symbols), elem(), elem(), elem(), elem(),
 		elem(), elem(), elem(), elem());
 	const lose = puzzle.lose;
-	puzzle.lose = function(msg, clues) {
+	puzzle.lose = function() {
 		this.losses++;
-		lose.call(this, msg, clues);
+		lose.apply(this, arguments);
 	};
 	puzzle.playSound = function(sound) {
 		this.sounds.push(sound);
@@ -259,6 +259,8 @@ Deno.test("a false placement loses the game", function() {
 
 	slot.choose(wrong);
 	assert(puzzle.losses == 1, "false placement did not cause a loss");
+	assert(slot.possibilityElems[wrong].classList.contains("failed-action"),
+	       "false placement did not mark the chosen tile");
 });
 
 Deno.test("a false elimination loses the game", function() {
@@ -267,6 +269,8 @@ Deno.test("a false elimination loses the game", function() {
 
 	slot.discard(slot.value);
 	assert(puzzle.losses == 1, "false elimination did not cause a loss");
+	assert(slot.possibilityElems[slot.value].classList.contains("failed-action"),
+	       "false elimination did not mark the discarded answer");
 });
 
 Deno.test("modifier clicks toggle pencil marks", function() {

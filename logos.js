@@ -334,7 +334,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		}
 	}
 
-	this.lose = function(msg, clues) {
+	this.lose = function(msg, clues, failedSlot, failedValue) {
 		if (this.gameOver)
 			return;
 		this.gameOver = true;
@@ -346,6 +346,10 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.messages.classList.add("lost");
 		this.closeSlotTray();
 		this.revealSolution();
+		if (failedSlot) {
+			failedSlot.possibilityElems[failedValue].classList.add(
+				"failed-action");
+		}
 		if (clues && clues.length) {
 			this.hClues.classList.add("solution");
 			this.vClues.classList.add("solution");
@@ -1833,7 +1837,7 @@ function Slot(row, symbols, display) {
 			var clues = this.row.puzzle.findContradictingClues(
 				this, value, false);
 			this.row.puzzle.lose(
-				randomChoice(falsePlacementMessages), clues);
+				randomChoice(falsePlacementMessages), clues, this, value);
 		}
 	}
 
@@ -1845,7 +1849,7 @@ function Slot(row, symbols, display) {
 			var clues = this.row.puzzle.findContradictingClues(
 				this, value, true);
 			this.row.puzzle.lose(
-				randomChoice(falseEliminationMessages), clues);
+				randomChoice(falseEliminationMessages), clues, this, value);
 		} else {
 			if (playerAction) {
 				this.row.puzzle.playSound("discard");

@@ -1486,6 +1486,22 @@ button.score-entry:focus-visible {
 	opacity: 0.2;
 }
 
+#board .solution .possibility.failed-action {
+	opacity: 1;
+	position: relative;
+	z-index: 1;
+}
+
+#board .solution .possibility.failed-action::after {
+	content: "";
+	position: absolute;
+	inset: -1px;
+	border-radius: 3px;
+	background-color: rgb(115 123 122 / 80%);
+	box-shadow: inset 0 0 0 2px #d4777f;
+	pointer-events: none;
+}
+
 .arrow {
 	display: inline-flex;
 	align-items: center;
