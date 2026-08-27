@@ -2489,6 +2489,36 @@ function pruneProofSteps(puzzle, base, basePlacements, steps,
 		if (kept.length < best.length)
 			best = kept;
 	}
+
+	/*
+	 * Removing one step at a time can leave an unused chain at a local
+	 * minimum: each later step is anchored to the domain left by the earlier
+	 * one, even though the whole chain is irrelevant. Try each subject's
+	 * deductions as a group, and let replayProofSteps verify that removing the
+	 * group preserves both the proof and its conclusion.
+	 */
+	var changed = true;
+	while (changed) {
+		changed = false;
+		var subjects = [];
+		for (var i = 0; i < best.length; i++) {
+			var subject = best[i].row + ":" + best[i].symbol;
+			if (subjects.indexOf(subject) < 0)
+				subjects.push(subject);
+		}
+		for (var i = 0; i < subjects.length; i++) {
+			var subject = subjects[i];
+			var trial = best.filter(function(step) {
+				return step.row + ":" + step.symbol != subject;
+			});
+			if (replayProofSteps(puzzle, base, basePlacements, trial,
+					     failedSlot, failedValue)) {
+				best = trial;
+				changed = true;
+				break;
+			}
+		}
+	}
 	return best;
 }
 

@@ -1764,6 +1764,10 @@ Deno.test("a three-adjacent middle placement explains both outer symbols", funct
 	       "△ must be in the fifth position because that is the only place " +
 	       "where E and √ can fit on opposite sides of it.",
 	       "the middle placement did not explain why only one orientation fits");
+	assert(!puzzle.proof.steps.some(step =>
+	       step.row == 3 && step.symbol == 2 ||
+	       step.row == 2 && step.symbol == 2),
+	       "the proof retained unused die-3 or III deduction branches");
 	puzzle.stopTimer();
 });
 
