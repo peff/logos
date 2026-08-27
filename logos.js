@@ -2972,7 +2972,8 @@ function Slot(row, symbols, display) {
 	}
 
 	this.displayPossible = function() {
-		this.singleElem.classList.remove("placing");
+		this.singleElem.classList.remove("placing", "failed-action",
+			"proof-change");
 		this.possibleElem.className = "";
 		for (var i = 0; i < this.possibilityElems.length; i++)
 			this.possibilityElems[i].className = "possibility";

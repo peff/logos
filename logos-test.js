@@ -1783,4 +1783,23 @@ Deno.test("proof ordering preserves the failed conclusion", function() {
 	puzzle.stopTimer();
 });
 
+Deno.test("restarting a proof clears its tile highlight", function() {
+	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
+	puzzle.say = function() {};
+	puzzle.newGame("9ed0fb2b");
+	const slot = puzzle.rows[1].slots[4];
+	slot.discard(4);
+	puzzle.explainLoss();
+	assert(slot.singleElem.classList.contains("proof-change"),
+	       "the proof placement was not highlighted");
+
+	puzzle.newGame("9ed0fb2b");
+	assert(!slot.singleElem.classList.contains("proof-change"),
+	       "restarting the game retained a proof highlight");
+	slot.choose(4);
+	assert(!slot.singleElem.classList.contains("proof-change"),
+	       "the stale proof highlight returned on placement");
+	puzzle.stopTimer();
+});
+
 export { Logos, makePuzzle };
