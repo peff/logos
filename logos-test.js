@@ -111,10 +111,14 @@ const Logos = eval(source +
 	"Adjacent2Clue: Adjacent2Clue, " +
 	"Adjacent3Clue: Adjacent3Clue, " +
 	"ColumnClue: ColumnClue, " +
+	"OrderClue: OrderClue, " +
+	"defaultSymbols: defaultSymbols, " +
 	"adjacent3DeductionMessage: adjacent3DeductionMessage, " +
 	"clueProofStep: clueProofStep, " +
 	"orderDeductionMessage: orderDeductionMessage, " +
 	"proofMessageText: proofMessageText, " +
+	"proofDeductionMessage: proofDeductionMessage, " +
+	"combineRelatedProofSteps: combineRelatedProofSteps, " +
 	"nextForcedProofStep: nextForcedProofStep, " +
 	"formatOlympiad: formatOlympiad, greekNumeralDay: greekNumeralDay });");
 const Puzzle = Logos.Puzzle;
@@ -141,10 +145,11 @@ function selectTileAction(puzzle, action) {
 	}
 }
 
-function makePuzzle(numRows, checkWin) {
+function makePuzzle(numRows, checkWin, puzzleSymbols) {
 	const elem = function() { return new FakeElement(); };
 	const puzzle = new Puzzle(elem(), elem(), elem(), elem(), elem(),
-		Array(numRows).fill(symbols), elem(), elem(), elem(), elem(),
+		puzzleSymbols || Array(numRows).fill(symbols),
+		elem(), elem(), elem(), elem(),
 		elem(), elem(), elem(), elem());
 	const lose = puzzle.lose;
 	puzzle.lose = function() {
@@ -943,7 +948,7 @@ Deno.test("proof traces prune deductions unrelated to the mistake", function() {
 	       "a proof deduction was promoted to a placed tile");
 });
 
-Deno.test("inner ordering deductions name the obstructing tile", function() {
+Deno.test("ordering deductions name the obstructing tile", function() {
 	const puzzle = makePuzzle(2);
 	const clue = {
 		lRow: puzzle.rows[0],
@@ -963,9 +968,8 @@ Deno.test("inner ordering deductions name the obstructing tile", function() {
 	assert(Logos.proofMessageText(puzzle,
 	       Logos.orderDeductionMessage(puzzle, step, full,
 	       full & ~1)) ==
-	       "1 cannot be in the first position because it is to the right " +
-	       "of another tile.",
-	       "an edge ordering deduction needlessly named the other tile");
+	       "1 cannot be in the first position because 0 must be to its left.",
+	       "an edge ordering deduction did not name the other tile");
 });
 
 Deno.test("three-adjacent middle deductions remove edges first", function() {
@@ -1008,6 +1012,55 @@ Deno.test("three-adjacent middle deductions remove edges first", function() {
 	       "0 cannot be in the second position because neither 1 nor 2 can " +
 	       "be in the first position.",
 	       "the adjacent inner deduction was not explained independently");
+});
+
+Deno.test("related middle adjacency removals share one proof step", function() {
+	const puzzle = makePuzzle(3);
+	puzzle.rows[0].slots[0].value = 0;
+	puzzle.rows[1].slots[1].value = 1;
+	puzzle.rows[2].slots[2].value = 2;
+	const clue = new Logos.Adjacent3Clue(puzzle);
+	clue.mRow = puzzle.rows[0];
+	clue.mCol = 0;
+	clue.lRow = puzzle.rows[1];
+	clue.lCol = 1;
+	clue.rRow = puzzle.rows[2];
+	clue.rCol = 2;
+	const full = (1 << 6) - 1;
+	const before = full & ~33;
+	const snapshots = Array.from({ length: 2 }, () =>
+		Array.from({ length: 3 }, () => Array(6).fill(full)));
+	snapshots[0][1][1] = 1 | 4 | 16;
+	snapshots[1][1][1] = 1 | 4 | 16;
+	snapshots[0][0][0] = before & ~4;
+	snapshots[1][0][0] = before & ~4 & ~16;
+	const common = {
+		clue: clue,
+		clues: [],
+		deduction: "adjacent3.middle.outer-not-adjacent",
+		deductionValues: { outer: "1" },
+		placement: false,
+		placements: [0, 0, 0],
+		row: 0,
+		symbol: 0,
+	};
+	const steps = Logos.combineRelatedProofSteps(puzzle, [
+		Object.assign({}, common, {
+			removed: 4,
+			domain: before & ~4,
+			domains: snapshots[0],
+		}),
+		Object.assign({}, common, {
+			removed: 16,
+			domain: before & ~4 & ~16,
+			domains: snapshots[1],
+		}),
+	]);
+	assert(steps.length == 1 && steps[0].removed == (4 | 16),
+	       "matching adjacency removals were not combined");
+	assert(Logos.proofMessageText(puzzle, steps[0].message) ==
+	       "0 cannot be in the third and fifth positions because 1 must be adjacent.",
+	       "the combined removal did not list both positions");
 });
 
 Deno.test("a direct clue is preferred to global clue blame", function() {
@@ -1493,14 +1546,15 @@ Deno.test("7998093c gives a coherent clue set for discarding III", function() {
 	const romanFiveSixth = puzzle.proof.steps.find(step =>
 		step.row == 2 && step.symbol == 4 && step.removed & (1 << 5));
 	assert(romanFiveSixth &&
-	       romanFiveSixth.message.includes("to the left of another tile"),
+	       romanFiveSixth.message.includes("must be to its right"),
 	       "the proof did not explain its ordering deduction");
 	assert(!puzzle.proof.steps.some(step =>
 	       !step.conclusion && step.row == 2 && step.symbol == 2),
 	       "the proof continued after III was the only sixth-position tile");
 	assert(Logos.proofMessageText(puzzle,
 	       puzzle.proof.steps[puzzle.proof.steps.length - 1].message) ==
-	       "Only 2 can occupy the sixth position, so it must be placed.",
+	       "2 must be in the sixth position because it is the only " +
+	       "remaining option.",
 	       "the proof did not state its conclusion");
 	let previous = puzzle.proof.base;
 	for (const step of puzzle.proof.steps) {
@@ -1648,7 +1702,8 @@ Deno.test("a row's only candidate is one proof placement", function() {
 	assert(placement && placement.domain == 1 &&
 	       placement.removed & (placement.removed - 1) &&
 	       Logos.proofMessageText(puzzle, placement.message) ==
-	       "Only 4 can occupy the first position, so it must be placed.",
+	       "4 must be in the first position because it is the only " +
+	       "remaining option.",
 	       "the only-candidate rule split a placement into eliminations");
 	const placementIndex = puzzle.proof.steps.indexOf(placement);
 	const romanTwo = puzzle.proof.steps.find(step =>
@@ -1691,8 +1746,25 @@ Deno.test("a multi-position clue deduction explains its common cause", function(
 	const romanOne = puzzle.proof.steps.find(step =>
 		step.row == 2 && step.symbol == 0 && step.removed == 17);
 	assert(romanOne && Logos.proofMessageText(puzzle, romanOne.message) ==
-	       "The possible positions for 0 are narrowed because 3 must be " +
+	       "0 cannot be in the first and fifth positions because 3 must be " +
 	       "two positions away.",
 	       "a shared reason for multiple eliminations was not explained");
 	puzzle.stopTimer();
 });
+
+Deno.test("a three-adjacent middle placement explains both outer symbols", function() {
+	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
+	puzzle.say = function() {};
+	puzzle.newGame("2030c01c");
+	puzzle.startProof(puzzle.rows[5].slots[3], 1);
+	const triangle = puzzle.proof.steps.find(step =>
+		step.row == 4 && step.symbol == 0 && step.domain == 1 << 4);
+	assert(triangle && triangle.deduction == "adjacent3.middle.placement" &&
+	       Logos.proofMessageText(puzzle, triangle.message) ==
+	       "△ must be in the fifth position because that is the only place " +
+	       "where E and √ can fit on opposite sides of it.",
+	       "the middle placement did not explain why only one orientation fits");
+	puzzle.stopTimer();
+});
+
+export { Logos, makePuzzle };

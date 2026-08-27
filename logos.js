@@ -1787,7 +1787,69 @@ function renderProofMessage(puzzle, elem, message, qed) {
 	elem.replaceChildren(wrapper);
 }
 
-function deductionMessage(puzzle, row, symbol, before, after) {
+/*
+ * Keep deduction identifiers stable when changing their messages. Besides
+ * making the proof logic easier to discuss, they let related presentation
+ * steps be recognized without comparing their rendered text.
+ */
+var proofDeductionCatalog = [
+	{ id: "adjacent2.not-adjacent",
+	  message: "{subject} cannot be in {positions} because {other} is not adjacent." },
+	{ id: "adjacent3.middle.outer-not-adjacent",
+	  message: "{subject} cannot be in {positions} because {outer} must be adjacent." },
+	{ id: "adjacent3.middle.placement",
+	  message: "{subject} must be in the {position} position because that is the only place where {left} and {right} can fit on opposite sides of it." },
+	{ id: "adjacent3.middle.no-neighbor",
+	  message: "{subject} cannot be in the {position} position because neither {left} nor {right} can be in the {neighbor} position." },
+	{ id: "adjacent3.middle.remove-edges",
+	  message: "{subject} cannot be on either edge because it is between two symbols." },
+	{ id: "adjacent3.outer.middle-not-adjacent",
+	  message: "{subject} cannot be in {positions} because {middle} must be adjacent." },
+	{ id: "adjacent3.outer.no-orientation",
+	  message: "{subject} cannot be in the {position} position because {middle} and {other} cannot fit beside it in either orientation." },
+	{ id: "adjacent3.outer.other-not-two-away",
+	  message: "{subject} cannot be in {positions} because {other} must be two positions away." },
+	{ id: "clue.placement",
+	  message: "{subject} must be in the {position} position." },
+	{ id: "column.other-not-position",
+	  message: "{subject} cannot be in {positions} because {other} is not." },
+	{ id: "conclusion.placement",
+	  message: "{subject} must be in the {position} position because it is the only remaining option." },
+	{ id: "conclusion.remove-position",
+	  message: "{subject} cannot be in the {position} position." },
+	{ id: "order.other-not-beyond",
+	  message: "{subject} cannot be in {positions} because {other} must be to its {otherDirection}." },
+	{ id: "row.only-candidate",
+	  message: "{subject} must be in the {position} position because it is the only remaining option." },
+	{ id: "row.only-position",
+	  message: "{subject} must be in the {position} position because it has been eliminated everywhere else." },
+];
+
+var proofDeductionIds = proofDeductionCatalog.map(function(entry) {
+	return entry.id;
+});
+if (new Set(proofDeductionIds).size != proofDeductionIds.length)
+	throw new Error("duplicate proof deduction identifier");
+
+function identifiedDeduction(step, id, values) {
+	var entry = proofDeductionCatalog.find(function(candidate) {
+		return candidate.id == id;
+	});
+	if (!entry)
+		throw new Error("missing proof deduction: " + id);
+	step.deduction = id;
+	step.deductionValues = values;
+	return entry.message.replace(/\{([A-Za-z]+)\}/g,
+		function(match, name) {
+			if (!Object.hasOwn(values, name))
+				throw new Error("missing value " + name + " for " + id);
+			return values[name];
+		});
+}
+
+function deductionMessage(puzzle, step, before, after) {
+	var row = step.row;
+	var symbol = step.symbol;
 	var name = proofSymbolReference(puzzle, row, symbol);
 	var removed = before & ~after;
 	var rowSize = puzzle.rows[row].slots.length;
@@ -1796,21 +1858,31 @@ function deductionMessage(puzzle, row, symbol, before, after) {
 		var col = 0;
 		while (!(after & (1 << col)))
 			col++;
-		return name + " must be in the " + ordinalName(col) +
-			" position.";
+		return identifiedDeduction(step, "clue.placement", {
+			subject: name,
+			position: ordinalName(col),
+		});
 	}
 	if (removed == ((1 << 0) | (1 << (rowSize - 1))))
-		return name + " cannot be on either edge.";
+		return identifiedDeduction(step, "clue.remove-edges", {
+			subject: name,
+		});
 	if (countBits(removed) == 1) {
 		var col = 0;
 		while (!(removed & (1 << col)))
 			col++;
-		return name + " cannot be in the " + ordinalName(col) +
-			" position.";
+		return identifiedDeduction(step, "clue.remove-position", {
+			subject: name,
+			position: ordinalName(col),
+		});
 	}
 	if (after != fullDomain)
-		return "The possible positions for " + name + " are narrowed.";
-	return name + " has fewer possible positions.";
+		return identifiedDeduction(step, "clue.narrow-positions", {
+			subject: name,
+		});
+	return identifiedDeduction(step, "clue.fewer-positions", {
+		subject: name,
+	});
 }
 
 function adjacent3DeductionMessage(puzzle, step, before, after, domains) {
@@ -1832,44 +1904,92 @@ function adjacent3DeductionMessage(puzzle, step, before, after, domains) {
 	var edges = 1 | (1 << (rowSize - 1));
 
 	if (row == middleRow && symbol == middleSymbol) {
+		if (countBits(after) == 1) {
+			var col = 0;
+			while (!(after & (1 << col)))
+				col++;
+			return identifiedDeduction(step,
+				"adjacent3.middle.placement", {
+					subject: name,
+					position: ordinalName(col),
+					left: leftName,
+					right: rightName,
+				});
+		}
 		if (removed == edges)
-			return name + " cannot be on either edge because it is " +
-				"between two symbols.";
+			return identifiedDeduction(step,
+				"adjacent3.middle.remove-edges", { subject: name });
 		if (countBits(removed) == 1) {
 			var col = 0;
 			while (!(removed & (1 << col)))
 				col++;
 			if (col == 0 || col == rowSize - 1)
-				return name + " cannot be in the " + ordinalName(col) +
-					" position because it is between two symbols.";
+				return identifiedDeduction(step,
+					"adjacent3.middle.remove-edges", {
+						subject: name,
+					});
 			var low = col > 0 ? 1 << (col - 1) : 0;
 			var high = col + 1 < rowSize ? 1 << (col + 1) : 0;
 			var leftDomain = domains[leftRow][leftSymbol];
 			var rightDomain = domains[rightRow][rightSymbol];
 			var adjacent = low | high;
 			if (!(leftDomain & adjacent))
-				return name + " cannot be in the " + ordinalName(col) +
-					" position because " + leftName +
-					" must be adjacent.";
+				return identifiedDeduction(step,
+					"adjacent3.middle.outer-not-adjacent", {
+						subject: name,
+						positions: positionList(removed),
+						outer: leftName,
+					});
 			if (!(rightDomain & adjacent))
-				return name + " cannot be in the " + ordinalName(col) +
-					" position because " + rightName +
-					" must be adjacent.";
+				return identifiedDeduction(step,
+					"adjacent3.middle.outer-not-adjacent", {
+						subject: name,
+						positions: positionList(removed),
+						outer: rightName,
+					});
 			if (!(leftDomain & low) && !(rightDomain & low))
-				return name + " cannot be in the " + ordinalName(col) +
-					" position because neither " + leftName +
-					" nor " + rightName + " can be in the " +
-					ordinalName(col - 1) + " position.";
+				return identifiedDeduction(step,
+					"adjacent3.middle.no-neighbor", {
+						subject: name,
+						position: ordinalName(col),
+						left: leftName,
+						right: rightName,
+						neighbor: ordinalName(col - 1),
+					});
 			if (!(leftDomain & high) && !(rightDomain & high))
-				return name + " cannot be in the " + ordinalName(col) +
-					" position because neither " + leftName +
-					" nor " + rightName + " can be in the " +
-					ordinalName(col + 1) + " position.";
-			return name + " cannot be in the " + ordinalName(col) +
-				" position because " + leftName + " and " + rightName +
-				" must fit on opposite sides.";
+				return identifiedDeduction(step,
+					"adjacent3.middle.no-neighbor", {
+						subject: name,
+						position: ordinalName(col),
+						left: leftName,
+						right: rightName,
+						neighbor: ordinalName(col + 1),
+					});
+			return identifiedDeduction(step,
+				"adjacent3.middle.opposite-sides", {
+					subject: name,
+					position: ordinalName(col),
+					left: leftName,
+					right: rightName,
+				});
 		}
-		return deductionMessage(puzzle, row, symbol, before, after);
+		var leftDomain = domains[leftRow][leftSymbol];
+		var rightDomain = domains[rightRow][rightSymbol];
+		if (positionsLackAdjacent(removed, leftDomain, rowSize))
+			return identifiedDeduction(step,
+				"adjacent3.middle.outer-not-adjacent", {
+					subject: name,
+					positions: positionList(removed),
+					outer: leftName,
+				});
+		if (positionsLackAdjacent(removed, rightDomain, rowSize))
+			return identifiedDeduction(step,
+				"adjacent3.middle.outer-not-adjacent", {
+					subject: name,
+					positions: positionList(removed),
+					outer: rightName,
+				});
+		return deductionMessage(puzzle, step, before, after);
 	}
 
 	var otherRow = row == leftRow && symbol == leftSymbol ?
@@ -1899,13 +2019,19 @@ function adjacent3DeductionMessage(puzzle, step, before, after, domains) {
 				otherCannotFit = false;
 		}
 		if (otherCannotFit)
-			return "The possible positions for " + name +
-				" are narrowed because " + otherName +
-				" must be two positions away.";
+			return identifiedDeduction(step,
+				"adjacent3.outer.other-not-two-away", {
+					subject: name,
+					positions: positionList(removed),
+					other: otherName,
+				});
 		if (middleCannotFit)
-			return "The possible positions for " + name +
-				" are narrowed because " + middleName +
-				" must be adjacent.";
+			return identifiedDeduction(step,
+				"adjacent3.outer.middle-not-adjacent", {
+					subject: name,
+					positions: positionList(removed),
+					middle: middleName,
+				});
 	}
 
 	if (countBits(removed) == 1) {
@@ -1923,26 +2049,35 @@ function adjacent3DeductionMessage(puzzle, step, before, after, domains) {
 		if (col + 2 < rowSize)
 			twoAway |= 1 << (col + 2);
 		if (!(domains[middleRow][middleSymbol] & adjacent))
-			return name + " cannot be in the " + ordinalName(col) +
-				" position because " + middleName +
-				" must be adjacent.";
+			return identifiedDeduction(step,
+				"adjacent3.outer.middle-not-adjacent", {
+					subject: name,
+					positions: positionList(removed),
+					middle: middleName,
+				});
 		if (!(domains[otherRow][otherSymbol] & twoAway))
-			return name + " cannot be in the " + ordinalName(col) +
-				" position because " + otherName +
-				" must be two positions away.";
-		return name + " cannot be in the " + ordinalName(col) +
-			" position because " + middleName + " and " + otherName +
-			" cannot fit beside it in either orientation.";
+			return identifiedDeduction(step,
+				"adjacent3.outer.other-not-two-away", {
+					subject: name,
+					positions: positionList(removed),
+					other: otherName,
+				});
+		return identifiedDeduction(step,
+			"adjacent3.outer.no-orientation", {
+				subject: name,
+				position: ordinalName(col),
+				middle: middleName,
+				other: otherName,
+			});
 	}
-	return deductionMessage(puzzle, row, symbol, before, after);
+	return deductionMessage(puzzle, step, before, after);
 }
 
 function adjacent2DeductionMessage(puzzle, step, before, after) {
 	var clue = step.clue;
 	var removed = before & ~after;
-	if (countBits(removed) != 1)
-		return deductionMessage(puzzle, step.row, step.symbol,
-			before, after);
+	if (countBits(after) == 1)
+		return deductionMessage(puzzle, step, before, after);
 	var leftRow = puzzle.rows.indexOf(clue.lRow);
 	var leftSymbol = clue.lRow.slots[clue.lCol].value;
 	var rightRow = puzzle.rows.indexOf(clue.rRow);
@@ -1951,46 +2086,36 @@ function adjacent2DeductionMessage(puzzle, step, before, after) {
 		rightRow : leftRow;
 	var otherSymbol = step.row == leftRow && step.symbol == leftSymbol ?
 		rightSymbol : leftSymbol;
-	var col = 0;
-	while (!(removed & (1 << col)))
-		col++;
-	return proofSymbolReference(puzzle, step.row, step.symbol) +
-		" cannot be in the " + ordinalName(col) +
-		" position because " +
-		proofSymbolReference(puzzle, otherRow, otherSymbol) +
-		" is not adjacent.";
+	return identifiedDeduction(step, "adjacent2.not-adjacent", {
+		subject: proofSymbolReference(puzzle, step.row, step.symbol),
+		positions: positionList(removed),
+		other: proofSymbolReference(puzzle, otherRow, otherSymbol),
+	});
 }
 
 function orderDeductionMessage(puzzle, step, before, after) {
 	var removed = before & ~after;
-	if (countBits(removed) != 1)
-		return deductionMessage(puzzle, step.row, step.symbol,
-			before, after);
-	var col = 0;
-	while (!(removed & (1 << col)))
-		col++;
+	if (countBits(after) == 1)
+		return deductionMessage(puzzle, step, before, after);
 	var leftRow = puzzle.rows.indexOf(step.clue.lRow);
 	var leftSymbol = step.clue.lRow.slots[step.clue.lCol].value;
 	var isLeft = step.row == leftRow && step.symbol == leftSymbol;
-	var direction = isLeft ? "left" : "right";
-	var message = proofSymbolReference(puzzle, step.row, step.symbol) +
-		" cannot be in the " + ordinalName(col) + " position because ";
-	if ((isLeft && col == puzzle.rows[step.row].slots.length - 1) ||
-	    (!isLeft && col == 0))
-		return message + "it is to the " + direction +
-			" of another tile.";
+	var subject = proofSymbolReference(puzzle, step.row, step.symbol);
 	var otherRow = isLeft ? puzzle.rows.indexOf(step.clue.rRow) : leftRow;
 	var otherSymbol = isLeft ? step.clue.rRow.slots[step.clue.rCol].value :
 		leftSymbol;
-	return message + proofSymbolReference(puzzle, otherRow, otherSymbol) +
-		" must be to its " + (isLeft ? "right" : "left") + ".";
+	return identifiedDeduction(step, "order.other-not-beyond", {
+		subject: subject,
+		positions: positionList(removed),
+		other: proofSymbolReference(puzzle, otherRow, otherSymbol),
+		otherDirection: isLeft ? "right" : "left",
+	});
 }
 
 function columnDeductionMessage(puzzle, step, before, after) {
 	var removed = before & ~after;
-	if (countBits(removed) != 1)
-		return deductionMessage(puzzle, step.row, step.symbol,
-			before, after);
+	if (countBits(after) == 1)
+		return deductionMessage(puzzle, step, before, after);
 	var clue = step.clue;
 	var topRow = puzzle.rows.indexOf(clue.tRow);
 	var topSymbol = clue.tRow.slots[clue.col].value;
@@ -1998,13 +2123,11 @@ function columnDeductionMessage(puzzle, step, before, after) {
 		puzzle.rows.indexOf(clue.bRow) : topRow;
 	var otherSymbol = step.row == topRow && step.symbol == topSymbol ?
 		clue.bRow.slots[clue.col].value : topSymbol;
-	var col = 0;
-	while (!(removed & (1 << col)))
-		col++;
-	return proofSymbolReference(puzzle, step.row, step.symbol) +
-		" cannot be in the " + ordinalName(col) +
-		" position because " +
-		proofSymbolReference(puzzle, otherRow, otherSymbol) + " is not.";
+	return identifiedDeduction(step, "column.other-not-position", {
+		subject: proofSymbolReference(puzzle, step.row, step.symbol),
+		positions: positionList(removed),
+		other: proofSymbolReference(puzzle, otherRow, otherSymbol),
+	});
 }
 
 function proofDeductionMessage(puzzle, step, before, after, domains) {
@@ -2017,22 +2140,91 @@ function proofDeductionMessage(puzzle, step, before, after, domains) {
 		return orderDeductionMessage(puzzle, step, before, after);
 	if (step.clue && step.clue.constructor == ColumnClue)
 		return columnDeductionMessage(puzzle, step, before, after);
-	return deductionMessage(puzzle, step.row, step.symbol, before, after);
+	return deductionMessage(puzzle, step, before, after);
 }
 
 function forcedProofMessage(puzzle, step) {
 	var name = proofSymbolReference(puzzle, step.row, step.symbol);
 	if (step.rule == "only-position")
-		return name + " has only the " + ordinalName(step.column) +
-			" position remaining, so it must be placed.";
-	return "Only " + name + " can occupy the " +
-		ordinalName(step.column) +
-		" position, so it must be placed.";
+		return identifiedDeduction(step, "row.only-position", {
+			subject: name,
+			position: ordinalName(step.column),
+		});
+	return identifiedDeduction(step, "row.only-candidate", {
+		subject: name,
+		position: ordinalName(step.column),
+	});
 }
 
 function ordinalName(col) {
 	var names = ["first", "second", "third", "fourth", "fifth", "sixth"];
 	return names[col] || String(col + 1);
+}
+
+function positionsLackAdjacent(positions, domain, rowSize) {
+	for (var col = 0; col < rowSize; col++) {
+		if (!(positions & (1 << col)))
+			continue;
+		var adjacent = 0;
+		if (col > 0)
+			adjacent |= 1 << (col - 1);
+		if (col + 1 < rowSize)
+			adjacent |= 1 << (col + 1);
+		if (domain & adjacent)
+			return false;
+	}
+	return true;
+}
+
+function positionList(bits) {
+	var positions = [];
+	for (var col = 0; bits; col++, bits >>= 1)
+		if (bits & 1)
+			positions.push(ordinalName(col));
+	if (positions.length == 1)
+		return "the " + positions[0] + " position";
+	if (positions.length == 2)
+		return "the " + positions[0] + " and " + positions[1] +
+			" positions";
+	return "the " + positions.slice(0, -1).join(", ") + ", and " +
+		positions[positions.length - 1] + " positions";
+}
+
+function adjacent3OuterHasCommonCause(puzzle, step, removed, domains) {
+	var clue = step.clue;
+	var middleRow = puzzle.rows.indexOf(clue.mRow);
+	var middleSymbol = clue.mRow.slots[clue.mCol].value;
+	if (step.row == middleRow && step.symbol == middleSymbol)
+		return false;
+	var leftRow = puzzle.rows.indexOf(clue.lRow);
+	var leftSymbol = clue.lRow.slots[clue.lCol].value;
+	var rightRow = puzzle.rows.indexOf(clue.rRow);
+	var rightSymbol = clue.rRow.slots[clue.rCol].value;
+	var otherRow = step.row == leftRow && step.symbol == leftSymbol ?
+		rightRow : leftRow;
+	var otherSymbol = step.row == leftRow && step.symbol == leftSymbol ?
+		rightSymbol : leftSymbol;
+	var middleCannotFit = true;
+	var otherCannotFit = true;
+	for (var col = 0; col < domains[step.row].length; col++) {
+		if (!(removed & (1 << col)))
+			continue;
+		var adjacent = 0;
+		var twoAway = 0;
+		if (col > 0)
+			adjacent |= 1 << (col - 1);
+		if (col + 1 < domains[step.row].length)
+			adjacent |= 1 << (col + 1);
+		if (col > 1)
+			twoAway |= 1 << (col - 2);
+		if (col + 2 < domains[step.row].length)
+			twoAway |= 1 << (col + 2);
+		if (domains[middleRow][middleSymbol] & adjacent)
+			middleCannotFit = false;
+		if (domains[otherRow][otherSymbol] & twoAway)
+			otherCannotFit = false;
+	}
+	return middleCannotFit || otherCannotFit;
 }
 
 function proofConcluded(puzzle, domains, failedSlot, failedValue) {
@@ -2050,10 +2242,10 @@ function proofConcluded(puzzle, domains, failedSlot, failedValue) {
 	return !(domains[row][failedValue] & bit);
 }
 
-function proofStepDomain(before, after, rowSize) {
+function proofStepDomain(before, after, rowSize, groupEdges) {
 	var removed = before & ~after;
 	var edges = 1 | (1 << (rowSize - 1));
-	if (countBits(after) == 1 || removed == edges ||
+	if (countBits(after) == 1 || groupEdges && removed == edges ||
 	    countBits(removed) <= 1)
 		return after;
 	return before & ~(removed & -removed);
@@ -2215,10 +2407,24 @@ function refreshProofStep(puzzle, step, domains) {
 	if (after == before)
 		return null;
 	var anchored = before & ~after & step.removed;
+	if (step.clue.constructor == Adjacent3Clue && countBits(anchored) > 1) {
+		var edges = 1 | (1 << (domains[step.row].length - 1));
+		if (anchored != edges && !adjacent3OuterHasCommonCause(puzzle,
+			    step, anchored, domains))
+			anchored &= -anchored;
+	}
 	if (countBits(after) != 1 && anchored)
 		after = before & ~anchored;
-	else
-		after = proofStepDomain(before, after, domains[step.row].length);
+	else {
+		var middleRow = step.clue && step.clue.mRow ?
+			puzzle.rows.indexOf(step.clue.mRow) : -1;
+		var middleSymbol = step.clue && step.clue.mRow ?
+			step.clue.mRow.slots[step.clue.mCol].value : -1;
+		var groupEdges = step.row == middleRow &&
+			step.symbol == middleSymbol;
+		after = proofStepDomain(before, after,
+			domains[step.row].length, groupEdges);
+	}
 	var refreshed = Object.assign({}, step);
 	refreshed.removed = before & ~after;
 	refreshed.placement = countBits(after) == 1;
@@ -2377,6 +2583,43 @@ function directFailedProofStep(puzzle, domains, failedSlot, failedValue) {
 	return null;
 }
 
+function combineRelatedProofSteps(puzzle, steps) {
+	var causeFields = {
+		"adjacent3.middle.outer-not-adjacent": "outer",
+		"adjacent3.outer.middle-not-adjacent": "middle",
+		"adjacent3.outer.other-not-two-away": "other",
+	};
+	var combined = [];
+	for (var i = 0; i < steps.length; i++) {
+		var step = steps[i];
+		var previous = combined[combined.length - 1];
+		var causeField = causeFields[step.deduction];
+		var sameCause = previous && causeField &&
+			previous.deductionValues &&
+			step.deductionValues &&
+			previous.deductionValues[causeField] ==
+				step.deductionValues[causeField];
+		if (!previous || !causeField ||
+		    step.deduction != previous.deduction ||
+		    step.clue != previous.clue || step.row != previous.row ||
+		    step.symbol != previous.symbol || !sameCause) {
+			combined.push(step);
+			continue;
+		}
+
+		var before = previous.domain | previous.removed;
+		previous.removed |= step.removed;
+		previous.domain = step.domain;
+		previous.domains = step.domains;
+		previous.placements = step.placements;
+		previous.placement = step.placement;
+		previous.conclusion = previous.conclusion || step.conclusion;
+		previous.message = proofDeductionMessage(puzzle, previous, before,
+			previous.domain, previous.domains);
+	}
+	return combined;
+}
+
 function buildProofSteps(puzzle, base, basePlacements,
 			 failedSlot, failedValue) {
 	var current = copyDomains(base);
@@ -2450,17 +2693,26 @@ function buildProofSteps(puzzle, base, basePlacements,
 		steps[steps.length - 1].conclusion = true;
 	else if (steps.length && steps[steps.length - 1].message == conclusion)
 		steps[steps.length - 1].conclusion = true;
-	else
-		steps.push({
+	else {
+		var row = puzzle.rows.indexOf(failedSlot.row);
+		var col = failedSlot.row.slots.indexOf(failedSlot);
+		var step = {
 			clues: [],
 			conclusion: true,
 			domains: copyDomains(current),
 			placements: placements.slice(),
-			message: conclusion,
-			row: puzzle.rows.indexOf(failedSlot.row),
+			row: row,
 			symbol: failedValue,
+		};
+		var id = failedSlot.value == failedValue ?
+			"conclusion.placement" : "conclusion.remove-position";
+		step.message = identifiedDeduction(step, id, {
+			subject: proofSymbolReference(puzzle, row, failedValue),
+			position: ordinalName(col),
 		});
-	return steps;
+		steps.push(step);
+	}
+	return combineRelatedProofSteps(puzzle, steps);
 }
 
 function clueSlots(clue) {
