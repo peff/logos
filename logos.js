@@ -2536,7 +2536,8 @@ function proofStepSubjects(puzzle, step) {
 	return subjects;
 }
 
-function orderProofSteps(puzzle, base, basePlacements, steps) {
+function orderProofSteps(puzzle, base, basePlacements, steps,
+			 failedSlot, failedValue) {
 	var current = copyDomains(base);
 	var placements = basePlacements.slice();
 	var remaining = steps.slice();
@@ -2573,7 +2574,8 @@ function orderProofSteps(puzzle, base, basePlacements, steps) {
 		ordered.push(step);
 		previousSubjects = proofStepSubjects(puzzle, step);
 	}
-	return ordered;
+	return proofConcluded(puzzle, current, failedSlot, failedValue) ?
+		ordered : steps;
 }
 
 function proofConclusionMessage(puzzle, failedSlot, failedValue) {
@@ -2671,7 +2673,8 @@ function buildProofSteps(puzzle, base, basePlacements,
 	steps = steps.filter(function(step) { return step.rule == "clue"; });
 	steps = pruneProofSteps(puzzle, base, basePlacements, steps,
 		failedSlot, failedValue);
-	steps = orderProofSteps(puzzle, base, basePlacements, steps);
+	steps = orderProofSteps(puzzle, base, basePlacements, steps,
+		failedSlot, failedValue);
 	current = copyDomains(base);
 	placements = basePlacements.slice();
 	var replay = [];

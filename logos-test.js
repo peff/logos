@@ -1771,4 +1771,16 @@ Deno.test("a three-adjacent middle placement explains both outer symbols", funct
 	puzzle.stopTimer();
 });
 
+Deno.test("proof ordering preserves the failed conclusion", function() {
+	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
+	puzzle.say = function() {};
+	puzzle.newGame("1e3c73cd");
+	puzzle.rows[5].slots[3].choose(1);
+	puzzle.explainLoss();
+	assert(puzzle.proof && puzzle.proof.steps.length &&
+	       puzzle.proof.steps[puzzle.proof.steps.length - 1].conclusion,
+	       "reordering supported steps discarded the proof conclusion");
+	puzzle.stopTimer();
+});
+
 export { Logos, makePuzzle };
