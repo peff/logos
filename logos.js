@@ -742,6 +742,20 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.renderPencilMarks(row);
 	}
 
+	this.dismissExhaustedClues = function() {
+		if (!this.autoDismissClues)
+			return;
+		for (var i = 0; i < this.clues.length; i++) {
+			var clue = this.clues[i];
+			if (!clue.display || !clue.active)
+				continue;
+			if (!isClueExhausted(clue))
+				continue;
+			clue.active = false;
+			checkClueDisplay(clue);
+		}
+	}
+
 	this.renderPencilMarks = function(row) {
 		/* Rebuild tentative domains without changing committed slot state. */
 		var domains = domainsFromRow(row);
@@ -1124,6 +1138,18 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		}
 	}
 
+	this.setAutoDismissClues = function(enabled) {
+		this.autoDismissClues = enabled;
+		this.options.querySelector("#auto-dismiss-clues").checked = enabled;
+		if (enabled)
+			this.dismissExhaustedClues();
+		try {
+			localStorage.setItem("autoDismissClues", enabled);
+		} catch (e) {
+			/* The choice still applies for the current page. */
+		}
+	}
+
 	this.setTimerVisible = function(show) {
 		this.timer.hidden = !show;
 		this.options.querySelector("#show-timer").checked = show;
@@ -1317,6 +1343,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 
 	var cursor = "stylus";
 	var showMilestones = true;
+	var autoDismissClues = true;
 	var showTimer = true;
 	var soundEffects = true;
 	var placementAnimation = "settle";
@@ -1327,6 +1354,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	try {
 		cursor = localStorage.getItem("cursor") || cursor;
 		var storedMilestones = localStorage.getItem("showMilestones");
+		var storedAutoDismissClues = localStorage.getItem(
+			"autoDismissClues");
 		var storedTimer = localStorage.getItem("showTimer");
 		var storedSoundEffects = localStorage.getItem("soundEffects");
 		var storedPlacementAnimation = localStorage.getItem(
@@ -1342,6 +1371,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			"selectionActionMenu");
 		if (storedMilestones !== null)
 			showMilestones = storedMilestones == "true";
+		if (storedAutoDismissClues !== null)
+			autoDismissClues = storedAutoDismissClues == "true";
 		if (storedTimer !== null)
 			showTimer = storedTimer == "true";
 		if (storedSoundEffects !== null)
@@ -1365,6 +1396,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.gameStats = loadGameStats();
 	this.setCursor(cursor);
 	this.setMilestones(showMilestones);
+	this.setAutoDismissClues(autoDismissClues);
 	this.setTimerVisible(showTimer);
 	this.setSoundEffects(soundEffects);
 	this.setPlacementAnimation(placementAnimation);
@@ -2450,6 +2482,10 @@ function clueSlots(clue) {
 	return [];
 }
 
+function isClueExhausted(clue) {
+	return clueSlots(clue).every(function(slot) { return slot.single; });
+}
+
 /* Try to solve the puzzle using only deductions from the given clues. */
 function cluesSolve(puzzle, clues) {
 	var numRows = puzzle.rows.length;
@@ -2718,6 +2754,8 @@ function Slot(row, symbols, display) {
 			this.row.removePossible(value);
 			this.row.puzzle.reconcilePencilMarks(this.row);
 			this.row.puzzle.checkWin();
+			if (playerAction)
+				this.row.puzzle.dismissExhaustedClues();
 		} else {
 			var clues = this.row.puzzle.findContradictingClues(
 				this, value, false);
@@ -2744,6 +2782,8 @@ function Slot(row, symbols, display) {
 			this.row.checkSingleton(value);
 			this.row.puzzle.reconcilePencilMarks(this.row);
 			this.row.puzzle.placeSoundPending = false;
+			if (playerAction)
+				this.row.puzzle.dismissExhaustedClues();
 		}
 	}
 

@@ -129,6 +129,10 @@
 						       <input id="show-action-selector" type="checkbox"
 						              onChange="puzzle.setShowActionSelector(this.checked)">
 						       Tap controls</label>
+						<label title="Hide a clue automatically once all of its symbols have been placed.">
+						       <input id="auto-dismiss-clues" type="checkbox" checked
+						              onChange="puzzle.setAutoDismissClues(this.checked)">
+						       Dismiss exhausted clues</label>
 						<input id="fullscreen-button" class="option-action" type="button"
 						       onClick="puzzle.toggleFullscreen()" value="Enter full screen">
 					</fieldset>

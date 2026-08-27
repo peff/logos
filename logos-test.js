@@ -690,6 +690,83 @@ Deno.test("left clicks toggle clue dismissal", function() {
 	       "second left click did not restore the clue");
 });
 
+Deno.test("placing every symbol in a clue dismisses it", function() {
+	const puzzle = makePuzzle(2);
+	const top = puzzle.rows[0].slots[0];
+	const bottom = puzzle.rows[1].slots[0];
+	const clue = new ColumnClue(puzzle);
+	clue.tRow = top.row;
+	clue.bRow = bottom.row;
+	clue.col = 0;
+	clue.display = new FakeElement();
+	clue.active = true;
+	clue.render();
+	clue.rendered = true;
+	puzzle.clues = [clue];
+
+	top.choose(top.value, true);
+	assert(clue.active, "partially exhausted clue was dismissed");
+	bottom.choose(bottom.value, true);
+	assert(!clue.active && clue.display.classList.contains("clue-hidden"),
+	       "exhausted clue was not dismissed");
+});
+
+Deno.test("automatic clue dismissal can be disabled and saved", function() {
+	localStorage.removeItem("autoDismissClues");
+	let puzzle = makePuzzle(2);
+	let option = puzzle.options.querySelector("#auto-dismiss-clues");
+	assert(puzzle.autoDismissClues && option.checked,
+	       "automatic clue dismissal did not default to enabled");
+	puzzle.setAutoDismissClues(false);
+	assert(!puzzle.autoDismissClues && !option.checked &&
+	       localStorage.getItem("autoDismissClues") == "false",
+	       "disabling automatic clue dismissal was not saved");
+
+	puzzle = makePuzzle(2);
+	option = puzzle.options.querySelector("#auto-dismiss-clues");
+	assert(!puzzle.autoDismissClues && !option.checked,
+	       "saved automatic clue dismissal setting was not restored");
+	const top = puzzle.rows[0].slots[0];
+	const bottom = puzzle.rows[1].slots[0];
+	const clue = new ColumnClue(puzzle);
+	clue.tRow = top.row;
+	clue.bRow = bottom.row;
+	clue.col = 0;
+	clue.display = new FakeElement();
+	clue.active = true;
+	clue.render();
+	clue.rendered = true;
+	puzzle.clues = [clue];
+	top.choose(top.value, true);
+	bottom.choose(bottom.value, true);
+	assert(clue.active, "disabled automatic dismissal still hid a clue");
+
+	puzzle.setAutoDismissClues(true);
+	assert(!clue.active && clue.display.classList.contains("clue-hidden"),
+	       "enabling automatic dismissal did not hide an exhausted clue");
+	localStorage.removeItem("autoDismissClues");
+});
+
+Deno.test("placing only the middle of a three-adjacent clue keeps it", function() {
+	const puzzle = makePuzzle(3);
+	const clue = new Logos.Adjacent3Clue(puzzle);
+	clue.lRow = puzzle.rows[0];
+	clue.mRow = puzzle.rows[1];
+	clue.rRow = puzzle.rows[2];
+	clue.lCol = clue.mCol = clue.rCol = 0;
+	clue.display = new FakeElement();
+	clue.active = true;
+	clue.render();
+	clue.rendered = true;
+	puzzle.clues = [clue];
+
+	clue.mRow.slots[clue.mCol].choose(
+		clue.mRow.slots[clue.mCol].value, true);
+	assert(clue.active &&
+	       !clue.display.classList.contains("clue-hidden"),
+	       "three-adjacent clue was dismissed after placing its middle");
+});
+
 Deno.test("an opposite pencil mark replaces the mark on a tile", function() {
 	const puzzle = makePuzzle(1);
 	const slot = puzzle.rows[0].slots[0];
