@@ -1002,7 +1002,7 @@ body.proof-active #logo {
 	display: none;
 }
 
-.friends-player-list:empty ~ .friends-answer-controls {
+.friends-player-list:not(.friends-has-guests) ~ .friends-answer-controls {
 	display: none;
 }
 

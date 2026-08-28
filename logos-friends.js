@@ -164,32 +164,49 @@ function updateWebRTCGuest(state) {
 
 function hostWebRTC() {
 	beginSession("host");
+	var hostName = playerName("host");
+	addHostEntry(hostName);
 	transport = new WebRTCHostTransport(session, {
-		playerName: playerName("host"),
+		playerName: hostName,
 		onChange: updateWebRTCHost,
 	});
 	status.textContent = "Hosting a game.";
 }
 
-function addGuestEntry() {
-	var entry = document.createElement("div");
-	entry.className = "friends-player";
+function addPlayerHeading(entry, playerName, playerStatus) {
 	var heading = document.createElement("div");
 	heading.className = "friends-player-heading";
 	var name = document.createElement("span");
 	name.className = "friends-player-name";
-	name.textContent = "Guest " + nextGuest++;
+	name.textContent = playerName;
 	var entryStatus = document.createElement("span");
 	entryStatus.className = "friends-player-status";
-	entryStatus.textContent = "Inviting";
+	entryStatus.textContent = playerStatus;
 	heading.append(name, entryStatus);
+	entry.append(heading);
+	return entryStatus;
+}
+
+function addHostEntry(name) {
+	var entry = document.createElement("div");
+	entry.className = "friends-player";
+	entry.dataset.connected = "true";
+	addPlayerHeading(entry, name, "Hosting");
+	playerList.append(entry);
+}
+
+function addGuestEntry() {
+	var entry = document.createElement("div");
+	entry.className = "friends-player";
+	var guestName = "Guest " + nextGuest++;
+	var entryStatus = addPlayerHeading(entry, guestName, "Inviting");
 	var invitation = document.createElement("div");
 	invitation.className =
 		"friends-player-invitation friends-signal-controls";
 	var field = document.createElement("input");
 	field.type = "text";
 	field.readOnly = true;
-	field.setAttribute("aria-label", "Invitation for " + name.textContent);
+	field.setAttribute("aria-label", "Invitation for " + guestName);
 	var copy = document.createElement("button");
 	copy.type = "button";
 	copy.textContent = "Copy";
@@ -198,8 +215,9 @@ function addGuestEntry() {
 		copyField(field, copy);
 	});
 	invitation.append(field, copy);
-	entry.append(heading, invitation);
+	entry.append(invitation);
 	playerList.append(entry);
+	playerList.classList.add("friends-has-guests");
 	return { entry, field, copy, status: entryStatus };
 }
 
@@ -271,6 +289,7 @@ function leave() {
 	session = null;
 	guestEntries.clear();
 	playerList.replaceChildren();
+	playerList.classList.remove("friends-has-guests");
 	nextGuest = 1;
 	status.textContent = "Host a game or paste an invitation from a friend.";
 	startControls.hidden = false;
