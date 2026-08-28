@@ -788,13 +788,23 @@ Deno.test("practice mode is saved and suppresses timing and scores", function() 
 	       puzzle.options.querySelector("#practice-mode").checked,
 	       "the saved practice preference was not restored");
 	puzzle.newGame(2);
-	puzzle.setPracticeMode(false);
-	assert(!puzzle.timer.hidden,
-	       "leaving practice mode did not restore the timer");
-	puzzle.lose("test loss");
-	assert(JSON.stringify(puzzle.gameStats) ==
-	       JSON.stringify({ won: 0, lost: 0 }),
-	       "a partly untimed game was recorded after leaving practice mode");
+	assert(!puzzle.setPracticeMode(false) && puzzle.practiceMode &&
+	       !puzzle.practiceModePreference &&
+	       !puzzle.options.querySelector("#practice-mode").checked &&
+	       puzzle.timer.hidden && puzzle.timerTimeout === null &&
+	       puzzle.messages.innerHTML ==
+		       "Accepting enlightenment is a one-way door. Your next " +
+		       "journey will not be so calm." &&
+	       localStorage.getItem("practiceMode") == "false",
+	       "an active game was allowed to leave practice mode");
+	puzzle.newGame(3);
+	assert(!puzzle.practiceMode && !puzzle.practiceModePreference &&
+	       !puzzle.options.querySelector("#practice-mode").checked &&
+	       !puzzle.timer.hidden && puzzle.timerTimeout !== null &&
+	       puzzle.scoreEligible,
+	       "a new game did not adopt the pending regular mode");
+	puzzle.stopTimer();
+	puzzle.say("");
 	localStorage.removeItem("practiceMode");
 	localStorage.removeItem("gameStats");
 	localStorage.removeItem("highScores");

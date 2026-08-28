@@ -215,6 +215,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 	this.gameOver = true;
 	this.practiceMode = false;
+	this.practiceModePreference = false;
 	this.scoreEligible = true;
 	this.practiceMistake = null;
 	this.paused = false;
@@ -288,6 +289,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.seed = seed;
 		this.options.querySelector("#game-seed").value = formatSeed(seed);
 		this.gameOver = true;
+		this.practiceMode = this.practiceModePreference;
+		this.timer.hidden = this.practiceMode;
 		this.proof = null;
 		this.pendingProof = null;
 		this.practiceMistake = null;
@@ -1264,8 +1267,19 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.setPracticeMode = function(enabled) {
-		this.practiceMode = enabled;
+		this.practiceModePreference = enabled;
 		this.options.querySelector("#practice-mode").checked = enabled;
+		try {
+			localStorage.setItem("practiceMode", enabled);
+		} catch (e) {
+			/* The choice still applies for the current page. */
+		}
+		if (!enabled && this.practiceMode && !this.gameOver) {
+			this.say("Accepting enlightenment is a one-way door. " +
+				"Your next journey will not be so calm.");
+			return false;
+		}
+		this.practiceMode = enabled;
 		if (enabled) {
 			if (!this.gameOver)
 				this.scoreEligible = false;
@@ -1275,11 +1289,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			this.startTimer();
 		}
 		this.timer.hidden = enabled;
-		try {
-			localStorage.setItem("practiceMode", enabled);
-		} catch (e) {
-			/* The choice still applies for the current page. */
-		}
+		return true;
 	}
 
 	this.setSoundEffects = function(enabled) {
