@@ -2,6 +2,14 @@
 
 const webRTCProtocol = "logos-webrtc-1";
 
+function normalizePlayerName(name, fallback) {
+	name = String(name || "")
+		.replace(/[\u0000-\u001f\u007f\u202a-\u202e\u2066-\u2069]/g, " ")
+		.trim().replace(/\s+/g, " ");
+	name = Array.from(name).slice(0, 32).join("");
+	return name || fallback;
+}
+
 async function compress(bytes) {
 	var stream = new Blob([bytes]).stream()
 		.pipeThrough(new CompressionStream("deflate"));
@@ -48,10 +56,13 @@ async function decodeSignal(blob, expectedType) {
 	}
 	if (!signal || signal.protocol != webRTCProtocol ||
 	    signal.type != expectedType || typeof signal.connectionId != "string" ||
-	    typeof signal.playerId != "string" || !signal.description ||
+	    typeof signal.playerId != "string" ||
+	    typeof signal.playerName != "string" || !signal.description ||
 	    signal.description.type != expectedType ||
 	    typeof signal.description.sdp != "string")
 		throw new Error("The Logos connection message has the wrong type.");
+	signal.playerName = normalizePlayerName(signal.playerName,
+		expectedType == "offer" ? "Host" : "Guest");
 	return signal;
 }
 
@@ -100,6 +111,7 @@ class WebRTCHostTransport {
 		this.configuration = { iceServers: options.iceServers || [] };
 		this.iceGatheringTimeout = options.iceGatheringTimeout || 10000;
 		this.connectionTimeout = options.connectionTimeout || 30000;
+		this.playerName = normalizePlayerName(options.playerName, "Host");
 		this.idFactory = options.idFactory || function() {
 			return crypto.randomUUID();
 		};
@@ -132,6 +144,7 @@ class WebRTCHostTransport {
 			type: "offer",
 			connectionId,
 			playerId: this.session.playerId,
+			playerName: this.playerName,
 			description: connectionDescription(peer),
 		});
 	}
@@ -142,6 +155,7 @@ class WebRTCHostTransport {
 		if (!record)
 			throw new Error("This answer does not match a pending invitation.");
 		record.playerId = signal.playerId;
+		record.playerName = signal.playerName;
 		this.scheduleFailure(record);
 		try {
 			await record.peer.setRemoteDescription(signal.description);
@@ -227,6 +241,7 @@ class WebRTCHostTransport {
 			pending: this.pending.size,
 			connectionId: record && record.connectionId,
 			playerId: record && record.playerId,
+			playerName: record && record.playerName,
 		});
 	}
 
@@ -252,6 +267,7 @@ class WebRTCGuestTransport {
 		this.configuration = { iceServers: options.iceServers || [] };
 		this.iceGatheringTimeout = options.iceGatheringTimeout || 10000;
 		this.connectionTimeout = options.connectionTimeout || 30000;
+		this.playerName = normalizePlayerName(options.playerName, "Guest");
 		this.onChange = options.onChange || function() {};
 		this.peer = null;
 		this.channel = null;
@@ -263,6 +279,7 @@ class WebRTCGuestTransport {
 	async acceptInvitation(blob) {
 		var signal = await decodeSignal(blob, "offer");
 		this.hostId = signal.playerId;
+		this.hostName = signal.playerName;
 		this.peer = this.peerConnectionFactory(this.configuration);
 		var transport = this;
 		this.peer.onconnectionstatechange = function() {
@@ -298,6 +315,7 @@ class WebRTCGuestTransport {
 			type: "answer",
 			connectionId: signal.connectionId,
 			playerId: this.session.playerId,
+			playerName: this.playerName,
 			description: connectionDescription(this.peer),
 		});
 	}
@@ -361,5 +379,6 @@ export {
 	WebRTCHostTransport,
 	decodeSignal,
 	encodeSignal,
+	normalizePlayerName,
 	waitForIceGathering,
 };

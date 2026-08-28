@@ -8,6 +8,7 @@ import {
 	WebRTCHostTransport,
 	decodeSignal,
 	encodeSignal,
+	normalizePlayerName,
 } from "./logos-webrtc.js";
 
 function assert(condition, message) {
@@ -344,10 +345,12 @@ Deno.test("WebRTC signaling blobs are compressed, versioned and typed", async fu
 		type: "offer",
 		connectionId: "connection",
 		playerId: "host",
+		playerName: "Host Person",
 		description: { type: "offer", sdp: "test-Σ" },
 	});
 	const signal = await decodeSignal(blob, "offer");
-	assert(signal.description.sdp == "test-Σ" && blob.startsWith("LOGOS1."),
+	assert(signal.description.sdp == "test-Σ" &&
+	       signal.playerName == "Host Person" && blob.startsWith("LOGOS1."),
 	       "the signaling blob did not round trip");
 	let rejected = false;
 	try {
@@ -356,6 +359,15 @@ Deno.test("WebRTC signaling blobs are compressed, versioned and typed", async fu
 		rejected = true;
 	}
 	assert(rejected, "an offer was accepted where an answer was required");
+});
+
+Deno.test("WebRTC player names are normalized as plain text", function() {
+	const name = normalizePlayerName(
+		"  <img src=x onerror=alert(1)>\n\u202e", "Guest");
+	assert(name == "<img src=x onerror=alert(1)>",
+	       "the signaling name was not normalized predictably");
+	assert(normalizePlayerName("\u0000\n", "Guest") == "Guest",
+	       "an empty signaling name did not use its fallback");
 });
 
 Deno.test("WebRTC transports connect sessions through offer and answer", async function() {
@@ -367,11 +379,13 @@ Deno.test("WebRTC transports connect sessions through offer and answer", async f
 	const hostTransport = new WebRTCHostTransport(host.session, {
 		peerConnectionFactory: factory,
 		idFactory: () => "connection-id",
+		playerName: "Helen",
 		onChange: state => hostState = state,
 	});
 	var guestState;
 	const guestTransport = new WebRTCGuestTransport(guest.session, {
 		peerConnectionFactory: factory,
+		playerName: "Grace",
 		onChange: state => guestState = state,
 	});
 
@@ -382,7 +396,8 @@ Deno.test("WebRTC transports connect sessions through offer and answer", async f
 	       boardState(host.puzzle) == boardState(guest.puzzle),
 	       "the WebRTC guest did not synchronize after connecting");
 	assert(hostState.connectionId == "connection-id" &&
-	       hostState.playerId == "guest-id",
+	       hostState.playerId == "guest-id" &&
+	       hostState.playerName == "Grace",
 	       "the WebRTC host did not identify the connected guest");
 	const move = wrongMove(guest.puzzle);
 	guest.puzzle.requestTileAction(move.slot, move.value, "remove");

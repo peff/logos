@@ -971,6 +971,23 @@ body.proof-active #logo {
 	gap: 0.3rem;
 }
 
+.friends-name-controls {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 0.3rem;
+	margin-bottom: 0.45rem;
+}
+
+.friends-name-controls[hidden] {
+	display: none;
+}
+
+.friends-name-controls input {
+	box-sizing: border-box;
+	width: 9rem;
+}
+
 .friends-host-instructions {
 	margin: 0.35rem 0;
 	color: #746c60;

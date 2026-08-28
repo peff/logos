@@ -3,11 +3,13 @@ import {
 	WebRTCGuestTransport,
 	WebRTCHostTransport,
 	decodeSignal,
+	normalizePlayerName,
 } from "./logos-webrtc.js";
 
 var friendsButton = document.querySelector("#friends-button");
 var friendsMenu = document.querySelector("#friends-menu");
 var status = friendsMenu.querySelector(".friends-status");
+var nameControls = friendsMenu.querySelector(".friends-name-controls");
 var startControls = friendsMenu.querySelector(".friends-start");
 var hostControls = friendsMenu.querySelector(".friends-host-controls");
 var guestControls = friendsMenu.querySelector(".friends-guest-controls");
@@ -16,11 +18,19 @@ var newGameButton = document.querySelector("#new-game-button");
 var invitationInput = friendsMenu.querySelector("#friends-invitation-input");
 var answerInput = friendsMenu.querySelector("#friends-answer-input");
 var answerOutput = friendsMenu.querySelector("#friends-answer-output");
+var nameInput = friendsMenu.querySelector("#friends-player-name");
 var playerList = friendsMenu.querySelector(".friends-player-list");
 var session = null;
 var transport = null;
 var guestEntries = new Map();
 var nextGuest = 1;
+var invitationPreview = 0;
+
+try {
+	nameInput.value = localStorage.getItem("multiplayerPlayerName") || "";
+} catch (e) {
+	/* Multiplayer still works when browser-local storage is unavailable. */
+}
 
 function randomHex(bytes) {
 	var data = new Uint8Array(bytes);
@@ -46,6 +56,7 @@ function startSharedGame() {
 }
 
 function beginSession(role) {
+	invitationPreview++;
 	if (transport)
 		transport.close();
 	session = new MultiplayerSession(window.puzzle, {
@@ -55,6 +66,7 @@ function beginSession(role) {
 	if (role == "host")
 		startSharedGame();
 	startControls.hidden = true;
+	nameControls.hidden = true;
 	hostControls.hidden = role != "host";
 	guestControls.hidden = role != "guest";
 	leaveButton.hidden = false;
@@ -65,9 +77,35 @@ function beginSession(role) {
 	newGameButton.onclick = role == "host" ? startSharedGame : null;
 }
 
+function playerName(role) {
+	return normalizePlayerName(nameInput.value,
+		role == "host" ? "Host" : "Guest");
+}
+
+async function previewInvitation() {
+	var preview = ++invitationPreview;
+	var blob = invitationInput.value.trim();
+	if (!blob) {
+		status.textContent =
+			"Host a game or paste an invitation from a friend.";
+		return;
+	}
+	try {
+		var invitation = await decodeSignal(blob, "offer");
+		if (preview == invitationPreview)
+			status.textContent = "Invitation from " +
+				invitation.playerName + ".";
+	} catch (e) {
+		/* Report malformed invitations only when the player submits one. */
+	}
+}
+
 function updateWebRTCHost(state) {
 	var entry = guestEntries.get(state.connectionId);
 	if (entry) {
+		if (state.playerName)
+			entry.querySelector(".friends-player-name").textContent =
+				state.playerName;
 		var entryStatus = entry.querySelector(".friends-player-status");
 		if (state.state == "connecting") {
 			entryStatus.textContent = "Connecting";
@@ -127,6 +165,7 @@ function updateWebRTCGuest(state) {
 function hostWebRTC() {
 	beginSession("host");
 	transport = new WebRTCHostTransport(session, {
+		playerName: playerName("host"),
 		onChange: updateWebRTCHost,
 	});
 	status.textContent = "Hosting a game.";
@@ -138,6 +177,7 @@ function addGuestEntry() {
 	var heading = document.createElement("div");
 	heading.className = "friends-player-heading";
 	var name = document.createElement("span");
+	name.className = "friends-player-name";
 	name.textContent = "Guest " + nextGuest++;
 	var entryStatus = document.createElement("span");
 	entryStatus.className = "friends-player-status";
@@ -184,21 +224,25 @@ async function joinWebRTC() {
 		return;
 	}
 	invitationInput.setCustomValidity("");
+	var invitation;
 	try {
-		await decodeSignal(invitationInput.value, "offer");
+		invitation = await decodeSignal(invitationInput.value, "offer");
 	} catch (e) {
 		status.textContent = e.message;
 		return;
 	}
 	beginSession("guest");
 	transport = new WebRTCGuestTransport(session, {
+		playerName: playerName("guest"),
 		onChange: updateWebRTCGuest,
 	});
-	status.textContent = "Finding connection routes...";
+	status.textContent = "Preparing a response for " +
+		invitation.playerName + "...";
 	try {
 		answerOutput.value =
 			await transport.acceptInvitation(invitationInput.value);
-		status.textContent = "Send this response back to the host.";
+		status.textContent = "Send this response back to " +
+			invitation.playerName + ".";
 	} catch (e) {
 		status.textContent = e.message;
 	}
@@ -230,10 +274,13 @@ function leave() {
 	nextGuest = 1;
 	status.textContent = "Host a game or paste an invitation from a friend.";
 	startControls.hidden = false;
+	nameControls.hidden = false;
 	hostControls.hidden = true;
 	guestControls.hidden = true;
 	leaveButton.hidden = true;
 	for (var field of friendsMenu.querySelectorAll("textarea, input[type=text]")) {
+		if (field == nameInput)
+			continue;
 		field.value = "";
 		field.setCustomValidity("");
 	}
@@ -286,6 +333,14 @@ friendsMenu.addEventListener("click", function(event) {
 });
 friendsMenu.querySelector("#friends-host").addEventListener("click", hostWebRTC);
 friendsMenu.querySelector("#friends-join").addEventListener("click", joinWebRTC);
+invitationInput.addEventListener("input", previewInvitation);
+nameInput.addEventListener("input", function() {
+	try {
+		localStorage.setItem("multiplayerPlayerName", nameInput.value);
+	} catch (e) {
+		/* Keep the name for this page even if it cannot be persisted. */
+	}
+});
 friendsMenu.querySelector("#friends-add-guest").addEventListener(
 	"click", createInvitation);
 friendsMenu.querySelector("#friends-accept-answer").addEventListener(
