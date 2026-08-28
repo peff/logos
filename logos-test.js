@@ -281,6 +281,22 @@ Deno.test("opening options preserves the new-game button label", function() {
 	puzzle.stopTimer();
 });
 
+Deno.test("the custom cursor is a saved boolean option", function() {
+	localStorage.removeItem("customCursor");
+	localStorage.setItem("cursor", "native");
+	const puzzle = makePuzzle(6);
+	assert(String(document.body.dataset.customCursor) == "false" &&
+	       !puzzle.options.querySelector("#custom-cursor").checked,
+	       "the old native cursor preference was not migrated");
+	puzzle.setCustomCursor(true);
+	assert(String(document.body.dataset.customCursor) == "true" &&
+	       puzzle.options.querySelector("#custom-cursor").checked &&
+	       localStorage.getItem("customCursor") == "true",
+	       "the custom cursor choice was not applied and saved");
+	localStorage.removeItem("cursor");
+	puzzle.stopTimer();
+});
+
 Deno.test("a false placement loses the game", function() {
 	const puzzle = makePuzzle(1);
 	const slot = puzzle.rows[0].slots[0];

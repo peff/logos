@@ -85,22 +85,11 @@
 			     aria-modal="true" aria-label="Options">
 				<div class="modal-panel options-panel">
 					<fieldset>
-						<legend>Cursor</legend>
-						<label title="Use an Antikythera gear for pointing and actions.">
-						       <input type="radio" name="cursor" value="gear"
-						              onChange="puzzle.setCursor(this.value)">
-						       Antikythera gear</label>
-						<label title="Use a bronze stylus for pointing and actions.">
-						       <input type="radio" name="cursor" value="stylus"
-						              onChange="puzzle.setCursor(this.value)">
-						       Bronze stylus</label>
-						<label title="Use your browser's standard pointer.">
-						       <input type="radio" name="cursor" value="native"
-						              onChange="puzzle.setCursor(this.value)">
-						       System default</label>
-					</fieldset>
-					<fieldset>
 						<legend>Display</legend>
+						<label title="Use a bronze stylus instead of your browser's standard pointer.">
+						       <input id="custom-cursor" type="checkbox" checked
+						              onChange="puzzle.setCustomCursor(this.checked)">
+						       Custom cursor</label>
 						<label title="Show messages as you reveal more of the solution. Disable for deep focus.">
 						       <input id="show-milestones" type="checkbox" checked
 						              onChange="puzzle.setMilestones(this.checked)">

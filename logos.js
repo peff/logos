@@ -1231,15 +1231,11 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			puzzle.positionSlotTray();
 		});
 
-	this.setCursor = function(style) {
-		if (["gear", "stylus", "native"].indexOf(style) < 0)
-			style = "stylus";
-		document.body.dataset.cursor = style;
-		var input = this.options.querySelector(
-				'input[value="' + style + '"]');
-		input.checked = true;
+	this.setCustomCursor = function(enabled) {
+		document.body.dataset.customCursor = enabled;
+		this.options.querySelector("#custom-cursor").checked = enabled;
 		try {
-			localStorage.setItem("cursor", style);
+			localStorage.setItem("customCursor", enabled);
 		} catch (e) {
 			/* The choice still applies for the current page. */
 		}
@@ -1471,7 +1467,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		}
 	}
 
-	var cursor = "stylus";
+	var customCursor = true;
 	var showMilestones = true;
 	var autoDismissClues = true;
 	var practiceMode = false;
@@ -1482,7 +1478,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	var dragTileChoices = this.dragTileChoices;
 	var showActionSelector = this.showActionSelector;
 	try {
-		cursor = localStorage.getItem("cursor") || cursor;
+		var storedCustomCursor = localStorage.getItem("customCursor");
+		var oldCursor = localStorage.getItem("cursor");
 		var storedMilestones = localStorage.getItem("showMilestones");
 		var storedAutoDismissClues = localStorage.getItem(
 			"autoDismissClues");
@@ -1499,6 +1496,10 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			"showActionSelector");
 		var oldSelectionActionMenu = localStorage.getItem(
 			"selectionActionMenu");
+		if (storedCustomCursor !== null)
+			customCursor = storedCustomCursor == "true";
+		else if (oldCursor !== null)
+			customCursor = oldCursor != "native";
 		if (storedMilestones !== null)
 			showMilestones = storedMilestones == "true";
 		if (storedAutoDismissClues !== null)
@@ -1524,7 +1525,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 	this.highScores = loadHighScores();
 	this.gameStats = loadGameStats();
-	this.setCursor(cursor);
+	this.setCustomCursor(customCursor);
 	this.setMilestones(showMilestones);
 	this.setAutoDismissClues(autoDismissClues);
 	this.setTimerVisible(showTimer);

@@ -4,9 +4,5 @@
    - resolve animations experiment
    - are chalk marks worth the interface complexity
    - is drag tiles any good
-   - cursors
-     - drop gear cursor?
-     - retain system vs stylus boolean?
    - options
      - maybe align fullscreen and close buttons
-     - maybe group cursor with display (call it Interface?)

@@ -48,12 +48,7 @@ body {
 	user-select: none;
 }
 
-body[data-cursor="gear"] {
-	--default-cursor: url("cursor-gear.svg") 1 1, default;
-	--action-cursor: url("cursor-gear-active.svg") 1 1, pointer;
-}
-
-body[data-cursor="native"] {
+body[data-custom-cursor="false"] {
 	--default-cursor: default;
 	--action-cursor: pointer;
 }
