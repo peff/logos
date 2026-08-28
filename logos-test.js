@@ -275,7 +275,7 @@ Deno.test("a blank seed starts a random game from Options", function() {
 	input.value = "   ";
 	puzzle.playSeed();
 	assert(!puzzle.gameOver && typeof puzzle.seed == "number" &&
-	       input.value == puzzle.seed.toString(16) &&
+	       input.value == puzzle.seed.toString(16).padStart(8, "0") &&
 	       input.validationMessage == "",
 	       "a blank seed did not start a random game");
 	puzzle.stopTimer();
