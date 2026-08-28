@@ -2481,6 +2481,16 @@ function proofConcluded(puzzle, domains, failedSlot, failedValue) {
 	return !(domains[row][failedValue] & bit);
 }
 
+function proofConclusionPresented(puzzle, domains, placements,
+				  failedSlot, failedValue) {
+	if (!proofConcluded(puzzle, domains, failedSlot, failedValue))
+		return false;
+	if (failedSlot.value != failedValue)
+		return true;
+	var row = puzzle.rows.indexOf(failedSlot.row);
+	return !!(placements[row] & (1 << failedValue));
+}
+
 function proofStepDomain(before, after, rowSize, groupEdges) {
 	var removed = before & ~after;
 	var edges = 1 | (1 << (rowSize - 1));
@@ -3021,9 +3031,8 @@ function buildProofSteps(puzzle, base, basePlacements,
 						forcedBefore);
 					replay.push(forced);
 				}, function() {
-					return failedSlot.value != failedValue &&
-						proofConcluded(puzzle, current, failedSlot,
-						failedValue);
+					return proofConclusionPresented(puzzle, current,
+						placements, failedSlot, failedValue);
 				});
 			continue;
 		}
@@ -3043,9 +3052,8 @@ function buildProofSteps(puzzle, base, basePlacements,
 					forcedBefore);
 				replay.push(forced);
 			}, function() {
-				return failedSlot.value != failedValue &&
-					proofConcluded(puzzle, current, failedSlot,
-					failedValue);
+				return proofConclusionPresented(puzzle, current,
+					placements, failedSlot, failedValue);
 			});
 	}
 	steps = replay;

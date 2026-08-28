@@ -120,7 +120,9 @@ const Logos = eval(source +
 	"practiceMistakeMessage: practiceMistakeMessage, " +
 	"proofDeductionMessage: proofDeductionMessage, " +
 	"combineRelatedProofSteps: combineRelatedProofSteps, " +
+	"drainForcedProofSteps: drainForcedProofSteps, " +
 	"nextForcedProofStep: nextForcedProofStep, " +
+	"proofConclusionPresented: proofConclusionPresented, " +
 	"formatOlympiad: formatOlympiad, greekNumeralDay: greekNumeralDay });");
 const Puzzle = Logos.Puzzle;
 const ExactClue = Logos.ExactClue;
@@ -1308,6 +1310,28 @@ Deno.test("a symbol with one possible slot is resolved", function() {
 			slot.discard(value);
 	assert(actual.single, "row singleton was not resolved");
 	assert(puzzle.losses == 0, "correct eliminations caused a loss");
+});
+
+Deno.test("forced steps stop after presenting a failed removal", function() {
+	const puzzle = makePuzzle(1);
+	const failed = puzzle.rows[0].slots[4];
+	failed.value = 0;
+	const domains = [[
+		1 << 4,
+		1 << 5,
+		1 | 2,
+		1 | 4,
+		2 | 4,
+		2 | 8,
+	]];
+	const placements = [0];
+	const steps = [];
+	Logos.drainForcedProofSteps(domains, placements, step =>
+		steps.push(step), () => Logos.proofConclusionPresented(
+			puzzle, domains, placements, failed, 0));
+	assert(steps.length == 1 && steps[0].symbol == 0 &&
+	       placements[0] == 1 && domains[0][1] == 1 << 5,
+	       "forced replay continued after placing the removed symbol");
 });
 
 Deno.test("applying an exact clue fixes its tile", function() {
