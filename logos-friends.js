@@ -81,6 +81,8 @@ function updateWebRTCGuest(state) {
 	if (state.connected) {
 		status.textContent = "Connected to the host.";
 		friendsButton.value = "Friends (joined)";
+		if (!friendsMenu.hidden)
+			toggleMenu();
 	} else if (state.state == "disconnected") {
 		status.textContent = "The connection to the host was interrupted.";
 		friendsButton.value = "Friends (disconnected)";
