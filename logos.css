@@ -798,6 +798,11 @@ body.proof-active #logo {
 	padding: 0;
 }
 
+.options-panel {
+	max-height: calc(100vh - 2rem);
+	overflow-y: auto;
+}
+
 #options-menu fieldset + fieldset {
 	margin-top: 0.35rem;
 	padding-top: 0.3rem;
@@ -810,15 +815,33 @@ body.proof-active #logo {
 
 #options-menu label {
 	display: flex;
-	align-items: center;
+	align-items: flex-start;
 	gap: 0.3rem;
 	cursor: var(--action-cursor);
 	white-space: nowrap;
 }
 
+#options-menu label > span {
+	display: flex;
+	flex-direction: column;
+}
+
+#options-menu label small {
+	max-width: 18rem;
+	color: #736d63;
+	font-size: 0.72em;
+	line-height: 1.1;
+	white-space: normal;
+}
+
 #options-menu .game-options .seed-option {
-	gap: 0.4rem;
 	margin-top: 0.18rem;
+}
+
+#options-menu .seed-control {
+	display: flex;
+	align-items: center;
+	gap: 0.4rem;
 }
 
 #game-seed {

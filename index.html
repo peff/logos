@@ -86,52 +86,63 @@
 				<div class="modal-panel options-panel">
 					<fieldset>
 						<legend>Interface</legend>
-						<label title="Use a bronze stylus instead of your browser's standard pointer.">
+						<label>
 						       <input id="custom-cursor" type="checkbox" checked
 						              onChange="puzzle.setCustomCursor(this.checked)">
-						       Custom cursor</label>
-						<label title="Show messages as you reveal more of the solution. Disable for deep focus.">
+						       <span>Custom cursor
+						             <small>Use a bronze stylus pointer.</small></span></label>
+						<label>
 						       <input id="show-milestones" type="checkbox" checked
 						              onChange="puzzle.setMilestones(this.checked)">
-						       Milestone messages</label>
-						<label title="Show elapsed time. Disable for zen relaxation.">
+						       <span>Milestone messages
+						             <small>Show progress messages while solving. Disable for deep focus.</small></span></label>
+						<label>
 						       <input id="show-timer" type="checkbox" checked
 						              onChange="puzzle.setTimerVisible(this.checked)">
-						       Show timer</label>
-						<label title="Play sounds for deductions, clues, wins, and mistakes.">
+						       <span>Show timer
+						             <small>Show elapsed time. Disable for zen relaxation.</small></span></label>
+						<label>
 						       <input id="sound-effects" type="checkbox"
 						              onChange="puzzle.setSoundEffects(this.checked)">
-						       Sound effects</label>
-						<label title="Open larger copies of a slot's tiles before choosing one. For small screens or large fingers.">
+						       <span>Sound effects
+						             <small>Play sounds for moves and results.</small></span></label>
+						<label>
 						       <input id="expand-tile-choices" type="checkbox"
 						              onChange="puzzle.setExpandTileChoices(this.checked)">
-						       Expanded tiles</label>
-						<label class="option-dependent" title="Press a slot, drag to an expanded tile, and release to apply the selected tap action.">
+						       <span>Expanded tiles
+						             <small>Enlarge tile choices before selecting. For small screens or large fingers.</small></span></label>
+						<label class="option-dependent">
 						       <input id="drag-tile-choices" type="checkbox"
 						              onChange="puzzle.setDragTileChoices(this.checked)">
-						       Drag tiles</label>
-						<label title="Choose how taps on tiles are interpreted. Avoids long-press and enables chalk marks on touchscreens.">
+						       <span>Drag tiles
+						             <small>Drag to choose an expanded tile.</small></span></label>
+						<label>
 						       <input id="show-action-selector" type="checkbox"
 						              onChange="puzzle.setShowActionSelector(this.checked)">
-						       Tap controls</label>
-						<label title="Hide a clue automatically once all of its symbols have been placed.">
+						       <span>Tap controls
+						             <small>Select tap action on touchscreens.</small></span></label>
+						<label>
 						       <input id="auto-dismiss-clues" type="checkbox" checked
 						              onChange="puzzle.setAutoDismissClues(this.checked)">
-						       Dismiss exhausted clues</label>
+						       <span>Dismiss exhausted clues
+						             <small>Hide clues after all symbols are placed.</small></span></label>
 						<input id="fullscreen-button" class="option-action" type="button"
 						       onClick="puzzle.toggleFullscreen()" value="Enter full screen">
 					</fieldset>
 					<fieldset class="game-options">
 						<legend>Game</legend>
-						<label title="No timer, no losses.  Pure logic.">
+						<label>
 						       <input id="practice-mode" type="checkbox"
 						              onChange="puzzle.setPracticeMode(this.checked)">
-						       Zen mode</label>
-						<label class="seed-option" title="Share this number to let somebody else play the same puzzle.">
-						       Seed:
-						       <input id="game-seed" type="text" maxlength="8"
-						              autocapitalize="none" autocomplete="off" spellcheck="false"
-						              onKeyDown="if (event.key == 'Enter') puzzle.playSeed()">
+						       <span>Zen mode
+						             <small>No timer, no losses. Pure logic.</small></span></label>
+						<label class="seed-option">
+						       <span><span class="seed-control">Seed:
+						                   <input id="game-seed" type="text" maxlength="8"
+						                          autocapitalize="none" autocomplete="off" spellcheck="false"
+						                          onKeyDown="if (event.key == 'Enter') puzzle.playSeed()">
+						             </span>
+						             <small>Replay or share a particular puzzle.</small></span>
 						</label>
 					</fieldset>
 					<div class="options-actions">
