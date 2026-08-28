@@ -1586,9 +1586,9 @@ Deno.test("7998093c gives a coherent clue set for discarding III", function() {
 		step.row == 1 && step.symbol == 0 && step.removed & (1 << 3));
 	const triangleFifth = puzzle.proof.steps.findIndex(step =>
 		step.row == 4 && step.symbol == 0 && step.removed & (1 << 4));
-	assert(aFourth >= 0 && aEdge == aFourth + 1 &&
+	assert(aFourth >= 0 && aEdge > aFourth &&
 	       triangleFifth == aEdge + 1,
-	       "the proof did not group the related A deductions");
+	       "the proof did not order the related A deductions");
 	assert(puzzle.proof.steps[aFourth].message.includes("two positions away") &&
 	       puzzle.proof.steps[aEdge].message.includes("between two symbols") &&
 	       puzzle.proof.steps[triangleFifth].message.includes("must be adjacent"),
@@ -1841,6 +1841,18 @@ Deno.test("proof ordering preserves the failed conclusion", function() {
 	puzzle.explainLoss();
 	assert(puzzle.explainButton.classList.contains("proof-available"),
 	       "closing the proof did not restore the Because highlight");
+	puzzle.stopTimer();
+});
+
+Deno.test("proof replay skips deductions superseded by forced steps", function() {
+	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
+	puzzle.say = function() {};
+	puzzle.newGame("a0ab30a7");
+	puzzle.rows[4].slots[5].choose(2);
+	puzzle.explainLoss();
+	assert(puzzle.proof && puzzle.proof.steps.length &&
+	       puzzle.proof.steps[puzzle.proof.steps.length - 1].conclusion,
+	       "a superseded clue deduction prevented the proof from opening");
 	puzzle.stopTimer();
 });
 

@@ -2606,10 +2606,11 @@ function replayProofSteps(puzzle, base, basePlacements, steps,
 	var current = copyDomains(base);
 	var placements = basePlacements.slice();
 	for (var i = 0; i < steps.length; i++) {
-		if (!proofStepSupported(puzzle, steps[i], current, placements))
-			return null;
 		var step = refreshProofStep(puzzle, steps[i], current);
+		/* A forced step may already have made this deduction redundant. */
 		if (!step)
+			continue;
+		if (!proofStepSupported(puzzle, step, current, placements))
 			return null;
 		applyProofStep(current, placements, step);
 		drainForcedProofSteps(current, placements);
@@ -2692,9 +2693,16 @@ function orderProofSteps(puzzle, base, basePlacements, steps,
 	var previousSubjects = [];
 	while (remaining.length) {
 		var best = null;
+		var bestStep = null;
 		var bestScore = -1;
+		/* Drop deductions superseded by the forced steps drained below. */
+		for (var i = remaining.length - 1; i >= 0; i--) {
+			var step = refreshProofStep(puzzle, remaining[i], current);
+			if (!step)
+				remaining.splice(i, 1);
+		}
 		for (var i = 0; i < remaining.length; i++) {
-			var step = remaining[i];
+			var step = refreshProofStep(puzzle, remaining[i], current);
 			if (!proofStepSupported(puzzle, step, current, placements))
 				continue;
 			var subjects = proofStepSubjects(puzzle, step);
@@ -2707,15 +2715,16 @@ function orderProofSteps(puzzle, base, basePlacements, steps,
 				score += 10;
 			if (score > bestScore) {
 				best = i;
+				bestStep = step;
 				bestScore = score;
 			}
 		}
+		if (!remaining.length)
+			break;
 		if (best === null)
 			return steps;
-		var step = remaining.splice(best, 1)[0];
-		step = refreshProofStep(puzzle, step, current);
-		if (!step)
-			return steps;
+		remaining.splice(best, 1);
+		var step = bestStep;
 		applyProofStep(current, placements, step);
 		drainForcedProofSteps(current, placements);
 		ordered.push(step);
@@ -2827,8 +2836,9 @@ function buildProofSteps(puzzle, base, basePlacements,
 	var replay = [];
 	for (var i = 0; i < steps.length; i++) {
 		var step = refreshProofStep(puzzle, steps[i], current);
+		/* Ordering may expose another deduction as redundant. */
 		if (!step)
-			return [];
+			continue;
 		var before = current[step.row][step.symbol];
 		applyProofStep(current, placements, step);
 		step.domain = current[step.row][step.symbol];
