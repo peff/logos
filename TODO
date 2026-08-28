@@ -1,7 +1,14 @@
- - practice/zen mode to turn off penalties/timer
  - daily puzzle
  - shared leaderboard (would require actual server infrastructure)
  - consider simplifying
    - resolve gaudy stone effects experiment
+   - resolve animations experiment
    - are chalk marks worth the interface complexity
    - is drag tiles any good
+   - cursors
+     - drop gear cursor?
+     - retain system vs stylus boolean?
+   - options
+     - maybe align fullscreen and close buttons
+     - maybe group puzzle seed and zen mode options
+     - maybe group cursor with display (call it Interface?)
