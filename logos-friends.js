@@ -75,8 +75,7 @@ function beginSession(role) {
 	leaveButton.textContent = role == "host" ?
 		"End multiplayer" : "Leave multiplayer";
 	setGameControlsDisabled(true);
-	newGameButton.disabled = role != "host";
-	newGameButton.onclick = role == "host" ? startSharedGame : null;
+	newGameButton.onclick = role == "host" ? startSharedGame : toggleMenu;
 }
 
 function playerName(role) {
@@ -307,7 +306,6 @@ function leave() {
 	}
 	friendsButton.value = "Play with friends";
 	setGameControlsDisabled(false);
-	newGameButton.disabled = false;
 	newGameButton.onclick = function() { window.puzzle.newGame(); };
 }
 
