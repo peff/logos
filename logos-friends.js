@@ -1,5 +1,4 @@
 import { MultiplayerSession } from "./logos-multiplayer.js";
-import { BroadcastRoomTransport, normalizeRoomId } from "./logos-broadcast.js";
 import {
 	WebRTCGuestTransport,
 	WebRTCHostTransport,
@@ -18,8 +17,6 @@ var invitationOutput = friendsMenu.querySelector("#friends-invitation-output");
 var invitationInput = friendsMenu.querySelector("#friends-invitation-input");
 var answerInput = friendsMenu.querySelector("#friends-answer-input");
 var answerOutput = friendsMenu.querySelector("#friends-answer-output");
-var roomDisplay = friendsMenu.querySelector(".friends-room-id");
-var roomInput = friendsMenu.querySelector("#friends-room-input");
 var session = null;
 var transport = null;
 var displayedInvitationId = null;
@@ -158,34 +155,6 @@ async function acceptAnswer() {
 	}
 }
 
-function updateBroadcast(state) {
-	if (!session)
-		return;
-	var count = state.players.size;
-	if (session.role == "host") {
-		status.textContent = count == 1 ?
-			"Hosting; waiting for another tab to join." :
-			"Hosting a game with " + count + " players.";
-		friendsButton.value = "Friends (hosting)";
-	} else {
-		status.textContent = state.connected ?
-			"Connected to the host." : "Looking for the host...";
-		friendsButton.value = state.connected ?
-			"Friends (joined)" : "Friends (joining)";
-	}
-}
-
-function beginBroadcast(role, roomId) {
-	beginSession(role);
-	transport = new BroadcastRoomTransport(session, {
-		roomId,
-		playerName: role == "host" ? "Host" : "Guest",
-		onChange: updateBroadcast,
-	});
-	roomDisplay.textContent = roomId;
-	roomDisplay.closest(".friends-room").hidden = false;
-}
-
 function leave() {
 	if (transport)
 		transport.close();
@@ -197,7 +166,6 @@ function leave() {
 	hostControls.hidden = true;
 	guestControls.hidden = true;
 	leaveButton.hidden = true;
-	roomDisplay.closest(".friends-room").hidden = true;
 	for (var field of friendsMenu.querySelectorAll("textarea, input[type=text]")) {
 		field.value = "";
 		field.setCustomValidity("");
@@ -258,12 +226,4 @@ friendsMenu.querySelector("#friends-copy-invitation").addEventListener(
 	"click", function() { copyField("#friends-invitation-output", this); });
 friendsMenu.querySelector("#friends-copy-answer").addEventListener(
 	"click", function() { copyField("#friends-answer-output", this); });
-friendsMenu.querySelector("#friends-broadcast-host").addEventListener(
-	"click", function() { beginBroadcast("host", randomHex(3)); });
-friendsMenu.querySelector("#friends-broadcast-join").addEventListener(
-	"click", function() {
-		var roomId = normalizeRoomId(roomInput.value);
-		if (roomId)
-			beginBroadcast("guest", roomId);
-	});
 leaveButton.addEventListener("click", leave);

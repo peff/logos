@@ -22,8 +22,3 @@ To try WebRTC between two browsers:
 Once connected, committed moves should appear in both browsers; chalk marks
 deliberately remain local. The host can create a separate invitation for each
 additional guest.
-
-The older `BroadcastChannel` transport remains available under
-**Same-browser test**. It works only between tabs in the same browser and
-origin, but is useful for distinguishing game protocol bugs from WebRTC
-connection problems.

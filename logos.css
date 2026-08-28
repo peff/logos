@@ -965,10 +965,6 @@ body.proof-active #logo {
 	margin: 0 0 0.45rem;
 }
 
-.friends-room-id {
-	letter-spacing: 0.12em;
-}
-
 .friends-actions {
 	display: flex;
 	justify-content: center;
@@ -1001,22 +997,6 @@ body.proof-active #logo {
 .friends-guest-controls > label {
 	display: block;
 	margin-top: 0.45rem;
-}
-
-.friends-broadcast {
-	margin-top: 0.65rem;
-	border-top: 1px solid #c8c0b2;
-	padding-top: 0.45rem;
-}
-
-.friends-broadcast summary {
-	cursor: var(--action-cursor);
-	color: #746c60;
-}
-
-#friends-room-input {
-	width: 7rem;
-	text-transform: uppercase;
 }
 
 .friends-note {
