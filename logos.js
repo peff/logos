@@ -1479,7 +1479,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	var showActionSelector = this.showActionSelector;
 	try {
 		var storedCustomCursor = localStorage.getItem("customCursor");
-		var oldCursor = localStorage.getItem("cursor");
 		var storedMilestones = localStorage.getItem("showMilestones");
 		var storedAutoDismissClues = localStorage.getItem(
 			"autoDismissClues");
@@ -1498,8 +1497,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			"selectionActionMenu");
 		if (storedCustomCursor !== null)
 			customCursor = storedCustomCursor == "true";
-		else if (oldCursor !== null)
-			customCursor = oldCursor != "native";
 		if (storedMilestones !== null)
 			showMilestones = storedMilestones == "true";
 		if (storedAutoDismissClues !== null)
