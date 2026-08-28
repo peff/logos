@@ -1935,6 +1935,8 @@ var proofDeductionCatalog = [
 	  message: "{subject} cannot be in the {position} position because neither {left} nor {right} can be in the {neighbor} position." },
 	{ id: "adjacent3.middle.remove-edges",
 	  message: "{subject} cannot be on either edge because it is between two symbols." },
+	{ id: "adjacent3.placement.inward-from-edge",
+	  message: "{subject} must be in the {position} position because the sequence containing {outer} can only extend toward the center." },
 	{ id: "adjacent3.outer.middle-not-adjacent",
 	  message: "{subject} cannot be in {positions} because {middle} must be adjacent." },
 	{ id: "adjacent3.outer.placement",
@@ -2021,6 +2023,19 @@ function deductionMessage(puzzle, step, before, after) {
 	});
 }
 
+function adjacent3InwardPosition(outerDomain, rowSize, distance) {
+	if (countBits(outerDomain) != 1)
+		return 0;
+	var col = 0;
+	while (!(outerDomain & (1 << col)))
+		col++;
+	if (col < 2)
+		return 1 << (col + distance);
+	if (col >= rowSize - 2)
+		return 1 << (col - distance);
+	return 0;
+}
+
 function adjacent3DeductionMessage(puzzle, step, before, after, domains) {
 	var clue = step.clue;
 	var row = step.row;
@@ -2038,7 +2053,6 @@ function adjacent3DeductionMessage(puzzle, step, before, after, domains) {
 	var leftName = proofSymbolReference(puzzle, leftRow, leftSymbol);
 	var rightName = proofSymbolReference(puzzle, rightRow, rightSymbol);
 	var edges = 1 | (1 << (rowSize - 1));
-
 	if (row == middleRow && symbol == middleSymbol) {
 		if (countBits(after) == 1) {
 			var col = 0;
@@ -2052,6 +2066,22 @@ function adjacent3DeductionMessage(puzzle, step, before, after, domains) {
 						position: ordinalName(col),
 						left: leftName,
 						right: rightName,
+					});
+			if (adjacent3InwardPosition(
+			    domains[leftRow][leftSymbol], rowSize, 1) == after)
+				return identifiedDeduction(step,
+					"adjacent3.placement.inward-from-edge", {
+						subject: name,
+						position: ordinalName(col),
+						outer: leftName,
+					});
+			if (adjacent3InwardPosition(
+			    domains[rightRow][rightSymbol], rowSize, 1) == after)
+				return identifiedDeduction(step,
+					"adjacent3.placement.inward-from-edge", {
+						subject: name,
+						position: ordinalName(col),
+						outer: rightName,
 					});
 			return identifiedDeduction(step,
 				"adjacent3.middle.placement", {
@@ -2142,6 +2172,19 @@ function adjacent3DeductionMessage(puzzle, step, before, after, domains) {
 	var otherSymbol = row == leftRow && symbol == leftSymbol ?
 		rightSymbol : leftSymbol;
 	var otherName = proofSymbolReference(puzzle, otherRow, otherSymbol);
+	if (countBits(after) == 1 &&
+	    adjacent3InwardPosition(domains[otherRow][otherSymbol],
+		rowSize, 2) == after) {
+		var col = 0;
+		while (!(after & (1 << col)))
+			col++;
+		return identifiedDeduction(step,
+			"adjacent3.placement.inward-from-edge", {
+				subject: name,
+				position: ordinalName(col),
+				outer: otherName,
+			});
+	}
 	if (countBits(after) == 1 &&
 	    countBits(domains[middleRow][middleSymbol]) == 1 &&
 	    countBits(domains[otherRow][otherSymbol]) == 1) {
@@ -2559,8 +2602,20 @@ function proofStepSupported(puzzle, step, domains, placements) {
 		var middleSymbol = step.clue.mRow.slots[step.clue.mCol].value;
 		if ((row != middleRow || symbol != middleSymbol) &&
 		    trial[middleRow][middleSymbol] !=
-		    domains[middleRow][middleSymbol])
-			return false;
+		    domains[middleRow][middleSymbol]) {
+			if (step.clue.constructor != Adjacent3Clue)
+				return false;
+			var leftRow = puzzle.rows.indexOf(step.clue.lRow);
+			var leftSymbol = step.clue.lRow.slots[step.clue.lCol].value;
+			var otherRow = row == leftRow && symbol == leftSymbol ?
+				puzzle.rows.indexOf(step.clue.rRow) : leftRow;
+			var otherSymbol = row == leftRow && symbol == leftSymbol ?
+				step.clue.rRow.slots[step.clue.rCol].value : leftSymbol;
+			var after = domains[row][symbol] & trial[row][symbol];
+			if (adjacent3InwardPosition(domains[otherRow][otherSymbol],
+				domains[row].length, 2) != after)
+				return false;
+		}
 	}
 	return trial[row][symbol] != domains[row][symbol];
 }

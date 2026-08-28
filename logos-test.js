@@ -1846,19 +1846,41 @@ Deno.test("a three-adjacent middle placement explains both outer symbols", funct
 	puzzle.stopTimer();
 });
 
-Deno.test("a three-adjacent outer placement completes a fixed sequence", function() {
+Deno.test("a near-edge outer symbol orients a three-adjacent sequence", function() {
 	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
 	puzzle.say = function() {};
 	puzzle.newGame("1af9b122");
 	puzzle.rows[5].slots[5].choose(5);
 	puzzle.explainLoss();
 	const step = puzzle.proof.steps[puzzle.proof.steps.length - 1];
-	assert(step.deduction == "adjacent3.outer.placement" &&
+	assert(step.deduction == "adjacent3.placement.inward-from-edge" &&
 	       Logos.proofMessageText(puzzle, step.message) ==
-	       "√ must be in the fourth position to complete the sequence with " +
-	       "⚁ and 3." && step.conclusion,
-	       "the final outer symbol was not explained as a placement");
+	       "√ must be in the fourth position because the sequence containing " +
+	       "3 can only extend toward the center." && step.conclusion,
+	       "the inward sequence was not explained as a placement");
 	puzzle.stopTimer();
+});
+
+Deno.test("a near-edge sequence explains either remaining placement", function() {
+	for (const [row, symbol, col, message] of [
+		[5, 2, 4, "÷ must be in the fifth position because the sequence " +
+			"containing A can only extend toward the center."],
+		[4, 5, 3, "○ must be in the fourth position because the sequence " +
+			"containing A can only extend toward the center."],
+	]) {
+		const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
+		puzzle.say = function() {};
+		puzzle.newGame("fd628e5e");
+		puzzle.rows[1].slots[5].choose(0);
+		puzzle.rows[row].slots[col].discard(symbol);
+		puzzle.explainLoss();
+		const step = puzzle.proof.steps[0];
+		assert(puzzle.proof.steps.length == 1 && step.deduction ==
+		       "adjacent3.placement.inward-from-edge" &&
+		       Logos.proofMessageText(puzzle, step.message) == message,
+		       "the near-edge sequence placement was not explained");
+		puzzle.stopTimer();
+	}
 });
 
 Deno.test("a three-adjacent outer placement explains shared orientations", function() {
