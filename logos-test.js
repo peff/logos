@@ -1012,12 +1012,12 @@ Deno.test("ordering deductions name the obstructing tile", function() {
 	assert(Logos.proofMessageText(puzzle,
 	       Logos.orderDeductionMessage(puzzle, step, full,
 	       full & ~(1 << 3))) ==
-	       "1 cannot be in the fourth position because 0 must be to its left.",
+	       "1 cannot be in the fourth column because 0 must be to its left.",
 	       "an inner ordering deduction did not name the other tile");
 	assert(Logos.proofMessageText(puzzle,
 	       Logos.orderDeductionMessage(puzzle, step, full,
 	       full & ~1)) ==
-	       "1 cannot be in the first position because 0 must be to its left.",
+	       "1 cannot be in the first column because 0 must be to its left.",
 	       "an edge ordering deduction did not name the other tile");
 });
 
@@ -1058,8 +1058,8 @@ Deno.test("three-adjacent middle deductions remove edges first", function() {
 	const innerMessage = Logos.adjacent3DeductionMessage(puzzle, innerStep,
 		domains[0][0], domains[0][0] & ~innerStep.removed, domains);
 	assert(Logos.proofMessageText(puzzle, innerMessage) ==
-	       "0 cannot be in the second position because neither 1 nor 2 can " +
-	       "be in the first position.",
+	       "0 cannot be in the second column because neither 1 nor 2 can " +
+	       "be in the first column.",
 	       "the adjacent inner deduction was not explained independently");
 });
 
@@ -1084,7 +1084,7 @@ function() {
 		domains[0][0], domains);
 	assert(step.deduction == "adjacent3.middle.placement-between" &&
 	       Logos.proofMessageText(puzzle, message) ==
-	       "0 must be in the third position because it must be between 1 " +
+	       "0 must be in the third column because it must be between 1 " +
 	       "and 2.",
 	       "the middle symbol was not explained as filling a fixed gap");
 });
@@ -1134,7 +1134,7 @@ Deno.test("related middle adjacency removals share one proof step", function() {
 	assert(steps.length == 1 && steps[0].removed == (4 | 16),
 	       "matching adjacency removals were not combined");
 	assert(Logos.proofMessageText(puzzle, steps[0].message) ==
-	       "0 cannot be in the third and fifth positions because 1 must be adjacent.",
+	       "0 cannot be in the third and fifth columns because 1 must be adjacent.",
 	       "the combined removal did not list both positions");
 });
 
@@ -1628,7 +1628,7 @@ Deno.test("7998093c gives a coherent clue set for discarding III", function() {
 	       "the proof continued after III was the only sixth-position tile");
 	assert(Logos.proofMessageText(puzzle,
 	       puzzle.proof.steps[puzzle.proof.steps.length - 1].message) ==
-	       "2 must be in the sixth position because it is the only " +
+	       "2 must be in the sixth column because it is the only " +
 	       "remaining option.",
 	       "the proof did not state its conclusion");
 	let previous = puzzle.proof.base;
@@ -1713,7 +1713,7 @@ Deno.test("proof reconstruction reaches a wrong placement", function() {
 	       last.removed == 1 << 2,
 	       "the proof ended before removing the failed placement");
 	assert(Logos.proofMessageText(puzzle, last.message) ==
-	       "4 cannot be in the third position because 0 must be adjacent.",
+	       "4 cannot be in the third column because 0 must be adjacent.",
 	       "the final adjacency deduction was left implicit");
 	puzzle.stopTimer();
 });
@@ -1731,7 +1731,7 @@ Deno.test("a column clue presents a forced placement as one proof step", functio
 		step.row == 4 && step.symbol == 3);
 	assert(diamondSteps.length == 1 && diamondSteps[0].domain == 1 << 5 &&
 	       Logos.proofMessageText(puzzle, diamondSteps[0].message) ==
-	       "3 must be in the sixth position.",
+	       "3 must be in the sixth column.",
 	       "the column clue split a forced placement into eliminations");
 	for (let symbol = 0; symbol < 6; symbol++)
 		assert(symbol == 3 || !(diamondSteps[0].domains[4][symbol] & 1 << 5),
@@ -1777,7 +1777,7 @@ Deno.test("a row's only candidate is one proof placement", function() {
 	assert(placement && placement.domain == 1 &&
 	       placement.removed & (placement.removed - 1) &&
 	       Logos.proofMessageText(puzzle, placement.message) ==
-	       "4 must be in the first position because it is the only " +
+	       "4 must be in the first column because it is the only " +
 	       "remaining option.",
 	       "the only-candidate rule split a placement into eliminations");
 	const placementIndex = puzzle.proof.steps.indexOf(placement);
@@ -1802,7 +1802,7 @@ Deno.test("a row's only candidate is one proof placement", function() {
 		step.row == 3 && step.symbol == 2);
 	assert(dieThree && dieThree.placement && dieThree.domain == 1 << 3 &&
 	       Logos.proofMessageText(puzzle, dieThree.message) ==
-	       "2 must be in the fourth position.",
+	       "2 must be in the fourth column.",
 	       "a reordered vertical clue replayed its stale partial deduction");
 	puzzle.proof.position = placementIndex + 1;
 	puzzle.showProofPosition();
@@ -1821,7 +1821,7 @@ Deno.test("a multi-position clue deduction explains its common cause", function(
 	const romanOne = puzzle.proof.steps.find(step =>
 		step.row == 2 && step.symbol == 0 && step.removed == 17);
 	assert(romanOne && Logos.proofMessageText(puzzle, romanOne.message) ==
-	       "0 cannot be in the first and fifth positions because 3 must be " +
+	       "0 cannot be in the first and fifth columns because 3 must be " +
 	       "two positions away.",
 	       "a shared reason for multiple eliminations was not explained");
 	puzzle.stopTimer();
@@ -1836,7 +1836,7 @@ Deno.test("a three-adjacent middle placement explains both outer symbols", funct
 		step.row == 4 && step.symbol == 0 && step.domain == 1 << 4);
 	assert(triangle && triangle.deduction == "adjacent3.middle.placement" &&
 	       Logos.proofMessageText(puzzle, triangle.message) ==
-	       "△ must be in the fifth position because that is the only place " +
+	       "△ must be in the fifth column because that is the only place " +
 	       "where E and √ can fit on opposite sides of it.",
 	       "the middle placement did not explain why only one orientation fits");
 	assert(!puzzle.proof.steps.some(step =>
@@ -1855,7 +1855,7 @@ Deno.test("a near-edge outer symbol orients a three-adjacent sequence", function
 	const step = puzzle.proof.steps[puzzle.proof.steps.length - 1];
 	assert(step.deduction == "adjacent3.placement.inward-from-edge" &&
 	       Logos.proofMessageText(puzzle, step.message) ==
-	       "√ must be in the fourth position because the sequence containing " +
+	       "√ must be in the fourth column because the sequence containing " +
 	       "3 can only extend toward the center." && step.conclusion,
 	       "the inward sequence was not explained as a placement");
 	puzzle.stopTimer();
@@ -1863,9 +1863,9 @@ Deno.test("a near-edge outer symbol orients a three-adjacent sequence", function
 
 Deno.test("a near-edge sequence explains either remaining placement", function() {
 	for (const [row, symbol, col, message] of [
-		[5, 2, 4, "÷ must be in the fifth position because the sequence " +
+		[5, 2, 4, "÷ must be in the fifth column because the sequence " +
 			"containing A can only extend toward the center."],
-		[4, 5, 3, "○ must be in the fourth position because the sequence " +
+		[4, 5, 3, "○ must be in the fourth column because the sequence " +
 			"containing A can only extend toward the center."],
 	]) {
 		const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
@@ -1892,8 +1892,8 @@ Deno.test("a three-adjacent outer placement explains shared orientations", funct
 	const step = puzzle.proof.steps[7];
 	assert(step.deduction == "adjacent3.outer.only-position" &&
 	       Logos.proofMessageText(puzzle, step.message) ==
-	       "5 must be in the third position because that is the only " +
-	       "position where F can be between it and V.",
+	       "5 must be in the third column because that is the only " +
+	       "place where F can be between it and V.",
 	       "the shared outer position did not explain both orientations");
 	puzzle.stopTimer();
 });

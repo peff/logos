@@ -1928,39 +1928,39 @@ var proofDeductionCatalog = [
 	{ id: "adjacent3.middle.outer-not-adjacent",
 	  message: "{subject} cannot be in {positions} because {outer} must be adjacent." },
 	{ id: "adjacent3.middle.placement-between",
-	  message: "{subject} must be in the {position} position because it must be between {left} and {right}." },
+	  message: "{subject} must be in the {position} column because it must be between {left} and {right}." },
 	{ id: "adjacent3.middle.placement",
-	  message: "{subject} must be in the {position} position because that is the only place where {left} and {right} can fit on opposite sides of it." },
+	  message: "{subject} must be in the {position} column because that is the only place where {left} and {right} can fit on opposite sides of it." },
 	{ id: "adjacent3.middle.no-neighbor",
-	  message: "{subject} cannot be in the {position} position because neither {left} nor {right} can be in the {neighbor} position." },
+	  message: "{subject} cannot be in the {position} column because neither {left} nor {right} can be in the {neighbor} column." },
 	{ id: "adjacent3.middle.remove-edges",
 	  message: "{subject} cannot be on either edge because it is between two symbols." },
 	{ id: "adjacent3.placement.inward-from-edge",
-	  message: "{subject} must be in the {position} position because the sequence containing {outer} can only extend toward the center." },
+	  message: "{subject} must be in the {position} column because the sequence containing {outer} can only extend toward the center." },
 	{ id: "adjacent3.outer.middle-not-adjacent",
 	  message: "{subject} cannot be in {positions} because {middle} must be adjacent." },
 	{ id: "adjacent3.outer.placement",
-	  message: "{subject} must be in the {position} position to complete the sequence with {middle} and {other}." },
+	  message: "{subject} must be in the {position} column to complete the sequence with {middle} and {other}." },
 	{ id: "adjacent3.outer.only-position",
-	  message: "{subject} must be in the {position} position because that is the only position where {middle} can be between it and {other}." },
+	  message: "{subject} must be in the {position} column because that is the only place where {middle} can be between it and {other}." },
 	{ id: "adjacent3.outer.no-orientation",
-	  message: "{subject} cannot be in the {position} position because {middle} and {other} cannot fit beside it in either orientation." },
+	  message: "{subject} cannot be in the {position} column because {middle} and {other} cannot fit beside it in either orientation." },
 	{ id: "adjacent3.outer.other-not-two-away",
 	  message: "{subject} cannot be in {positions} because {other} must be two positions away." },
 	{ id: "clue.placement",
-	  message: "{subject} must be in the {position} position." },
+	  message: "{subject} must be in the {position} column." },
 	{ id: "column.other-not-position",
 	  message: "{subject} cannot be in {positions} because {other} is not." },
 	{ id: "conclusion.placement",
-	  message: "{subject} must be in the {position} position because it is the only remaining option." },
+	  message: "{subject} must be in the {position} column because it is the only remaining option." },
 	{ id: "conclusion.remove-position",
-	  message: "{subject} cannot be in the {position} position." },
+	  message: "{subject} cannot be in the {position} column." },
 	{ id: "order.other-not-beyond",
 	  message: "{subject} cannot be in {positions} because {other} must be to its {otherDirection}." },
 	{ id: "row.only-candidate",
-	  message: "{subject} must be in the {position} position because it is the only remaining option." },
+	  message: "{subject} must be in the {position} column because it is the only remaining option." },
 	{ id: "row.only-position",
-	  message: "{subject} must be in the {position} position because it has been eliminated everywhere else." },
+	  message: "{subject} must be in the {position} column because it has been eliminated everywhere else." },
 ];
 
 var proofDeductionIds = proofDeductionCatalog.map(function(entry) {
@@ -2394,12 +2394,12 @@ function positionList(bits) {
 		if (bits & 1)
 			positions.push(ordinalName(col));
 	if (positions.length == 1)
-		return "the " + positions[0] + " position";
+		return "the " + positions[0] + " column";
 	if (positions.length == 2)
 		return "the " + positions[0] + " and " + positions[1] +
-			" positions";
+			" columns";
 	return "the " + positions.slice(0, -1).join(", ") + ", and " +
-		positions[positions.length - 1] + " positions";
+		positions[positions.length - 1] + " columns";
 }
 
 function adjacent3OuterHasCommonCause(puzzle, step, removed, domains) {
@@ -2817,9 +2817,9 @@ function proofConclusionMessage(puzzle, failedSlot, failedValue) {
 	var name = proofSymbolReference(puzzle, row, failedValue);
 	if (failedSlot.value == failedValue)
 		return name + " must be in the " + ordinalName(col) +
-			" position.";
+			" column.";
 	return name + " cannot be in the " + ordinalName(col) +
-		" position.";
+		" column.";
 }
 
 function directFailedProofStep(puzzle, domains, failedSlot, failedValue) {
