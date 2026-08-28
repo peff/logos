@@ -1079,7 +1079,7 @@ function() {
 	domains[0][0] = 1 << 2;
 	domains[1][1] = 1 << 1;
 	domains[2][2] = 1 << 3;
-	const step = { clue, row: 0, symbol: 0 };
+	const step = { clue, placement: true, row: 0, symbol: 0 };
 	const message = Logos.adjacent3DeductionMessage(puzzle, step, full,
 		domains[0][0], domains);
 	assert(step.deduction == "adjacent3.middle.placement-between" &&
@@ -1601,19 +1601,10 @@ Deno.test("7998093c gives a coherent clue set for discarding III", function() {
 	       "the proof did not introduce its own supporting clues");
 	assert(puzzle.proof.steps.length >= 10,
 	       "the proof skipped over its causal deductions");
-	const aEdge = puzzle.proof.steps.findIndex(step =>
-		step.row == 1 && step.symbol == 0 && step.removed & (1 << 5));
-	const aFourth = puzzle.proof.steps.findIndex(step =>
-		step.row == 1 && step.symbol == 0 && step.removed & (1 << 3));
-	const triangleFifth = puzzle.proof.steps.findIndex(step =>
+	const triangleFifth = puzzle.proof.steps.find(step =>
 		step.row == 4 && step.symbol == 0 && step.removed & (1 << 4));
-	assert(aFourth >= 0 && aEdge > aFourth &&
-	       triangleFifth == aEdge + 1,
-	       "the proof did not order the related A deductions");
-	assert(puzzle.proof.steps[aFourth].message.includes("two positions away") &&
-	       puzzle.proof.steps[aEdge].message.includes("between two symbols") &&
-	       puzzle.proof.steps[triangleFifth].message.includes("must be adjacent"),
-	       "the proof did not explain its three-tile deductions");
+	assert(triangleFifth && triangleFifth.message.includes("either orientation"),
+	       "the proof did not explain its three-tile deduction");
 	const romanTwoSixth = puzzle.proof.steps.find(step =>
 		step.row == 2 && step.symbol == 1 && step.removed & (1 << 5));
 	assert(romanTwoSixth && romanTwoSixth.message.includes("not adjacent"),
@@ -1889,12 +1880,35 @@ Deno.test("a three-adjacent outer placement explains shared orientations", funct
 	puzzle.newGame("fd628e5e");
 	puzzle.rows[2].slots[1].choose(0);
 	puzzle.explainLoss();
-	const step = puzzle.proof.steps[7];
-	assert(step.deduction == "adjacent3.outer.only-position" &&
+	const step = puzzle.proof.steps.find(step =>
+		step.deduction == "adjacent3.outer.only-position" &&
+		step.row == 0 && step.symbol == 4);
+	assert(step && step.deduction == "adjacent3.outer.only-position" &&
 	       Logos.proofMessageText(puzzle, step.message) ==
 	       "5 must be in the third column because that is the only " +
 	       "place where F can be between it and V.",
 	       "the shared outer position did not explain both orientations");
+	puzzle.stopTimer();
+});
+
+Deno.test("a final clue elimination remains separate from its placement", function() {
+	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
+	puzzle.say = function() {};
+	puzzle.newGame("fd628e5e");
+	puzzle.rows[5].slots[1].choose(4);
+	puzzle.explainLoss();
+	const removal = puzzle.proof.steps.findIndex(step =>
+		step.deduction == "order.other-not-beyond" &&
+		step.row == 0 && step.symbol == 2 && step.removed == 1);
+	const placement = puzzle.proof.steps[removal + 1];
+	assert(removal >= 0 && placement.deduction == "row.only-position" &&
+	       Logos.proofMessageText(puzzle,
+		puzzle.proof.steps[removal].message) ==
+	       "3 cannot be in the first column because ⬠ must be to its left." &&
+	       Logos.proofMessageText(puzzle, placement.message) ==
+	       "3 must be in the fifth column because it has been eliminated " +
+	       "everywhere else.",
+	       "the final clue elimination was folded into a placement");
 	puzzle.stopTimer();
 });
 

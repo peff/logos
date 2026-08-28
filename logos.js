@@ -1992,7 +1992,7 @@ function deductionMessage(puzzle, step, before, after) {
 	var removed = before & ~after;
 	var rowSize = puzzle.rows[row].slots.length;
 	var fullDomain = (1 << rowSize) - 1;
-	if (countBits(after) == 1) {
+	if (step.placement && countBits(after) == 1) {
 		var col = 0;
 		while (!(after & (1 << col)))
 			col++;
@@ -2054,7 +2054,7 @@ function adjacent3DeductionMessage(puzzle, step, before, after, domains) {
 	var rightName = proofSymbolReference(puzzle, rightRow, rightSymbol);
 	var edges = 1 | (1 << (rowSize - 1));
 	if (row == middleRow && symbol == middleSymbol) {
-		if (countBits(after) == 1) {
+		if (step.placement && countBits(after) == 1) {
 			var col = 0;
 			while (!(after & (1 << col)))
 				col++;
@@ -2172,7 +2172,7 @@ function adjacent3DeductionMessage(puzzle, step, before, after, domains) {
 	var otherSymbol = row == leftRow && symbol == leftSymbol ?
 		rightSymbol : leftSymbol;
 	var otherName = proofSymbolReference(puzzle, otherRow, otherSymbol);
-	if (countBits(after) == 1 &&
+	if (step.placement && countBits(after) == 1 &&
 	    adjacent3InwardPosition(domains[otherRow][otherSymbol],
 		rowSize, 2) == after) {
 		var col = 0;
@@ -2185,7 +2185,7 @@ function adjacent3DeductionMessage(puzzle, step, before, after, domains) {
 				outer: otherName,
 			});
 	}
-	if (countBits(after) == 1 &&
+	if (step.placement && countBits(after) == 1 &&
 	    countBits(domains[middleRow][middleSymbol]) == 1 &&
 	    countBits(domains[otherRow][otherSymbol]) == 1) {
 		var col = 0;
@@ -2198,7 +2198,7 @@ function adjacent3DeductionMessage(puzzle, step, before, after, domains) {
 			other: otherName,
 		});
 	}
-	if (countBits(after) == 1) {
+	if (step.placement && countBits(after) == 1) {
 		var col = 0;
 		while (!(after & (1 << col)))
 			col++;
@@ -2288,7 +2288,7 @@ function adjacent3DeductionMessage(puzzle, step, before, after, domains) {
 function adjacent2DeductionMessage(puzzle, step, before, after) {
 	var clue = step.clue;
 	var removed = before & ~after;
-	if (countBits(after) == 1)
+	if (step.placement && countBits(after) == 1)
 		return deductionMessage(puzzle, step, before, after);
 	var leftRow = puzzle.rows.indexOf(clue.lRow);
 	var leftSymbol = clue.lRow.slots[clue.lCol].value;
@@ -2307,7 +2307,7 @@ function adjacent2DeductionMessage(puzzle, step, before, after) {
 
 function orderDeductionMessage(puzzle, step, before, after) {
 	var removed = before & ~after;
-	if (countBits(after) == 1)
+	if (step.placement && countBits(after) == 1)
 		return deductionMessage(puzzle, step, before, after);
 	var leftRow = puzzle.rows.indexOf(step.clue.lRow);
 	var leftSymbol = step.clue.lRow.slots[step.clue.lCol].value;
@@ -2326,7 +2326,7 @@ function orderDeductionMessage(puzzle, step, before, after) {
 
 function columnDeductionMessage(puzzle, step, before, after) {
 	var removed = before & ~after;
-	if (countBits(after) == 1)
+	if (step.placement && countBits(after) == 1)
 		return deductionMessage(puzzle, step, before, after);
 	var clue = step.clue;
 	var topRow = puzzle.rows.indexOf(clue.tRow);
@@ -2514,6 +2514,16 @@ function nextForcedProofStep(domains, placements) {
 	return null;
 }
 
+function clueDirectlyPlaces(clue, domains, row, symbol, fullDomain) {
+	/* Adjacent-three placements describe the whole sequence constraint. */
+	if (clue.constructor == Adjacent3Clue)
+		return true;
+	var expanded = copyDomains(domains);
+	expanded[row][symbol] = fullDomain;
+	clue.constrain(expanded, fullDomain);
+	return countBits(expanded[row][symbol]) == 1;
+}
+
 function clueProofStep(puzzle, clue, domains) {
 	var fullDomain = (1 << domains[0].length) - 1;
 	var trial = copyDomains(domains);
@@ -2558,7 +2568,9 @@ function clueProofStep(puzzle, clue, domains) {
 			clues: clue.display ? [clue] : [],
 			clue: clue,
 			rule: "clue",
-			placement: countBits(after) == 1,
+			placement: countBits(after) == 1 &&
+				clueDirectlyPlaces(clue, domains, row, symbol,
+					fullDomain),
 			row: row,
 			symbol: symbol,
 			removed: domains[row][symbol] & ~after,
@@ -2600,7 +2612,8 @@ function proofStepSupported(puzzle, step, domains, placements) {
 	if (step.clue.mRow) {
 		var middleRow = puzzle.rows.indexOf(step.clue.mRow);
 		var middleSymbol = step.clue.mRow.slots[step.clue.mCol].value;
-		if ((row != middleRow || symbol != middleSymbol) &&
+		if (step.placement &&
+		    (row != middleRow || symbol != middleSymbol) &&
 		    trial[middleRow][middleSymbol] !=
 		    domains[middleRow][middleSymbol]) {
 			if (step.clue.constructor != Adjacent3Clue)
@@ -2630,6 +2643,9 @@ function refreshProofStep(puzzle, step, domains) {
 	var after = before & trial[step.row][step.symbol];
 	if (after == before)
 		return null;
+	var directlyPlaced = countBits(after) == 1 &&
+		clueDirectlyPlaces(step.clue, domains, step.row, step.symbol,
+			fullDomain);
 	var anchored = before & ~after & step.removed;
 	if (step.clue.constructor == Adjacent3Clue && countBits(anchored) > 1) {
 		var edges = 1 | (1 << (domains[step.row].length - 1));
@@ -2637,7 +2653,7 @@ function refreshProofStep(puzzle, step, domains) {
 			    step, anchored, domains))
 			anchored &= -anchored;
 	}
-	if (countBits(after) != 1 && anchored)
+	if (!directlyPlaced && anchored)
 		after = before & ~anchored;
 	else {
 		var middleRow = step.clue && step.clue.mRow ?
@@ -2651,7 +2667,7 @@ function refreshProofStep(puzzle, step, domains) {
 	}
 	var refreshed = Object.assign({}, step);
 	refreshed.removed = before & ~after;
-	refreshed.placement = countBits(after) == 1;
+	refreshed.placement = countBits(after) == 1 && directlyPlaced;
 	return refreshed;
 }
 
