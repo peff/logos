@@ -103,8 +103,8 @@ async function createInvitation() {
 	displayedInvitationId = null;
 	try {
 		invitationOutput.value = await transport.createInvitation();
-		displayedInvitationId = decodeSignal(
-			invitationOutput.value, "offer").connectionId;
+		displayedInvitationId = (await decodeSignal(
+			invitationOutput.value, "offer")).connectionId;
 		status.textContent = "Send this invitation to one guest.";
 	} catch (e) {
 		status.textContent = e.message;
@@ -119,7 +119,7 @@ async function joinWebRTC() {
 	}
 	invitationInput.setCustomValidity("");
 	try {
-		decodeSignal(invitationInput.value, "offer");
+		await decodeSignal(invitationInput.value, "offer");
 	} catch (e) {
 		status.textContent = e.message;
 		return;
@@ -146,7 +146,7 @@ async function acceptAnswer() {
 	}
 	answerInput.setCustomValidity("");
 	try {
-		var answer = decodeSignal(answerInput.value, "answer");
+		var answer = await decodeSignal(answerInput.value, "answer");
 		await transport.acceptAnswer(answerInput.value);
 		answerInput.value = "";
 		if (answer.connectionId == displayedInvitationId) {

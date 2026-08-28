@@ -2,8 +2,21 @@
 
 const webRTCProtocol = "logos-webrtc-1";
 
-function encodeSignal(signal) {
-	var bytes = new TextEncoder().encode(JSON.stringify(signal));
+async function compress(bytes) {
+	var stream = new Blob([bytes]).stream()
+		.pipeThrough(new CompressionStream("deflate"));
+	return new Uint8Array(await new Response(stream).arrayBuffer());
+}
+
+async function decompress(bytes) {
+	var stream = new Blob([bytes]).stream()
+		.pipeThrough(new DecompressionStream("deflate"));
+	return new Uint8Array(await new Response(stream).arrayBuffer());
+}
+
+async function encodeSignal(signal) {
+	var bytes = await compress(
+		new TextEncoder().encode(JSON.stringify(signal)));
 	var binary = "";
 	for (var i = 0; i < bytes.length; i++)
 		binary += String.fromCharCode(bytes[i]);
@@ -11,7 +24,7 @@ function encodeSignal(signal) {
 		.replace(/\//g, "_").replace(/=+$/, "");
 }
 
-function decodeSignal(blob, expectedType) {
+async function decodeSignal(blob, expectedType) {
 	if (typeof blob != "string" || !blob.trim().startsWith("LOGOS1."))
 		throw new Error("This is not a Logos connection message.");
 	var encoded = blob.trim().slice(7).replace(/-/g, "+").replace(/_/g, "/");
@@ -28,6 +41,7 @@ function decodeSignal(blob, expectedType) {
 		bytes[i] = binary.charCodeAt(i);
 	var signal;
 	try {
+		bytes = await decompress(bytes);
 		signal = JSON.parse(new TextDecoder().decode(bytes));
 	} catch (e) {
 		throw new Error("The Logos connection message is malformed.");
@@ -109,7 +123,7 @@ class WebRTCHostTransport {
 			throw e;
 		}
 		this.changed("invitation-ready");
-		return encodeSignal({
+		return await encodeSignal({
 			protocol: webRTCProtocol,
 			type: "offer",
 			connectionId,
@@ -119,7 +133,7 @@ class WebRTCHostTransport {
 	}
 
 	async acceptAnswer(blob) {
-		var signal = decodeSignal(blob, "answer");
+		var signal = await decodeSignal(blob, "answer");
 		var record = this.pending.get(signal.connectionId);
 		if (!record)
 			throw new Error("This answer does not match a pending invitation.");
@@ -193,7 +207,7 @@ class WebRTCGuestTransport {
 	}
 
 	async acceptInvitation(blob) {
-		var signal = decodeSignal(blob, "offer");
+		var signal = await decodeSignal(blob, "offer");
 		this.hostId = signal.playerId;
 		this.peer = this.peerConnectionFactory(this.configuration);
 		var transport = this;
@@ -205,7 +219,7 @@ class WebRTCGuestTransport {
 		await this.peer.setLocalDescription(await this.peer.createAnswer());
 		await waitForIceGathering(this.peer, this.iceGatheringTimeout);
 		this.onChange({ state: "answer-ready", connected: false });
-		return encodeSignal({
+		return await encodeSignal({
 			protocol: webRTCProtocol,
 			type: "answer",
 			connectionId: signal.connectionId,

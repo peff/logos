@@ -365,20 +365,20 @@ function fakeWebRTCFactory() {
 	return function() { return new FakePeerConnection(); };
 }
 
-Deno.test("WebRTC signaling blobs are versioned and typed", function() {
-	const blob = encodeSignal({
+Deno.test("WebRTC signaling blobs are compressed, versioned and typed", async function() {
+	const blob = await encodeSignal({
 		protocol: "logos-webrtc-1",
 		type: "offer",
 		connectionId: "connection",
 		playerId: "host",
 		description: { type: "offer", sdp: "test-Σ" },
 	});
-	const signal = decodeSignal(blob, "offer");
+	const signal = await decodeSignal(blob, "offer");
 	assert(signal.description.sdp == "test-Σ" && blob.startsWith("LOGOS1."),
 	       "the signaling blob did not round trip");
 	let rejected = false;
 	try {
-		decodeSignal(blob, "answer");
+		await decodeSignal(blob, "answer");
 	} catch (e) {
 		rejected = true;
 	}
