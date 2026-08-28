@@ -1303,19 +1303,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		}
 	}
 
-	this.setPlacementAnimation = function(style) {
-		if (["settle", "grow", "flip", "skid"].indexOf(style) < 0)
-			style = "settle";
-		this.placementAnimation = style;
-		document.body.dataset.placementAnimation = style;
-		this.options.querySelector("#placement-" + style).checked = true;
-		try {
-			localStorage.setItem("placementAnimation", style);
-		} catch (e) {
-			/* The choice still applies for the current page. */
-		}
-	}
-
 	this.setExpandTileChoices = function(enabled) {
 		this.expandTileChoices = enabled;
 		this.options.querySelector("#expand-tile-choices").checked = enabled;
@@ -1473,7 +1460,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	var practiceMode = false;
 	var showTimer = true;
 	var soundEffects = true;
-	var placementAnimation = "settle";
 	var expandTileChoices = this.expandTileChoices;
 	var dragTileChoices = this.dragTileChoices;
 	var showActionSelector = this.showActionSelector;
@@ -1485,8 +1471,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		var storedPracticeMode = localStorage.getItem("practiceMode");
 		var storedTimer = localStorage.getItem("showTimer");
 		var storedSoundEffects = localStorage.getItem("soundEffects");
-		var storedPlacementAnimation = localStorage.getItem(
-			"placementAnimation");
 		var storedExpandTileChoices = localStorage.getItem(
 			"expandTileChoices");
 		var storedDragTileChoices = localStorage.getItem(
@@ -1507,8 +1491,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			showTimer = storedTimer == "true";
 		if (storedSoundEffects !== null)
 			soundEffects = storedSoundEffects == "true";
-		if (storedPlacementAnimation !== null)
-			placementAnimation = storedPlacementAnimation;
 		if (storedExpandTileChoices !== null)
 			expandTileChoices = storedExpandTileChoices == "true";
 		else if (oldSelectionActionMenu !== null)
@@ -1528,7 +1510,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.setTimerVisible(showTimer);
 	this.setPracticeMode(practiceMode);
 	this.setSoundEffects(soundEffects);
-	this.setPlacementAnimation(placementAnimation);
 	this.setExpandTileChoices(expandTileChoices);
 	this.setDragTileChoices(dragTileChoices);
 	this.setShowActionSelector(showActionSelector);
@@ -3263,38 +3244,34 @@ function Slot(row, symbols, display) {
 
 	this.displaySingle = function(source) {
 		var sourceRect;
-		var style = this.row.puzzle.placementAnimation;
-		if (source && (style == "grow" || style == "skid") &&
-		    source.getBoundingClientRect)
+		if (source && source.getBoundingClientRect)
 			sourceRect = source.getBoundingClientRect();
 		this.singleElem.classList.remove("placing", "failed-action",
 			"proof-change");
 		this.singleElem.hidden = false;
 		this.possibleElem.hidden = true;
 		if (source) {
-			if (style == "grow" || style == "skid") {
-				var x = 0;
-				var y = -1;
-				var scaleX = 1.04;
-				var scaleY = 1.04;
-				if (sourceRect && this.singleElem.getBoundingClientRect) {
-					var destRect = this.singleElem.getBoundingClientRect();
-					x = sourceRect.left + sourceRect.width / 2 -
-						(destRect.left + destRect.width / 2);
-					y = sourceRect.top + sourceRect.height / 2 -
-						(destRect.top + destRect.height / 2);
-					scaleX = sourceRect.width / destRect.width;
-					scaleY = sourceRect.height / destRect.height;
-				}
-				this.singleElem.style.setProperty("--tile-place-x", x + "px");
-				this.singleElem.style.setProperty("--tile-place-y", y + "px");
-				this.singleElem.style.setProperty("--tile-place-scale-x", scaleX);
-				this.singleElem.style.setProperty("--tile-place-scale-y", scaleY);
-				this.singleElem.style.setProperty("--tile-place-overshoot-x",
-					(x ? -Math.sign(x) * 2 : 0) + "px");
-				this.singleElem.style.setProperty("--tile-place-overshoot-y",
-					(y ? -Math.sign(y) * 2 : 0) + "px");
+			var x = 0;
+			var y = -1;
+			var scaleX = 1.04;
+			var scaleY = 1.04;
+			if (sourceRect && this.singleElem.getBoundingClientRect) {
+				var destRect = this.singleElem.getBoundingClientRect();
+				x = sourceRect.left + sourceRect.width / 2 -
+					(destRect.left + destRect.width / 2);
+				y = sourceRect.top + sourceRect.height / 2 -
+					(destRect.top + destRect.height / 2);
+				scaleX = sourceRect.width / destRect.width;
+				scaleY = sourceRect.height / destRect.height;
 			}
+			this.singleElem.style.setProperty("--tile-place-x", x + "px");
+			this.singleElem.style.setProperty("--tile-place-y", y + "px");
+			this.singleElem.style.setProperty("--tile-place-scale-x", scaleX);
+			this.singleElem.style.setProperty("--tile-place-scale-y", scaleY);
+			this.singleElem.style.setProperty("--tile-place-overshoot-x",
+				(x ? -Math.sign(x) * 2 : 0) + "px");
+			this.singleElem.style.setProperty("--tile-place-overshoot-y",
+				(y ? -Math.sign(y) * 2 : 0) + "px");
 			this.singleElem.classList.add("placing");
 		}
 		this.single = true;

@@ -1220,15 +1220,8 @@ Deno.test("proof displays highlight current removals", function() {
 	       "an old removal remained highlighted");
 });
 
-Deno.test("placement animation choices are saved and restored", function() {
-	localStorage.removeItem("placementAnimation");
-	let puzzle = makePuzzle(1);
-	assert(puzzle.placementAnimation == "settle" &&
-	       document.body.dataset.placementAnimation == "settle" &&
-	       puzzle.options.querySelector("#placement-settle").checked,
-	       "placement animation did not default to settle");
-
-	puzzle.setPlacementAnimation("grow");
+Deno.test("placed tiles skid from their small tiles", function() {
+	const puzzle = makePuzzle(1);
 	const slot = puzzle.rows[0].slots[0];
 	const source = slot.possibilityElems[slot.value];
 	source.getBoundingClientRect = function() {
@@ -1242,15 +1235,7 @@ Deno.test("placement animation choices are saved and restored", function() {
 	       slot.singleElem.style["--tile-place-y"] == "10px" &&
 	       slot.singleElem.style["--tile-place-scale-x"] == String(1 / 3) &&
 	       slot.singleElem.style["--tile-place-scale-y"] == "0.5",
-	       "grow animation did not start at its possibility");
-	assert(localStorage.getItem("placementAnimation") == "grow",
-	       "placement animation choice was not saved");
-
-	puzzle = makePuzzle(1);
-	assert(puzzle.placementAnimation == "grow" &&
-	       puzzle.options.querySelector("#placement-grow").checked,
-	       "placement animation choice was not restored");
-	localStorage.removeItem("placementAnimation");
+	       "skid animation did not start at its possibility");
 });
 
 Deno.test("revealing a slot preserves its deductions", function() {

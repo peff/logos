@@ -91,53 +91,7 @@ body[data-custom-cursor="false"] {
 	line-height: 1;
 }
 
-body[data-placement-animation="settle"] .board .single.placing {
-	animation: tile-place 180ms ease-out both;
-}
-
-@keyframes tile-place {
-	0% { transform: translateY(-1px) scale(1.04); }
-	20% { transform: translateY(0) scale(0.98); }
-	55% { transform: scale(1.01); }
-	100% { transform: scale(1); }
-}
-
-body[data-placement-animation="grow"] .board .single.placing {
-	animation: tile-grow 180ms cubic-bezier(0.2, 0.75, 0.25, 1.08) both;
-}
-
-@keyframes tile-grow {
-	from {
-		transform:
-			translate(var(--tile-place-x), var(--tile-place-y))
-			scale(var(--tile-place-scale-x), var(--tile-place-scale-y));
-	}
-	to { transform: translate(0, 0) scale(1); }
-}
-
-body[data-placement-animation="flip"] .board .single.placing {
-	animation: tile-flip 220ms cubic-bezier(0.3, 0.8, 0.3, 1) both;
-}
-
-@keyframes tile-flip {
-	0% {
-		opacity: 0.35;
-		filter: brightness(1.8);
-		transform: perspective(160px) rotateY(-100deg) scale(0.78);
-	}
-	58% {
-		opacity: 1;
-		filter: brightness(1.25);
-		transform: perspective(160px) rotateY(14deg) scale(1.04);
-	}
-	100% {
-		opacity: 1;
-		filter: brightness(1);
-		transform: perspective(160px) rotateY(0) scale(1);
-	}
-}
-
-body[data-placement-animation="skid"] .board .single.placing {
+.board .single.placing {
 	animation: tile-skid 190ms cubic-bezier(0.2, 0.7, 0.25, 1) both;
 }
 
