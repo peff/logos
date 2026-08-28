@@ -844,12 +844,12 @@ body[data-stone-effects="true"] :is(
 
 #options-menu fieldset {
 	border: 0;
+	border-top: 1px solid #c8c0b2;
 	margin: 0;
 	padding: 0;
 }
 
 #options-menu fieldset + fieldset {
-	border-top: 1px solid #c8c0b2;
 	margin-top: 0.35rem;
 	padding-top: 0.3rem;
 }
