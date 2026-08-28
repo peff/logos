@@ -519,9 +519,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.proof = null;
 		this.proofControls.hidden = true;
 		document.body.classList.remove("proof-active");
-		this.explainButton.classList.remove("active");
-		if (proof.emphasizeButton)
-			this.explainButton.classList.add("proof-available");
+		this.explainButton.classList.remove("active", "proof-available");
 		this.explainButton.setAttribute("aria-pressed", "false");
 		if (proof.continueGame)
 			this.restorePlayDisplay();

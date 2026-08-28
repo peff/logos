@@ -1839,8 +1839,9 @@ Deno.test("proof ordering preserves the failed conclusion", function() {
 	assert(!puzzle.explainButton.classList.contains("proof-available"),
 	       "the open proof retained the available-proof highlight");
 	puzzle.explainLoss();
-	assert(puzzle.explainButton.classList.contains("proof-available"),
-	       "closing the proof did not restore the Because highlight");
+	assert(!puzzle.explainButton.classList.contains("proof-available") &&
+	       !puzzle.explainButton.disabled && puzzle.pendingProof,
+	       "closing the proof retained its notification highlight");
 	puzzle.stopTimer();
 });
 
