@@ -117,6 +117,7 @@ const Logos = eval(source +
 	"clueProofStep: clueProofStep, " +
 	"orderDeductionMessage: orderDeductionMessage, " +
 	"proofMessageText: proofMessageText, " +
+	"practiceMistakeMessage: practiceMistakeMessage, " +
 	"proofDeductionMessage: proofDeductionMessage, " +
 	"combineRelatedProofSteps: combineRelatedProofSteps, " +
 	"nextForcedProofStep: nextForcedProofStep, " +
@@ -785,6 +786,20 @@ Deno.test("practice mode is saved and suppresses timing and scores", function() 
 	localStorage.removeItem("practiceMode");
 	localStorage.removeItem("gameStats");
 	localStorage.removeItem("highScores");
+});
+
+Deno.test("practice messages distinguish direct explanations", function() {
+	assert(Logos.practiceMistakeMessage(false, [{}]) ==
+	       "That placement contradicts a clue.",
+	       "a direct placement contradiction did not mention its clue");
+	assert(Logos.practiceMistakeMessage(true, [{}]) ==
+	       "Removing that possibility contradicts a clue.",
+	       "a direct removal contradiction did not mention its clue");
+	const placement = Logos.practiceMistakeMessage(false, []);
+	const removal = Logos.practiceMistakeMessage(true, []);
+	assert(placement == "That placement leads to a contradiction." &&
+	       removal == "That possibility cannot be discarded.",
+	       "an indirect contradiction was not stated plainly");
 });
 
 Deno.test("placing only the middle of a three-adjacent clue keeps it", function() {
@@ -1852,6 +1867,9 @@ Deno.test("practice mistakes can be explained and play can continue", function()
 	       JSON.stringify(puzzle.gameStats) ==
 	       JSON.stringify({ won: 0, lost: 0 }),
 	       "a practice mistake ended or recorded the game");
+	assert(puzzle.sounds.length == 1 &&
+	       puzzle.sounds[0] == "practice-mistake",
+	       "a practice mistake used the normal loss sound");
 
 	puzzle.explainLoss();
 	assert(puzzle.proof && puzzle.proof.continueGame,

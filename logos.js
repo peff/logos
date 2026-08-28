@@ -41,6 +41,16 @@ var falseEliminationMessages = [
 	"You have excluded what reason still permits. The philosophers dismiss your proof...",
 ];
 
+function practiceMistakeMessage(discard, clues) {
+	if (clues && clues.length)
+		return discard ?
+			"Removing that possibility contradicts a clue." :
+			"That placement contradicts a clue.";
+	return discard ?
+		"That possibility cannot be discarded." :
+		"That placement leads to a contradiction.";
+}
+
 var winMessages = [
 	"The pattern is revealed. The wisdom of the ancients is yours.",
 	"Every sign has found its place. The secrets of the ancients stand revealed.",
@@ -368,7 +378,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			return;
 		if (this.practiceMode) {
 			this.clearPracticeMistake();
-			this.playSound("mistake");
+			this.playSound("practice-mistake");
 			this.closeSlotTray();
 			var clueStates = [];
 			if (clues && clues.length) {
@@ -1454,6 +1464,9 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			for (var i = 0; i < notes.length; i++)
 				playChime(context, notes[i] * variation, delays[i],
 					i == notes.length - 1 ? 0.035 : 0.025);
+		} else if (type == "practice-mistake") {
+			playChime(context, 523.25 * variation, 0, 0.009);
+			playChime(context, 440 * variation, 0.13, 0.007);
 		}
 	}
 
@@ -3170,7 +3183,10 @@ function Slot(row, symbols, display) {
 			var clues = this.row.puzzle.findContradictingClues(
 				this, value, false);
 			this.row.puzzle.lose(
-				randomChoice(falsePlacementMessages), clues, this, value);
+				this.row.puzzle.practiceMode ?
+					practiceMistakeMessage(false, clues) :
+					randomChoice(falsePlacementMessages),
+				clues, this, value);
 		}
 	}
 
@@ -3183,7 +3199,10 @@ function Slot(row, symbols, display) {
 			var clues = this.row.puzzle.findContradictingClues(
 				this, value, true);
 			this.row.puzzle.lose(
-				randomChoice(falseEliminationMessages), clues, this, value);
+				this.row.puzzle.practiceMode ?
+					practiceMistakeMessage(true, clues) :
+					randomChoice(falseEliminationMessages),
+				clues, this, value);
 		} else {
 			if (playerAction) {
 				this.row.puzzle.playSound("discard");
