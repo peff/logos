@@ -15,9 +15,9 @@ To try WebRTC between two browsers:
 
 1. Choose **Play with friends** in the host and select **Host a game**.
 2. Copy the generated invitation to the guest.
-3. In the guest, paste the invitation and select **Create answer**.
+3. In the guest, paste the invitation and select **RSVP**.
 4. Copy the answer back to the host.
-5. In the host, paste the answer and select **Accept answer**.
+5. In the host, paste the answer and select **Accept response**.
 
 Once connected, committed moves should appear in both browsers; chalk marks
 deliberately remain local. The host can create a separate invitation for each
