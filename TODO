@@ -1,7 +1,6 @@
  - daily puzzle
  - shared leaderboard (would require actual server infrastructure)
  - consider simplifying
-   - resolve gaudy stone effects experiment
    - resolve animations experiment
    - are chalk marks worth the interface complexity
    - is drag tiles any good
