@@ -3149,7 +3149,8 @@ function buildProofSteps(puzzle, base, basePlacements,
 		finalStep.row == failedRow &&
 		(finalStep.symbol == failedValue ?
 		 !(finalStep.domain & failedBit) : finalStep.domain == failedBit);
-	if (finalStep && finalStep.conclusion && conflictingPlacement)
+	if (finalStep && finalStep.conclusion && conflictingPlacement &&
+	    finalStep.symbol != failedValue)
 		finalStep.contradicts = proofSymbolReference(puzzle, failedRow,
 			failedValue);
 	return combineRelatedProofSteps(puzzle, steps);
