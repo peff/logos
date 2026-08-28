@@ -2439,6 +2439,17 @@ function adjacent3OuterHasCommonCause(puzzle, step, removed, domains) {
 	return middleCannotFit || otherCannotFit;
 }
 
+function adjacent3OuterCommonCauseGroup(puzzle, step, removed, domains) {
+	var group = 0;
+	for (var bits = removed; bits; bits &= bits - 1) {
+		var bit = bits & -bits;
+		if (!group || adjacent3OuterHasCommonCause(puzzle, step,
+		    group | bit, domains))
+			group |= bit;
+	}
+	return group;
+}
+
 function proofConcluded(puzzle, domains, failedSlot, failedValue) {
 	var row = puzzle.rows.indexOf(failedSlot.row);
 	var col = failedSlot.row.slots.indexOf(failedSlot);
@@ -2550,7 +2561,8 @@ function clueProofStep(puzzle, clue, domains) {
 	for (var i = 0; i < variables.length; i++) {
 		var row = variables[i].row;
 		var symbol = variables[i].symbol;
-		var after = domains[row][symbol] & trial[row][symbol];
+		var before = domains[row][symbol];
+		var after = before & trial[row][symbol];
 		if (after == domains[row][symbol])
 			continue;
 		var middleRow = clue.mRow ? puzzle.rows.indexOf(clue.mRow) : -1;
@@ -2562,7 +2574,7 @@ function clueProofStep(puzzle, clue, domains) {
 		    removedEdges == edges)
 			after = domains[row][symbol] & ~removedEdges;
 		else
-			after = proofStepDomain(domains[row][symbol], after,
+			after = proofStepDomain(before, after,
 				domains[row].length);
 		return {
 			clues: clue.display ? [clue] : [],
@@ -2933,6 +2945,50 @@ function buildProofSteps(puzzle, base, basePlacements,
 		if (!step)
 			continue;
 		var before = current[step.row][step.symbol];
+		var middleRow = step.clue && step.clue.mRow ?
+			puzzle.rows.indexOf(step.clue.mRow) : -1;
+		var middleSymbol = step.clue && step.clue.mRow ?
+			step.clue.mRow.slots[step.clue.mCol].value : -1;
+		var fullDomain = (1 << current[step.row].length) - 1;
+		if (step.placement && step.clue.constructor == Adjacent3Clue &&
+		    (step.row != middleRow || step.symbol != middleSymbol) &&
+		    before != fullDomain) {
+			/*
+			 * If earlier clues have already narrowed an outer symbol, show
+			 * each remaining adjacent-three reason before the row singleton
+			 * turns into a placement.
+			 */
+			var target = before & ~step.removed;
+			while (current[step.row][step.symbol] != target) {
+				var domain = current[step.row][step.symbol];
+				var removed = domain & ~target;
+				var group = adjacent3OuterCommonCauseGroup(puzzle,
+					step, removed, current);
+				if (!group)
+					group = removed & -removed;
+				var split = Object.assign({}, step, {
+					placement: false,
+					removed: group,
+				});
+				applyProofStep(current, placements, split);
+				split.domain = current[split.row][split.symbol];
+				split.domains = copyDomains(current);
+				split.placements = placements.slice();
+				split.message = proofDeductionMessage(puzzle, split,
+					domain, split.domain, current);
+				replay.push(split);
+			}
+			drainForcedProofSteps(current, placements,
+				function(forced, forcedBefore) {
+					forced.domain = current[forced.row][forced.symbol];
+					forced.domains = copyDomains(current);
+					forced.placements = placements.slice();
+					forced.message = forcedProofMessage(puzzle, forced,
+						forcedBefore);
+					replay.push(forced);
+				});
+			continue;
+		}
 		applyProofStep(current, placements, step);
 		step.domain = current[step.row][step.symbol];
 		step.domains = copyDomains(current);

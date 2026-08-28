@@ -1912,6 +1912,36 @@ Deno.test("a final clue elimination remains separate from its placement", functi
 	puzzle.stopTimer();
 });
 
+Deno.test("a three-adjacent placement preserves distinct elimination reasons", function() {
+	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
+	puzzle.say = function() {};
+	puzzle.newGame("e2b29313");
+	puzzle.rows[3].slots[4].choose(3);
+	puzzle.explainLoss();
+	const plusSteps = puzzle.proof.steps.filter(step =>
+		step.row == 5 && step.symbol == 0);
+	const finalSteps = plusSteps.slice(-3);
+	assert(finalSteps.length == 3 &&
+	       finalSteps[0].deduction ==
+		       "adjacent3.outer.other-not-two-away" &&
+	       finalSteps[0].removed == 17 &&
+	       Logos.proofMessageText(puzzle, finalSteps[0].message) ==
+		       "+ cannot be in the first and fifth columns because C " +
+		       "must be two positions away." &&
+	       finalSteps[1].deduction ==
+		       "adjacent3.outer.middle-not-adjacent" &&
+	       finalSteps[1].removed == 32 &&
+	       Logos.proofMessageText(puzzle, finalSteps[1].message) ==
+		       "+ cannot be in the sixth column because ‒ must be " +
+		       "adjacent." &&
+	       finalSteps[2].deduction == "row.only-position" &&
+	       Logos.proofMessageText(puzzle, finalSteps[2].message) ==
+		       "+ must be in the third column because it has been " +
+		       "eliminated everywhere else.",
+	       "distinct reasons were folded into an adjacent-three placement");
+	puzzle.stopTimer();
+});
+
 Deno.test("proof ordering preserves the failed conclusion", function() {
 	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
 	puzzle.say = function() {};
