@@ -980,6 +980,13 @@ body.proof-active #logo {
 	font: inherit;
 }
 
+.friends-panel .modal-done {
+	background: #e2d7c3;
+	box-shadow: none;
+	text-shadow: none;
+	transform: none;
+}
+
 .friends-panel textarea {
 	display: block;
 	box-sizing: border-box;
