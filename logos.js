@@ -262,7 +262,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.pendingProof = null;
 		this.practiceMistake = null;
 		this.explainButton.disabled = true;
-		this.explainButton.classList.remove("active");
+		this.explainButton.classList.remove("active", "proof-available");
 		this.explainButton.setAttribute("aria-pressed", "false");
 		this.proofControls.hidden = true;
 		document.body.classList.remove("proof-active");
@@ -293,7 +293,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.practiceMistake = null;
 		this.scoreEligible = !this.practiceMode;
 		this.explainButton.disabled = true;
-		this.explainButton.classList.remove("active");
+		this.explainButton.classList.remove("active", "proof-available");
 		this.explainButton.setAttribute("aria-pressed", "false");
 		this.proofControls.hidden = true;
 		document.body.classList.remove("proof-active");
@@ -402,10 +402,13 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			if (failedSlot) {
 				this.pendingProof = {
 					continueGame: true,
+					emphasizeButton: !clues || !clues.length,
 					failedSlot: failedSlot,
 					failedValue: failedValue,
 				};
 				this.explainButton.disabled = false;
+				if (!clues || !clues.length)
+					this.explainButton.classList.add("proof-available");
 				failedSlot.possibilityElems[failedValue].classList.add(
 					"failed-action");
 			}
@@ -434,10 +437,13 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.revealSolution();
 		if (failedSlot) {
 			this.pendingProof = {
+				emphasizeButton: !clues || !clues.length,
 				failedSlot: failedSlot,
 				failedValue: failedValue,
 			};
 			this.explainButton.disabled = false;
+			if (!clues || !clues.length)
+				this.explainButton.classList.add("proof-available");
 		}
 		if (failedSlot)
 			failedSlot.possibilityElems[failedValue].classList.add(
@@ -457,7 +463,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		}
 	}
 
-	this.startProof = function(failedSlot, failedValue, continueGame) {
+	this.startProof = function(failedSlot, failedValue, continueGame,
+			   emphasizeButton) {
 		var base = domainsFromSlots(this);
 		var basePlacements = proofPlacementsFromSlots(this);
 		var steps = buildProofSteps(this, base, basePlacements,
@@ -472,11 +479,13 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			failedSlot: failedSlot,
 			failedValue: failedValue,
 			continueGame: !!continueGame,
+			emphasizeButton: !!emphasizeButton,
 		};
 		this.proofControls.hidden = false;
 		document.body.classList.add("proof-active");
 		this.explainButton.disabled = false;
 		this.explainButton.classList.add("active");
+		this.explainButton.classList.remove("proof-available");
 		this.explainButton.setAttribute("aria-pressed", "true");
 		this.showProofPosition();
 	}
@@ -491,7 +500,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		var request = this.pendingProof;
 		this.pendingProof = null;
 		this.startProof(request.failedSlot, request.failedValue,
-			request.continueGame);
+			request.continueGame, request.emphasizeButton);
 	}
 
 	this.closeProof = function() {
@@ -503,6 +512,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 				this.clues[i].display.classList.remove("proof-current");
 		this.pendingProof = {
 			continueGame: proof.continueGame,
+			emphasizeButton: proof.emphasizeButton,
 			failedSlot: proof.failedSlot,
 			failedValue: proof.failedValue,
 		};
@@ -510,6 +520,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.proofControls.hidden = true;
 		document.body.classList.remove("proof-active");
 		this.explainButton.classList.remove("active");
+		if (proof.emphasizeButton)
+			this.explainButton.classList.add("proof-available");
 		this.explainButton.setAttribute("aria-pressed", "false");
 		if (proof.continueGame)
 			this.restorePlayDisplay();
@@ -556,6 +568,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.pendingProof = null;
 		this.practiceMistake = null;
 		this.explainButton.disabled = true;
+		this.explainButton.classList.remove("proof-available");
 		this.messages.classList.remove("lost");
 		this.say("");
 	}

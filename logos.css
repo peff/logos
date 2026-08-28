@@ -499,6 +499,12 @@ body.proof-active #logo {
 		inset 0 -0.04rem 0 rgb(255 255 255 / 25%);
 }
 
+#explain-button.proof-available {
+	box-shadow:
+		inset 0 0 0 2px #e2b27d,
+		0 0 0.35rem rgb(226 178 125 / 75%);
+}
+
 #board-actions {
 	display: grid;
 	grid-template-columns: repeat(2, 1fr);

@@ -920,6 +920,8 @@ Deno.test("a directly contradicting clue is highlighted", function() {
 	assert(puzzle.hClues.classList.contains("solution") &&
 	       puzzle.vClues.classList.contains("solution"),
 	       "clue displays were not marked as a solution");
+	assert(!puzzle.explainButton.classList.contains("proof-available"),
+	       "the Because button competed with a highlighted clue");
 });
 
 Deno.test("only one directly contradicting clue is highlighted", function() {
@@ -960,6 +962,8 @@ Deno.test("multi-clue contradictions are not highlighted", function() {
 		       "a multi-clue explanation was highlighted");
 	assert(puzzle.pendingProof && !puzzle.explainButton.disabled,
 	       "the detailed proof was not offered without highlighted clues");
+	assert(puzzle.explainButton.classList.contains("proof-available"),
+	       "the Because button was not highlighted without a direct clue");
 });
 
 Deno.test("proof traces prune deductions unrelated to the mistake", function() {
@@ -1826,10 +1830,17 @@ Deno.test("proof ordering preserves the failed conclusion", function() {
 	puzzle.say = function() {};
 	puzzle.newGame("1e3c73cd");
 	puzzle.rows[5].slots[3].choose(1);
+	assert(puzzle.explainButton.classList.contains("proof-available"),
+	       "an indirect loss did not highlight the Because button");
 	puzzle.explainLoss();
 	assert(puzzle.proof && puzzle.proof.steps.length &&
 	       puzzle.proof.steps[puzzle.proof.steps.length - 1].conclusion,
 	       "reordering supported steps discarded the proof conclusion");
+	assert(!puzzle.explainButton.classList.contains("proof-available"),
+	       "the open proof retained the available-proof highlight");
+	puzzle.explainLoss();
+	assert(puzzle.explainButton.classList.contains("proof-available"),
+	       "closing the proof did not restore the Because highlight");
 	puzzle.stopTimer();
 });
 
