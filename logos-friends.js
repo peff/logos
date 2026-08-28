@@ -78,12 +78,19 @@ function updateWebRTCHost(state) {
 			entry.querySelector(".friends-player-invitation").hidden = true;
 		} else if (state.state == "disconnected") {
 			entryStatus.textContent = "Interrupted";
+			delete entry.dataset.connected;
 		} else if (state.state == "failed" || state.state == "closed") {
 			entryStatus.textContent = entry.dataset.connected ?
 				"Disconnected" : "Failed";
+			delete entry.dataset.connected;
 			entry.querySelector(".friends-player-invitation").hidden = true;
 		}
 	}
+	if (playerList.children.length &&
+	    Array.from(playerList.children).every(function(guest) {
+		return guest.dataset.connected;
+	    }) && !friendsMenu.hidden)
+		toggleMenu();
 	var players = state.connected + 1;
 	if (state.state == "failed")
 		status.textContent = "A guest connection failed.";
