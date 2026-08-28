@@ -1939,6 +1939,8 @@ var proofDeductionCatalog = [
 	  message: "{subject} cannot be in {positions} because {middle} must be adjacent." },
 	{ id: "adjacent3.outer.placement",
 	  message: "{subject} must be in the {position} position to complete the sequence with {middle} and {other}." },
+	{ id: "adjacent3.outer.only-position",
+	  message: "{subject} must be in the {position} position because that is the only position where {middle} can be between it and {other}." },
 	{ id: "adjacent3.outer.no-orientation",
 	  message: "{subject} cannot be in the {position} position because {middle} and {other} cannot fit beside it in either orientation." },
 	{ id: "adjacent3.outer.other-not-two-away",
@@ -2147,6 +2149,17 @@ function adjacent3DeductionMessage(puzzle, step, before, after, domains) {
 		while (!(after & (1 << col)))
 			col++;
 		return identifiedDeduction(step, "adjacent3.outer.placement", {
+			subject: name,
+			position: ordinalName(col),
+			middle: middleName,
+			other: otherName,
+		});
+	}
+	if (countBits(after) == 1) {
+		var col = 0;
+		while (!(after & (1 << col)))
+			col++;
+		return identifiedDeduction(step, "adjacent3.outer.only-position", {
 			subject: name,
 			position: ordinalName(col),
 			middle: middleName,

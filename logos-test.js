@@ -1861,6 +1861,21 @@ Deno.test("a three-adjacent outer placement completes a fixed sequence", functio
 	puzzle.stopTimer();
 });
 
+Deno.test("a three-adjacent outer placement explains shared orientations", function() {
+	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
+	puzzle.say = function() {};
+	puzzle.newGame("fd628e5e");
+	puzzle.rows[2].slots[1].choose(0);
+	puzzle.explainLoss();
+	const step = puzzle.proof.steps[7];
+	assert(step.deduction == "adjacent3.outer.only-position" &&
+	       Logos.proofMessageText(puzzle, step.message) ==
+	       "5 must be in the third position because that is the only " +
+	       "position where F can be between it and V.",
+	       "the shared outer position did not explain both orientations");
+	puzzle.stopTimer();
+});
+
 Deno.test("proof ordering preserves the failed conclusion", function() {
 	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
 	puzzle.say = function() {};
