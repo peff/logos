@@ -268,6 +268,19 @@ Deno.test("hexadecimal puzzle seeds are accepted and normalized", function() {
 	puzzle.stopTimer();
 });
 
+Deno.test("a blank seed starts a random game from Options", function() {
+	const puzzle = makePuzzle(6);
+	puzzle.say = function() {};
+	const input = puzzle.options.querySelector("#game-seed");
+	input.value = "   ";
+	puzzle.playSeed();
+	assert(!puzzle.gameOver && typeof puzzle.seed == "number" &&
+	       input.value == puzzle.seed.toString(16) &&
+	       input.validationMessage == "",
+	       "a blank seed did not start a random game");
+	puzzle.stopTimer();
+});
+
 Deno.test("opening options preserves the new-game button label", function() {
 	const puzzle = makePuzzle(6);
 	puzzle.say = function() {};

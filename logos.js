@@ -328,7 +328,9 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 
 	this.playSeed = function() {
 		var input = this.options.querySelector("#game-seed");
-		if (!this.newGame(input.value)) {
+		var value = input.value.trim();
+		var started = value ? this.newGame(value) : this.newGame();
+		if (!started) {
 			input.setCustomValidity("Enter up to eight hexadecimal digits.");
 			input.reportValidity();
 			return;
