@@ -85,6 +85,13 @@
 			     aria-modal="true" aria-label="Options">
 				<div class="modal-panel options-panel">
 					<fieldset>
+						<legend>Game mode</legend>
+						<label title="Play without a timer, losses, statistics, or high scores.">
+						       <input id="practice-mode" type="checkbox"
+						              onChange="puzzle.setPracticeMode(this.checked)">
+						       Practice mode</label>
+					</fieldset>
+					<fieldset>
 						<legend>Cursor</legend>
 						<label title="Use an Antikythera gear for pointing and actions.">
 						       <input type="radio" name="cursor" value="gear"

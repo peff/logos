@@ -752,6 +752,41 @@ Deno.test("automatic clue dismissal can be disabled and saved", function() {
 	localStorage.removeItem("autoDismissClues");
 });
 
+Deno.test("practice mode is saved and suppresses timing and scores", function() {
+	localStorage.removeItem("practiceMode");
+	localStorage.removeItem("gameStats");
+	localStorage.removeItem("highScores");
+	let puzzle = makePuzzle(6, true);
+	puzzle.setPracticeMode(true);
+	puzzle.newGame(1);
+	assert(puzzle.practiceMode && !puzzle.scoreEligible &&
+	       puzzle.timer.hidden && puzzle.timerTimeout === null &&
+	       localStorage.getItem("practiceMode") == "true",
+	       "practice mode did not suppress and save the timer");
+	for (const row of puzzle.rows)
+		for (const slot of row.slots)
+			slot.displaySingle();
+	puzzle.checkWin();
+	assert(puzzle.highScores.length == 0 &&
+	       JSON.stringify(puzzle.gameStats) ==
+	       JSON.stringify({ won: 0, lost: 0 }),
+	       "a practice win was recorded in the Pantheon");
+
+	puzzle = makePuzzle(6);
+	assert(puzzle.practiceMode &&
+	       puzzle.options.querySelector("#practice-mode").checked,
+	       "the saved practice preference was not restored");
+	puzzle.newGame(2);
+	puzzle.setPracticeMode(false);
+	puzzle.lose("test loss");
+	assert(JSON.stringify(puzzle.gameStats) ==
+	       JSON.stringify({ won: 0, lost: 0 }),
+	       "a partly untimed game was recorded after leaving practice mode");
+	localStorage.removeItem("practiceMode");
+	localStorage.removeItem("gameStats");
+	localStorage.removeItem("highScores");
+});
+
 Deno.test("placing only the middle of a three-adjacent clue keeps it", function() {
 	const puzzle = makePuzzle(3);
 	const clue = new Logos.Adjacent3Clue(puzzle);
@@ -1800,6 +1835,42 @@ Deno.test("restarting a proof clears its tile highlight", function() {
 	assert(!slot.singleElem.classList.contains("proof-change"),
 	       "the stale proof highlight returned on placement");
 	puzzle.stopTimer();
+});
+
+Deno.test("practice mistakes can be explained and play can continue", function() {
+	localStorage.removeItem("practiceMode");
+	localStorage.removeItem("gameStats");
+	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
+	puzzle.say = function() {};
+	puzzle.setPracticeMode(true);
+	puzzle.newGame("9ed0fb2b");
+	const slot = puzzle.rows[1].slots[4];
+	slot.discard(4);
+	assert(!puzzle.gameOver && puzzle.pendingProof &&
+	       !puzzle.pendingProof.failedSlot.single &&
+	       slot.possibilityElems[4].classList.contains("failed-action") &&
+	       JSON.stringify(puzzle.gameStats) ==
+	       JSON.stringify({ won: 0, lost: 0 }),
+	       "a practice mistake ended or recorded the game");
+
+	puzzle.explainLoss();
+	assert(puzzle.proof && puzzle.proof.continueGame,
+	       "the practice mistake did not open a continuable proof");
+	const possible = slot.possible.slice();
+	puzzle.explainLoss();
+	assert(!puzzle.proof && !puzzle.gameOver && !slot.single &&
+	       JSON.stringify(slot.possible) == JSON.stringify(possible) &&
+	       slot.possibilityElems[4].classList.contains("failed-action"),
+	       "closing the proof did not restore the live board");
+
+	slot.discard(0);
+	assert(!puzzle.pendingProof && !puzzle.practiceMistake &&
+	       !slot.possibilityElems[4].classList.contains("failed-action") &&
+	       !puzzle.gameOver,
+	       "the player could not continue after a practice proof");
+	puzzle.stopTimer();
+	localStorage.removeItem("practiceMode");
+	localStorage.removeItem("gameStats");
 });
 
 export { Logos, makePuzzle };

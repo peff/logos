@@ -204,6 +204,9 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.soundSamples[name].preservesPitch = false;
 	}
 	this.gameOver = true;
+	this.practiceMode = false;
+	this.scoreEligible = true;
+	this.practiceMistake = null;
 	this.paused = false;
 	this.resumeAfterModal = false;
 	this.nextMilestone = 0;
@@ -247,6 +250,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.gameOver = true;
 		this.proof = null;
 		this.pendingProof = null;
+		this.practiceMistake = null;
 		this.explainButton.disabled = true;
 		this.explainButton.classList.remove("active");
 		this.explainButton.setAttribute("aria-pressed", "false");
@@ -276,6 +280,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.gameOver = true;
 		this.proof = null;
 		this.pendingProof = null;
+		this.practiceMistake = null;
+		this.scoreEligible = !this.practiceMode;
 		this.explainButton.disabled = true;
 		this.explainButton.classList.remove("active");
 		this.explainButton.setAttribute("aria-pressed", "false");
@@ -298,7 +304,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			puzzle.gameOver = false;
 			puzzle.generateClues();
 		});
-		this.startTimer();
+		if (!this.practiceMode)
+			this.startTimer();
 		this.say(randomChoice(startMessages));
 		this.updateActionControls();
 		return true;
@@ -326,8 +333,11 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.updateActionControls();
 		this.playSound("win");
 		this.stopTimer();
-		this.recordOutcome("won");
-		var highScore = this.recordHighScore(this.timerElapsed);
+		var highScore = null;
+		if (this.scoreEligible) {
+			this.recordOutcome("won");
+			highScore = this.recordHighScore(this.timerElapsed);
+		}
 		this.timer.classList.add("won");
 		this.messages.classList.add("won");
 		this.say(randomChoice(winMessages));
@@ -356,11 +366,49 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.lose = function(msg, clues, failedSlot, failedValue) {
 		if (this.gameOver)
 			return;
+		if (this.practiceMode) {
+			this.clearPracticeMistake();
+			this.playSound("mistake");
+			this.closeSlotTray();
+			var clueStates = [];
+			if (clues && clues.length) {
+				this.hClues.classList.add("solution");
+				this.vClues.classList.add("solution");
+				for (var i = 0; i < clues.length; i++) {
+					clueStates.push({
+						clue: clues[i],
+						active: clues[i].active,
+					});
+					clues[i].active = true;
+					clues[i].display.classList.remove("clue-hidden");
+					clues[i].display.classList.add("contradiction");
+				}
+			}
+			this.practiceMistake = {
+				clueStates: clueStates,
+				failedSlot: failedSlot,
+				failedValue: failedValue,
+			};
+			if (failedSlot) {
+				this.pendingProof = {
+					continueGame: true,
+					failedSlot: failedSlot,
+					failedValue: failedValue,
+				};
+				this.explainButton.disabled = false;
+				failedSlot.possibilityElems[failedValue].classList.add(
+					"failed-action");
+			}
+			this.messages.classList.add("lost");
+			this.say(msg);
+			return;
+		}
 		this.gameOver = true;
 		this.updateActionControls();
 		this.playSound("mistake");
 		this.stopTimer();
-		this.recordOutcome("lost");
+		if (this.scoreEligible)
+			this.recordOutcome("lost");
 		this.timer.classList.add("lost");
 		this.messages.classList.add("lost");
 		this.closeSlotTray();
@@ -399,7 +447,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		}
 	}
 
-	this.startProof = function(failedSlot, failedValue) {
+	this.startProof = function(failedSlot, failedValue, continueGame) {
 		var base = domainsFromSlots(this);
 		var basePlacements = proofPlacementsFromSlots(this);
 		var steps = buildProofSteps(this, base, basePlacements,
@@ -413,6 +461,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			position: 1,
 			failedSlot: failedSlot,
 			failedValue: failedValue,
+			continueGame: !!continueGame,
 		};
 		this.proofControls.hidden = false;
 		document.body.classList.add("proof-active");
@@ -431,7 +480,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			return;
 		var request = this.pendingProof;
 		this.pendingProof = null;
-		this.startProof(request.failedSlot, request.failedValue);
+		this.startProof(request.failedSlot, request.failedValue,
+			request.continueGame);
 	}
 
 	this.closeProof = function() {
@@ -442,6 +492,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			if (this.clues[i].display)
 				this.clues[i].display.classList.remove("proof-current");
 		this.pendingProof = {
+			continueGame: proof.continueGame,
 			failedSlot: proof.failedSlot,
 			failedValue: proof.failedValue,
 		};
@@ -450,9 +501,53 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		document.body.classList.remove("proof-active");
 		this.explainButton.classList.remove("active");
 		this.explainButton.setAttribute("aria-pressed", "false");
-		this.revealSolution();
+		if (proof.continueGame)
+			this.restorePlayDisplay();
+		else
+			this.revealSolution();
 		proof.failedSlot.possibilityElems[proof.failedValue].classList.add(
 			"failed-action");
+	}
+
+	this.restorePlayDisplay = function() {
+		for (var i = 0; i < this.rows.length; i++) {
+			for (var j = 0; j < this.rows[i].slots.length; j++) {
+				var slot = this.rows[i].slots[j];
+				if (slot.single)
+					slot.displaySingle();
+				else
+					slot.displayPossible();
+			}
+			this.renderPencilMarks(this.rows[i]);
+		}
+	}
+
+	this.clearPracticeMistake = function() {
+		if (!this.practiceMistake)
+			return;
+		for (var i = 0; i < this.practiceMistake.clueStates.length; i++) {
+			var state = this.practiceMistake.clueStates[i];
+			state.clue.active = state.active;
+			state.clue.display.classList.remove("contradiction",
+				"proof-current");
+			checkClueDisplay(state.clue);
+		}
+		this.hClues.classList.remove("solution");
+		this.vClues.classList.remove("solution");
+		for (var row = 0; row < this.rows.length; row++)
+			for (var col = 0; col < this.rows[row].slots.length; col++) {
+				var slot = this.rows[row].slots[col];
+				slot.singleElem.classList.remove("failed-action");
+				for (var value = 0; value < slot.possibilityElems.length;
+				     value++)
+					slot.possibilityElems[value].classList.remove(
+						"failed-action");
+			}
+		this.pendingProof = null;
+		this.practiceMistake = null;
+		this.explainButton.disabled = true;
+		this.messages.classList.remove("lost");
+		this.say("");
 	}
 
 	this.showProofPosition = function() {
@@ -511,7 +606,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.openSlotTray = function(slot) {
-		if (this.gameOver || this.paused || slot.single)
+		if (this.gameOver || this.paused || this.proof || slot.single)
 			return;
 		this.closeSlotTray();
 		this.expandedSlot = slot;
@@ -712,7 +807,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.togglePencilMark = function(slot, value, discard) {
-		if (this.gameOver || this.paused || slot.single ||
+		if (this.gameOver || this.paused || this.proof || slot.single ||
 		    !slot.possible[value])
 			return;
 		var found = false;
@@ -1023,7 +1118,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		} else {
 			modal.hidden = true;
 			this.paused = false;
-			if (this.resumeAfterModal && !this.gameOver)
+			if (!this.gameOver && !this.practiceMode &&
+			    this.timerTimeout === null)
 				this.startTimer();
 			this.resumeAfterModal = false;
 		}
@@ -1150,8 +1246,28 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		}
 	}
 
+	this.setPracticeMode = function(enabled) {
+		this.practiceMode = enabled;
+		this.options.querySelector("#practice-mode").checked = enabled;
+		if (enabled) {
+			if (!this.gameOver)
+				this.scoreEligible = false;
+			this.stopTimer();
+		} else if (!this.gameOver && !this.paused &&
+			   this.timerTimeout === null) {
+			this.startTimer();
+		}
+		this.timer.hidden = enabled || !this.showTimer;
+		try {
+			localStorage.setItem("practiceMode", enabled);
+		} catch (e) {
+			/* The choice still applies for the current page. */
+		}
+	}
+
 	this.setTimerVisible = function(show) {
-		this.timer.hidden = !show;
+		this.showTimer = show;
+		this.timer.hidden = this.practiceMode || !show;
 		this.options.querySelector("#show-timer").checked = show;
 		try {
 			localStorage.setItem("showTimer", show);
@@ -1344,6 +1460,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	var cursor = "stylus";
 	var showMilestones = true;
 	var autoDismissClues = true;
+	var practiceMode = false;
 	var showTimer = true;
 	var soundEffects = true;
 	var placementAnimation = "settle";
@@ -1356,6 +1473,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		var storedMilestones = localStorage.getItem("showMilestones");
 		var storedAutoDismissClues = localStorage.getItem(
 			"autoDismissClues");
+		var storedPracticeMode = localStorage.getItem("practiceMode");
 		var storedTimer = localStorage.getItem("showTimer");
 		var storedSoundEffects = localStorage.getItem("soundEffects");
 		var storedPlacementAnimation = localStorage.getItem(
@@ -1373,6 +1491,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			showMilestones = storedMilestones == "true";
 		if (storedAutoDismissClues !== null)
 			autoDismissClues = storedAutoDismissClues == "true";
+		if (storedPracticeMode !== null)
+			practiceMode = storedPracticeMode == "true";
 		if (storedTimer !== null)
 			showTimer = storedTimer == "true";
 		if (storedSoundEffects !== null)
@@ -1398,6 +1518,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.setMilestones(showMilestones);
 	this.setAutoDismissClues(autoDismissClues);
 	this.setTimerVisible(showTimer);
+	this.setPracticeMode(practiceMode);
 	this.setSoundEffects(soundEffects);
 	this.setPlacementAnimation(placementAnimation);
 	this.setStoneEffects(stoneEffects);
@@ -2930,7 +3051,8 @@ function Slot(row, symbols, display) {
 		if (source && (style == "grow" || style == "skid") &&
 		    source.getBoundingClientRect)
 			sourceRect = source.getBoundingClientRect();
-		this.singleElem.classList.remove("placing");
+		this.singleElem.classList.remove("placing", "failed-action",
+			"proof-change");
 		this.singleElem.hidden = false;
 		this.possibleElem.hidden = true;
 		if (source) {
@@ -3030,8 +3152,10 @@ function Slot(row, symbols, display) {
 	}
 
 	this.choose = function(value, playerAction) {
-		if (this.row.puzzle.gameOver || this.row.puzzle.paused)
+		if (this.row.puzzle.gameOver || this.row.puzzle.paused ||
+		    this.row.puzzle.proof)
 			return;
+		this.row.puzzle.clearPracticeMistake();
 		if (this.value == value) {
 			if (playerAction || this.row.puzzle.placeSoundPending)
 				this.row.puzzle.playSound("place");
@@ -3052,8 +3176,9 @@ function Slot(row, symbols, display) {
 
 	this.discard = function(value, playerAction) {
 		if (this.single || this.row.puzzle.gameOver ||
-		    this.row.puzzle.paused)
+		    this.row.puzzle.paused || this.row.puzzle.proof)
 			return;
+		this.row.puzzle.clearPracticeMistake();
 		if (this.value == value) {
 			var clues = this.row.puzzle.findContradictingClues(
 				this, value, true);
