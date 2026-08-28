@@ -1,3 +1,4 @@
 #!/bin/sh
 
-exec deno test --allow-read=logos.js logos-test.js
+exec deno test --allow-read=logos.js,logos-test.js,logos-multiplayer.js,logos-webrtc.js \
+	logos-multiplayer-test.js

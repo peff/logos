@@ -746,9 +746,9 @@ Deno.test("placing every symbol in a clue dismisses it", function() {
 	clue.rendered = true;
 	puzzle.clues = [clue];
 
-	top.choose(top.value, true);
+	puzzle.applyTileAction(top, top.value, "place");
 	assert(clue.active, "partially exhausted clue was dismissed");
-	bottom.choose(bottom.value, true);
+	puzzle.applyTileAction(bottom, bottom.value, "place");
 	assert(!clue.active && clue.display.classList.contains("clue-hidden"),
 	       "exhausted clue was not dismissed");
 });
@@ -779,8 +779,8 @@ Deno.test("automatic clue dismissal can be disabled and saved", function() {
 	clue.render();
 	clue.rendered = true;
 	puzzle.clues = [clue];
-	top.choose(top.value, true);
-	bottom.choose(bottom.value, true);
+	puzzle.applyTileAction(top, top.value, "place");
+	puzzle.applyTileAction(bottom, bottom.value, "place");
 	assert(clue.active, "disabled automatic dismissal still hid a clue");
 
 	puzzle.setAutoDismissClues(true);

@@ -954,6 +954,159 @@ body.proof-active #logo {
 	margin-left: 0;
 }
 
+.friends-panel {
+	width: min(30rem, calc(100vw - 2rem));
+	max-height: calc(100vh - 2rem);
+	overflow-y: auto;
+	text-align: center;
+}
+
+.friends-panel h2 {
+	margin: 0 0 0.45rem;
+	font-family: Forum, Georgia, "Times New Roman", serif;
+	font-size: 1.35rem;
+}
+
+.friends-panel h2 .logo-name {
+	display: block;
+	line-height: 1;
+}
+
+.friends-title-subtitle {
+	display: block;
+	margin-top: 0.08rem;
+	color: #746c60;
+	font-size: 0.8rem;
+	font-style: italic;
+	font-weight: normal;
+	letter-spacing: 0.04em;
+}
+
+.friends-actions {
+	display: flex;
+	justify-content: center;
+	gap: 0.3rem;
+}
+
+.friends-name-controls {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 0.3rem;
+	margin-bottom: 0.45rem;
+}
+
+.friends-name-controls[hidden] {
+	display: none;
+}
+
+.friends-name-controls input {
+	box-sizing: border-box;
+	width: 9rem;
+}
+
+.friends-host-instructions {
+	margin: 0.35rem 0;
+	color: #746c60;
+}
+
+.friends-player-list {
+	margin-bottom: 0.35rem;
+	border-bottom: 1px solid #c8c0b2;
+}
+
+.friends-player-list:empty {
+	display: none;
+}
+
+.friends-player-list:not(.friends-has-guests) ~ .friends-answer-controls {
+	display: none;
+}
+
+.friends-signal-controls {
+	display: flex;
+	align-items: center;
+	gap: 0.3rem;
+	max-width: 13rem;
+}
+
+.friends-join-controls,
+.friends-answer-controls,
+.friends-response-controls {
+	margin: 0.45rem auto 0;
+}
+
+.friends-panel .friends-signal-controls > input {
+	box-sizing: border-box;
+	flex: 1 1 auto;
+	min-width: 0;
+	width: auto;
+	background: #f7f3e9;
+	font-family: monospace;
+	font-size: 0.55rem;
+	user-select: text;
+}
+
+.friends-signal-controls > button {
+	white-space: nowrap;
+}
+
+.friends-player {
+	display: flex;
+	align-items: center;
+	gap: 0.45rem;
+	margin: auto;
+	max-width: 25rem;
+	border-top: 1px solid #c8c0b2;
+	padding: 0.35rem 0;
+}
+
+.friends-player-heading {
+	display: flex;
+	flex: 1 0 8rem;
+	justify-content: space-between;
+	gap: 0.4rem;
+}
+
+.friends-player-status {
+	color: #746c60;
+}
+
+.friends-player-invitation {
+	flex: 1 1 13rem;
+}
+
+.friends-player-invitation[hidden] {
+	display: none;
+}
+
+.friends-panel :where(button, input) {
+	border: 1px solid #8f826e;
+	border-radius: 0.16rem;
+	background: #e2d7c3;
+	padding: 0.25rem 0.4rem;
+	color: #4b4033;
+	font: inherit;
+}
+
+.friends-panel .modal-done {
+	background: #e2d7c3;
+	box-shadow: none;
+	text-shadow: none;
+	transform: none;
+}
+
+.friends-footer-actions {
+	display: flex;
+	justify-content: center;
+	gap: 0.3rem;
+	margin-top: 0.55rem;
+}
+
+.friends-footer-actions .modal-done {
+	margin: 0;
+}
+
 .help-panel {
 	display: flex;
 	flex-direction: column;
@@ -1257,17 +1410,20 @@ button.score-entry:focus-visible {
 }
 
 .logo-name {
+	letter-spacing: 0.45em;
+}
+
+#logo .logo-name {
 	display: flex;
 	align-items: center;
 	gap: 0.6rem;
 	margin-top: 0.3rem;
 	font-size: 0.55rem;
 	line-height: 1;
-	letter-spacing: 0.45em;
 }
 
-.logo-name::before,
-.logo-name::after {
+#logo .logo-name::before,
+#logo .logo-name::after {
 	content: "";
 	flex: 1;
 	border-top: 1px solid #8c877a;

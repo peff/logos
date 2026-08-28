@@ -38,7 +38,8 @@
 				</fieldset>
 			</div>
 			<div class="control-buttons">
-				<input type="button" onClick="puzzle.newGame()" value="New Game">
+				<input id="new-game-button" type="button"
+				       onClick="puzzle.newGame()" value="New Game">
 				<input id="help-button" type="button"
 				       onClick="puzzle.toggleHelp()" value="How to play"
 				       aria-expanded="false" aria-controls="help-menu">
@@ -79,6 +80,56 @@
 					<input class="modal-done modal-close" type="button"
 					       onClick="puzzle.toggleScores()"
 					       value="Rejoin the mortal realm">
+				</div>
+			</div>
+			<div id="friends-menu" class="modal" hidden role="dialog"
+			     aria-modal="true" aria-labelledby="friends-title">
+				<div class="modal-panel friends-panel">
+					<h2 id="friends-title">
+						<span class="logo-name">LOGOS</span>
+						<span class="friends-title-subtitle">with Friends</span>
+					</h2>
+					<div class="friends-name-controls">
+						<label for="friends-player-name">Your name:</label>
+						<input id="friends-player-name" type="text" maxlength="32"
+						       autocomplete="nickname">
+					</div>
+					<p class="friends-status">
+					</p>
+					<div class="friends-start">
+						<button id="friends-host" type="button">Host a game</button>
+						<p>or</p>
+						<div class="friends-join-controls friends-signal-controls">
+							<input id="friends-invitation-input" type="text"
+							       spellcheck="false" aria-label="Invitation received">
+							<button id="friends-join" type="button">RSVP</button>
+						</div>
+					</div>
+					<div class="friends-host-controls" hidden>
+						<p class="friends-host-instructions">
+							Each guest requires their own invitation code. Send it to
+							them and ask them to RSVP.
+						</p>
+						<div class="friends-player-list" aria-label="Players"></div>
+						<button id="friends-add-guest" type="button">Create invitation</button>
+						<div class="friends-answer-controls friends-signal-controls">
+							<input id="friends-answer-input" type="text"
+							       spellcheck="false" aria-label="Response received">
+							<button id="friends-accept-answer" type="button">Accept response</button>
+						</div>
+					</div>
+					<div class="friends-guest-controls" hidden>
+						<div class="friends-response-controls friends-signal-controls">
+							<input id="friends-answer-output" type="text" readonly
+							       aria-label="Response to send">
+							<button id="friends-copy-answer" type="button">Copy response</button>
+						</div>
+					</div>
+					<div class="friends-footer-actions">
+						<button id="friends-leave" type="button" hidden>Leave game</button>
+						<input class="modal-done modal-close" type="button"
+						       value="Resume game">
+					</div>
 				</div>
 			</div>
 			<div id="options-menu" class="modal" hidden role="dialog"
@@ -144,6 +195,9 @@
 						             </span>
 						             <small>Replay or share a particular puzzle.</small></span>
 						</label>
+						<input id="friends-button" class="option-action" type="button"
+						       value="Play with friends" aria-expanded="false"
+						       aria-controls="friends-menu">
 					</fieldset>
 					<div class="options-actions">
 						<input id="start-game-button" class="modal-done" type="button"
@@ -418,5 +472,6 @@
 				document.getElementById("about-menu"),
 				document.getElementById("logo"));
 		</script>
+		<script type="module" src="logos-friends.js"></script>
 	</body>
 </html>
