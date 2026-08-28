@@ -963,6 +963,23 @@ body.proof-active #logo {
 
 .friends-panel h2 {
 	margin: 0 0 0.45rem;
+	font-family: Forum, Georgia, "Times New Roman", serif;
+	font-size: 1.35rem;
+}
+
+.friends-panel h2 .logo-name {
+	display: block;
+	line-height: 1;
+}
+
+.friends-title-subtitle {
+	display: block;
+	margin-top: 0.08rem;
+	color: #746c60;
+	font-size: 0.8rem;
+	font-style: italic;
+	font-weight: normal;
+	letter-spacing: 0.04em;
 }
 
 .friends-actions {
@@ -1393,17 +1410,20 @@ button.score-entry:focus-visible {
 }
 
 .logo-name {
+	letter-spacing: 0.45em;
+}
+
+#logo .logo-name {
 	display: flex;
 	align-items: center;
 	gap: 0.6rem;
 	margin-top: 0.3rem;
 	font-size: 0.55rem;
 	line-height: 1;
-	letter-spacing: 0.45em;
 }
 
-.logo-name::before,
-.logo-name::after {
+#logo .logo-name::before,
+#logo .logo-name::after {
 	content: "";
 	flex: 1;
 	border-top: 1px solid #8c877a;
