@@ -1942,6 +1942,31 @@ Deno.test("a three-adjacent placement preserves distinct elimination reasons", f
 	puzzle.stopTimer();
 });
 
+Deno.test("a concluding placement names the conflicting tile", function() {
+	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
+	puzzle.say = function() {};
+	puzzle.newGame("e2b29313");
+	puzzle.rows[3].slots[4].choose(3);
+	puzzle.explainLoss();
+	const step = puzzle.proof.steps[puzzle.proof.steps.length - 1];
+	assert(step.conclusion && step.deduction ==
+		       "adjacent3.middle.placement" &&
+	       step.row == 3 && step.symbol == 3 && step.domain == 1 << 3 &&
+	       Logos.proofMessageText(puzzle, step.message) ==
+		       "⚃ must be in the fourth column because that is the only " +
+		       "place where ◇ and □ can fit on opposite sides of it." &&
+	       Logos.proofMessageText(puzzle, step.contradicts) == "⚃",
+	       "the final placement did not record its contradiction");
+	puzzle.proof.position = puzzle.proof.steps.length;
+	puzzle.showProofPosition();
+	assert(puzzle.proofControls.querySelector(".proof-deduction").textContent ==
+	       "⚃ must be in the fourth column because that is the only place " +
+	       "where ◇ and □ can fit on opposite sides of it, and therefore ⚃ " +
+	       "is not. Q.E.D.",
+	       "the rendered conclusion did not explain the conflicting tile");
+	puzzle.stopTimer();
+});
+
 Deno.test("proof ordering preserves the failed conclusion", function() {
 	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
 	puzzle.say = function() {};

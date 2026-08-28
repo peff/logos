@@ -599,7 +599,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 					this.proof.steps.length;
 			}
 			renderProofMessage(this, deductionElem, step.message,
-				step.conclusion);
+				step.conclusion, step.contradicts);
 			for (var i = 0; i < step.clues.length; i++)
 				step.clues[i].display.classList.add("proof-current");
 		}
@@ -1894,7 +1894,10 @@ function proofMessageText(puzzle, message) {
 		});
 }
 
-function renderProofMessage(puzzle, elem, message, qed) {
+function renderProofMessage(puzzle, elem, message, qed, contradicts) {
+	if (contradicts)
+		message = message.replace(/\.$/, "") +
+			", and therefore " + contradicts + " is not.";
 	var suffix = qed ? " Q.E.D." : "";
 	elem.textContent = proofMessageText(puzzle, message) + suffix;
 	var wrapper = document.createElement("span");
@@ -2706,9 +2709,10 @@ function applyProofStep(domains, placements, step) {
 			domains[row][other] &= ~placed;
 }
 
-function drainForcedProofSteps(domains, placements, output) {
+function drainForcedProofSteps(domains, placements, output, stop) {
 	var step;
-	while ((step = nextForcedProofStep(domains, placements))) {
+	while ((!stop || !stop()) &&
+	       (step = nextForcedProofStep(domains, placements))) {
 		var before = domains[step.row][step.symbol];
 		applyProofStep(domains, placements, step);
 		if (output)
@@ -2996,6 +3000,10 @@ function buildProofSteps(puzzle, base, basePlacements,
 					forced.message = forcedProofMessage(puzzle, forced,
 						forcedBefore);
 					replay.push(forced);
+				}, function() {
+					return failedSlot.value != failedValue &&
+						proofConcluded(puzzle, current, failedSlot,
+						failedValue);
 				});
 			continue;
 		}
@@ -3014,6 +3022,10 @@ function buildProofSteps(puzzle, base, basePlacements,
 				forced.message = forcedProofMessage(puzzle, forced,
 					forcedBefore);
 				replay.push(forced);
+			}, function() {
+				return failedSlot.value != failedValue &&
+					proofConcluded(puzzle, current, failedSlot,
+					failedValue);
 			});
 	}
 	steps = replay;
@@ -3061,6 +3073,17 @@ function buildProofSteps(puzzle, base, basePlacements,
 		});
 		steps.push(step);
 	}
+	var finalStep = steps[steps.length - 1];
+	var failedRow = puzzle.rows.indexOf(failedSlot.row);
+	var failedCol = failedSlot.row.slots.indexOf(failedSlot);
+	var failedBit = 1 << failedCol;
+	var conflictingPlacement = finalStep && finalStep.placement &&
+		finalStep.row == failedRow &&
+		(finalStep.symbol == failedValue ?
+		 !(finalStep.domain & failedBit) : finalStep.domain == failedBit);
+	if (finalStep && finalStep.conclusion && conflictingPlacement)
+		finalStep.contradicts = proofSymbolReference(puzzle, failedRow,
+			failedValue);
 	return combineRelatedProofSteps(puzzle, steps);
 }
 
