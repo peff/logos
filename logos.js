@@ -230,6 +230,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	];
 	this.showMilestones = true;
 	this.pencilMarks = [];
+	this.actionController = null;
+	this.effectsSuppressed = false;
 	this.proof = null;
 	this.pendingProof = null;
 	this.explainButton = document.querySelector("#explain-button");
@@ -701,11 +703,39 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		}
 	}
 
-	this.applyTileAction = function(slot, value, action) {
+	this.setActionController = function(controller) {
+		this.actionController = controller;
+	}
+
+	/*
+	 * Keep requests made by a player separate from actions which have
+	 * already been accepted. A multiplayer controller can send the former
+	 * to its host and call applyTileAction() when the host commits them.
+	 */
+	this.requestTileAction = function(slot, value, action) {
+		if (this.actionController)
+			return this.actionController.requestTileAction(
+				slot, value, action);
+		return this.applyTileAction(slot, value, action);
+	}
+
+	this.withEffectsSuppressed = function(callback) {
+		var old = this.effectsSuppressed;
+		this.effectsSuppressed = true;
+		try {
+			return callback();
+		} finally {
+			this.effectsSuppressed = old;
+		}
+	}
+
+	this.applyTileAction = function(slot, value, action, playerAction) {
+		if (playerAction === undefined)
+			playerAction = true;
 		if (action == "place")
-			slot.choose(value, true);
+			slot.choose(value, playerAction);
 		else if (action == "remove")
-			slot.discard(value, true);
+			slot.discard(value, playerAction);
 		else
 			slot.pencil(value, action == "pencil-remove");
 	}
@@ -716,7 +746,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			return;
 		var action = this.getTileAction();
 		this.closeSlotTray();
-		this.applyTileAction(slot, value, action);
+		this.requestTileAction(slot, value, action);
 	}
 
 	this.beginSlotTrayDrag = function(slot, ev) {
@@ -930,6 +960,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.say = function(msg) {
+		if (this.effectsSuppressed)
+			return;
 		if (this.messageTimeout !== null) {
 			clearTimeout(this.messageTimeout);
 			this.messageTimeout = null;
@@ -1448,7 +1480,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.playSound = function(type) {
-		if (!this.soundEffects)
+		if (this.effectsSuppressed || !this.soundEffects)
 			return;
 		if (this.soundSamples[type]) {
 			this.playSampleSound(type);
@@ -3524,21 +3556,23 @@ function Slot(row, symbols, display) {
 					if (s.row.puzzle.expandTileChoices)
 						s.row.puzzle.openSlotTray(s);
 					else if (s.row.puzzle.showActionSelector)
-						s.row.puzzle.applyTileAction(s, j,
+						s.row.puzzle.requestTileAction(s, j,
 							s.row.puzzle.getTileAction());
 					else if (ev.ctrlKey || ev.altKey || ev.shiftKey)
-						s.pencil(j, false);
+						s.row.puzzle.requestTileAction(
+							s, j, "pencil-select");
 					else
-						s.choose(j, true);
+						s.row.puzzle.requestTileAction(s, j, "place");
 				}}(this, j));
 			cell.addEventListener('contextmenu',
 				function(s, j) { return function(ev) {
 					ev.preventDefault();
 					if (ev.altKey || ev.shiftKey ||
 					    (ev.ctrlKey && !s.row.puzzle.macOS))
-						s.pencil(j, true);
+						s.row.puzzle.requestTileAction(
+							s, j, "pencil-remove");
 					else
-						s.discard(j, true);
+						s.row.puzzle.requestTileAction(s, j, "remove");
 				}}(this, j));
 		}
 	}
