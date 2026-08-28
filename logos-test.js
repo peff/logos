@@ -2080,4 +2080,36 @@ Deno.test("practice mistakes can be explained and play can continue", function()
 	localStorage.removeItem("gameStats");
 });
 
+Deno.test("a loss can continue as a Zen game", function() {
+	localStorage.removeItem("continueAfterLoss");
+	localStorage.removeItem("practiceMode");
+	localStorage.removeItem("gameStats");
+	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
+	puzzle.setContinueAfterLoss(true);
+	puzzle.newGame("9ed0fb2b");
+	const slot = puzzle.rows[1].slots[4];
+	slot.discard(4);
+	assert(!puzzle.gameOver && puzzle.practiceMode &&
+	       !puzzle.practiceModePreference && !puzzle.scoreEligible &&
+	       !puzzle.timer.hidden && puzzle.timerTimeout === null &&
+	       puzzle.timer.classList.contains("lost") &&
+	       puzzle.pendingProof && puzzle.pendingProof.continueGame &&
+	       slot.possibleElem.className != "solution" &&
+	       JSON.stringify(puzzle.gameStats) ==
+		       JSON.stringify({ won: 0, lost: 1 }) &&
+	       localStorage.getItem("continueAfterLoss") == "true",
+	       "a continued loss did not retain a live Zen game");
+	assert(puzzle.sounds.length == 1 && puzzle.sounds[0] == "mistake",
+	       "a continued loss did not use the normal loss sound");
+	puzzle.explainLoss();
+	assert(puzzle.proof && puzzle.proof.continueGame,
+	       "a continued loss did not open a continuable proof");
+	puzzle.explainLoss();
+	assert(!puzzle.proof && !puzzle.gameOver && !slot.single,
+	       "closing the continued proof did not restore the board");
+	localStorage.removeItem("continueAfterLoss");
+	localStorage.removeItem("practiceMode");
+	localStorage.removeItem("gameStats");
+});
+
 export { Logos, makePuzzle };

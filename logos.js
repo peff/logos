@@ -216,6 +216,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.gameOver = true;
 	this.practiceMode = false;
 	this.practiceModePreference = false;
+	this.continueAfterLoss = false;
 	this.scoreEligible = true;
 	this.practiceMistake = null;
 	this.paused = false;
@@ -380,9 +381,21 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.lose = function(msg, clues, failedSlot, failedValue) {
 		if (this.gameOver)
 			return;
+		var continuingAfterLoss = !this.practiceMode &&
+			this.continueAfterLoss;
+		if (continuingAfterLoss) {
+			this.playSound("mistake");
+			this.stopTimer();
+			if (this.scoreEligible)
+				this.recordOutcome("lost");
+			this.scoreEligible = false;
+			this.timer.classList.add("lost");
+			this.practiceMode = true;
+		}
 		if (this.practiceMode) {
 			this.clearPracticeMistake();
-			this.playSound("practice-mistake");
+			if (!continuingAfterLoss)
+				this.playSound("practice-mistake");
 			this.closeSlotTray();
 			var clueStates = [];
 			if (clues && clues.length) {
@@ -1293,6 +1306,16 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		return true;
 	}
 
+	this.setContinueAfterLoss = function(enabled) {
+		this.continueAfterLoss = enabled;
+		this.options.querySelector("#continue-after-loss").checked = enabled;
+		try {
+			localStorage.setItem("continueAfterLoss", enabled);
+		} catch (e) {
+			/* The choice still applies for the current page. */
+		}
+	}
+
 	this.setSoundEffects = function(enabled) {
 		this.soundEffects = enabled;
 		this.options.querySelector("#sound-effects").checked = enabled;
@@ -1458,6 +1481,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	var showMilestones = true;
 	var autoDismissClues = true;
 	var practiceMode = false;
+	var continueAfterLoss = false;
 	var soundEffects = true;
 	var expandTileChoices = this.expandTileChoices;
 	var dragTileChoices = this.dragTileChoices;
@@ -1468,6 +1492,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		var storedAutoDismissClues = localStorage.getItem(
 			"autoDismissClues");
 		var storedPracticeMode = localStorage.getItem("practiceMode");
+		var storedContinueAfterLoss = localStorage.getItem(
+			"continueAfterLoss");
 		var storedSoundEffects = localStorage.getItem("soundEffects");
 		var storedExpandTileChoices = localStorage.getItem(
 			"expandTileChoices");
@@ -1485,6 +1511,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			autoDismissClues = storedAutoDismissClues == "true";
 		if (storedPracticeMode !== null)
 			practiceMode = storedPracticeMode == "true";
+		if (storedContinueAfterLoss !== null)
+			continueAfterLoss = storedContinueAfterLoss == "true";
 		if (storedSoundEffects !== null)
 			soundEffects = storedSoundEffects == "true";
 		if (storedExpandTileChoices !== null)
@@ -1504,6 +1532,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.setMilestones(showMilestones);
 	this.setAutoDismissClues(autoDismissClues);
 	this.setPracticeMode(practiceMode);
+	this.setContinueAfterLoss(continueAfterLoss);
 	this.setSoundEffects(soundEffects);
 	this.setExpandTileChoices(expandTileChoices);
 	this.setDragTileChoices(dragTileChoices);
