@@ -281,6 +281,17 @@ Deno.test("opening options preserves the new-game button label", function() {
 	puzzle.stopTimer();
 });
 
+Deno.test("the timer appears only after a timed game starts", function() {
+	const puzzle = makePuzzle(6);
+	assert(puzzle.timer.hidden,
+	       "the timer was visible outside a game");
+	puzzle.newGame(1);
+	assert(!puzzle.timer.hidden && puzzle.timerTimeout !== null,
+	       "a timed game did not reveal the timer");
+	puzzle.stopTimer();
+	puzzle.say("");
+});
+
 Deno.test("the custom cursor is a saved boolean option", function() {
 	localStorage.removeItem("customCursor");
 	const puzzle = makePuzzle(6);

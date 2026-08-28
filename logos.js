@@ -273,6 +273,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.hClues.classList.remove("solution");
 		this.vClues.classList.remove("solution");
 		this.stopTimer();
+		this.timer.hidden = true;
 		this.timerElapsed = 0;
 		this.clearOutcome();
 		this.updateTimer(0);
