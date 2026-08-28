@@ -1274,20 +1274,9 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			   this.timerTimeout === null) {
 			this.startTimer();
 		}
-		this.timer.hidden = enabled || !this.showTimer;
+		this.timer.hidden = enabled;
 		try {
 			localStorage.setItem("practiceMode", enabled);
-		} catch (e) {
-			/* The choice still applies for the current page. */
-		}
-	}
-
-	this.setTimerVisible = function(show) {
-		this.showTimer = show;
-		this.timer.hidden = this.practiceMode || !show;
-		this.options.querySelector("#show-timer").checked = show;
-		try {
-			localStorage.setItem("showTimer", show);
 		} catch (e) {
 			/* The choice still applies for the current page. */
 		}
@@ -1458,7 +1447,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	var showMilestones = true;
 	var autoDismissClues = true;
 	var practiceMode = false;
-	var showTimer = true;
 	var soundEffects = true;
 	var expandTileChoices = this.expandTileChoices;
 	var dragTileChoices = this.dragTileChoices;
@@ -1469,7 +1457,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		var storedAutoDismissClues = localStorage.getItem(
 			"autoDismissClues");
 		var storedPracticeMode = localStorage.getItem("practiceMode");
-		var storedTimer = localStorage.getItem("showTimer");
 		var storedSoundEffects = localStorage.getItem("soundEffects");
 		var storedExpandTileChoices = localStorage.getItem(
 			"expandTileChoices");
@@ -1487,8 +1474,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			autoDismissClues = storedAutoDismissClues == "true";
 		if (storedPracticeMode !== null)
 			practiceMode = storedPracticeMode == "true";
-		if (storedTimer !== null)
-			showTimer = storedTimer == "true";
 		if (storedSoundEffects !== null)
 			soundEffects = storedSoundEffects == "true";
 		if (storedExpandTileChoices !== null)
@@ -1507,7 +1492,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.setCustomCursor(customCursor);
 	this.setMilestones(showMilestones);
 	this.setAutoDismissClues(autoDismissClues);
-	this.setTimerVisible(showTimer);
 	this.setPracticeMode(practiceMode);
 	this.setSoundEffects(soundEffects);
 	this.setExpandTileChoices(expandTileChoices);

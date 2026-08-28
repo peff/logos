@@ -789,6 +789,8 @@ Deno.test("practice mode is saved and suppresses timing and scores", function() 
 	       "the saved practice preference was not restored");
 	puzzle.newGame(2);
 	puzzle.setPracticeMode(false);
+	assert(!puzzle.timer.hidden,
+	       "leaving practice mode did not restore the timer");
 	puzzle.lose("test loss");
 	assert(JSON.stringify(puzzle.gameStats) ==
 	       JSON.stringify({ won: 0, lost: 0 }),
