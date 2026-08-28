@@ -234,10 +234,12 @@ Deno.test("the host can start a new shared game", function() {
 	stopAll(host, guest);
 });
 
-function fakeWebRTCFactory() {
+function fakeWebRTCFactory(options) {
+	options = options || {};
 	let nextPeer = 1;
 	const offers = new Map();
 	const answers = new Map();
+	const peers = [];
 
 	class FakeChannel {
 		constructor() {
@@ -267,9 +269,11 @@ function fakeWebRTCFactory() {
 		constructor() {
 			this.id = nextPeer++;
 			this.iceGatheringState = "complete";
+			this.connectionState = "new";
 			this.localDescription = null;
 			this.remoteDescription = null;
 			this.channel = null;
+			peers.push(this);
 		}
 		createDataChannel() {
 			return this.channel = new FakeChannel();
@@ -295,7 +299,13 @@ function fakeWebRTCFactory() {
 			const guest = answers.get(key);
 			assert(offers.get(this.id) == this && guest,
 			       "the fake answer did not match its offer");
+			if (options.connect === false) {
+				this.setConnectionState("connecting");
+				guest.setConnectionState("connecting");
+				return;
+			}
 			const guestChannel = new FakeChannel();
+			guest.channel = guestChannel;
 			this.channel.peer = guestChannel;
 			guestChannel.peer = this.channel;
 			guest.ondatachannel({ channel: guestChannel });
@@ -304,16 +314,28 @@ function fakeWebRTCFactory() {
 				guestChannel.onopen();
 			if (this.channel.onopen)
 				this.channel.onopen();
+			this.setConnectionState("connected");
+			guest.setConnectionState("connected");
 		}
 		addEventListener() {}
 		removeEventListener() {}
+		setConnectionState(state) {
+			this.connectionState = state;
+			if (this.onconnectionstatechange)
+				this.onconnectionstatechange();
+		}
 		close() {
+			if (this.connectionState == "closed")
+				return;
+			this.setConnectionState("closed");
 			if (this.channel)
 				this.channel.close();
 		}
 	}
 
-	return function() { return new FakePeerConnection(); };
+	function factory() { return new FakePeerConnection(); }
+	factory.peers = peers;
+	return factory;
 }
 
 Deno.test("WebRTC signaling blobs are compressed, versioned and typed", async function() {
@@ -341,12 +363,16 @@ Deno.test("WebRTC transports connect sessions through offer and answer", async f
 	const host = makeSession("host", "host-id");
 	const guest = makeSession("guest", "guest-id");
 	host.session.start(0x99887766);
+	var hostState;
 	const hostTransport = new WebRTCHostTransport(host.session, {
 		peerConnectionFactory: factory,
 		idFactory: () => "connection-id",
+		onChange: state => hostState = state,
 	});
+	var guestState;
 	const guestTransport = new WebRTCGuestTransport(guest.session, {
 		peerConnectionFactory: factory,
+		onChange: state => guestState = state,
 	});
 
 	const invitation = await hostTransport.createInvitation();
@@ -360,6 +386,53 @@ Deno.test("WebRTC transports connect sessions through offer and answer", async f
 	assert(host.session.revision == 1 && guest.session.revision == 1 &&
 	       boardState(host.puzzle) == boardState(guest.puzzle),
 	       "the WebRTC data channel did not carry the guest move");
+	factory.peers[0].setConnectionState("disconnected");
+	assert(hostState.state == "disconnected",
+	       "the WebRTC host did not report an interrupted connection");
+	factory.peers[0].setConnectionState("connected");
+	assert(hostState.state == "connected",
+	       "the WebRTC host did not report a recovered connection");
+	factory.peers[1].setConnectionState("disconnected");
+	assert(guestState.state == "disconnected",
+	       "the WebRTC guest did not report an interrupted connection");
+	factory.peers[1].setConnectionState("connected");
+	assert(guestState.state == "connected",
+	       "the WebRTC guest did not report a recovered connection");
+	factory.peers[1].setConnectionState("failed");
+	assert(!guest.session.ready,
+	       "a failed WebRTC guest retained its multiplayer session");
+	assert(guestState.state == "failed" && guestState.terminal,
+	       "a failed WebRTC guest did not report a terminal failure");
+	assert(!host.session.peers.has("guest-id"),
+	       "a failed WebRTC guest remained attached to the host");
+
+	guestTransport.close();
+	hostTransport.close();
+	stopAll(host, guest);
+});
+
+Deno.test("WebRTC hosts time out accepted answers which do not connect", async function() {
+	const factory = fakeWebRTCFactory({ connect: false });
+	const host = makeSession("host", "host-id");
+	const guest = makeSession("guest", "guest-id");
+	host.session.start(0x12345678);
+	var hostState;
+	const hostTransport = new WebRTCHostTransport(host.session, {
+		peerConnectionFactory: factory,
+		idFactory: () => "connection-id",
+		connectionTimeout: 5,
+		onChange: state => hostState = state,
+	});
+	const guestTransport = new WebRTCGuestTransport(guest.session, {
+		peerConnectionFactory: factory,
+	});
+
+	const invitation = await hostTransport.createInvitation();
+	const answer = await guestTransport.acceptInvitation(invitation);
+	await hostTransport.acceptAnswer(answer);
+	await new Promise(resolve => setTimeout(resolve, 20));
+	assert(hostState.state == "failed" && hostTransport.pending.size == 0,
+	       "an unconnected WebRTC answer remained pending");
 
 	guestTransport.close();
 	hostTransport.close();

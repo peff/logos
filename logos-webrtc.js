@@ -99,6 +99,7 @@ class WebRTCHostTransport {
 			};
 		this.configuration = { iceServers: options.iceServers || [] };
 		this.iceGatheringTimeout = options.iceGatheringTimeout || 10000;
+		this.connectionTimeout = options.connectionTimeout || 30000;
 		this.idFactory = options.idFactory || function() {
 			return crypto.randomUUID();
 		};
@@ -111,7 +112,10 @@ class WebRTCHostTransport {
 		var connectionId = this.idFactory();
 		var peer = this.peerConnectionFactory(this.configuration);
 		var channel = peer.createDataChannel("logos-game");
-		var record = { connectionId, peer, channel, playerId: null };
+		var record = {
+			connectionId, peer, channel, playerId: null,
+			failureTimer: null, closed: false,
+		};
 		this.pending.set(connectionId, record);
 		this.prepareChannel(record);
 		try {
@@ -138,12 +142,32 @@ class WebRTCHostTransport {
 		if (!record)
 			throw new Error("This answer does not match a pending invitation.");
 		record.playerId = signal.playerId;
-		await record.peer.setRemoteDescription(signal.description);
-		this.changed("connecting");
+		this.scheduleFailure(record);
+		try {
+			await record.peer.setRemoteDescription(signal.description);
+		} catch (e) {
+			this.drop(record, "failed");
+			throw e;
+		}
+		if (this.pending.has(record.connectionId))
+			this.changed("connecting");
 	}
 
 	prepareChannel(record) {
 		var transport = this;
+		record.peer.onconnectionstatechange = function() {
+			var state = record.peer.connectionState;
+			if (state == "failed" || state == "closed")
+				transport.drop(record, state);
+			else if (state == "disconnected") {
+				transport.scheduleFailure(record);
+				transport.changed("disconnected");
+			} else if (state == "connected" &&
+				   record.channel.readyState == "open") {
+				transport.clearFailure(record);
+				transport.changed("connected");
+			}
+		};
 		record.channel.onopen = function() {
 			if (!record.playerId) {
 				record.peer.close();
@@ -151,6 +175,7 @@ class WebRTCHostTransport {
 			}
 			transport.pending.delete(record.connectionId);
 			transport.connected.set(record.playerId, record);
+			transport.clearFailure(record);
 			transport.session.addPeer(record.playerId, function(message) {
 				record.channel.send(JSON.stringify(message));
 			});
@@ -162,13 +187,37 @@ class WebRTCHostTransport {
 				transport.session.receive(record.playerId, message);
 		};
 		record.channel.onclose = function() {
-			if (record.playerId) {
-				transport.connected.delete(record.playerId);
-				transport.session.removePeer(record.playerId);
-			}
-			transport.pending.delete(record.connectionId);
-			transport.changed("disconnected");
+			transport.drop(record, "closed");
 		};
+	}
+
+	scheduleFailure(record) {
+		if (record.failureTimer || record.closed)
+			return;
+		var transport = this;
+		record.failureTimer = setTimeout(function() {
+			transport.drop(record, "failed");
+		}, this.connectionTimeout);
+	}
+
+	clearFailure(record) {
+		if (record.failureTimer)
+			clearTimeout(record.failureTimer);
+		record.failureTimer = null;
+	}
+
+	drop(record, state) {
+		if (record.closed)
+			return;
+		record.closed = true;
+		this.clearFailure(record);
+		this.pending.delete(record.connectionId);
+		if (record.playerId && this.connected.get(record.playerId) == record) {
+			this.connected.delete(record.playerId);
+			this.session.removePeer(record.playerId);
+		}
+		record.peer.close();
+		this.changed(state);
 	}
 
 	changed(state) {
@@ -180,10 +229,10 @@ class WebRTCHostTransport {
 	}
 
 	close() {
-		for (var record of this.pending.values())
-			record.peer.close();
-		for (var record of this.connected.values())
-			record.peer.close();
+		for (var record of Array.from(this.pending.values()))
+			this.drop(record, "closed");
+		for (var record of Array.from(this.connected.values()))
+			this.drop(record, "closed");
 		this.pending.clear();
 		this.connected.clear();
 		this.session.leave();
@@ -200,10 +249,13 @@ class WebRTCGuestTransport {
 			};
 		this.configuration = { iceServers: options.iceServers || [] };
 		this.iceGatheringTimeout = options.iceGatheringTimeout || 10000;
+		this.connectionTimeout = options.connectionTimeout || 30000;
 		this.onChange = options.onChange || function() {};
 		this.peer = null;
 		this.channel = null;
 		this.hostId = null;
+		this.failureTimer = null;
+		this.closed = false;
 	}
 
 	async acceptInvitation(blob) {
@@ -211,13 +263,33 @@ class WebRTCGuestTransport {
 		this.hostId = signal.playerId;
 		this.peer = this.peerConnectionFactory(this.configuration);
 		var transport = this;
+		this.peer.onconnectionstatechange = function() {
+			var state = transport.peer.connectionState;
+			if (state == "failed" || state == "closed")
+				transport.finish(state);
+			else if (state == "disconnected")
+				transport.connectionLost();
+			else if (state == "connected") {
+				transport.clearFailure();
+				if (transport.channel &&
+				    transport.channel.readyState == "open")
+					transport.onChange({
+						state: "connected", connected: true,
+					});
+			}
+		};
 		this.peer.ondatachannel = function(event) {
 			transport.channel = event.channel;
 			transport.prepareChannel();
 		};
-		await this.peer.setRemoteDescription(signal.description);
-		await this.peer.setLocalDescription(await this.peer.createAnswer());
-		await waitForIceGathering(this.peer, this.iceGatheringTimeout);
+		try {
+			await this.peer.setRemoteDescription(signal.description);
+			await this.peer.setLocalDescription(await this.peer.createAnswer());
+			await waitForIceGathering(this.peer, this.iceGatheringTimeout);
+		} catch (e) {
+			this.finish("failed");
+			throw e;
+		}
 		this.onChange({ state: "answer-ready", connected: false });
 		return await encodeSignal({
 			protocol: webRTCProtocol,
@@ -234,6 +306,7 @@ class WebRTCGuestTransport {
 			transport.channel.send(JSON.stringify(message));
 		});
 		this.channel.onopen = function() {
+			transport.clearFailure();
 			transport.onChange({ state: "connected", connected: true });
 		};
 		this.channel.onmessage = function(event) {
@@ -242,11 +315,39 @@ class WebRTCGuestTransport {
 				transport.session.receive(transport.hostId, message);
 		};
 		this.channel.onclose = function() {
-			transport.onChange({ state: "disconnected", connected: false });
+			transport.finish("closed");
 		};
 	}
 
+	connectionLost() {
+		this.onChange({ state: "disconnected", connected: false });
+		if (this.failureTimer || this.closed)
+			return;
+		var transport = this;
+		this.failureTimer = setTimeout(function() {
+			transport.finish("failed");
+		}, this.connectionTimeout);
+	}
+
+	clearFailure() {
+		if (this.failureTimer)
+			clearTimeout(this.failureTimer);
+		this.failureTimer = null;
+	}
+
+	finish(state) {
+		if (this.closed)
+			return;
+		this.closed = true;
+		this.clearFailure();
+		this.peer.close();
+		this.session.leave();
+		this.onChange({ state, connected: false, terminal: true });
+	}
+
 	close() {
+		this.closed = true;
+		this.clearFailure();
 		if (this.peer)
 			this.peer.close();
 		this.session.leave();

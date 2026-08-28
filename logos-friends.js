@@ -64,7 +64,11 @@ function beginSession(role) {
 
 function updateWebRTCHost(state) {
 	var players = state.connected + 1;
-	if (state.connected)
+	if (state.state == "failed")
+		status.textContent = "A guest connection failed.";
+	else if (state.state == "disconnected")
+		status.textContent = "A guest connection was interrupted.";
+	else if (state.connected)
 		status.textContent = "Hosting a game with " + players + " players.";
 	else if (state.state == "connecting")
 		status.textContent = "Connecting to the guest...";
@@ -78,7 +82,11 @@ function updateWebRTCGuest(state) {
 		status.textContent = "Connected to the host.";
 		friendsButton.value = "Friends (joined)";
 	} else if (state.state == "disconnected") {
-		status.textContent = "The connection to the host closed.";
+		status.textContent = "The connection to the host was interrupted.";
+		friendsButton.value = "Friends (disconnected)";
+	} else if (state.state == "failed" || state.state == "closed") {
+		status.textContent = "The connection to the host closed. " +
+			"Leave the game to return to single-player.";
 		friendsButton.value = "Friends (disconnected)";
 	} else {
 		status.textContent = "Send the answer to the host and wait for connection.";
@@ -227,3 +235,7 @@ friendsMenu.querySelector("#friends-copy-invitation").addEventListener(
 friendsMenu.querySelector("#friends-copy-answer").addEventListener(
 	"click", function() { copyField("#friends-answer-output", this); });
 leaveButton.addEventListener("click", leave);
+window.addEventListener("pagehide", function() {
+	if (transport)
+		leave();
+});
