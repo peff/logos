@@ -13,13 +13,14 @@ var hostControls = friendsMenu.querySelector(".friends-host-controls");
 var guestControls = friendsMenu.querySelector(".friends-guest-controls");
 var leaveButton = friendsMenu.querySelector("#friends-leave");
 var newGameButton = document.querySelector("#new-game-button");
-var invitationOutput = friendsMenu.querySelector("#friends-invitation-output");
 var invitationInput = friendsMenu.querySelector("#friends-invitation-input");
 var answerInput = friendsMenu.querySelector("#friends-answer-input");
 var answerOutput = friendsMenu.querySelector("#friends-answer-output");
+var playerList = friendsMenu.querySelector(".friends-player-list");
 var session = null;
 var transport = null;
-var displayedInvitationId = null;
+var guestEntries = new Map();
+var nextGuest = 1;
 
 function randomHex(bytes) {
 	var data = new Uint8Array(bytes);
@@ -57,12 +58,32 @@ function beginSession(role) {
 	hostControls.hidden = role != "host";
 	guestControls.hidden = role != "guest";
 	leaveButton.hidden = false;
+	leaveButton.textContent = role == "host" ?
+		"End multiplayer" : "Leave multiplayer";
 	setGameControlsDisabled(true);
 	newGameButton.disabled = role != "host";
 	newGameButton.onclick = role == "host" ? startSharedGame : null;
 }
 
 function updateWebRTCHost(state) {
+	var entry = guestEntries.get(state.connectionId);
+	if (entry) {
+		var entryStatus = entry.querySelector(".friends-player-status");
+		if (state.state == "connecting") {
+			entryStatus.textContent = "Connecting";
+			entry.querySelector(".friends-player-invitation").hidden = true;
+		} else if (state.state == "connected") {
+			entryStatus.textContent = "Connected";
+			entry.dataset.connected = "true";
+			entry.querySelector(".friends-player-invitation").hidden = true;
+		} else if (state.state == "disconnected") {
+			entryStatus.textContent = "Interrupted";
+		} else if (state.state == "failed" || state.state == "closed") {
+			entryStatus.textContent = entry.dataset.connected ?
+				"Disconnected" : "Failed";
+			entry.querySelector(".friends-player-invitation").hidden = true;
+		}
+	}
 	var players = state.connected + 1;
 	if (state.state == "failed")
 		status.textContent = "A guest connection failed.";
@@ -73,7 +94,7 @@ function updateWebRTCHost(state) {
 	else if (state.state == "connecting")
 		status.textContent = "Connecting to the guest...";
 	else
-		status.textContent = "Hosting; create an invitation for each guest.";
+		status.textContent = "Hosting a game.";
 	friendsButton.value = "Friends (hosting)";
 }
 
@@ -91,29 +112,60 @@ function updateWebRTCGuest(state) {
 			"Leave the game to return to single-player.";
 		friendsButton.value = "Friends (disconnected)";
 	} else {
-		status.textContent = "Send the answer to the host and wait for connection.";
+		status.textContent = "Send the response to the host and wait for connection.";
 		friendsButton.value = "Friends (connecting)";
 	}
 }
 
-async function hostWebRTC() {
+function hostWebRTC() {
 	beginSession("host");
 	transport = new WebRTCHostTransport(session, {
 		onChange: updateWebRTCHost,
 	});
-	status.textContent = "Finding connection routes...";
-	await createInvitation();
+	status.textContent = "Hosting a game.";
+}
+
+function addGuestEntry() {
+	var entry = document.createElement("div");
+	entry.className = "friends-player";
+	var heading = document.createElement("div");
+	heading.className = "friends-player-heading";
+	var name = document.createElement("span");
+	name.textContent = "Guest " + nextGuest++;
+	var entryStatus = document.createElement("span");
+	entryStatus.className = "friends-player-status";
+	entryStatus.textContent = "Inviting";
+	heading.append(name, entryStatus);
+	var invitation = document.createElement("div");
+	invitation.className =
+		"friends-player-invitation friends-signal-controls";
+	var field = document.createElement("input");
+	field.type = "text";
+	field.readOnly = true;
+	field.setAttribute("aria-label", "Invitation for " + name.textContent);
+	var copy = document.createElement("button");
+	copy.type = "button";
+	copy.textContent = "Copy";
+	copy.disabled = true;
+	copy.addEventListener("click", function() {
+		copyField(field, copy);
+	});
+	invitation.append(field, copy);
+	entry.append(heading, invitation);
+	playerList.append(entry);
+	return { entry, field, copy, status: entryStatus };
 }
 
 async function createInvitation() {
-	invitationOutput.value = "";
-	displayedInvitationId = null;
+	var guest = addGuestEntry();
 	try {
-		invitationOutput.value = await transport.createInvitation();
-		displayedInvitationId = (await decodeSignal(
-			invitationOutput.value, "offer")).connectionId;
-		status.textContent = "Send this invitation to one guest.";
+		guest.field.value = await transport.createInvitation();
+		var signal = await decodeSignal(guest.field.value, "offer");
+		guestEntries.set(signal.connectionId, guest.entry);
+		guest.copy.disabled = false;
 	} catch (e) {
+		guest.status.textContent = "Failed";
+		guest.entry.querySelector(".friends-player-invitation").hidden = true;
 		status.textContent = e.message;
 	}
 }
@@ -139,7 +191,7 @@ async function joinWebRTC() {
 	try {
 		answerOutput.value =
 			await transport.acceptInvitation(invitationInput.value);
-		status.textContent = "Send this answer back to the host.";
+		status.textContent = "Send this response back to the host.";
 	} catch (e) {
 		status.textContent = e.message;
 	}
@@ -147,19 +199,15 @@ async function joinWebRTC() {
 
 async function acceptAnswer() {
 	if (!answerInput.value.trim()) {
-		answerInput.setCustomValidity("Paste the guest's answer.");
+		answerInput.setCustomValidity("Paste the guest's response.");
 		answerInput.reportValidity();
 		return;
 	}
 	answerInput.setCustomValidity("");
 	try {
-		var answer = await decodeSignal(answerInput.value, "answer");
+		await decodeSignal(answerInput.value, "answer");
 		await transport.acceptAnswer(answerInput.value);
 		answerInput.value = "";
-		if (answer.connectionId == displayedInvitationId) {
-			invitationOutput.value = "";
-			displayedInvitationId = null;
-		}
 	} catch (e) {
 		status.textContent = e.message;
 	}
@@ -170,7 +218,9 @@ function leave() {
 		transport.close();
 	transport = null;
 	session = null;
-	displayedInvitationId = null;
+	guestEntries.clear();
+	playerList.replaceChildren();
+	nextGuest = 1;
 	status.textContent = "Host a game or paste an invitation from a friend.";
 	startControls.hidden = false;
 	hostControls.hidden = true;
@@ -193,7 +243,8 @@ function toggleMenu() {
 }
 
 async function copyField(selector, button) {
-	var field = friendsMenu.querySelector(selector);
+	var field = typeof selector == "string" ?
+		friendsMenu.querySelector(selector) : selector;
 	var text = field.value || field.textContent;
 	field.focus();
 	field.select();
@@ -228,12 +279,10 @@ friendsMenu.addEventListener("click", function(event) {
 });
 friendsMenu.querySelector("#friends-host").addEventListener("click", hostWebRTC);
 friendsMenu.querySelector("#friends-join").addEventListener("click", joinWebRTC);
-friendsMenu.querySelector("#friends-create-invitation").addEventListener(
+friendsMenu.querySelector("#friends-add-guest").addEventListener(
 	"click", createInvitation);
 friendsMenu.querySelector("#friends-accept-answer").addEventListener(
 	"click", acceptAnswer);
-friendsMenu.querySelector("#friends-copy-invitation").addEventListener(
-	"click", function() { copyField("#friends-invitation-output", this); });
 friendsMenu.querySelector("#friends-copy-answer").addEventListener(
 	"click", function() { copyField("#friends-answer-output", this); });
 leaveButton.addEventListener("click", leave);

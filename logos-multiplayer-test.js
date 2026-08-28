@@ -381,6 +381,9 @@ Deno.test("WebRTC transports connect sessions through offer and answer", async f
 	assert(guest.session.ready && host.session.peers.has("guest-id") &&
 	       boardState(host.puzzle) == boardState(guest.puzzle),
 	       "the WebRTC guest did not synchronize after connecting");
+	assert(hostState.connectionId == "connection-id" &&
+	       hostState.playerId == "guest-id",
+	       "the WebRTC host did not identify the connected guest");
 	const move = wrongMove(guest.puzzle);
 	guest.puzzle.requestTileAction(move.slot, move.value, "remove");
 	assert(host.session.revision == 1 && guest.session.revision == 1 &&

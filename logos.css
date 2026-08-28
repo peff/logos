@@ -971,7 +971,82 @@ body.proof-active #logo {
 	gap: 0.3rem;
 }
 
-.friends-panel :where(button, input, textarea) {
+.friends-host-instructions {
+	margin: 0.35rem 0;
+	color: #746c60;
+}
+
+.friends-player-list {
+	margin-bottom: 0.35rem;
+	border-bottom: 1px solid #c8c0b2;
+}
+
+.friends-player-list:empty {
+	display: none;
+}
+
+.friends-player-list:empty ~ .friends-answer-controls {
+	display: none;
+}
+
+.friends-signal-controls {
+	display: flex;
+	align-items: center;
+	gap: 0.3rem;
+	max-width: 13rem;
+}
+
+.friends-join-controls,
+.friends-answer-controls,
+.friends-response-controls {
+	margin: 0.45rem auto 0;
+}
+
+.friends-panel .friends-signal-controls > input {
+	box-sizing: border-box;
+	flex: 1 1 auto;
+	min-width: 0;
+	width: auto;
+	background: #f7f3e9;
+	font-family: monospace;
+	font-size: 0.55rem;
+	user-select: text;
+}
+
+.friends-signal-controls > button {
+	white-space: nowrap;
+}
+
+.friends-player {
+	display: flex;
+	align-items: center;
+	gap: 0.45rem;
+	margin: auto;
+	max-width: 25rem;
+	border-top: 1px solid #c8c0b2;
+	padding: 0.35rem 0;
+}
+
+.friends-player-heading {
+	display: flex;
+	flex: 1 0 8rem;
+	justify-content: space-between;
+	gap: 0.4rem;
+}
+
+.friends-player-status {
+	color: #746c60;
+}
+
+.friends-player-invitation {
+	flex: 1 1 13rem;
+}
+
+.friends-player-invitation[hidden] {
+	display: none;
+}
+
+.friends-panel :where(button, input) {
 	border: 1px solid #8f826e;
 	border-radius: 0.16rem;
 	background: #e2d7c3;
@@ -987,29 +1062,15 @@ body.proof-active #logo {
 	transform: none;
 }
 
-.friends-panel textarea {
-	display: block;
-	box-sizing: border-box;
-	width: 100%;
-	margin: 0.2rem 0 0.35rem;
-	background: #f7f3e9;
-	font-family: monospace;
-	font-size: 0.55rem;
-	resize: vertical;
-	user-select: text;
+.friends-footer-actions {
+	display: flex;
+	justify-content: center;
+	gap: 0.3rem;
+	margin-top: 0.55rem;
 }
 
-.friends-start > label,
-.friends-host-controls > label,
-.friends-guest-controls > label {
-	display: block;
-	margin-top: 0.45rem;
-}
-
-.friends-note {
-	margin-bottom: 0;
-	color: #746c60;
-	font-size: 0.62rem;
+.friends-footer-actions .modal-done {
+	margin: 0;
 }
 
 .help-panel {

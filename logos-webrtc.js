@@ -126,7 +126,7 @@ class WebRTCHostTransport {
 			peer.close();
 			throw e;
 		}
-		this.changed("invitation-ready");
+		this.changed("invitation-ready", record);
 		return await encodeSignal({
 			protocol: webRTCProtocol,
 			type: "offer",
@@ -150,7 +150,7 @@ class WebRTCHostTransport {
 			throw e;
 		}
 		if (this.pending.has(record.connectionId))
-			this.changed("connecting");
+			this.changed("connecting", record);
 	}
 
 	prepareChannel(record) {
@@ -161,11 +161,11 @@ class WebRTCHostTransport {
 				transport.drop(record, state);
 			else if (state == "disconnected") {
 				transport.scheduleFailure(record);
-				transport.changed("disconnected");
+				transport.changed("disconnected", record);
 			} else if (state == "connected" &&
 				   record.channel.readyState == "open") {
 				transport.clearFailure(record);
-				transport.changed("connected");
+				transport.changed("connected", record);
 			}
 		};
 		record.channel.onopen = function() {
@@ -179,7 +179,7 @@ class WebRTCHostTransport {
 			transport.session.addPeer(record.playerId, function(message) {
 				record.channel.send(JSON.stringify(message));
 			});
-			transport.changed("connected");
+			transport.changed("connected", record);
 		};
 		record.channel.onmessage = function(event) {
 			var message = parseChannelMessage(event);
@@ -217,14 +217,16 @@ class WebRTCHostTransport {
 			this.session.removePeer(record.playerId);
 		}
 		record.peer.close();
-		this.changed(state);
+		this.changed(state, record);
 	}
 
-	changed(state) {
+	changed(state, record) {
 		this.onChange({
 			state,
 			connected: this.connected.size,
 			pending: this.pending.size,
+			connectionId: record && record.connectionId,
+			playerId: record && record.playerId,
 		});
 	}
 
