@@ -4,6 +4,12 @@ import {
 	MultiplayerSession,
 } from "./logos-multiplayer.js";
 import { BroadcastRoomTransport } from "./logos-broadcast.js";
+import {
+	WebRTCGuestTransport,
+	WebRTCHostTransport,
+	decodeSignal,
+	encodeSignal,
+} from "./logos-webrtc.js";
 
 function assert(condition, message) {
 	if (!condition)
@@ -240,5 +246,137 @@ Deno.test("the host can start a new shared game", function() {
 	       guest.puzzle.seed == 0x22222222 &&
 	       boardState(host.puzzle) == boardState(guest.puzzle),
 	       "the replacement game was not synchronized");
+	stopAll(host, guest);
+});
+
+function fakeWebRTCFactory() {
+	let nextPeer = 1;
+	const offers = new Map();
+	const answers = new Map();
+
+	class FakeChannel {
+		constructor() {
+			this.readyState = "connecting";
+			this.peer = null;
+			this.closed = false;
+		}
+		send(data) {
+			if (this.readyState != "open")
+				throw new Error("sent on a closed data channel");
+			if (this.peer.onmessage)
+				this.peer.onmessage({ data });
+		}
+		close() {
+			if (this.closed)
+				return;
+			this.closed = true;
+			this.readyState = "closed";
+			if (this.onclose)
+				this.onclose();
+			if (this.peer)
+				this.peer.close();
+		}
+	}
+
+	class FakePeerConnection {
+		constructor() {
+			this.id = nextPeer++;
+			this.iceGatheringState = "complete";
+			this.localDescription = null;
+			this.remoteDescription = null;
+			this.channel = null;
+		}
+		createDataChannel() {
+			return this.channel = new FakeChannel();
+		}
+		async createOffer() {
+			offers.set(this.id, this);
+			return { type: "offer", sdp: "offer:" + this.id };
+		}
+		async createAnswer() {
+			const offerId = Number(this.remoteDescription.sdp.split(":")[1]);
+			const key = offerId + ":" + this.id;
+			answers.set(key, this);
+			return { type: "answer", sdp: "answer:" + key };
+		}
+		async setLocalDescription(description) {
+			this.localDescription = description;
+		}
+		async setRemoteDescription(description) {
+			this.remoteDescription = description;
+			if (description.type != "answer")
+				return;
+			const key = description.sdp.slice("answer:".length);
+			const guest = answers.get(key);
+			assert(offers.get(this.id) == this && guest,
+			       "the fake answer did not match its offer");
+			const guestChannel = new FakeChannel();
+			this.channel.peer = guestChannel;
+			guestChannel.peer = this.channel;
+			guest.ondatachannel({ channel: guestChannel });
+			this.channel.readyState = guestChannel.readyState = "open";
+			if (guestChannel.onopen)
+				guestChannel.onopen();
+			if (this.channel.onopen)
+				this.channel.onopen();
+		}
+		addEventListener() {}
+		removeEventListener() {}
+		close() {
+			if (this.channel)
+				this.channel.close();
+		}
+	}
+
+	return function() { return new FakePeerConnection(); };
+}
+
+Deno.test("WebRTC signaling blobs are versioned and typed", function() {
+	const blob = encodeSignal({
+		protocol: "logos-webrtc-1",
+		type: "offer",
+		connectionId: "connection",
+		playerId: "host",
+		description: { type: "offer", sdp: "test-Σ" },
+	});
+	const signal = decodeSignal(blob, "offer");
+	assert(signal.description.sdp == "test-Σ" && blob.startsWith("LOGOS1."),
+	       "the signaling blob did not round trip");
+	let rejected = false;
+	try {
+		decodeSignal(blob, "answer");
+	} catch (e) {
+		rejected = true;
+	}
+	assert(rejected, "an offer was accepted where an answer was required");
+});
+
+Deno.test("WebRTC transports connect sessions through offer and answer", async function() {
+	const factory = fakeWebRTCFactory();
+	const host = makeSession("host", "host-id");
+	const guest = makeSession("guest", "guest-id");
+	host.session.start(0x99887766);
+	const hostTransport = new WebRTCHostTransport(host.session, {
+		peerConnectionFactory: factory,
+		idFactory: () => "connection-id",
+	});
+	const guestTransport = new WebRTCGuestTransport(guest.session, {
+		peerConnectionFactory: factory,
+	});
+
+	const invitation = await hostTransport.createInvitation();
+	const answer = await guestTransport.acceptInvitation(invitation);
+	await hostTransport.acceptAnswer(answer);
+	assert(guest.session.ready && host.session.peers.has("guest-id") &&
+	       boardState(host.puzzle) == boardState(guest.puzzle),
+	       "the WebRTC guest did not synchronize after connecting");
+	const move = wrongMove(guest.puzzle);
+	guest.puzzle.requestTileAction(move.slot, move.value, "remove");
+	assert(host.session.revision == 1 && guest.session.revision == 1 &&
+	       boardState(host.puzzle) == boardState(guest.puzzle),
+	       "the WebRTC data channel did not carry the guest move");
+
+	guestTransport.close();
+	hostTransport.close();
 	stopAll(host, guest);
 });

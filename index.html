@@ -87,23 +87,47 @@
 				<div class="modal-panel friends-panel">
 					<h2 id="friends-title">Logos with Friends</h2>
 					<p class="friends-status">
-						Host a game or join one from another tab.
+						Host a game or paste an invitation from a friend.
 					</p>
-					<p class="friends-room" hidden>
-						Room code: <strong class="friends-room-id"></strong>
-						<button id="friends-copy-room" type="button">Copy</button>
-					</p>
-					<div class="friends-actions">
+					<div class="friends-start">
 						<button id="friends-host" type="button">Host a game</button>
-						<input id="friends-room-input" type="text" maxlength="12"
-						       autocomplete="off" autocapitalize="characters"
-						       spellcheck="false" placeholder="Room code"
-						       aria-label="Room code">
-						<button id="friends-join" type="button">Join game</button>
-						<button id="friends-leave" type="button" hidden>Leave game</button>
+						<label for="friends-invitation-input">Or paste an invitation:</label>
+						<textarea id="friends-invitation-input" rows="3"
+						          spellcheck="false"></textarea>
+						<button id="friends-join" type="button">Create answer</button>
+						<details class="friends-broadcast">
+							<summary>Same-browser test</summary>
+							<p class="friends-room" hidden>
+								Room code: <strong class="friends-room-id"></strong>
+							</p>
+							<div class="friends-actions">
+								<button id="friends-broadcast-host" type="button">Host</button>
+								<input id="friends-room-input" type="text" maxlength="12"
+								       spellcheck="false" placeholder="Room code"
+								       aria-label="Room code">
+								<button id="friends-broadcast-join" type="button">Join</button>
+							</div>
+						</details>
 					</div>
+					<div class="friends-host-controls" hidden>
+						<label for="friends-invitation-output">Invitation to send:</label>
+						<textarea id="friends-invitation-output" rows="3" readonly></textarea>
+						<div class="friends-actions">
+							<button id="friends-copy-invitation" type="button">Copy invitation</button>
+							<button id="friends-create-invitation" type="button">New invitation</button>
+						</div>
+						<label for="friends-answer-input">Answer received:</label>
+						<textarea id="friends-answer-input" rows="3" spellcheck="false"></textarea>
+						<button id="friends-accept-answer" type="button">Accept answer</button>
+					</div>
+					<div class="friends-guest-controls" hidden>
+						<label for="friends-answer-output">Answer to send:</label>
+						<textarea id="friends-answer-output" rows="3" readonly></textarea>
+						<button id="friends-copy-answer" type="button">Copy answer</button>
+					</div>
+					<button id="friends-leave" type="button" hidden>Leave game</button>
 					<p class="friends-note">
-						Prototype: tabs must use the same browser and site origin.
+						Prototype: connection messages must be exchanged manually.
 					</p>
 					<input class="modal-done modal-close" type="button" value="Close">
 				</div>

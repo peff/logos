@@ -1,18 +1,28 @@
 import { MultiplayerSession } from "./logos-multiplayer.js";
 import { BroadcastRoomTransport, normalizeRoomId } from "./logos-broadcast.js";
+import {
+	WebRTCGuestTransport,
+	WebRTCHostTransport,
+	decodeSignal,
+} from "./logos-webrtc.js";
 
 var friendsButton = document.querySelector("#friends-button");
 var friendsMenu = document.querySelector("#friends-menu");
 var status = friendsMenu.querySelector(".friends-status");
-var roomDisplay = friendsMenu.querySelector(".friends-room-id");
-var joinInput = friendsMenu.querySelector("#friends-room-input");
-var hostButton = friendsMenu.querySelector("#friends-host");
-var joinButton = friendsMenu.querySelector("#friends-join");
+var startControls = friendsMenu.querySelector(".friends-start");
+var hostControls = friendsMenu.querySelector(".friends-host-controls");
+var guestControls = friendsMenu.querySelector(".friends-guest-controls");
 var leaveButton = friendsMenu.querySelector("#friends-leave");
-var copyButton = friendsMenu.querySelector("#friends-copy-room");
 var newGameButton = document.querySelector("#new-game-button");
+var invitationOutput = friendsMenu.querySelector("#friends-invitation-output");
+var invitationInput = friendsMenu.querySelector("#friends-invitation-input");
+var answerInput = friendsMenu.querySelector("#friends-answer-input");
+var answerOutput = friendsMenu.querySelector("#friends-answer-output");
+var roomDisplay = friendsMenu.querySelector(".friends-room-id");
+var roomInput = friendsMenu.querySelector("#friends-room-input");
 var session = null;
 var transport = null;
+var displayedInvitationId = null;
 
 function randomHex(bytes) {
 	var data = new Uint8Array(bytes);
@@ -37,7 +47,118 @@ function startSharedGame() {
 	session.start(parseInt(randomHex(4), 16));
 }
 
-function updateRoom(state) {
+function beginSession(role) {
+	if (transport)
+		transport.close();
+	session = new MultiplayerSession(window.puzzle, {
+		role,
+		playerId: playerId(),
+	});
+	if (role == "host")
+		startSharedGame();
+	startControls.hidden = true;
+	hostControls.hidden = role != "host";
+	guestControls.hidden = role != "guest";
+	leaveButton.hidden = false;
+	setGameControlsDisabled(true);
+	newGameButton.disabled = role != "host";
+	newGameButton.onclick = role == "host" ? startSharedGame : null;
+}
+
+function updateWebRTCHost(state) {
+	var players = state.connected + 1;
+	if (state.connected)
+		status.textContent = "Hosting a game with " + players + " players.";
+	else if (state.state == "connecting")
+		status.textContent = "Connecting to the guest...";
+	else
+		status.textContent = "Hosting; create an invitation for each guest.";
+	friendsButton.value = "Friends (hosting)";
+}
+
+function updateWebRTCGuest(state) {
+	if (state.connected) {
+		status.textContent = "Connected to the host.";
+		friendsButton.value = "Friends (joined)";
+	} else if (state.state == "disconnected") {
+		status.textContent = "The connection to the host closed.";
+		friendsButton.value = "Friends (disconnected)";
+	} else {
+		status.textContent = "Send the answer to the host and wait for connection.";
+		friendsButton.value = "Friends (connecting)";
+	}
+}
+
+async function hostWebRTC() {
+	beginSession("host");
+	transport = new WebRTCHostTransport(session, {
+		onChange: updateWebRTCHost,
+	});
+	status.textContent = "Finding connection routes...";
+	await createInvitation();
+}
+
+async function createInvitation() {
+	invitationOutput.value = "";
+	displayedInvitationId = null;
+	try {
+		invitationOutput.value = await transport.createInvitation();
+		displayedInvitationId = decodeSignal(
+			invitationOutput.value, "offer").connectionId;
+		status.textContent = "Send this invitation to one guest.";
+	} catch (e) {
+		status.textContent = e.message;
+	}
+}
+
+async function joinWebRTC() {
+	if (!invitationInput.value.trim()) {
+		invitationInput.setCustomValidity("Paste the host's invitation.");
+		invitationInput.reportValidity();
+		return;
+	}
+	invitationInput.setCustomValidity("");
+	try {
+		decodeSignal(invitationInput.value, "offer");
+	} catch (e) {
+		status.textContent = e.message;
+		return;
+	}
+	beginSession("guest");
+	transport = new WebRTCGuestTransport(session, {
+		onChange: updateWebRTCGuest,
+	});
+	status.textContent = "Finding connection routes...";
+	try {
+		answerOutput.value =
+			await transport.acceptInvitation(invitationInput.value);
+		status.textContent = "Send this answer back to the host.";
+	} catch (e) {
+		status.textContent = e.message;
+	}
+}
+
+async function acceptAnswer() {
+	if (!answerInput.value.trim()) {
+		answerInput.setCustomValidity("Paste the guest's answer.");
+		answerInput.reportValidity();
+		return;
+	}
+	answerInput.setCustomValidity("");
+	try {
+		var answer = decodeSignal(answerInput.value, "answer");
+		await transport.acceptAnswer(answerInput.value);
+		answerInput.value = "";
+		if (answer.connectionId == displayedInvitationId) {
+			invitationOutput.value = "";
+			displayedInvitationId = null;
+		}
+	} catch (e) {
+		status.textContent = e.message;
+	}
+}
+
+function updateBroadcast(state) {
 	if (!session)
 		return;
 	var count = state.players.size;
@@ -54,30 +175,15 @@ function updateRoom(state) {
 	}
 }
 
-function begin(role, roomId) {
-	if (transport)
-		transport.close();
-	var id = playerId();
-	session = new MultiplayerSession(window.puzzle, {
-		role: role,
-		playerId: id,
-	});
-	if (role == "host")
-		startSharedGame();
+function beginBroadcast(role, roomId) {
+	beginSession(role);
 	transport = new BroadcastRoomTransport(session, {
-		roomId: roomId,
+		roomId,
 		playerName: role == "host" ? "Host" : "Guest",
-		onChange: updateRoom,
+		onChange: updateBroadcast,
 	});
 	roomDisplay.textContent = roomId;
 	roomDisplay.closest(".friends-room").hidden = false;
-	hostButton.hidden = true;
-	joinButton.hidden = true;
-	joinInput.hidden = true;
-	leaveButton.hidden = false;
-	setGameControlsDisabled(true);
-	newGameButton.disabled = role != "host";
-	newGameButton.onclick = role == "host" ? startSharedGame : null;
 }
 
 function leave() {
@@ -85,14 +191,17 @@ function leave() {
 		transport.close();
 	transport = null;
 	session = null;
-	status.textContent = "Host a game or join one from another tab.";
-	roomDisplay.closest(".friends-room").hidden = true;
-	hostButton.hidden = false;
-	joinButton.hidden = false;
-	joinInput.hidden = false;
+	displayedInvitationId = null;
+	status.textContent = "Host a game or paste an invitation from a friend.";
+	startControls.hidden = false;
+	hostControls.hidden = true;
+	guestControls.hidden = true;
 	leaveButton.hidden = true;
-	joinInput.value = "";
-	joinInput.setCustomValidity("");
+	roomDisplay.closest(".friends-room").hidden = true;
+	for (var field of friendsMenu.querySelectorAll("textarea, input[type=text]")) {
+		field.value = "";
+		field.setCustomValidity("");
+	}
 	friendsButton.value = "Play with friends";
 	setGameControlsDisabled(false);
 	newGameButton.disabled = false;
@@ -105,36 +214,56 @@ function toggleMenu() {
 	window.puzzle.toggleModal(friendsMenu, friendsButton, "Close");
 }
 
+async function copyField(selector, button) {
+	var field = friendsMenu.querySelector(selector);
+	var text = field.value || field.textContent;
+	field.focus();
+	field.select();
+	field.setSelectionRange(0, text.length);
+	try {
+		if (document.execCommand("copy")) {
+			showCopied(button);
+			return;
+		}
+	} catch (e) {
+		/* Try the modern API or a manual fallback below. */
+	}
+	try {
+		await navigator.clipboard.writeText(text);
+		showCopied(button);
+	} catch (e) {
+		window.prompt("Copy this connection message:", text);
+	}
+}
+
+function showCopied(button) {
+	var old = button.textContent;
+	button.textContent = "Copied";
+	setTimeout(function() { button.textContent = old; }, 1200);
+}
+
 friendsButton.addEventListener("click", toggleMenu);
 friendsMenu.querySelector(".modal-close").addEventListener("click", toggleMenu);
 friendsMenu.addEventListener("click", function(event) {
 	if (event.target == friendsMenu)
 		toggleMenu();
 });
-hostButton.addEventListener("click", function() {
-	begin("host", randomHex(3));
-});
-joinButton.addEventListener("click", function() {
-	var roomId = normalizeRoomId(joinInput.value);
-	if (!roomId) {
-		joinInput.setCustomValidity("Enter the host's room code.");
-		joinInput.reportValidity();
-		return;
-	}
-	joinInput.setCustomValidity("");
-	begin("guest", roomId);
-});
-joinInput.addEventListener("keydown", function(event) {
-	if (event.key == "Enter")
-		joinButton.click();
-});
-copyButton.addEventListener("click", async function() {
-	try {
-		await navigator.clipboard.writeText(roomDisplay.textContent);
-		copyButton.textContent = "Copied";
-		setTimeout(function() { copyButton.textContent = "Copy"; }, 1200);
-	} catch (e) {
-		window.prompt("Copy this room code:", roomDisplay.textContent);
-	}
-});
+friendsMenu.querySelector("#friends-host").addEventListener("click", hostWebRTC);
+friendsMenu.querySelector("#friends-join").addEventListener("click", joinWebRTC);
+friendsMenu.querySelector("#friends-create-invitation").addEventListener(
+	"click", createInvitation);
+friendsMenu.querySelector("#friends-accept-answer").addEventListener(
+	"click", acceptAnswer);
+friendsMenu.querySelector("#friends-copy-invitation").addEventListener(
+	"click", function() { copyField("#friends-invitation-output", this); });
+friendsMenu.querySelector("#friends-copy-answer").addEventListener(
+	"click", function() { copyField("#friends-answer-output", this); });
+friendsMenu.querySelector("#friends-broadcast-host").addEventListener(
+	"click", function() { beginBroadcast("host", randomHex(3)); });
+friendsMenu.querySelector("#friends-broadcast-join").addEventListener(
+	"click", function() {
+		var roomId = normalizeRoomId(roomInput.value);
+		if (roomId)
+			beginBroadcast("guest", roomId);
+	});
 leaveButton.addEventListener("click", leave);
