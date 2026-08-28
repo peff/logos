@@ -2046,6 +2046,25 @@ function() {
 	puzzle.stopTimer();
 });
 
+Deno.test("a conflicting placement contrasts the attempted tile", function() {
+	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
+	puzzle.say = function() {};
+	puzzle.newGame(0);
+	puzzle.rows[0].slots[1].choose(1);
+	puzzle.explainLoss();
+	const step = puzzle.proof.steps[puzzle.proof.steps.length - 1];
+	assert(step.conclusion && step.deduction == "clue.placement" &&
+	       step.row == 0 && step.symbol == 0 && step.domain == 1 << 1 &&
+	       Logos.proofMessageText(puzzle, step.contradicts) == "2",
+	       "the final placement did not record the attempted tile");
+	puzzle.proof.position = puzzle.proof.steps.length;
+	puzzle.showProofPosition();
+	assert(puzzle.proofControls.querySelector(".proof-deduction").textContent ==
+	       "1, not 2, must be in the second column. Q.E.D.",
+	       "the rendered placement did not contrast the attempted tile");
+	puzzle.stopTimer();
+});
+
 Deno.test("proof ordering preserves the failed conclusion", function() {
 	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
 	puzzle.say = function() {};

@@ -1938,9 +1938,13 @@ function proofMessageText(puzzle, message) {
 }
 
 function renderProofMessage(puzzle, elem, message, qed, contradicts) {
-	if (contradicts)
-		message = message.replace(/\.$/, "") +
-			", and therefore " + contradicts + " is not.";
+	if (contradicts) {
+		var placement = /^(\ue000\d+:\d+\ue001)( must be\b)/;
+		if (!placement.test(message))
+			throw new Error("contradicting proof is not a placement");
+		message = message.replace(placement,
+			"$1, not " + contradicts + ",$2");
+	}
 	var suffix = qed ? " Q.E.D." : "";
 	elem.textContent = proofMessageText(puzzle, message) + suffix;
 	var wrapper = document.createElement("span");
