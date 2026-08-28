@@ -267,9 +267,12 @@ function fakeWebRTCFactory(options) {
 	}
 
 	class FakePeerConnection {
-		constructor() {
+		constructor(configuration) {
 			this.id = nextPeer++;
-			this.iceGatheringState = "complete";
+			this.configuration = configuration;
+			this.iceGatheringState = options.gatherIce === false ||
+				options.gatherIce == "srflx" ?
+				"gathering" : "complete";
 			this.connectionState = "new";
 			this.localDescription = null;
 			this.remoteDescription = null;
@@ -291,6 +294,9 @@ function fakeWebRTCFactory(options) {
 		}
 		async setLocalDescription(description) {
 			this.localDescription = description;
+			if (options.gatherIce == "srflx")
+				this.localDescription.sdp +=
+					" a=candidate:1 1 udp 1 192.0.2.1 1234 typ srflx";
 		}
 		async setRemoteDescription(description) {
 			this.remoteDescription = description;
@@ -334,7 +340,9 @@ function fakeWebRTCFactory(options) {
 		}
 	}
 
-	function factory() { return new FakePeerConnection(); }
+	function factory(configuration) {
+		return new FakePeerConnection(configuration);
+	}
 	factory.peers = peers;
 	return factory;
 }
@@ -359,6 +367,34 @@ Deno.test("WebRTC signaling blobs are compressed, versioned and typed", async fu
 		rejected = true;
 	}
 	assert(rejected, "an offer was accepted where an answer was required");
+});
+
+Deno.test("WebRTC signaling keeps partial routes after an ICE timeout", async function() {
+	const host = makeSession("host", "host-id");
+	const transport = new WebRTCHostTransport(host.session, {
+		peerConnectionFactory: fakeWebRTCFactory({ gatherIce: false }),
+		iceGatheringTimeout: 1,
+	});
+	const invitation = await decodeSignal(
+		await transport.createInvitation(), "offer");
+	assert(invitation.description.sdp.startsWith("offer:"),
+	       "the partial invitation did not retain its local description");
+	transport.close();
+	stopAll(host);
+});
+
+Deno.test("WebRTC signaling finishes after finding a public route", async function() {
+	const host = makeSession("host", "host-id");
+	const transport = new WebRTCHostTransport(host.session, {
+		peerConnectionFactory: fakeWebRTCFactory({ gatherIce: "srflx" }),
+		iceGatheringTimeout: 10000,
+	});
+	const invitation = await decodeSignal(
+		await transport.createInvitation(), "offer");
+	assert(invitation.description.sdp.includes("typ srflx"),
+	       "the invitation did not retain its public route");
+	transport.close();
+	stopAll(host);
 });
 
 Deno.test("WebRTC player names are normalized as plain text", function() {
@@ -399,6 +435,10 @@ Deno.test("WebRTC transports connect sessions through offer and answer", async f
 	       hostState.playerId == "guest-id" &&
 	       hostState.playerName == "Grace",
 	       "the WebRTC host did not identify the connected guest");
+	assert(factory.peers.every(peer =>
+	       peer.configuration.iceServers[0].urls ==
+	       "stun:stun.cloudflare.com:3478"),
+	       "the WebRTC peers did not use the default STUN server");
 	const move = wrongMove(guest.puzzle);
 	guest.puzzle.requestTileAction(move.slot, move.value, "remove");
 	assert(host.session.revision == 1 && guest.session.revision == 1 &&

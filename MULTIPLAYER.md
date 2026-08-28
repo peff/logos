@@ -3,9 +3,9 @@ Multiplayer Prototype
 
 The current multiplayer prototype supports manual WebRTC signaling. It uses
 no signaling server: the players exchange an invitation and answer through
-chat, email, or another existing channel. It currently configures no STUN or
-TURN servers, so connections are expected to work only on the same machine or
-local network.
+chat, email, or another existing channel. It uses Cloudflare's public STUN
+server to discover routes through typical NATs, but does not configure a TURN
+relay. Some restrictive networks may therefore still prevent a connection.
 
 Serve this directory over HTTP:
 

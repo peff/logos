@@ -1,6 +1,9 @@
 /* Manual-signaling WebRTC transport for Logos multiplayer. */
 
 const webRTCProtocol = "logos-webrtc-1";
+const defaultIceServers = [
+	{ urls: "stun:stun.cloudflare.com:3478" },
+];
 
 function normalizePlayerName(name, fallback) {
 	name = String(name || "")
@@ -67,21 +70,34 @@ async function decodeSignal(blob, expectedType) {
 }
 
 function waitForIceGathering(peer, timeout) {
-	if (peer.iceGatheringState == "complete")
+	function hasServerReflexiveCandidate() {
+		return peer.localDescription &&
+			/(?:^|\s)typ srflx(?:\s|$)/m.test(peer.localDescription.sdp);
+	}
+	if (peer.iceGatheringState == "complete" || hasServerReflexiveCandidate())
 		return Promise.resolve();
-	return new Promise(function(resolve, reject) {
-		var timer = setTimeout(function() {
+	return new Promise(function(resolve) {
+		var timer = setTimeout(finished, timeout);
+		function finished() {
 			peer.removeEventListener("icegatheringstatechange", changed);
-			reject(new Error("Timed out while finding connection routes."));
-		}, timeout);
+			peer.removeEventListener("icecandidate", candidate);
+			resolve();
+		}
 		function changed() {
 			if (peer.iceGatheringState != "complete")
 				return;
 			clearTimeout(timer);
-			peer.removeEventListener("icegatheringstatechange", changed);
-			resolve();
+			finished();
+		}
+		function candidate(event) {
+			if ((!event.candidate || event.candidate.type != "srflx") &&
+			    !hasServerReflexiveCandidate())
+				return;
+			clearTimeout(timer);
+			finished();
 		}
 		peer.addEventListener("icegatheringstatechange", changed);
+		peer.addEventListener("icecandidate", candidate);
 	});
 }
 
@@ -108,7 +124,9 @@ class WebRTCHostTransport {
 			function(configuration) {
 				return new RTCPeerConnection(configuration);
 			};
-		this.configuration = { iceServers: options.iceServers || [] };
+		this.configuration = {
+			iceServers: options.iceServers || defaultIceServers,
+		};
 		this.iceGatheringTimeout = options.iceGatheringTimeout || 10000;
 		this.connectionTimeout = options.connectionTimeout || 30000;
 		this.playerName = normalizePlayerName(options.playerName, "Host");
@@ -264,7 +282,9 @@ class WebRTCGuestTransport {
 			function(configuration) {
 				return new RTCPeerConnection(configuration);
 			};
-		this.configuration = { iceServers: options.iceServers || [] };
+		this.configuration = {
+			iceServers: options.iceServers || defaultIceServers,
+		};
 		this.iceGatheringTimeout = options.iceGatheringTimeout || 10000;
 		this.connectionTimeout = options.connectionTimeout || 30000;
 		this.playerName = normalizePlayerName(options.playerName, "Guest");
