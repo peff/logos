@@ -367,7 +367,3 @@ friendsMenu.querySelector("#friends-accept-answer").addEventListener(
 friendsMenu.querySelector("#friends-copy-answer").addEventListener(
 	"click", function() { copyField("#friends-answer-output", this); });
 leaveButton.addEventListener("click", leave);
-window.addEventListener("pagehide", function() {
-	if (transport)
-		leave();
-});
