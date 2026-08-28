@@ -1,15 +1,16 @@
 import { Logos, makePuzzle } from "./logos-test.js";
-import {
+import "./logos-multiplayer.js";
+import "./logos-webrtc.js";
+
+const {
 	InMemoryMultiplayerNetwork,
 	MultiplayerSession,
-} from "./logos-multiplayer.js";
-import {
 	WebRTCGuestTransport,
 	WebRTCHostTransport,
 	decodeSignal,
 	encodeSignal,
 	normalizePlayerName,
-} from "./logos-webrtc.js";
+} = globalThis.LogosFriends;
 
 function assert(condition, message) {
 	if (!condition)

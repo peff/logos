@@ -1,10 +1,12 @@
-import { MultiplayerSession } from "./logos-multiplayer.js";
-import {
+(function() {
+
+var {
+	MultiplayerSession,
 	WebRTCGuestTransport,
 	WebRTCHostTransport,
 	decodeSignal,
 	normalizePlayerName,
-} from "./logos-webrtc.js";
+} = globalThis.LogosFriends;
 
 var friendsButton = document.querySelector("#friends-button");
 var friendsMenu = document.querySelector("#friends-menu");
@@ -367,3 +369,5 @@ friendsMenu.querySelector("#friends-accept-answer").addEventListener(
 friendsMenu.querySelector("#friends-copy-answer").addEventListener(
 	"click", function() { copyField("#friends-answer-output", this); });
 leaveButton.addEventListener("click", leave);
+
+})();

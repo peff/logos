@@ -1,5 +1,7 @@
 /* Manual-signaling WebRTC transport for Logos multiplayer. */
 
+(function() {
+
 const webRTCProtocol = "logos-webrtc-1";
 const defaultIceServers = [
 	{ urls: "stun:stun.cloudflare.com:3478" },
@@ -404,11 +406,13 @@ class WebRTCGuestTransport {
 	}
 }
 
-export {
+Object.assign(globalThis.LogosFriends ||= {}, {
 	WebRTCGuestTransport,
 	WebRTCHostTransport,
 	decodeSignal,
 	encodeSignal,
 	normalizePlayerName,
 	waitForIceGathering,
-};
+});
+
+})();

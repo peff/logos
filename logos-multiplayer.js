@@ -6,6 +6,8 @@
  * its offer/answer ceremony out of the game protocol.
  */
 
+(function() {
+
 function copyMessage(message) {
 	return JSON.parse(JSON.stringify(message));
 }
@@ -329,9 +331,11 @@ class InMemoryMultiplayerNetwork {
 	}
 }
 
-export {
+Object.assign(globalThis.LogosFriends ||= {}, {
 	InMemoryMultiplayerNetwork,
 	MultiplayerSession,
 	actionFromSlot,
 	applicableAction,
-};
+});
+
+})();
