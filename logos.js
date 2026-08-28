@@ -1927,6 +1927,8 @@ var proofDeductionCatalog = [
 	  message: "{subject} cannot be in {positions} because {other} is not adjacent." },
 	{ id: "adjacent3.middle.outer-not-adjacent",
 	  message: "{subject} cannot be in {positions} because {outer} must be adjacent." },
+	{ id: "adjacent3.middle.placement-between",
+	  message: "{subject} must be in the {position} position because it must be between {left} and {right}." },
 	{ id: "adjacent3.middle.placement",
 	  message: "{subject} must be in the {position} position because that is the only place where {left} and {right} can fit on opposite sides of it." },
 	{ id: "adjacent3.middle.no-neighbor",
@@ -1935,6 +1937,8 @@ var proofDeductionCatalog = [
 	  message: "{subject} cannot be on either edge because it is between two symbols." },
 	{ id: "adjacent3.outer.middle-not-adjacent",
 	  message: "{subject} cannot be in {positions} because {middle} must be adjacent." },
+	{ id: "adjacent3.outer.placement",
+	  message: "{subject} must be in the {position} position to complete the sequence with {middle} and {other}." },
 	{ id: "adjacent3.outer.no-orientation",
 	  message: "{subject} cannot be in the {position} position because {middle} and {other} cannot fit beside it in either orientation." },
 	{ id: "adjacent3.outer.other-not-two-away",
@@ -2038,6 +2042,15 @@ function adjacent3DeductionMessage(puzzle, step, before, after, domains) {
 			var col = 0;
 			while (!(after & (1 << col)))
 				col++;
+			if (countBits(domains[leftRow][leftSymbol]) == 1 &&
+			    countBits(domains[rightRow][rightSymbol]) == 1)
+				return identifiedDeduction(step,
+					"adjacent3.middle.placement-between", {
+						subject: name,
+						position: ordinalName(col),
+						left: leftName,
+						right: rightName,
+					});
 			return identifiedDeduction(step,
 				"adjacent3.middle.placement", {
 					subject: name,
@@ -2127,6 +2140,19 @@ function adjacent3DeductionMessage(puzzle, step, before, after, domains) {
 	var otherSymbol = row == leftRow && symbol == leftSymbol ?
 		rightSymbol : leftSymbol;
 	var otherName = proofSymbolReference(puzzle, otherRow, otherSymbol);
+	if (countBits(after) == 1 &&
+	    countBits(domains[middleRow][middleSymbol]) == 1 &&
+	    countBits(domains[otherRow][otherSymbol]) == 1) {
+		var col = 0;
+		while (!(after & (1 << col)))
+			col++;
+		return identifiedDeduction(step, "adjacent3.outer.placement", {
+			subject: name,
+			position: ordinalName(col),
+			middle: middleName,
+			other: otherName,
+		});
+	}
 	if (countBits(removed) > 1) {
 		var middleCannotFit = true;
 		var otherCannotFit = true;

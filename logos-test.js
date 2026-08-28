@@ -1063,6 +1063,32 @@ Deno.test("three-adjacent middle deductions remove edges first", function() {
 	       "the adjacent inner deduction was not explained independently");
 });
 
+Deno.test("a three-adjacent middle placement fills fixed outer symbols",
+function() {
+	const puzzle = makePuzzle(3);
+	const clue = new Logos.Adjacent3Clue(puzzle);
+	clue.mRow = puzzle.rows[0];
+	clue.lRow = puzzle.rows[1];
+	clue.rRow = puzzle.rows[2];
+	clue.mCol = clue.lCol = clue.rCol = 0;
+	clue.mRow.slots[0].value = 0;
+	clue.lRow.slots[0].value = 1;
+	clue.rRow.slots[0].value = 2;
+	const full = (1 << 6) - 1;
+	const domains = Array.from({ length: 3 }, () => Array(6).fill(full));
+	domains[0][0] = 1 << 2;
+	domains[1][1] = 1 << 1;
+	domains[2][2] = 1 << 3;
+	const step = { clue, row: 0, symbol: 0 };
+	const message = Logos.adjacent3DeductionMessage(puzzle, step, full,
+		domains[0][0], domains);
+	assert(step.deduction == "adjacent3.middle.placement-between" &&
+	       Logos.proofMessageText(puzzle, message) ==
+	       "0 must be in the third position because it must be between 1 " +
+	       "and 2.",
+	       "the middle symbol was not explained as filling a fixed gap");
+});
+
 Deno.test("related middle adjacency removals share one proof step", function() {
 	const puzzle = makePuzzle(3);
 	puzzle.rows[0].slots[0].value = 0;
@@ -1817,6 +1843,21 @@ Deno.test("a three-adjacent middle placement explains both outer symbols", funct
 	       step.row == 3 && step.symbol == 2 ||
 	       step.row == 2 && step.symbol == 2),
 	       "the proof retained unused die-3 or III deduction branches");
+	puzzle.stopTimer();
+});
+
+Deno.test("a three-adjacent outer placement completes a fixed sequence", function() {
+	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
+	puzzle.say = function() {};
+	puzzle.newGame("1af9b122");
+	puzzle.rows[5].slots[5].choose(5);
+	puzzle.explainLoss();
+	const step = puzzle.proof.steps[puzzle.proof.steps.length - 1];
+	assert(step.deduction == "adjacent3.outer.placement" &&
+	       Logos.proofMessageText(puzzle, step.message) ==
+	       "√ must be in the fourth position to complete the sequence with " +
+	       "⚁ and 3." && step.conclusion,
+	       "the final outer symbol was not explained as a placement");
 	puzzle.stopTimer();
 });
 
