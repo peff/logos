@@ -1949,6 +1949,8 @@ var proofDeductionCatalog = [
 	  message: "{subject} cannot be in {positions} because {other} must be two positions away." },
 	{ id: "clue.placement",
 	  message: "{subject} must be in the {position} column." },
+	{ id: "column.placement",
+	  message: "{subject} must be in the {position} column with {other}." },
 	{ id: "column.other-not-position",
 	  message: "{subject} cannot be in {positions} because {other} is not." },
 	{ id: "conclusion.placement",
@@ -2326,8 +2328,6 @@ function orderDeductionMessage(puzzle, step, before, after) {
 
 function columnDeductionMessage(puzzle, step, before, after) {
 	var removed = before & ~after;
-	if (step.placement && countBits(after) == 1)
-		return deductionMessage(puzzle, step, before, after);
 	var clue = step.clue;
 	var topRow = puzzle.rows.indexOf(clue.tRow);
 	var topSymbol = clue.tRow.slots[clue.col].value;
@@ -2335,6 +2335,16 @@ function columnDeductionMessage(puzzle, step, before, after) {
 		puzzle.rows.indexOf(clue.bRow) : topRow;
 	var otherSymbol = step.row == topRow && step.symbol == topSymbol ?
 		clue.bRow.slots[clue.col].value : topSymbol;
+	if (step.placement && countBits(after) == 1) {
+		var col = 0;
+		while (!(after & (1 << col)))
+			col++;
+		return identifiedDeduction(step, "column.placement", {
+			subject: proofSymbolReference(puzzle, step.row, step.symbol),
+			position: ordinalName(col),
+			other: proofSymbolReference(puzzle, otherRow, otherSymbol),
+		});
+	}
 	return identifiedDeduction(step, "column.other-not-position", {
 		subject: proofSymbolReference(puzzle, step.row, step.symbol),
 		positions: positionList(removed),

@@ -1721,8 +1721,8 @@ Deno.test("a column clue presents a forced placement as one proof step", functio
 	const diamondSteps = puzzle.proof.steps.filter(step =>
 		step.row == 4 && step.symbol == 3);
 	assert(diamondSteps.length == 1 && diamondSteps[0].domain == 1 << 5 &&
-	       Logos.proofMessageText(puzzle, diamondSteps[0].message) ==
-	       "3 must be in the sixth column.",
+	       /^3 must be in the sixth column with .+\.$/.test(
+		       Logos.proofMessageText(puzzle, diamondSteps[0].message)),
 	       "the column clue split a forced placement into eliminations");
 	for (let symbol = 0; symbol < 6; symbol++)
 		assert(symbol == 3 || !(diamondSteps[0].domains[4][symbol] & 1 << 5),
@@ -1792,8 +1792,8 @@ Deno.test("a row's only candidate is one proof placement", function() {
 		step.clue && step.clue.constructor == ColumnClue &&
 		step.row == 3 && step.symbol == 2);
 	assert(dieThree && dieThree.placement && dieThree.domain == 1 << 3 &&
-	       Logos.proofMessageText(puzzle, dieThree.message) ==
-	       "2 must be in the fourth column.",
+	       /^2 must be in the fourth column with .+\.$/.test(
+		       Logos.proofMessageText(puzzle, dieThree.message)),
 	       "a reordered vertical clue replayed its stale partial deduction");
 	puzzle.proof.position = placementIndex + 1;
 	puzzle.showProofPosition();
