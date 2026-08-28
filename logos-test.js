@@ -1716,6 +1716,23 @@ Deno.test("860f9efd gives a direct proof against placing die one", function() {
 	puzzle.stopTimer();
 });
 
+Deno.test("a directly contradicting clue becomes a one-step proof", function() {
+	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
+	puzzle.say = function() {};
+	puzzle.newGame("ee806e0a");
+	puzzle.rows[4].slots[5].choose(4);
+	puzzle.explainLoss();
+	assert(puzzle.proof.steps.length == 1,
+	       "the direct column contradiction retained an indirect proof");
+	const step = puzzle.proof.steps[0];
+	assert(step.conclusion && step.deduction ==
+		       "column.other-not-position" &&
+	       Logos.proofMessageText(puzzle, step.message) ==
+		       "⬠ cannot be in the sixth column because A is not.",
+	       "the direct column clue did not explain the failed placement");
+	puzzle.stopTimer();
+});
+
 Deno.test("proof reconstruction reaches a wrong placement", function() {
 	const puzzle = makePuzzle(6);
 	puzzle.say = function() {};

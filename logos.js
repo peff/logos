@@ -2932,6 +2932,23 @@ function combineRelatedProofSteps(puzzle, steps) {
 
 function buildProofSteps(puzzle, base, basePlacements,
 			 failedSlot, failedValue) {
+	var direct = directFailedProofStep(puzzle, base, failedSlot,
+		failedValue);
+	if (direct) {
+		var directDomains = copyDomains(base);
+		var directPlacements = basePlacements.slice();
+		var before = directDomains[direct.row][direct.symbol];
+		applyProofStep(directDomains, directPlacements, direct);
+		if (proofConcluded(puzzle, directDomains, failedSlot, failedValue)) {
+			direct.domain = directDomains[direct.row][direct.symbol];
+			direct.domains = copyDomains(directDomains);
+			direct.placements = directPlacements;
+			direct.message = proofDeductionMessage(puzzle, direct, before,
+				direct.domain, directDomains);
+			direct.conclusion = true;
+			return [direct];
+		}
+	}
 	var current = copyDomains(base);
 	var placements = basePlacements.slice();
 	var steps = [];
