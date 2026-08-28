@@ -867,28 +867,29 @@ body[data-stone-effects="true"] :is(
 	white-space: nowrap;
 }
 
-#options-menu .seed-options label {
+#options-menu .game-options .seed-option {
 	gap: 0.4rem;
+	margin-top: 0.18rem;
 }
 
 #game-seed {
 	box-sizing: border-box;
-	flex: 0 0 6.5rem;
+	flex: 0 0 4rem;
 	border: 1px solid #9b9385;
 	border-radius: 0.15rem;
 	background-color: #eee8da;
 	box-shadow: inset 0.04rem 0.06rem 0.1rem rgb(70 60 45 / 22%);
-	padding: 0.18rem 0.3rem;
-	width: 6.5rem;
-	height: 1.45rem;
+	padding: 0.1rem 0.22rem;
+	width: 4rem;
+	height: 1.05rem;
 	color: inherit;
-	font: 0.8rem monospace;
+	font: 0.6rem monospace;
 	letter-spacing: 0.04em;
 	line-height: 1;
 	user-select: text;
 }
 
-#options-menu .seed-options label:hover #game-seed {
+#options-menu .game-options .seed-option:hover #game-seed {
 	border-color: #80633a;
 	background-color: #f7f3e9;
 }
@@ -896,10 +897,6 @@ body[data-stone-effects="true"] :is(
 #game-seed:focus-visible {
 	outline: 2px solid #80633a;
 	outline-offset: 2px;
-}
-
-#options-menu .seed-options .option-action {
-	margin: 0;
 }
 
 #options-menu .option-dependent {
@@ -972,6 +969,17 @@ body[data-stone-effects="true"] :is(
 .modal-done {
 	display: block;
 	margin: 0.55rem auto 0;
+}
+
+.options-actions {
+	display: flex;
+	justify-content: center;
+	gap: 0.45rem;
+}
+
+.options-actions .modal-done {
+	margin-right: 0;
+	margin-left: 0;
 }
 
 .help-panel {

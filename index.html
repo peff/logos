@@ -76,7 +76,7 @@
 					</p>
 					<p class="scores-empty">No victors have been enshrined.</p>
 					<ol></ol>
-					<input class="modal-done" type="button"
+					<input class="modal-done modal-close" type="button"
 					       onClick="puzzle.toggleScores()"
 					       value="Rejoin the mortal realm">
 				</div>
@@ -84,13 +84,6 @@
 			<div id="options-menu" class="modal" hidden role="dialog"
 			     aria-modal="true" aria-label="Options">
 				<div class="modal-panel options-panel">
-					<fieldset>
-						<legend>Game mode</legend>
-						<label title="No timer, no losses.  Pure logic.">
-						       <input id="practice-mode" type="checkbox"
-						              onChange="puzzle.setPracticeMode(this.checked)">
-						       Zen mode</label>
-					</fieldset>
 					<fieldset>
 						<legend>Cursor</legend>
 						<label title="Use an Antikythera gear for pointing and actions.">
@@ -162,18 +155,25 @@
 						              onChange="puzzle.setPlacementAnimation(this.value)">
 						       Skid</label>
 					</fieldset>
-					<fieldset class="seed-options">
-						<legend>Puzzle seed</legend>
-						<label title="Share this number to let somebody else play the same puzzle.">
+					<fieldset class="game-options">
+						<legend>Game</legend>
+						<label title="No timer, no losses.  Pure logic.">
+						       <input id="practice-mode" type="checkbox"
+						              onChange="puzzle.setPracticeMode(this.checked)">
+						       Zen mode</label>
+						<label class="seed-option" title="Share this number to let somebody else play the same puzzle.">
+						       Seed:
 						       <input id="game-seed" type="text" maxlength="8"
 						              autocapitalize="none" autocomplete="off" spellcheck="false"
 						              onKeyDown="if (event.key == 'Enter') puzzle.playSeed()">
-						       <input class="option-action" type="button"
-						              onClick="puzzle.playSeed()" value="Start new game">
 						</label>
 					</fieldset>
-					<input class="modal-done" type="button"
-					       onClick="puzzle.toggleOptions()" value="Close">
+					<div class="options-actions">
+						<input id="start-game-button" class="modal-done" type="button"
+						       onClick="puzzle.playSeed()" value="Start New Game">
+						<input class="modal-done modal-close" type="button"
+						       onClick="puzzle.toggleOptions()" value="Close">
+					</div>
 				</div>
 			</div>
 			<div id="help-menu" class="modal" hidden role="dialog"
@@ -391,7 +391,7 @@
 						The <a href="https://github.com/peff/logos"
 						       target="_blank">source code for Logos</a> is available on GitHub.
 					</p>
-					<input class="modal-done" type="button"
+					<input class="modal-done modal-close" type="button"
 					       onClick="puzzle.toggleAbout()" value="Close">
 				</div>
 			</div>

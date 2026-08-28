@@ -266,6 +266,21 @@ Deno.test("hexadecimal puzzle seeds are accepted and normalized", function() {
 	puzzle.stopTimer();
 });
 
+Deno.test("opening options preserves the new-game button label", function() {
+	const puzzle = makePuzzle(6);
+	puzzle.say = function() {};
+	puzzle.newGame("12345678");
+	const start = puzzle.options.querySelector("#start-game-button");
+	start.value = "Start New Game";
+	puzzle.options.hidden = true;
+	puzzle.toggleOptions();
+	assert(start.value == "Start New Game" &&
+	       puzzle.options.querySelector(".modal-close").value == "Resume game",
+	       "opening options rewrote the wrong footer button");
+	puzzle.toggleOptions();
+	puzzle.stopTimer();
+});
+
 Deno.test("a false placement loses the game", function() {
 	const puzzle = makePuzzle(1);
 	const slot = puzzle.rows[0].slots[0];

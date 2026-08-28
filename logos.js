@@ -1128,7 +1128,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		if (modal.hidden) {
 			this.resumeAfterModal = !this.gameOver &&
 				this.timerTimeout !== null;
-			var done = modal.querySelector(".modal-done");
+			var done = modal.querySelector(".modal-close");
 			if (done)
 				done.value = this.resumeAfterModal ?
 					"Resume game" : closeText;
