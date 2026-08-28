@@ -38,7 +38,8 @@
 				</fieldset>
 			</div>
 			<div class="control-buttons">
-				<input type="button" onClick="puzzle.newGame()" value="New Game">
+				<input id="new-game-button" type="button"
+				       onClick="puzzle.newGame()" value="New Game">
 				<input id="help-button" type="button"
 				       onClick="puzzle.toggleHelp()" value="How to play"
 				       aria-expanded="false" aria-controls="help-menu">
@@ -79,6 +80,32 @@
 					<input class="modal-done modal-close" type="button"
 					       onClick="puzzle.toggleScores()"
 					       value="Rejoin the mortal realm">
+				</div>
+			</div>
+			<div id="friends-menu" class="modal" hidden role="dialog"
+			     aria-modal="true" aria-labelledby="friends-title">
+				<div class="modal-panel friends-panel">
+					<h2 id="friends-title">Logos with Friends</h2>
+					<p class="friends-status">
+						Host a game or join one from another tab.
+					</p>
+					<p class="friends-room" hidden>
+						Room code: <strong class="friends-room-id"></strong>
+						<button id="friends-copy-room" type="button">Copy</button>
+					</p>
+					<div class="friends-actions">
+						<button id="friends-host" type="button">Host a game</button>
+						<input id="friends-room-input" type="text" maxlength="12"
+						       autocomplete="off" autocapitalize="characters"
+						       spellcheck="false" placeholder="Room code"
+						       aria-label="Room code">
+						<button id="friends-join" type="button">Join game</button>
+						<button id="friends-leave" type="button" hidden>Leave game</button>
+					</div>
+					<p class="friends-note">
+						Prototype: tabs must use the same browser and site origin.
+					</p>
+					<input class="modal-done modal-close" type="button" value="Close">
 				</div>
 			</div>
 			<div id="options-menu" class="modal" hidden role="dialog"
@@ -144,6 +171,9 @@
 						             </span>
 						             <small>Replay or share a particular puzzle.</small></span>
 						</label>
+						<input id="friends-button" class="option-action" type="button"
+						       value="Play with friends" aria-expanded="false"
+						       aria-controls="friends-menu">
 					</fieldset>
 					<div class="options-actions">
 						<input id="start-game-button" class="modal-done" type="button"
@@ -418,5 +448,6 @@
 				document.getElementById("about-menu"),
 				document.getElementById("logo"));
 		</script>
+		<script type="module" src="logos-friends.js"></script>
 	</body>
 </html>

@@ -3,6 +3,7 @@ import {
 	InMemoryMultiplayerNetwork,
 	MultiplayerSession,
 } from "./logos-multiplayer.js";
+import { BroadcastRoomTransport } from "./logos-broadcast.js";
 
 function assert(condition, message) {
 	if (!condition)
@@ -170,5 +171,74 @@ Deno.test("the host's multiplayer rules override guest preferences", function() 
 	       guest.puzzle.continueAfterLoss &&
 	       !guest.puzzle.actionController,
 	       "leaving did not restore the guest's preferences");
+	stopAll(host, guest);
+});
+
+Deno.test("broadcast rooms connect independently constructed sessions", function() {
+	const rooms = new Map();
+	function channelFactory(name) {
+		const peers = rooms.get(name) || new Set();
+		const channel = {
+			onmessage: null,
+			postMessage(message) {
+				for (const peer of peers)
+					if (peer != channel && peer.onmessage)
+						peer.onmessage({ data: message });
+			},
+			close() { peers.delete(channel); },
+		};
+		peers.add(channel);
+		rooms.set(name, peers);
+		return channel;
+	}
+
+	const host = makeSession("host", "host-id");
+	const guest = makeSession("guest", "guest-id");
+	host.session.start(0x55667788);
+	const hostTransport = new BroadcastRoomTransport(host.session, {
+		roomId: "ABC123",
+		playerName: "Host",
+		channelFactory,
+	});
+	const guestTransport = new BroadcastRoomTransport(guest.session, {
+		roomId: "abc-123",
+		playerName: "Guest",
+		channelFactory,
+	});
+
+	assert(guest.session.ready && host.session.peers.has("guest-id") &&
+	       boardState(host.puzzle) == boardState(guest.puzzle),
+	       "the broadcast guest did not discover and sync from the host");
+	const move = wrongMove(guest.puzzle);
+	guest.puzzle.requestTileAction(move.slot, move.value, "remove");
+	assert(host.session.revision == 1 && guest.session.revision == 1 &&
+	       boardState(host.puzzle) == boardState(guest.puzzle),
+	       "the broadcast transport did not carry a guest move");
+
+	guestTransport.close();
+	assert(!host.session.peers.has("guest-id"),
+	       "the broadcast host retained a guest which left");
+	hostTransport.close();
+	stopAll(host, guest);
+});
+
+Deno.test("the host can start a new shared game", function() {
+	const host = makeSession("host", "host");
+	const guest = makeSession("guest", "alice");
+	const network = new InMemoryMultiplayerNetwork(host.session);
+	host.session.start(0x11111111);
+	network.addGuest(guest.session);
+
+	const move = wrongMove(guest.puzzle);
+	guest.puzzle.requestTileAction(move.slot, move.value, "place");
+	assert(host.puzzle.gameOver && guest.puzzle.gameOver,
+	       "the first game did not end");
+	host.session.start(0x22222222);
+	assert(!host.puzzle.gameOver && !guest.puzzle.gameOver &&
+	       host.session.revision == 0 && guest.session.revision == 0 &&
+	       host.puzzle.seed == 0x22222222 &&
+	       guest.puzzle.seed == 0x22222222 &&
+	       boardState(host.puzzle) == boardState(guest.puzzle),
+	       "the replacement game was not synchronized");
 	stopAll(host, guest);
 });

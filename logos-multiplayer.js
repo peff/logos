@@ -171,6 +171,7 @@ class MultiplayerSession {
 			revision: ++this.revision,
 			commandId: message.commandId,
 			actor: from,
+			committedAt: Date.now(),
 			action: copyMessage(message.action),
 		};
 		this.history.push(commit);
@@ -220,6 +221,7 @@ class MultiplayerSession {
 		this.revision = message.revision;
 		this.history = copyMessage(message.history);
 		this.ready = true;
+		this.synchronizeTimer();
 	}
 
 	receiveRejection(message) {
@@ -261,6 +263,23 @@ class MultiplayerSession {
 		this.puzzle.practiceModePreference = this.rules.practiceMode;
 		this.puzzle.practiceMode = this.rules.practiceMode;
 		this.puzzle.continueAfterLoss = this.rules.continueAfterLoss;
+	}
+
+	synchronizeTimer() {
+		if (this.rules.practiceMode || !Number.isFinite(this.startedAt))
+			return;
+		var end = Date.now();
+		if (this.puzzle.gameOver && this.history.length) {
+			var committedAt =
+				this.history[this.history.length - 1].committedAt;
+			if (Number.isFinite(committedAt))
+				end = committedAt;
+		}
+		this.puzzle.stopTimer();
+		this.puzzle.timerElapsed = Math.max(0, end - this.startedAt);
+		this.puzzle.updateTimer(this.puzzle.timerElapsed);
+		if (!this.puzzle.gameOver)
+			this.puzzle.startTimer();
 	}
 
 	leave() {
