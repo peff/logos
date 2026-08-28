@@ -307,6 +307,8 @@ function leave() {
 	friendsButton.value = "Play with friends";
 	setGameControlsDisabled(false);
 	newGameButton.onclick = function() { window.puzzle.newGame(); };
+	if (!friendsMenu.hidden)
+		toggleMenu();
 }
 
 function toggleMenu() {
