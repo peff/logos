@@ -427,6 +427,9 @@ Deno.test("WebRTC transports connect sessions through offer and answer", async f
 
 	const invitation = await hostTransport.createInvitation();
 	const answer = await guestTransport.acceptInvitation(invitation);
+	factory.peers[1].setConnectionState("failed");
+	assert(guestState.state == "answer-ready" && !guestState.terminal,
+	       "the guest abandoned an answer before it reached the host");
 	await hostTransport.acceptAnswer(answer);
 	assert(guest.session.ready && host.session.peers.has("guest-id") &&
 	       boardState(host.puzzle) == boardState(guest.puzzle),

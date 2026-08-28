@@ -287,12 +287,14 @@ class WebRTCGuestTransport {
 		};
 		this.iceGatheringTimeout = options.iceGatheringTimeout || 10000;
 		this.connectionTimeout = options.connectionTimeout || 30000;
+		this.signalingTimeout = options.signalingTimeout || 5 * 60 * 1000;
 		this.playerName = normalizePlayerName(options.playerName, "Guest");
 		this.onChange = options.onChange || function() {};
 		this.peer = null;
 		this.channel = null;
 		this.hostId = null;
 		this.failureTimer = null;
+		this.connected = false;
 		this.closed = false;
 	}
 
@@ -304,8 +306,12 @@ class WebRTCGuestTransport {
 		var transport = this;
 		this.peer.onconnectionstatechange = function() {
 			var state = transport.peer.connectionState;
-			if (state == "failed" || state == "closed")
+			if (state == "closed")
 				transport.finish(state);
+			else if (state == "failed" && transport.connected)
+				transport.finish(state);
+			else if (state == "failed")
+				transport.connectionLost();
 			else if (state == "disconnected")
 				transport.connectionLost();
 			else if (state == "connected") {
@@ -347,6 +353,7 @@ class WebRTCGuestTransport {
 		});
 		this.channel.onopen = function() {
 			transport.clearFailure();
+			transport.connected = true;
 			transport.onChange({ state: "connected", connected: true });
 		};
 		this.channel.onmessage = function(event) {
@@ -360,13 +367,16 @@ class WebRTCGuestTransport {
 	}
 
 	connectionLost() {
-		this.onChange({ state: "disconnected", connected: false });
+		this.onChange({
+			state: this.connected ? "disconnected" : "answer-ready",
+			connected: false,
+		});
 		if (this.failureTimer || this.closed)
 			return;
 		var transport = this;
 		this.failureTimer = setTimeout(function() {
 			transport.finish("failed");
-		}, this.connectionTimeout);
+		}, this.connected ? this.connectionTimeout : this.signalingTimeout);
 	}
 
 	clearFailure() {
