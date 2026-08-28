@@ -732,15 +732,18 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		}
 	}
 
-	this.applyTileAction = function(slot, value, action, playerAction) {
-		if (playerAction === undefined)
-			playerAction = true;
+	this.applyTileAction = function(slot, value, action, options) {
+		options = options || {};
+		var playerAction = options.playerAction !== false;
 		if (action == "place")
 			slot.choose(value, playerAction);
 		else if (action == "remove")
 			slot.discard(value, playerAction);
 		else
 			slot.pencil(value, action == "pencil-remove");
+		if ((action == "place" || action == "remove") &&
+		    !options.deferClueDismissal)
+			this.dismissExhaustedClues();
 	}
 
 	this.applySlotTrayAction = function(value) {
@@ -3443,8 +3446,6 @@ function Slot(row, symbols, display) {
 			this.row.removePossible(value);
 			this.row.puzzle.reconcilePencilMarks(this.row);
 			this.row.puzzle.checkWin();
-			if (playerAction)
-				this.row.puzzle.dismissExhaustedClues();
 		} else {
 			var clues = this.row.puzzle.findContradictingClues(
 				this, value, false);
@@ -3478,8 +3479,6 @@ function Slot(row, symbols, display) {
 			this.row.checkSingleton(value);
 			this.row.puzzle.reconcilePencilMarks(this.row);
 			this.row.puzzle.placeSoundPending = false;
-			if (playerAction)
-				this.row.puzzle.dismissExhaustedClues();
 		}
 	}
 

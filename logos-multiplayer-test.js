@@ -96,6 +96,40 @@ Deno.test("a late multiplayer guest reconstructs the command history", function(
 	stopAll(host, guest);
 });
 
+Deno.test("remote moves dismiss exhausted clues locally", function() {
+	const host = makeSession("host", "host");
+	const guest = makeSession("guest", "alice");
+	let dismissals = 0;
+	guest.puzzle.dismissExhaustedClues = function() { dismissals++; };
+	const network = new InMemoryMultiplayerNetwork(host.session);
+	host.session.start(0x76543210);
+	network.addGuest(guest.session);
+	dismissals = 0;
+
+	const move = wrongMove(host.puzzle);
+	host.puzzle.requestTileAction(move.slot, move.value, "remove");
+	assert(dismissals == 1,
+	       "a remote commit did not check the guest's exhausted clues");
+	stopAll(host, guest);
+});
+
+Deno.test("history replay dismisses exhausted clues only once", function() {
+	const host = makeSession("host", "host");
+	host.session.start(0x13572468);
+	for (let i = 0; i < 3; i++) {
+		const move = wrongMove(host.puzzle, i);
+		host.puzzle.requestTileAction(move.slot, move.value, "remove");
+	}
+
+	const guest = makeSession("guest", "late");
+	let dismissals = 0;
+	guest.puzzle.dismissExhaustedClues = function() { dismissals++; };
+	new InMemoryMultiplayerNetwork(host.session).addGuest(guest.session);
+	assert(dismissals == 1,
+	       "history replay checked exhausted clues more than once");
+	stopAll(host, guest);
+});
+
 Deno.test("stale multiplayer commands are rejected and resynchronized", function() {
 	const host = makeSession("host", "host");
 	const guest = makeSession("guest", "alice");

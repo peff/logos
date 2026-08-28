@@ -36,11 +36,14 @@ function applicableAction(puzzle, action) {
 		!slot.single && slot.possible[action.value];
 }
 
-function applyAction(puzzle, action, playerAction) {
+function applyAction(puzzle, action, playerAction, deferClueDismissal) {
 	var slot = slotForAction(puzzle, action);
 	if (!slot)
 		throw new Error("invalid multiplayer action coordinates");
-	puzzle.applyTileAction(slot, action.value, action.type, playerAction);
+	puzzle.applyTileAction(slot, action.value, action.type, {
+		playerAction,
+		deferClueDismissal,
+	});
 }
 
 class MultiplayerSession {
@@ -214,8 +217,9 @@ class MultiplayerSession {
 		this.puzzle.withEffectsSuppressed(function() {
 			for (var i = 0; i < message.history.length; i++)
 				applyAction(session.puzzle,
-					message.history[i].action, false);
+					message.history[i].action, false, true);
 		});
+		this.puzzle.dismissExhaustedClues();
 		this.seed = message.seed;
 		this.startedAt = message.startedAt;
 		this.revision = message.revision;
