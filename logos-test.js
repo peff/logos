@@ -623,32 +623,6 @@ Deno.test("the persistent selector replaces the logo only during play",
 	       "selector did not replace the logo during play");
 });
 
-Deno.test("narrow portrait screens ask for landscape mode", function() {
-	localStorage.removeItem("expandTileChoices");
-	localStorage.removeItem("showActionSelector");
-	globalThis.innerWidth = 400;
-	globalThis.innerHeight = 800;
-	const puzzle = makePuzzle(1);
-	assert(!puzzle.mobileOrientation.hidden,
-	       "portrait prompt was not shown in a narrow viewport");
-
-	globalThis.innerWidth = 800;
-	globalThis.innerHeight = 1000;
-	puzzle.updateMobileOrientation();
-	assert(puzzle.mobileOrientation.hidden,
-	       "portrait prompt was shown in a wide viewport");
-
-	globalThis.innerWidth = 800;
-	globalThis.innerHeight = 400;
-	puzzle.updateMobileOrientation();
-	assert(puzzle.mobileOrientation.hidden,
-	       "portrait prompt remained visible in landscape");
-	delete globalThis.innerWidth;
-	delete globalThis.innerHeight;
-	localStorage.removeItem("expandTileChoices");
-	localStorage.removeItem("showActionSelector");
-});
-
 Deno.test("pencil marks coexist and show row consequences", function() {
 	const puzzle = makePuzzle(2);
 	const selected = puzzle.rows[0].slots[0];

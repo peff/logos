@@ -12,7 +12,9 @@
 			<span id="status"></span>
 			<span id="timer" hidden>0:00</span>
 		</div>
-		<table id="board" class="board"></table>
+		<div id="board-container">
+			<table id="board" class="board"></table>
+		</div>
 		<table id="hclues"></table>
 		<div id="controls">
 			<div id="board-actions" class="tile-action-selector" hidden
@@ -36,23 +38,6 @@
 					       value="sketch">
 					<label for="action-sketch">Chalk</label>
 				</fieldset>
-			</div>
-			<div class="control-buttons">
-				<input id="new-game-button" type="button"
-				       onClick="puzzle.newGame()" value="New Game">
-				<input id="help-button" type="button"
-				       onClick="puzzle.toggleHelp()" value="How to play"
-				       aria-expanded="false" aria-controls="help-menu">
-				<input id="options-button" type="button"
-				       onClick="puzzle.toggleOptions()" value="Options"
-				       aria-expanded="false" aria-controls="options-menu">
-				<input id="scores-button" type="button"
-				       onClick="puzzle.toggleScores()" value="Pantheon"
-				       aria-expanded="false" aria-controls="scores-menu">
-				<input id="explain-button" type="button"
-				       onClick="puzzle.explainLoss()" value="∵" disabled
-				       title="Explain a mistake"
-				       aria-label="Explain a mistake" aria-pressed="false">
 			</div>
 			<div id="proof-controls" hidden aria-live="polite">
 				<button class="proof-previous" type="button"
@@ -426,26 +411,32 @@
 					       onClick="puzzle.toggleAbout()" value="Close">
 				</div>
 			</div>
-			<button id="logo" type="button" onClick="puzzle.toggleAbout()"
-			        aria-label="About Logos" aria-expanded="false"
-			        aria-controls="about-menu">
-				<span class="logo-greek" aria-hidden="true">ΛΟΓΟΣ</span>
-				<span class="logo-name">LOGOS</span>
-				<span class="logo-tagline">A puzzle of pure reason</span>
-			</button>
 		</div>
 		<table id="vclues"></table>
-		<div id="mobile-orientation" hidden role="dialog" aria-modal="true"
-		     aria-labelledby="mobile-orientation-title">
-			<div class="mobile-orientation-panel">
-				<h2 id="mobile-orientation-title">Play in landscape</h2>
-				<p>Logos needs a wider tablet for its board and clues.</p>
-				<p class="mobile-orientation-instruction" aria-live="polite"></p>
-				<button type="button" onClick="puzzle.enterMobileFullscreen()">
-					Enter full screen
-				</button>
-			</div>
+		<div class="control-buttons">
+			<input id="new-game-button" type="button"
+			       onClick="puzzle.newGame()" value="New Game">
+			<input id="help-button" type="button"
+			       onClick="puzzle.toggleHelp()" value="How to play"
+			       aria-expanded="false" aria-controls="help-menu">
+			<input id="options-button" type="button"
+			       onClick="puzzle.toggleOptions()" value="Options"
+			       aria-expanded="false" aria-controls="options-menu">
+			<input id="scores-button" type="button"
+			       onClick="puzzle.toggleScores()" value="Pantheon"
+			       aria-expanded="false" aria-controls="scores-menu">
+			<input id="explain-button" type="button"
+			       onClick="puzzle.explainLoss()" value="∵" disabled
+			       title="Explain a mistake"
+			       aria-label="Explain a mistake" aria-pressed="false">
 		</div>
+		<button id="logo" type="button" onClick="puzzle.toggleAbout()"
+		        aria-label="About Logos" aria-expanded="false"
+		        aria-controls="about-menu">
+			<span class="logo-greek" aria-hidden="true">ΛΟΓΟΣ</span>
+			<span class="logo-name">LOGOS</span>
+			<span class="logo-tagline">A puzzle of pure reason</span>
+		</button>
 		<div id="slot-tray" hidden role="dialog" aria-modal="true"
 		     aria-label="Expanded tile choices">
 			<div class="slot-tray-panel">

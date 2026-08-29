@@ -173,7 +173,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.slotTrayOptions.appendChild(tile);
 	}
 	this.boardActions = document.querySelector("#board-actions");
-	this.mobileOrientation = document.querySelector("#mobile-orientation");
 	this.expandedSlot = null;
 	this.coarsePointer = typeof matchMedia != "undefined" &&
 		matchMedia("(pointer: coarse)").matches;
@@ -1266,7 +1265,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	});
 	document.addEventListener("fullscreenchange", function() {
 		puzzle.updateFullscreenButton();
-		puzzle.updateMobileOrientation();
 	});
 	document.addEventListener("keydown", function(ev) {
 		if (!puzzle.proof || puzzle.paused || ev.altKey || ev.ctrlKey ||
@@ -1284,7 +1282,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	});
 	if (typeof window != "undefined")
 		window.addEventListener("resize", function() {
-			puzzle.updateMobileOrientation();
 			puzzle.positionSlotTray();
 		});
 
@@ -1403,6 +1400,10 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 
 	this.updateActionControls = function() {
 		var show = this.showActionSelector && !this.gameOver;
+		if (this.seed === undefined)
+			document.body.classList.remove("game-started");
+		else
+			document.body.classList.add("game-started");
 		this.boardActions.hidden = !show;
 		this.logoButton.hidden = show;
 	}
@@ -1412,47 +1413,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		button.hidden = !document.fullscreenEnabled;
 		button.value = document.fullscreenElement ?
 			"Exit full screen" : "Enter full screen";
-	}
-
-	this.updateMobileOrientation = function() {
-		var portrait = typeof innerWidth != "undefined" &&
-			innerWidth < innerHeight && innerWidth <= 600;
-		this.mobileOrientation.hidden = !portrait;
-		if (!portrait)
-			return;
-
-		var canFullscreen = document.fullscreenEnabled &&
-			document.documentElement.requestFullscreen;
-		var fullscreen = !!document.fullscreenElement;
-		var instruction = this.mobileOrientation.querySelector(
-			".mobile-orientation-instruction");
-		var button = this.mobileOrientation.querySelector("button");
-		button.hidden = fullscreen || !canFullscreen;
-		instruction.textContent = button.hidden ?
-			"Rotate your device to continue." :
-			"Enter full screen and turn your device to continue.";
-	}
-
-	this.enterMobileFullscreen = function() {
-		var puzzle = this;
-		var action;
-		try {
-			action = document.documentElement.requestFullscreen({
-				navigationUI: "hide",
-			});
-		} catch (e) {
-			this.updateMobileOrientation();
-			return;
-		}
-		Promise.resolve(action).then(function() {
-			if (typeof screen != "undefined" && screen.orientation &&
-			    screen.orientation.lock)
-				return screen.orientation.lock("landscape");
-		}).catch(function() {
-			/* The player can still rotate the device manually. */
-		}).then(function() {
-			puzzle.updateMobileOrientation();
-		});
 	}
 
 	this.toggleFullscreen = function() {
@@ -1578,7 +1538,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.setDragTileChoices(dragTileChoices);
 	this.setShowActionSelector(showActionSelector);
 	this.updateFullscreenButton();
-	this.updateMobileOrientation();
 
 	this.clear();
 }
