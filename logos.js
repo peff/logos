@@ -192,18 +192,21 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		discard: new Audio("sound/discard.opus"),
 		clue: new Audio("sound/clue.opus"),
 		mistake: new Audio("sound/mistake.opus"),
+		toggle: new Audio("sound/toggle.opus"),
 	};
 	this.soundVolumes = {
 		place: 1,
 		discard: 0.55,
 		clue: 1,
 		mistake: 1,
+		toggle: 0.5,
 	};
 	this.soundVariations = {
 		place: 0.045,
 		discard: 0.1,
 		clue: 0.055,
 		mistake: 0,
+		toggle: 0.035,
 	};
 	/* Normalized offsets, scaled by each sound's variation above. */
 	this.soundSequence = [0, 0.833, -0.5, 0.333, -1, -0.167, 0.667,
@@ -921,6 +924,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		var next = (checked + 1) % radios.length;
 		for (var i = 0; i < radios.length; i++)
 			radios[i].checked = i == next;
+		this.playSound("toggle");
 	}
 
 	this.renderSlotTray = function() {

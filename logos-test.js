@@ -691,6 +691,8 @@ Deno.test("tile action groups toggle when clicked anywhere", function() {
 	assert(prevented, "group click retained the label's default action");
 	assert(!place.checked && remove.checked,
 	       "group click did not toggle the selected action");
+	assert(puzzle.sounds.length == 1 && puzzle.sounds[0] == "toggle",
+	       "group click did not play the toggle sound");
 	puzzle.toggleTileAction({
 		currentTarget: operation,
 		preventDefault() {},
