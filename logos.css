@@ -2062,3 +2062,22 @@ body:not(.proof-active) :is(#hclues, #vclues).solution
 #board .possibility:hover {
 	filter: brightness(0.94);
 }
+
+#board .possibility.action-preview-place {
+	position: relative;
+	z-index: 3;
+	outline: 2px solid #b8d9a9;
+	outline-offset: 1px;
+	filter: brightness(1.22);
+	transform: scale(1.08);
+}
+
+#board .possibility.action-preview-remove {
+	position: relative;
+	z-index: 3;
+	outline: 2px solid #d4777f;
+	outline-offset: 1px;
+	filter: grayscale(0.45) brightness(0.72);
+	opacity: 0.62;
+	transform: scale(0.92);
+}

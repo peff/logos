@@ -322,6 +322,21 @@ Deno.test("the custom cursor is a saved boolean option", function() {
 	puzzle.stopTimer();
 });
 
+Deno.test("mouse action previews are an opt-in saved option", function() {
+	localStorage.removeItem("previewMouseActions");
+	const puzzle = makePuzzle(6);
+	assert(!puzzle.previewMouseActions &&
+	       !puzzle.options.querySelector("#preview-mouse-actions").checked,
+	       "mouse action previews were enabled by default");
+	puzzle.setPreviewMouseActions(true);
+	assert(puzzle.previewMouseActions &&
+	       puzzle.options.querySelector("#preview-mouse-actions").checked &&
+	       localStorage.getItem("previewMouseActions") == "true",
+	       "the mouse preview choice was not applied and saved");
+	localStorage.removeItem("previewMouseActions");
+	puzzle.stopTimer();
+});
+
 Deno.test("a false placement loses the game", function() {
 	const puzzle = makePuzzle(1);
 	const slot = puzzle.rows[0].slots[0];
@@ -409,30 +424,76 @@ Deno.test("modifier clicks toggle pencil marks", function() {
 	       "macOS secondary click was mistaken for a pencil discard");
 });
 
-Deno.test("fine pointer actions commit on press", function() {
+Deno.test("pointer presses preview their eventual tile action", function() {
 	const puzzle = makePuzzle(1);
-	const cell = puzzle.rows[0].slots[0].possibilityElems[0];
+	const slot = puzzle.rows[0].slots[0];
+	const cell = slot.possibilityElems[0];
 	const actions = [];
 	puzzle.requestTileAction = function(slot, value, action) {
 		actions.push(action);
 	};
+	function press(options) {
+		cell.listeners.pointerdown({
+			button: options.button,
+			ctrlKey: !!options.ctrlKey,
+			altKey: !!options.altKey,
+			shiftKey: !!options.shiftKey,
+			currentTarget: cell,
+		});
+	}
 
-	cell.listeners.pointerdown({ button: 0, currentTarget: cell });
-	assert(actions.join() == "place",
-	       "a primary-pointer action did not commit on press");
+	press({ button: 0 });
+	assert(actions.join() == "place" &&
+	       !cell.classList.contains("action-preview"),
+	       "the default mouse action did not commit on press");
 	cell.listeners.click({ currentTarget: cell });
-	assert(actions.join() == "place",
-	       "the later click repeated a press action");
+	actions.length = 0;
+	puzzle.setPreviewMouseActions(true);
 
-	cell.listeners.pointerdown({ button: 2, currentTarget: cell });
-	assert(actions.join() == "place,remove",
-	       "a secondary-pointer action did not commit on press");
+	press({ button: 0 });
+	assert(cell.classList.contains("action-preview-place"),
+	       "a primary press did not preview placement");
+	cell.listeners.pointerup({ button: 0, currentTarget: cell });
+	assert(!cell.classList.contains("action-preview"),
+	       "pointer release did not clear the action preview");
+	assert(actions.join() == "place",
+	       "pointer release did not commit the previewed placement");
+
+	press({ button: 2 });
+	assert(cell.classList.contains("action-preview-remove"),
+	       "a secondary press did not preview removal");
 	cell.listeners.contextmenu({
 		currentTarget: cell,
 		preventDefault() {},
 	});
+	assert(actions.join() == "place",
+	       "the context-menu event committed removal before release");
+	cell.listeners.pointerup({ button: 2, currentTarget: cell });
 	assert(actions.join() == "place,remove",
-	       "the context-menu event repeated a press action");
+	       "pointer release did not commit the previewed removal");
+
+	press({ button: 2 });
+	cell.listeners.pointercancel({});
+	assert(!cell.classList.contains("action-preview"),
+	       "pointer cancellation did not clear the action preview");
+
+	puzzle.macOS = true;
+	press({ button: 0, ctrlKey: true });
+	assert(cell.classList.contains("action-preview-remove"),
+	       "a macOS control-press did not preview removal");
+	cell.listeners.pointerleave({});
+
+	puzzle.macOS = false;
+	press({ button: 0, ctrlKey: true });
+	assert(!cell.classList.contains("action-preview"),
+	       "a temporary pencil action received a preview");
+	cell.listeners.lostpointercapture({});
+
+	puzzle.coarsePointer = true;
+	press({ button: 0 });
+	assert(!cell.classList.contains("action-preview"),
+	       "a coarse pointer received a mouse action preview");
+	localStorage.removeItem("previewMouseActions");
 	puzzle.stopTimer();
 });
 
