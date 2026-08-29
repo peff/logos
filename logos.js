@@ -1507,23 +1507,48 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		});
 	}
 
-	this.playSampleSound = function(name) {
-		var audio = this.soundSamples[name];
-		if (!audio)
-			return;
-		for (var other in this.soundSamples) {
-			this.soundSamples[other].pause();
-			this.soundSamples[other].currentTime = 0;
+	this.getAudioContext = function() {
+		if (this.audioContext)
+			return this.audioContext;
+		if (typeof window == "undefined")
+			return null;
+		var AudioContext = window.AudioContext || window.webkitAudioContext;
+		if (!AudioContext)
+			return null;
+		try {
+			this.audioContext = new AudioContext();
+		} catch (e) {
+			return null;
 		}
+		return this.audioContext;
+	}
+
+	this.stopSampleSounds = function() {
+		for (var name in this.soundSamples) {
+			this.soundSamples[name].pause();
+			this.soundSamples[name].currentTime = 0;
+		}
+	}
+
+	this.playMediaSampleSound = function(name, rate) {
+		var audio = this.soundSamples[name];
 		audio.volume = this.soundVolumes[name];
-		var variation = this.soundVariations[name];
-		var position = this.soundSequencePositions[name] || 0;
-		audio.playbackRate = 1 + variation * this.soundSequence[position];
-		this.soundSequencePositions[name] =
-			(position + 1) % this.soundSequence.length;
+		audio.playbackRate = rate;
 		var playback = audio.play();
 		if (playback)
 			playback.catch(function() {});
+	}
+
+	this.playSampleSound = function(name) {
+		if (!this.soundSamples[name])
+			return;
+		var variation = this.soundVariations[name];
+		var position = this.soundSequencePositions[name] || 0;
+		var rate = 1 + variation * this.soundSequence[position];
+		this.soundSequencePositions[name] =
+			(position + 1) % this.soundSequence.length;
+		this.stopSampleSounds();
+		this.playMediaSampleSound(name, rate);
 	}
 
 	this.playSound = function(type) {
@@ -1533,13 +1558,9 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			this.playSampleSound(type);
 			return;
 		}
-		var AudioContext = window.AudioContext || window.webkitAudioContext;
-		if (!AudioContext)
+		var context = this.getAudioContext();
+		if (!context)
 			return;
-		if (!this.audioContext) {
-			this.audioContext = new AudioContext();
-		}
-		var context = this.audioContext;
 		if (context.state == "suspended")
 			context.resume();
 		var variation = 0.94 + Math.random() * 0.12;
