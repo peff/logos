@@ -176,8 +176,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.expandedSlot = null;
 	this.coarsePointer = typeof matchMedia != "undefined" &&
 		matchMedia("(pointer: coarse)").matches;
-	this.macOS = typeof navigator != "undefined" &&
-		/^Mac/.test(navigator.platform);
 	this.expandTileChoices = this.coarsePointer &&
 		typeof innerWidth != "undefined" &&
 		Math.min(innerWidth * 0.0208, innerHeight * 0.0345) < 20;
@@ -756,14 +754,13 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 
 	this.tileActionForPointer = function(ev, contextMenu) {
 		if (contextMenu) {
-			if (ev.altKey || ev.shiftKey ||
-			    (ev.ctrlKey && !this.macOS))
+			if (ev.altKey || ev.shiftKey)
 				return "pencil-remove";
 			return "remove";
 		}
 		if (this.showActionSelector)
 			return this.getTileAction();
-		if (ev.ctrlKey || ev.altKey || ev.shiftKey)
+		if (ev.altKey || ev.shiftKey)
 			return "pencil-select";
 		return "place";
 	}
@@ -773,15 +770,18 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		    (ev.button != 0 && ev.button != 2))
 			return;
 		this.suppressTileClick = null;
+		this.suppressTileContextMenu = null;
 		this.clearTileActionPreview();
 		var contextMenu = ev.button == 2 ||
-			(this.macOS && ev.button == 0 && ev.ctrlKey);
+			(ev.button == 0 && ev.ctrlKey);
 		var action = this.tileActionForPointer(ev, contextMenu);
 		if (!this.previewMouseActions ||
 		    (action != "place" && action != "remove")) {
 			this.requestTileAction(slot, value, action);
 			if (ev.button == 0)
 				this.suppressTileClick = cell;
+			if (contextMenu)
+				this.suppressTileContextMenu = cell;
 			return;
 		}
 		this.pendingTileAction = {
@@ -3635,6 +3635,16 @@ function Slot(row, symbols, display) {
 			cell.addEventListener('contextmenu',
 				function(s, j) { return function(ev) {
 					ev.preventDefault();
+					if ((s.row.puzzle.pendingTileAction &&
+					     s.row.puzzle.pendingTileAction.cell ==
+						ev.currentTarget) ||
+					    s.row.puzzle.suppressTileContextMenu ==
+						ev.currentTarget) {
+						s.row.puzzle.suppressTileContextMenu = null;
+						return;
+					}
+					s.row.puzzle.requestTileAction(s, j,
+						s.row.puzzle.tileActionForPointer(ev, true));
 				}}(this, j));
 		}
 	}

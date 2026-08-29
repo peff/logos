@@ -380,48 +380,50 @@ Deno.test("modifier clicks toggle pencil marks", function() {
 		target.listeners.pointerup(event);
 	}
 
-	pointerAction(cell, { button: 0, ctrlKey: true });
-	assert(puzzle.pencilMarks.length == 1,
-	       "ctrl-click did not add a pencil selection");
-	assert(!slot.single && puzzle.losses == 0,
-	       "pencil selection made a committed move");
-	pointerAction(cell, { button: 0, ctrlKey: true });
-	assert(puzzle.pencilMarks.length == 0,
-	       "second ctrl-click did not remove the pencil selection");
-
-	pointerAction(cell, { button: 2, ctrlKey: true });
-	assert(puzzle.pencilMarks.length == 1 &&
-	       puzzle.pencilMarks[0].discard,
-	       "ctrl-right-click did not add a pencil elimination");
-	assert(puzzle.losses == 0,
-	       "pencil elimination checked the hidden solution");
-
-	pointerAction(cell, { button: 0, altKey: true });
-	assert(puzzle.pencilMarks.length == 1 &&
-	       !puzzle.pencilMarks[0].discard,
-	       "option-click did not replace the pencil elimination");
-	pointerAction(cell, { button: 2, altKey: true });
-	assert(puzzle.pencilMarks.length == 1 &&
-	       puzzle.pencilMarks[0].discard,
-	       "option-right-click did not pencil-discard");
-
 	pointerAction(cell, { button: 0, shiftKey: true });
 	assert(puzzle.pencilMarks.length == 1 &&
 	       !puzzle.pencilMarks[0].discard,
-	       "shift-click did not replace the pencil elimination");
+	       "shift-click did not add a pencil selection");
+	assert(!slot.single && puzzle.losses == 0,
+	       "pencil selection made a committed move");
 	pointerAction(cell, { button: 2, shiftKey: true });
 	assert(puzzle.pencilMarks.length == 1 &&
 	       puzzle.pencilMarks[0].discard,
 	       "shift-right-click did not pencil-discard");
+	assert(puzzle.losses == 0,
+	       "pencil elimination checked the hidden solution");
+	pointerAction(cell, { button: 0, altKey: true });
+	assert(puzzle.pencilMarks.length == 1 &&
+	       !puzzle.pencilMarks[0].discard,
+	       "option-click did not retain pencil selection compatibility");
+	pointerAction(cell, { button: 2, altKey: true });
+	assert(puzzle.pencilMarks.length == 1 &&
+	       puzzle.pencilMarks[0].discard,
+	       "option-right-click did not retain pencil discard compatibility");
 
-	puzzle.macOS = true;
 	const wrong = (value + 1) % symbols.length;
 	pointerAction(slot.possibilityElems[wrong], {
 		button: 0,
 		ctrlKey: true,
 	});
 	assert(!slot.possible[wrong],
-	       "macOS secondary click was mistaken for a pencil discard");
+	       "control-click was mistaken for a pencil mark");
+});
+
+Deno.test("control-tap falls back to the context-menu event", function() {
+	const puzzle = makePuzzle(1);
+	const slot = puzzle.rows[0].slots[0];
+	const wrong = (slot.value + 1) % symbols.length;
+	const cell = slot.possibilityElems[wrong];
+	cell.listeners.contextmenu({
+		button: 0,
+		ctrlKey: true,
+		currentTarget: cell,
+		preventDefault() {},
+	});
+	assert(!slot.possible[wrong],
+	       "a control-tap without pointer events did not discard");
+	puzzle.stopTimer();
 });
 
 Deno.test("pointer presses preview their eventual tile action", function() {
@@ -477,17 +479,10 @@ Deno.test("pointer presses preview their eventual tile action", function() {
 	assert(!cell.classList.contains("action-preview"),
 	       "pointer cancellation did not clear the action preview");
 
-	puzzle.macOS = true;
 	press({ button: 0, ctrlKey: true });
 	assert(cell.classList.contains("action-preview-remove"),
-	       "a macOS control-press did not preview removal");
+	       "a control-press did not preview removal");
 	cell.listeners.pointerleave({});
-
-	puzzle.macOS = false;
-	press({ button: 0, ctrlKey: true });
-	assert(!cell.classList.contains("action-preview"),
-	       "a temporary pencil action received a preview");
-	cell.listeners.lostpointercapture({});
 
 	puzzle.coarsePointer = true;
 	press({ button: 0 });
