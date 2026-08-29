@@ -163,6 +163,52 @@ body {
 		display: none;
 	}
 
+	body #message {
+		container-type: inline-size;
+		overflow: hidden;
+	}
+
+	:fullscreen body #message {
+		justify-self: center;
+		width: calc(100% - 2.5rem);
+	}
+
+	body #status {
+		position: absolute;
+		left: 50%;
+		width: max-content;
+		max-width: none;
+		animation: status-marquee 8s ease-in-out forwards;
+		white-space: nowrap;
+	}
+
+	body #status.appearing {
+		animation: none;
+	}
+
+	body #message:has(#status:not(:empty)) #timer {
+		opacity: 0;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		body #status {
+			left: 0.5rem;
+			width: calc(100% - 1rem);
+			overflow: hidden;
+			animation: none;
+			text-overflow: ellipsis;
+		}
+	}
+
+}
+
+@keyframes status-marquee {
+	0%, 20% {
+		transform: translateX(max(-50%, calc(-50cqw + 0.5rem)));
+	}
+	100% {
+		transform: translateX(min(-50%, calc(50cqw - 100% - 0.5rem)));
+	}
 }
 
 /* Use the extra height on modern, edge-to-edge phones for a larger board. */
