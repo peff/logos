@@ -754,6 +754,33 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.requestTileAction(slot, value, action);
 	}
 
+	this.tileActionForPointer = function(ev, contextMenu) {
+		if (contextMenu) {
+			if (ev.altKey || ev.shiftKey ||
+			    (ev.ctrlKey && !this.macOS))
+				return "pencil-remove";
+			return "remove";
+		}
+		if (this.showActionSelector)
+			return this.getTileAction();
+		if (ev.ctrlKey || ev.altKey || ev.shiftKey)
+			return "pencil-select";
+		return "place";
+	}
+
+	this.applyTileActionOnPress = function(cell, ev, slot, value) {
+		if (this.coarsePointer || (this.expandTileChoices && ev.button == 0) ||
+		    (ev.button != 0 && ev.button != 2))
+			return;
+		this.suppressTileClick = null;
+		var contextMenu = ev.button == 2 ||
+			(this.macOS && ev.button == 0 && ev.ctrlKey);
+		var action = this.tileActionForPointer(ev, contextMenu);
+		this.requestTileAction(slot, value, action);
+		if (ev.button == 0)
+			this.suppressTileClick = cell;
+	}
+
 	this.beginSlotTrayDrag = function(slot, ev) {
 		if (!this.expandTileChoices || !this.dragTileChoices ||
 		    (ev.button !== undefined && ev.button != 0))
@@ -3498,9 +3525,11 @@ function Slot(row, symbols, display) {
 			cell.innerHTML = this.symbols[j];
 			cell.className = "possibility";
 			cell.addEventListener('pointerdown',
-				function(s) { return function(ev) {
+				function(s, j) { return function(ev) {
+					s.row.puzzle.applyTileActionOnPress(
+						ev.currentTarget, ev, s, j);
 					s.row.puzzle.beginSlotTrayDrag(s, ev);
-				}}(this));
+				}}(this, j));
 			cell.addEventListener('pointermove',
 				function(s) { return function(ev) {
 					s.row.puzzle.updateSlotTrayDrag(ev);
@@ -3515,30 +3544,26 @@ function Slot(row, symbols, display) {
 				}}(this));
 			cell.addEventListener('click',
 				function(s, j) { return function(ev) {
+					if (s.row.puzzle.suppressTileClick &&
+					    s.row.puzzle.suppressTileClick ==
+					    ev.currentTarget) {
+						s.row.puzzle.suppressTileClick = null;
+						return;
+					}
 					if (s.row.puzzle.ignoreSlotClick) {
 						s.row.puzzle.ignoreSlotClick = false;
 						return;
 					}
 					if (s.row.puzzle.expandTileChoices)
 						s.row.puzzle.openSlotTray(s);
-					else if (s.row.puzzle.showActionSelector)
-						s.row.puzzle.requestTileAction(s, j,
-							s.row.puzzle.getTileAction());
-					else if (ev.ctrlKey || ev.altKey || ev.shiftKey)
-						s.row.puzzle.requestTileAction(
-							s, j, "pencil-select");
 					else
-						s.row.puzzle.requestTileAction(s, j, "place");
+						s.row.puzzle.requestTileAction(s, j,
+							s.row.puzzle.tileActionForPointer(
+								ev, false));
 				}}(this, j));
 			cell.addEventListener('contextmenu',
 				function(s, j) { return function(ev) {
 					ev.preventDefault();
-					if (ev.altKey || ev.shiftKey ||
-					    (ev.ctrlKey && !s.row.puzzle.macOS))
-						s.row.puzzle.requestTileAction(
-							s, j, "pencil-remove");
-					else
-						s.row.puzzle.requestTileAction(s, j, "remove");
 				}}(this, j));
 		}
 	}

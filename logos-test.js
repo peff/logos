@@ -350,58 +350,90 @@ Deno.test("modifier clicks toggle pencil marks", function() {
 	const slot = puzzle.rows[0].slots[0];
 	const value = slot.value;
 	const cell = slot.possibilityElems[value];
+	function pointerAction(target, options) {
+		const event = {
+			button: options.button,
+			ctrlKey: !!options.ctrlKey,
+			altKey: !!options.altKey,
+			shiftKey: !!options.shiftKey,
+			currentTarget: target,
+			preventDefault() {},
+		};
+		target.listeners.pointerdown(event);
+		if (options.button == 2)
+			target.listeners.contextmenu(event);
+		target.listeners.pointerup(event);
+	}
 
-	cell.listeners.click({ ctrlKey: true });
+	pointerAction(cell, { button: 0, ctrlKey: true });
 	assert(puzzle.pencilMarks.length == 1,
 	       "ctrl-click did not add a pencil selection");
 	assert(!slot.single && puzzle.losses == 0,
 	       "pencil selection made a committed move");
-	cell.listeners.click({ ctrlKey: true });
+	pointerAction(cell, { button: 0, ctrlKey: true });
 	assert(puzzle.pencilMarks.length == 0,
 	       "second ctrl-click did not remove the pencil selection");
 
-	cell.listeners.contextmenu({
-		ctrlKey: true,
-		preventDefault() {},
-	});
+	pointerAction(cell, { button: 2, ctrlKey: true });
 	assert(puzzle.pencilMarks.length == 1 &&
 	       puzzle.pencilMarks[0].discard,
 	       "ctrl-right-click did not add a pencil elimination");
 	assert(puzzle.losses == 0,
 	       "pencil elimination checked the hidden solution");
 
-	cell.listeners.click({ altKey: true });
+	pointerAction(cell, { button: 0, altKey: true });
 	assert(puzzle.pencilMarks.length == 1 &&
 	       !puzzle.pencilMarks[0].discard,
 	       "option-click did not replace the pencil elimination");
-	cell.listeners.contextmenu({
-		altKey: true,
-		preventDefault() {},
-	});
+	pointerAction(cell, { button: 2, altKey: true });
 	assert(puzzle.pencilMarks.length == 1 &&
 	       puzzle.pencilMarks[0].discard,
 	       "option-right-click did not pencil-discard");
 
-	cell.listeners.click({ shiftKey: true });
+	pointerAction(cell, { button: 0, shiftKey: true });
 	assert(puzzle.pencilMarks.length == 1 &&
 	       !puzzle.pencilMarks[0].discard,
 	       "shift-click did not replace the pencil elimination");
-	cell.listeners.contextmenu({
-		shiftKey: true,
-		preventDefault() {},
-	});
+	pointerAction(cell, { button: 2, shiftKey: true });
 	assert(puzzle.pencilMarks.length == 1 &&
 	       puzzle.pencilMarks[0].discard,
 	       "shift-right-click did not pencil-discard");
 
 	puzzle.macOS = true;
 	const wrong = (value + 1) % symbols.length;
-	slot.possibilityElems[wrong].listeners.contextmenu({
+	pointerAction(slot.possibilityElems[wrong], {
+		button: 0,
 		ctrlKey: true,
-		preventDefault() {},
 	});
 	assert(!slot.possible[wrong],
 	       "macOS secondary click was mistaken for a pencil discard");
+});
+
+Deno.test("fine pointer actions commit on press", function() {
+	const puzzle = makePuzzle(1);
+	const cell = puzzle.rows[0].slots[0].possibilityElems[0];
+	const actions = [];
+	puzzle.requestTileAction = function(slot, value, action) {
+		actions.push(action);
+	};
+
+	cell.listeners.pointerdown({ button: 0, currentTarget: cell });
+	assert(actions.join() == "place",
+	       "a primary-pointer action did not commit on press");
+	cell.listeners.click({ currentTarget: cell });
+	assert(actions.join() == "place",
+	       "the later click repeated a press action");
+
+	cell.listeners.pointerdown({ button: 2, currentTarget: cell });
+	assert(actions.join() == "place,remove",
+	       "a secondary-pointer action did not commit on press");
+	cell.listeners.contextmenu({
+		currentTarget: cell,
+		preventDefault() {},
+	});
+	assert(actions.join() == "place,remove",
+	       "the context-menu event repeated a press action");
+	puzzle.stopTimer();
 });
 
 Deno.test("coarse pointers use an expanded slot tray", function() {
