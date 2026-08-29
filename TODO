@@ -1,6 +1,23 @@
  - daily puzzle
  - shared leaderboard (would require actual server infrastructure)
  - logos with friends: collaborative puzzle
+   - less awful lobby / invite infrastructure; this will require an
+     actual server under our control, even if it is only doing the
+     rendezvous. Probably worth it as the current system is super
+     awkward.
+   - more symmetric view of the players; only the host talks to each
+     player, so guest 1 doesn't even know about guest 2
+   - show multiplayer info all the time while connected; probably this
+     should replace the logo during online play (with perhaps a smaller
+     logo retained). Probably the primary view should be a list of
+     players.
+   - cursor sharing (again, this probably wants a direct connection
+     between players, but we should be able to facilitate the webrtc
+     setup once via the host). Each player gets their own color-tinted
+     stylus (or perhaps we can reintroduce the gear).
+   - maybe: attribute moves to players. This might be hard to do in a
+     way that is not visually distracting, though (and with cursor
+     sharing you can kind of see it in real-time anyway)
  - consider simplifying
    - are chalk marks worth the interface complexity
    - is drag tiles any good
