@@ -22,23 +22,23 @@ var startMessages = [
 ];
 
 var falsePlacementMessages = [
-	"You have mistaken falsehood for truth. The wisdom of the ancients eludes you...",
-	"You have crowned a false answer as truth. The ancients turn away...",
-	"You have embraced an illusion as truth. The oracle falls silent...",
-	"Your judgment has fixed upon the false. The ancients are unconvinced...",
-	"You have chosen the path of error. Wisdom recedes from your grasp...",
-	"You have drawn certainty from deceiving signs. The lesson is lost...",
-	"Your conclusion does not follow. The philosophers dismiss your proof...",
+	"You have mistaken falsehood for truth. The wisdom of the ancients eludes you.",
+	"You have crowned a false answer as truth. The ancients turn away.",
+	"You have embraced an illusion as truth. The oracle falls silent.",
+	"Your judgment has fixed upon the false. The ancients are unconvinced.",
+	"You have chosen the path of error. Wisdom recedes from your grasp.",
+	"You have drawn certainty from deceiving signs. The lesson is lost.",
+	"Your conclusion does not follow. The philosophers dismiss your proof.",
 ];
 
 var falseEliminationMessages = [
-	"You have cast aside a truth not yet understood. The wisdom of the ancients eludes you...",
-	"You have banished a truth from consideration. The ancients turn away...",
-	"You have rejected a truth before its hour. The oracle falls silent...",
-	"Your judgment has condemned the possible. The ancients are unconvinced...",
-	"You have closed a path that led to truth. Wisdom recedes from your grasp...",
-	"You have severed a thread that belonged in the pattern. The Fates turn away...",
-	"You have excluded what reason still permits. The philosophers dismiss your proof...",
+	"You have cast aside a truth not yet understood. The wisdom of the ancients eludes you.",
+	"You have banished a truth from consideration. The ancients turn away.",
+	"You have rejected a truth before its hour. The oracle falls silent.",
+	"Your judgment has condemned the possible. The ancients are unconvinced.",
+	"You have closed a path that led to truth. Wisdom recedes from your grasp.",
+	"You have severed a thread that belonged in the pattern. The Fates turn away.",
+	"You have excluded what reason still permits. The philosophers dismiss your proof.",
 ];
 
 function practiceMistakeMessage(discard, clues) {
