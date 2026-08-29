@@ -209,6 +209,9 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.soundSequence = [0, 0.833, -0.5, 0.333, -1, -0.167, 0.667,
 		-0.667, 0.167, 1, -0.333, 0.5, -0.833];
 	this.soundSequencePositions = {};
+	this.soundBuffers = {};
+	this.soundBufferPromises = {};
+	this.sampleSource = null;
 	for (var name in this.soundSamples) {
 		this.soundSamples[name].preload = "auto";
 		this.soundSamples[name].preservesPitch = false;
@@ -1523,10 +1526,44 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		return this.audioContext;
 	}
 
+	this.loadSampleSound = function(name) {
+		var context = this.getAudioContext();
+		if (!context ||
+		    this.soundBuffers[name] || this.soundBufferPromises[name])
+			return;
+		var puzzle = this;
+		if (typeof fetch == "undefined")
+			return;
+		this.soundBufferPromises[name] = fetch(this.soundSamples[name].src)
+			.then(function(response) {
+				return response.arrayBuffer();
+			})
+			.then(function(data) {
+				return context.decodeAudioData(data);
+			})
+			.then(function(buffer) {
+				puzzle.soundBuffers[name] = buffer;
+			})
+			.catch(function(error) {
+				if (typeof console != "undefined")
+					console.warn("falling back to media playback for " +
+						name + " sound", error);
+				/* The media element remains available as a fallback. */
+			});
+	}
+
 	this.stopSampleSounds = function() {
 		for (var name in this.soundSamples) {
 			this.soundSamples[name].pause();
 			this.soundSamples[name].currentTime = 0;
+		}
+		if (this.sampleSource) {
+			try {
+				this.sampleSource.stop();
+			} catch (e) {
+				/* It may already have stopped naturally. */
+			}
+			this.sampleSource = null;
 		}
 	}
 
@@ -1540,15 +1577,38 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.playSampleSound = function(name) {
-		if (!this.soundSamples[name])
+		var audio = this.soundSamples[name];
+		if (!audio)
 			return;
 		var variation = this.soundVariations[name];
 		var position = this.soundSequencePositions[name] || 0;
 		var rate = 1 + variation * this.soundSequence[position];
 		this.soundSequencePositions[name] =
 			(position + 1) % this.soundSequence.length;
+
 		this.stopSampleSounds();
-		this.playMediaSampleSound(name, rate);
+		var context = this.getAudioContext();
+		var buffer = this.soundBuffers[name];
+		if (!context || !buffer) {
+			this.loadSampleSound(name);
+			this.playMediaSampleSound(name, rate);
+			return;
+		}
+		if (context.state == "suspended")
+			context.resume();
+		var source = context.createBufferSource();
+		var gain = context.createGain();
+		source.buffer = buffer;
+		source.playbackRate.value = rate;
+		gain.gain.value = this.soundVolumes[name];
+		source.connect(gain).connect(context.destination);
+		this.sampleSource = source;
+		var puzzle = this;
+		source.onended = function() {
+			if (puzzle.sampleSource == source)
+				puzzle.sampleSource = null;
+		};
+		source.start();
 	}
 
 	this.playSound = function(type) {
@@ -1578,6 +1638,9 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			playChime(context, 440 * variation, 0.13, 0.014);
 		}
 	}
+
+	for (var name in this.soundSamples)
+		this.loadSampleSound(name);
 
 	var customCursor = true;
 	var previewMouseActions = false;

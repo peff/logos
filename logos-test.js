@@ -90,7 +90,10 @@ for (const mark of ["inscribe", "sketch"]) {
 	boardActions.appendChild(input);
 }
 boardActions.children[2].checked = true;
-globalThis.Audio = class {};
+globalThis.Audio = class {
+	pause() {}
+	play() {}
+};
 Object.defineProperty(globalThis, "localStorage", { value: {
 	values: {},
 	getItem(key) {
@@ -1437,6 +1440,47 @@ Deno.test("a player elimination makes one sound", function() {
 	       "automatic deductions made extra sounds");
 	assert(puzzle.sounds[0] == "discard",
 	       "elimination made the wrong sound");
+});
+
+Deno.test("sample variation uses Web Audio resampling", function() {
+	const puzzle = makePuzzle(1);
+	const sources = [];
+	const gains = [];
+	puzzle.audioContext = {
+		state: "running",
+		destination: {},
+		createBufferSource() {
+			const source = {
+				playbackRate: {},
+				connect(node) { return node; },
+				start() { this.started = true; },
+				stop() { this.stopped = true; },
+			};
+			sources.push(source);
+			return source;
+		},
+		createGain() {
+			const gain = {
+				gain: {},
+				connect(node) { return node; },
+			};
+			gains.push(gain);
+			return gain;
+		},
+	};
+	puzzle.soundBuffers.discard = {};
+
+	puzzle.playSampleSound("discard");
+	puzzle.playSampleSound("discard");
+
+	assert(sources.length == 2 && sources[0].started &&
+	       sources[0].playbackRate.value == 1 &&
+	       sources[1].playbackRate.value == 1.0833,
+	       "discard variation did not use buffer source playback rates");
+	assert(sources[0].stopped,
+	       "a previous buffer source continued playing");
+	assert(gains[0].gain.value == 0.55,
+	       "buffer playback did not apply the sample volume");
 });
 
 Deno.test("forced placements make one place sound per action", function() {
