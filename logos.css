@@ -310,7 +310,7 @@ body {
 
 /* Make room for the proof viewer on short portrait phones. */
 @media (orientation: portrait) and (min-aspect-ratio: 1 / 2) and
-       (max-aspect-ratio: 3 / 5) {
+       (aspect-ratio < 3 / 5) {
 	body.game-started.proof-active {
 		grid-template-rows:
 			1.15rem max-content max-content 15.372rem 4.872rem max-content 0;
