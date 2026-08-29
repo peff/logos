@@ -1551,10 +1551,10 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 				      0.52, 0.62, 0.73, 0.85, 0.98, 1.12];
 			for (var i = 0; i < notes.length; i++)
 				playChime(context, notes[i] * variation, delays[i],
-					i == notes.length - 1 ? 0.035 : 0.025);
+					i == notes.length - 1 ? 0.07 : 0.05);
 		} else if (type == "practice-mistake") {
-			playChime(context, 523.25 * variation, 0, 0.009);
-			playChime(context, 440 * variation, 0.13, 0.007);
+			playChime(context, 523.25 * variation, 0, 0.018);
+			playChime(context, 440 * variation, 0.13, 0.014);
 		}
 	}
 
