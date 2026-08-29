@@ -411,32 +411,34 @@
 					       onClick="puzzle.toggleAbout()" value="Close">
 				</div>
 			</div>
+			<div id="application-footer">
+				<div class="control-buttons">
+					<input id="new-game-button" type="button"
+					       onClick="puzzle.newGame()" value="New Game">
+					<input id="help-button" type="button"
+					       onClick="puzzle.toggleHelp()" value="How to play"
+					       aria-expanded="false" aria-controls="help-menu">
+					<input id="options-button" type="button"
+					       onClick="puzzle.toggleOptions()" value="Options"
+					       aria-expanded="false" aria-controls="options-menu">
+					<input id="scores-button" type="button"
+					       onClick="puzzle.toggleScores()" value="Pantheon"
+					       aria-expanded="false" aria-controls="scores-menu">
+					<input id="explain-button" type="button"
+					       onClick="puzzle.explainLoss()" value="∵" disabled
+					       title="Explain a mistake"
+					       aria-label="Explain a mistake" aria-pressed="false">
+				</div>
+				<button id="logo" type="button" onClick="puzzle.toggleAbout()"
+				        aria-label="About Logos" aria-expanded="false"
+				        aria-controls="about-menu">
+					<span class="logo-greek" aria-hidden="true">ΛΟΓΟΣ</span>
+					<span class="logo-name">LOGOS</span>
+					<span class="logo-tagline">A puzzle of pure reason</span>
+				</button>
+			</div>
 		</div>
 		<table id="vclues"></table>
-		<div class="control-buttons">
-			<input id="new-game-button" type="button"
-			       onClick="puzzle.newGame()" value="New Game">
-			<input id="help-button" type="button"
-			       onClick="puzzle.toggleHelp()" value="How to play"
-			       aria-expanded="false" aria-controls="help-menu">
-			<input id="options-button" type="button"
-			       onClick="puzzle.toggleOptions()" value="Options"
-			       aria-expanded="false" aria-controls="options-menu">
-			<input id="scores-button" type="button"
-			       onClick="puzzle.toggleScores()" value="Pantheon"
-			       aria-expanded="false" aria-controls="scores-menu">
-			<input id="explain-button" type="button"
-			       onClick="puzzle.explainLoss()" value="∵" disabled
-			       title="Explain a mistake"
-			       aria-label="Explain a mistake" aria-pressed="false">
-		</div>
-		<button id="logo" type="button" onClick="puzzle.toggleAbout()"
-		        aria-label="About Logos" aria-expanded="false"
-		        aria-controls="about-menu">
-			<span class="logo-greek" aria-hidden="true">ΛΟΓΟΣ</span>
-			<span class="logo-name">LOGOS</span>
-			<span class="logo-tagline">A puzzle of pure reason</span>
-		</button>
 		<div id="slot-tray" hidden role="dialog" aria-modal="true"
 		     aria-label="Expanded tile choices">
 			<div class="slot-tray-panel">

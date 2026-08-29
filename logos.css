@@ -79,84 +79,72 @@ body {
 	body {
 		grid-template-columns: 27.5rem;
 		grid-template-rows:
-			1.15rem max-content max-content 18.3rem 5.8rem max-content 0;
+			1.15rem max-content max-content 18.3rem 5.8rem max-content;
 		grid-template-areas:
 			"message"
 			"board"
 			"controls"
 			"hclues"
 			"vclues"
-			"main-controls"
-			"logo";
+			"footer";
 		justify-content: center;
+		row-gap: 0.15rem;
 	}
 
 	body:not(.game-started):has(#logo:not([hidden])) {
 		grid-template-rows:
-			1.15rem max-content max-content 0 0 max-content 4.2rem;
+			1.15rem max-content max-content;
+		grid-template-areas:
+			"message"
+			"board"
+			"footer";
 	}
 
 	body:not(.game-started) :is(#hclues, #vclues),
-	body.game-started > #logo {
+	body.game-started #logo {
 		display: none;
-	}
-
-	body.game-started > #board-container {
-		width: 22.608rem;
-		height: 21.96rem;
-		margin-bottom: 0.4rem;
 	}
 
 	body.game-started #board {
 		margin-inline: auto;
-		transform: scale(1.2);
-		transform-origin: top center;
-	}
-
-	body:not(.game-started) > #board-container {
-		width: 26.376rem;
-		height: 25.62rem;
+		zoom: 1.2;
 	}
 
 	body:not(.game-started) #board {
 		margin-inline: auto;
-		transform: scale(1.4);
-		transform-origin: top center;
+		zoom: 1.4;
 	}
 
 	#board-container,
-	#controls,
 	#vclues {
 		justify-self: center;
 	}
 
 	#controls {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		width: 18rem;
+		display: contents;
 	}
 
-	body > #logo {
-		grid-area: logo;
+	#board-actions,
+	#proof-controls {
+		grid-area: controls;
 		align-self: start;
 		justify-self: center;
+	}
+
+	#application-footer {
+		grid-area: footer;
+		align-self: start;
+		justify-self: center;
+		gap: 0.5rem;
 		margin-top: 0.5rem;
 	}
 
-	body > .control-buttons {
-		grid-area: main-controls;
-		align-self: start;
-		justify-self: center;
-		margin-top: 0.3rem;
-	}
-
-	body > #controls #proof-controls {
-		margin-top: 0.4rem;
+	body #proof-controls {
+		margin-top: 0.2rem;
 	}
 
 	body #board-actions {
-		margin-top: 0.4rem;
+		margin-top: 0;
 	}
 
 	body.proof-active #board-actions {
@@ -213,28 +201,16 @@ body {
 
 /* Use the extra height on modern, edge-to-edge phones for a larger board. */
 @media (orientation: portrait) and (max-aspect-ratio: 1 / 2) {
-	body.game-started > #board-container {
-		width: 23.55rem;
-		height: 22.875rem;
-		margin-bottom: 0.4rem;
-	}
-
 	body.game-started #board {
 		margin-inline: auto;
-		transform: scale(1.25);
-		transform-origin: top center;
+		zoom: 1.25;
 	}
 }
 
 /* Keep the board the same size before and during play on tall phones. */
 @media (orientation: portrait) and (max-aspect-ratio: 10 / 21) {
-	body.game-started > #board-container {
-		width: 26.376rem;
-		height: 25.62rem;
-	}
-
 	body.game-started #board {
-		transform: scale(1.4);
+		zoom: 1.4;
 	}
 }
 
@@ -264,12 +240,12 @@ body {
 
 	body.game-started {
 		grid-template-rows:
-			1.15rem max-content max-content 15rem 5.8rem max-content 0;
+			1.15rem max-content max-content 15rem 5.8rem max-content;
 	}
 
 	body.game-started.proof-active {
 		grid-template-rows:
-			1.15rem max-content max-content 14.25rem 5.51rem max-content 0;
+			1.15rem max-content max-content 14.25rem 5.51rem max-content;
 	}
 
 	body.proof-active :is(#hclues, #vclues) {
@@ -278,13 +254,8 @@ body {
 		transform-origin: top center;
 	}
 
-	body.game-started > #board-container {
-		width: 26.376rem;
-		height: 25.62rem;
-	}
-
 	body.game-started #board {
-		transform: scale(1.4);
+		zoom: 1.4;
 	}
 
 	body #hclues {
@@ -313,7 +284,7 @@ body {
        (aspect-ratio < 3 / 5) {
 	body.game-started.proof-active {
 		grid-template-rows:
-			1.15rem max-content max-content 15.372rem 4.872rem max-content 0;
+			1.15rem max-content max-content 15.372rem 4.872rem max-content;
 	}
 
 	body.proof-active :is(#hclues, #vclues) {
@@ -336,8 +307,8 @@ body[data-custom-cursor="false"] {
 
 #board-container {
 	grid-area: board;
-	width: 18.84rem;
-	height: 18.3rem;
+	width: max-content;
+	height: max-content;
 }
 
 #board {
@@ -504,7 +475,7 @@ body[data-custom-cursor="false"] {
 	align-items: stretch;
 	width: 18rem;
 	height: 3.7rem;
-	margin: 1.8rem auto 0;
+	margin: 0 auto;
 }
 
 #proof-controls {
@@ -702,28 +673,28 @@ body.proof-active #logo {
 	white-space: nowrap;
 }
 
+#application-footer {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+}
+
 @media (orientation: landscape) {
 	body {
-		column-gap: 0.8rem;
+		column-gap: 1rem;
 	}
 
-	body > .control-buttons {
-		grid-area: controls;
-		align-self: start;
-		justify-self: center;
-		margin-top: 0.3rem;
+	#controls {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 0.3rem;
+		box-sizing: border-box;
+		padding-top: 0;
 	}
 
-	body:has(#board-actions:not([hidden])) > .control-buttons {
-		margin-top: 2.3rem;
-	}
-
-	body #board-actions {
-		margin-top: 0.4rem;
-	}
-
-	body > #logo {
-		margin-top: 2.2rem;
+	#application-footer {
+		gap: 0.4rem;
 	}
 }
 
@@ -765,7 +736,7 @@ body.proof-active #logo {
 	gap: 0.25rem;
 	box-sizing: border-box;
 	width: 18rem;
-	margin: 0 auto 0.2rem;
+	margin: 0 auto;
 }
 
 #board-actions[hidden] {
@@ -1642,13 +1613,10 @@ button.score-entry:focus-visible {
 }
 
 #logo {
-	grid-area: controls;
-	align-self: start;
-	justify-self: start;
 	border: 0;
 	background: none;
 	padding: 0;
-	margin-top: 1.8rem;
+	margin: 0;
 	width: 18rem;
 	color: #293638;
 	cursor: var(--action-cursor);
