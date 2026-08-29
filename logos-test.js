@@ -2232,6 +2232,7 @@ Deno.test("a loss can continue as a Zen game", function() {
 	       puzzle.timer.classList.contains("lost") &&
 	       puzzle.pendingProof && puzzle.pendingProof.continueGame &&
 	       slot.possibleElem.className != "solution" &&
+	       slot.possibilityElems[4].classList.contains("failed-action") &&
 	       JSON.stringify(puzzle.gameStats) ==
 		       JSON.stringify({ won: 0, lost: 1 }) &&
 	       localStorage.getItem("continueAfterLoss") == "true",
@@ -2242,8 +2243,14 @@ Deno.test("a loss can continue as a Zen game", function() {
 	assert(puzzle.proof && puzzle.proof.continueGame,
 	       "a continued loss did not open a continuable proof");
 	puzzle.explainLoss();
-	assert(!puzzle.proof && !puzzle.gameOver && !slot.single,
+	assert(!puzzle.proof && !puzzle.gameOver && !slot.single &&
+	       slot.possibilityElems[4].classList.contains("failed-action"),
 	       "closing the continued proof did not restore the board");
+	const other = puzzle.rows[0].slots[0];
+	other.discard((other.value + 1) % other.possible.length);
+	assert(!puzzle.pendingProof && !puzzle.practiceMistake &&
+	       !slot.possibilityElems[4].classList.contains("failed-action"),
+	       "another tile action did not clear the continued loss marker");
 	localStorage.removeItem("continueAfterLoss");
 	localStorage.removeItem("practiceMode");
 	localStorage.removeItem("gameStats");

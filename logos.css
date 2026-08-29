@@ -1993,6 +1993,7 @@ body:not(.proof-active) :is(#hclues, #vclues).solution
 }
 
 #board :is(.solution, .proof) .possibility.failed-action,
+#board .possibility.failed-action,
 #board .single.failed-action {
 	opacity: 1;
 	position: relative;
@@ -2000,6 +2001,7 @@ body:not(.proof-active) :is(#hclues, #vclues).solution
 }
 
 #board :is(.solution, .proof) .possibility.failed-action::after,
+#board .possibility.failed-action::after,
 #board .single.failed-action::after {
 	content: "";
 	position: absolute;
