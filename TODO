@@ -1,15 +1,5 @@
  - daily puzzle
  - shared leaderboard (would require actual server infrastructure)
- - more sounds
-   - changing tap controls feels like it should have a sound.
-     Conceptually it is the same "stone sliding" sound we use for
-     placement, but reusing that would probably be bad, as it
-     creates a wrong association.
-   - flipping pages in the proof uses the clue sound. I think this is
-     probably OK, as it is already a bit of a paper sound, but we could
-     have a unique sound here.
-   - chalk marks don't make a sound. This is probably OK (especially as
-     the discard sound is already literally chalk-on-asphalt).
  - logos with friends: collaborative puzzle
    - less awful lobby / invite infrastructure; this will require an
      actual server under our control, even if it is only doing the
