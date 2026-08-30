@@ -21,3 +21,7 @@
  - consider simplifying
    - are chalk marks worth the interface complexity
    - is drag tiles any good
+ - clues
+   - ability to rearrane / drag clues
+   - highlighting clues that refer to a symbol; the big question is UI.
+     Left-click on a clue could show clues with shared symbols?
