@@ -128,11 +128,6 @@
 						       <span>Custom cursor
 						             <small>Use a bronze stylus pointer.</small></span></label>
 						<label>
-						       <input id="preview-mouse-actions" type="checkbox"
-						              onChange="puzzle.setPreviewMouseActions(this.checked)">
-						       <span>Preview mouse actions
-						             <small>Wait for release before choosing or discarding.</small></span></label>
-						<label>
 						       <input id="show-milestones" type="checkbox" checked
 						              onChange="puzzle.setMilestones(this.checked)">
 						       <span>Milestone messages
@@ -157,6 +152,11 @@
 						              onChange="puzzle.setShowActionSelector(this.checked)">
 						       <span>Tap controls
 						             <small>Select tap action on touchscreens.</small></span></label>
+						<label>
+						       <input id="preview-mouse-actions" type="checkbox"
+						              onChange="puzzle.setPreviewMouseActions(this.checked)">
+						       <span>Preview mouse actions
+						             <small>Wait for button release before choosing or discarding.</small></span></label>
 						<label>
 						       <input id="auto-dismiss-clues" type="checkbox" checked
 						              onChange="puzzle.setAutoDismissClues(this.checked)">
