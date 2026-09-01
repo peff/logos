@@ -71,10 +71,16 @@ class FakeElement {
 
 globalThis.document = {
 	listeners: {},
+	modals: [],
+	hidden: false,
 	addEventListener(type, listener) { this.listeners[type] = listener; },
 	createElement() { return new FakeElement(); },
 	createTextNode(text) { return { textContent: text }; },
 	querySelector(selector) { return this.body.querySelector(selector); },
+	querySelectorAll(selector) {
+		return selector == ".modal:not([hidden])" ?
+			this.modals.filter(modal => !modal.hidden) : [];
+	},
 	body: new FakeElement(),
 };
 globalThis.document.body.dataset = {};
@@ -1766,6 +1772,58 @@ Deno.test("arrow keys navigate proof steps", function() {
 	       "a modified arrow key moved the proof");
 	puzzle.explainLoss();
 	puzzle.stopTimer();
+});
+
+Deno.test("Escape dismisses transient interfaces", function() {
+	const puzzle = makePuzzle(1);
+	const keydown = document.listeners.keydown;
+	let prevented = 0;
+	puzzle.slotTray.hidden = false;
+	keydown({
+		key: "Escape",
+		preventDefault() { prevented++; },
+	});
+	assert(puzzle.slotTray.hidden && prevented == 1,
+	       "Escape did not close the expanded tile tray");
+
+	const modal = new FakeElement();
+	modal.hidden = false;
+	const close = modal.querySelector(".modal-close");
+	close.click = function() { modal.hidden = true; };
+	document.modals = [modal];
+	keydown({
+		key: "Escape",
+		preventDefault() { prevented++; },
+	});
+	document.modals = [];
+	assert(modal.hidden && prevented == 2,
+	       "Escape did not use the visible modal's close action");
+});
+
+Deno.test("page visibility pauses and resumes active play", function() {
+	const puzzle = makePuzzle(1);
+	let stoppedSounds = 0;
+	puzzle.stopSampleSounds = function() { stoppedSounds++; };
+	puzzle.startTimer();
+	document.hidden = true;
+	document.listeners.visibilitychange();
+	assert(puzzle.pageHidden && puzzle.paused &&
+	       puzzle.timerTimeout === null && stoppedSounds == 1,
+	       "hiding the page did not pause active play");
+	document.hidden = false;
+	document.listeners.visibilitychange();
+	assert(!puzzle.pageHidden && !puzzle.paused &&
+	       puzzle.timerTimeout !== null,
+	       "showing the page did not resume active play");
+	puzzle.stopTimer();
+
+	puzzle.paused = true;
+	document.hidden = true;
+	document.listeners.visibilitychange();
+	document.hidden = false;
+	document.listeners.visibilitychange();
+	assert(puzzle.paused && puzzle.timerTimeout === null,
+	       "showing the page resumed play behind a modal");
 });
 
 Deno.test("7998093c gives a coherent clue set for discarding III", function() {

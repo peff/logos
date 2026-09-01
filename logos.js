@@ -230,6 +230,9 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.practiceMistake = null;
 	this.paused = false;
 	this.resumeAfterModal = false;
+	this.pageHidden = false;
+	this.resumeAfterPageHidden = false;
+	this.pausedBeforePageHidden = false;
 	this.nextMilestone = 0;
 	this.helpPage = 0;
 	this.helpPages = [
@@ -1342,6 +1345,44 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.toggleModal(this.about, this.logoButton, "Close");
 	}
 
+	this.dismissTransientUi = function() {
+		if (!this.slotTray.hidden) {
+			this.closeSlotTray();
+			return true;
+		}
+		var modals = document.querySelectorAll(".modal:not([hidden])");
+		if (!modals.length)
+			return false;
+		var close = modals[modals.length - 1].querySelector(".modal-close");
+		if (!close)
+			return false;
+		close.click();
+		return true;
+	}
+
+	this.setPageHidden = function(hidden) {
+		if (hidden == this.pageHidden)
+			return;
+		this.pageHidden = hidden;
+		if (hidden) {
+			this.resumeAfterPageHidden = !this.gameOver &&
+				this.timerTimeout !== null;
+			this.pausedBeforePageHidden = this.paused;
+			if (this.resumeAfterPageHidden)
+				this.stopTimer();
+			this.paused = true;
+			this.closeSlotTray();
+			this.stopSampleSounds();
+		} else {
+			this.paused = this.pausedBeforePageHidden;
+			if (this.resumeAfterPageHidden && !this.gameOver &&
+			    !this.paused && this.timerTimeout === null)
+				this.startTimer();
+			this.resumeAfterPageHidden = false;
+			this.pausedBeforePageHidden = false;
+		}
+	}
+
 	var puzzle = this;
 	this.options.addEventListener("click", function(ev) {
 		if (ev.target == puzzle.options)
@@ -1367,6 +1408,11 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		puzzle.updateFullscreenButton();
 	});
 	document.addEventListener("keydown", function(ev) {
+		if (ev.key == "Escape" && !ev.altKey && !ev.ctrlKey &&
+		    !ev.metaKey && !ev.shiftKey && puzzle.dismissTransientUi()) {
+			ev.preventDefault();
+			return;
+		}
 		if (!puzzle.proof || puzzle.paused || ev.altKey || ev.ctrlKey ||
 		    ev.metaKey || ev.shiftKey)
 			return;
@@ -1379,6 +1425,9 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			return;
 		ev.preventDefault();
 		puzzle.moveProof(direction);
+	});
+	document.addEventListener("visibilitychange", function() {
+		puzzle.setPageHidden(document.hidden);
 	});
 	if (typeof window != "undefined")
 		window.addEventListener("resize", function() {
