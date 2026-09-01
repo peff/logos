@@ -159,6 +159,9 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.logoButton = logoButton;
 	this.slotTray = document.querySelector("#slot-tray");
 	this.slotTrayOptions = document.querySelector("#slot-tray-options");
+	this.slotTrayAction = document.querySelector("#slot-tray-action");
+	this.slotTrayActionSample = this.slotTrayAction.querySelector(
+		".slot-tray-action-sample");
 	this.slotTrayOptions.replaceChildren();
 	this.slotTrayTiles = [];
 	for (var i = 0; i < symbols[0].length; i++) {
@@ -931,6 +934,16 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		var slot = this.expandedSlot;
 		if (!slot)
 			return;
+		var action = this.getTileAction();
+		this.slotTrayAction.className = "slot-tray-action-" + action +
+			" " + slot.row.familyClass;
+		this.slotTrayActionSample.className = "slot-tray-action-sample";
+		if (action == "pencil-select")
+			this.slotTrayActionSample.className +=
+				" pencil-selected pencil-explicit";
+		else if (action == "pencil-remove")
+			this.slotTrayActionSample.className +=
+				" pencil-removed pencil-explicit";
 		this.slotTray.querySelector(".slot-tray-panel").classList.remove(
 			"pencil-conflict");
 		if (slot.row.elem.classList.contains("pencil-conflict"))
@@ -954,7 +967,16 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 				if (boardClasses[i].indexOf("pencil-") == 0)
 					tile.className += " " + boardClasses[i];
 			tile.textContent = slot.symbols[value];
-			tile.setAttribute("aria-label", slot.symbols[value]);
+			var label;
+			if (action == "place")
+				label = "Choose ";
+			else if (action == "remove")
+				label = "Discard ";
+			else if (action == "pencil-select")
+				label = "Mark as chosen: ";
+			else
+				label = "Mark as discarded: ";
+			tile.setAttribute("aria-label", label + slot.symbols[value]);
 		}
 		this.positionSlotTray();
 	}

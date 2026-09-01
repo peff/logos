@@ -872,7 +872,39 @@ body.proof-active #logo {
 
 .slot-tray-body {
 	display: flex;
+	flex-direction: column;
+	align-items: center;
 	justify-content: center;
+}
+
+#slot-tray-action {
+	width: 30px;
+	height: 30px;
+	margin: -3px 0 3px;
+}
+
+.slot-tray-action-sample {
+	display: block;
+	box-sizing: border-box;
+	width: 30px;
+	height: 30px;
+	border: 2px solid var(--tile-accent);
+	border-radius: 3px;
+	background-color: var(--tile-bg);
+	box-shadow:
+		inset 0 0 0.18rem rgb(0 0 0 / 32%),
+		inset 0 0.05rem 0.12rem rgb(255 255 255 / 7%);
+}
+
+.slot-tray-action-place .slot-tray-action-sample {
+	filter: brightness(1.3);
+	transform: scale(1.12);
+}
+
+.slot-tray-action-remove .slot-tray-action-sample {
+	filter: grayscale(0.55) brightness(0.72);
+	opacity: 0.42;
+	transform: scale(0.84);
 }
 
 #slot-tray-options {
@@ -1916,7 +1948,8 @@ body:not(.proof-active) :is(#hclues, #vclues).solution
 #vclues .tile,
 .proof-tile,
 .help-tile,
-.slot-tray-symbol {
+.slot-tray-symbol,
+.slot-tray-action-sample {
 	background-image:
 		radial-gradient(ellipse at 14% 18%,
 			rgb(255 255 255 / 4%), transparent 42%),

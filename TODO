@@ -26,8 +26,3 @@
    - ability to rearrane / drag clues
    - highlighting clues that refer to a symbol; the big question is UI.
      Left-click on a clue could show clues with shared symbols?
- - expand-tiles should visually show whether you're in choose/discard
-   mode, especially since it often covers up the slider. This could be
-   done with a visual indicator on the tiles (perhaps similar to
-   release-to-act mode, or maybe using the chalk metaphor, but that may
-   be confused with actual chalk marks).
