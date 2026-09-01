@@ -3741,7 +3741,10 @@ function Slot(row, symbols, display) {
 		for (var j = lo; j < hi; j++) {
 			var cell = this.possibilityElems[j] =
 				possibleRow.insertCell();
-			cell.innerHTML = this.symbols[j];
+			var symbol = document.createElement("span");
+			symbol.className = "possibility-symbol";
+			symbol.textContent = this.symbols[j];
+			cell.appendChild(symbol);
 			cell.className = "possibility";
 			cell.addEventListener('pointerdown',
 				function(s, j) { return function(ev) {
