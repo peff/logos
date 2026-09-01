@@ -38,9 +38,16 @@ body {
 	justify-content: center;
 	column-gap: 0.5rem;
 	row-gap: 0.3rem;
-	margin: 0.5rem;
-	width: calc(100% - 1rem);
-	height: calc(100% - 1rem);
+	box-sizing: border-box;
+	margin: 0;
+	padding: 0.5rem;
+	padding:
+		calc(0.5rem + env(safe-area-inset-top, 0px))
+		calc(0.5rem + env(safe-area-inset-right, 0px))
+		calc(0.5rem + env(safe-area-inset-bottom, 0px))
+		calc(0.5rem + env(safe-area-inset-left, 0px));
+	width: 100%;
+	height: 100%;
 	overflow: hidden;
 	font-family: sans-serif;
 	font-size: 1rem;
@@ -52,7 +59,7 @@ body {
  * The landscape layout puts the clues beside the board. In portrait there is
  * enough area for the same pieces, but not in the same arrangement. Stack
  * them without changing their rem dimensions, and scale the whole layout to
- * fit the viewport. The constants include the body's margins and row gaps.
+ * fit the viewport. The constants include the body's padding and row gaps.
  */
 @media (orientation: portrait) {
 	html {
@@ -154,11 +161,6 @@ body {
 	body #message {
 		container-type: inline-size;
 		overflow: hidden;
-	}
-
-	:fullscreen body #message {
-		justify-self: center;
-		width: calc(100% - 2.5rem);
 	}
 
 	body #status {
