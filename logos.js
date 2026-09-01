@@ -167,8 +167,45 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	for (var i = 0; i < symbols[0].length; i++) {
 		var tile = document.createElement("button");
 		tile.type = "button";
+		tile.addEventListener("pointerdown", function(puzzle, value) {
+			return function(ev) {
+				if ((ev.button !== undefined && ev.button != 0) ||
+				    puzzle.slotTrayDrag ||
+				    puzzle.slotTrayOpeningPointer !== null)
+					return;
+				if (!puzzle.expandedSlot ||
+				    !puzzle.expandedSlot.possible[value]) {
+					ev.preventDefault();
+					return;
+				}
+				puzzle.slotTrayPressPointer = ev.pointerId;
+				puzzle.suppressSlotTrayClick = ev.currentTarget;
+				if (ev.currentTarget.setPointerCapture)
+					ev.currentTarget.setPointerCapture(ev.pointerId);
+				puzzle.applySlotTrayAction(value);
+			};
+		}(this, i));
+		tile.addEventListener("pointerup", function(puzzle) {
+			return function(ev) {
+				puzzle.finishSlotTrayPress(ev);
+			};
+		}(this));
+		tile.addEventListener("pointercancel", function(puzzle) {
+			return function(ev) {
+				puzzle.finishSlotTrayPress(ev);
+			};
+		}(this));
 		tile.addEventListener("click", function(puzzle, value) {
-			return function() {
+			return function(ev) {
+				if (puzzle.slotTrayOpeningPointer !== null) {
+					puzzle.slotTrayOpeningPointer = null;
+					return;
+				}
+				if (puzzle.suppressSlotTrayClick &&
+				    puzzle.suppressSlotTrayClick == ev.currentTarget) {
+					puzzle.suppressSlotTrayClick = null;
+					return;
+				}
 				puzzle.applySlotTrayAction(value);
 			};
 		}(this, i));
@@ -185,6 +222,10 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.dragTileChoices = false;
 	this.showActionSelector = this.coarsePointer;
 	this.slotTrayDrag = null;
+	this.suppressSlotTrayClick = null;
+	this.slotTrayOpeningPointer = null;
+	this.slotTrayPressPointer = null;
+	this.slotTrayShieldTimeout = null;
 	this.ignoreSlotClick = false;
 	this.timerTimeout = null;
 	this.timerStarted = null;
@@ -674,9 +715,27 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		if (this.expandedSlot)
 			this.expandedSlot.elem.classList.remove("expanded");
 		this.expandedSlot = null;
-		this.slotTray.hidden = true;
+		if (this.slotTrayPressPointer === null)
+			this.slotTray.hidden = true;
 		this.slotTray.querySelector(".slot-tray-panel").classList.remove(
 			"opening");
+	}
+
+	this.finishSlotTrayPress = function(ev) {
+		if (this.slotTrayPressPointer !== ev.pointerId)
+			return;
+		var puzzle = this;
+		clearTimeout(this.slotTrayShieldTimeout);
+		this.slotTrayShieldTimeout = setTimeout(function() {
+			puzzle.releaseSlotTrayShield();
+		}, 250);
+	}
+
+	this.releaseSlotTrayShield = function() {
+		clearTimeout(this.slotTrayShieldTimeout);
+		this.slotTrayShieldTimeout = null;
+		this.slotTrayPressPointer = null;
+		this.slotTray.hidden = true;
 	}
 
 	this.positionSlotTray = function() {
@@ -757,7 +816,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 
 	this.applySlotTrayAction = function(value) {
 		var slot = this.expandedSlot;
-		if (!slot)
+		if (!slot || !slot.possible[value])
 			return;
 		var action = this.getTileAction();
 		this.closeSlotTray();
@@ -778,7 +837,18 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.beginTileActionPreview = function(cell, ev, slot, value) {
-		if (this.coarsePointer || (this.expandTileChoices && ev.button == 0) ||
+		if (this.coarsePointer) {
+			this.clearTileActionPreview();
+			if (!this.expandTileChoices && ev.button == 0) {
+				this.pendingTileAction = {
+					cell: cell,
+					action: this.tileActionForPointer(ev, false),
+					button: ev.button,
+				};
+			}
+			return;
+		}
+		if ((this.expandTileChoices && ev.button == 0) ||
 		    (ev.button != 0 && ev.button != 2))
 			return;
 		this.suppressTileClick = null;
@@ -838,7 +908,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.beginSlotTrayDrag = function(slot, ev) {
-		if (!this.expandTileChoices || !this.dragTileChoices ||
+		if (!this.expandTileChoices ||
 		    (ev.button !== undefined && ev.button != 0))
 			return;
 		ev.preventDefault();
@@ -846,14 +916,29 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		if (this.expandedSlot != slot)
 			return;
 		this.ignoreSlotClick = true;
+		if (ev.currentTarget.setPointerCapture)
+			ev.currentTarget.setPointerCapture(ev.pointerId);
+		if (!this.dragTileChoices) {
+			this.slotTrayOpeningPointer = ev.pointerId;
+			return;
+		}
 		this.slotTrayDrag = {
 			pointerId: ev.pointerId,
 			startX: ev.clientX,
 			startY: ev.clientY,
 			target: null,
 		};
-		if (ev.currentTarget.setPointerCapture)
-			ev.currentTarget.setPointerCapture(ev.pointerId);
+	}
+
+	this.finishSlotTrayOpening = function(ev) {
+		if (this.slotTrayOpeningPointer !== ev.pointerId)
+			return;
+		var puzzle = this;
+		var pointerId = ev.pointerId;
+		setTimeout(function() {
+			if (puzzle.slotTrayOpeningPointer === pointerId)
+				puzzle.slotTrayOpeningPointer = null;
+		}, 0);
 	}
 
 	this.updateSlotTrayDrag = function(ev) {
@@ -1401,6 +1486,11 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			puzzle.toggleAbout();
 	});
 	this.slotTray.addEventListener("click", function(ev) {
+		if (puzzle.slotTrayPressPointer !== null) {
+			ev.preventDefault();
+			ev.stopPropagation();
+			return;
+		}
 		if (ev.target == puzzle.slotTray)
 			puzzle.closeSlotTray();
 	});
@@ -3761,11 +3851,13 @@ function Slot(row, symbols, display) {
 					s.row.puzzle.finishTileActionPreview(
 						ev.currentTarget, ev, s, j);
 					s.row.puzzle.endSlotTrayDrag(ev, false);
+					s.row.puzzle.finishSlotTrayOpening(ev);
 				}}(this, j));
 			cell.addEventListener('pointercancel',
 				function(s) { return function(ev) {
 					s.row.puzzle.clearTileActionPreview();
 					s.row.puzzle.endSlotTrayDrag(ev, true);
+					s.row.puzzle.finishSlotTrayOpening(ev);
 				}}(this));
 			cell.addEventListener('pointerleave',
 				function(s) { return function() {
@@ -3777,6 +3869,8 @@ function Slot(row, symbols, display) {
 				}}(this));
 			cell.addEventListener('click',
 				function(s, j) { return function(ev) {
+					if (s.row.puzzle.slotTrayOpeningPointer !== null)
+						s.row.puzzle.slotTrayOpeningPointer = null;
 					if (s.row.puzzle.suppressTileClick &&
 					    s.row.puzzle.suppressTileClick ==
 					    ev.currentTarget) {

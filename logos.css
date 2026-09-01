@@ -19,6 +19,8 @@ html {
 	height: 100%;
 	font-size: min(2.08vw, 3.45vh);
 	background-color: #ece8dd;
+	touch-action: manipulation;
+	-webkit-tap-highlight-color: transparent;
 }
 
 body {

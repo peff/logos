@@ -500,6 +500,14 @@ Deno.test("pointer presses preview their eventual tile action", function() {
 	press({ button: 0 });
 	assert(!cell.classList.contains("action-preview"),
 	       "a coarse pointer received a mouse action preview");
+	assert(actions.join() == "place,remove",
+	       "a coarse pointer action committed before release");
+	cell.listeners.pointerup({ button: 0, currentTarget: cell });
+	assert(actions.join() == "place,remove,place",
+	       "a coarse pointer action waited for the click event");
+	cell.listeners.click({ currentTarget: cell });
+	assert(actions.join() == "place,remove,place",
+	       "the click event repeated a coarse pointer action");
 	localStorage.removeItem("previewMouseActions");
 	puzzle.stopTimer();
 });
@@ -519,9 +527,24 @@ Deno.test("coarse pointers use an expanded slot tray", function() {
 	globalThis.innerWidth = 800;
 	globalThis.innerHeight = 400;
 
-	slot.possibilityElems[0].listeners.click({ ctrlKey: false });
+	const source = slot.possibilityElems[0];
+	let capturedPointer;
+	source.setPointerCapture = function(pointerId) {
+		capturedPointer = pointerId;
+	};
+	source.listeners.pointerdown({
+		button: 0,
+		pointerId: 7,
+		currentTarget: source,
+		preventDefault() {},
+	});
+	assert(puzzle.expandedSlot == slot && !puzzle.slotTray.hidden,
+	       "a tile press did not open the expanded slot tray");
+	assert(capturedPointer == 7,
+	       "the opening press was not captured by its source tile");
+	source.listeners.click({ ctrlKey: false, currentTarget: source });
 	assert(!slot.single && puzzle.expandedSlot == slot,
-	       "first tap made a move instead of expanding the slot");
+	       "the click after expansion made a move or closed the tray");
 	assert(!puzzle.slotTray.hidden &&
 	       puzzle.slotTrayOptions.children.length == symbols.length,
 	       "expanded tray did not show all possibilities");
@@ -542,15 +565,47 @@ Deno.test("coarse pointers use an expanded slot tray", function() {
 
 	selectTileAction(puzzle, "remove");
 	let tile = puzzle.slotTrayOptions.children[wrong];
-	tile.listeners.click({});
+	tile.listeners.pointerdown({
+		button: 0,
+		pointerId: 8,
+		currentTarget: tile,
+	});
 	assert(!slot.possible[wrong], "tray removal did not commit");
-	assert(puzzle.expandedSlot === null && puzzle.slotTray.hidden,
-	       "tray removal did not close the slot");
+	assert(puzzle.expandedSlot === null && !puzzle.slotTray.hidden,
+	       "tray removal did not retain its input shield");
+	tile.listeners.pointerup({ pointerId: 8 });
+	assert(!puzzle.slotTray.hidden,
+	       "tray removal released its input shield before the click");
+	tile.listeners.click({ currentTarget: tile });
+	puzzle.slotTray.listeners.click({
+		target: tile,
+		preventDefault() {},
+		stopPropagation() {},
+	});
+	assert(!puzzle.slotTray.hidden,
+	       "tray removal released its input shield during the click");
+	assert(puzzle.losses == 0,
+	       "the click after a tray press repeated its action");
+	puzzle.releaseSlotTrayShield();
 
 	puzzle.openSlotTray(slot);
 	assert(puzzle.slotTrayOptions.children.every(function(tile, i) {
 		return tile === trayTiles[i];
 	}), "expanded tray did not reuse its tiles");
+	let appliedEliminatedTile = false;
+	const applySlotTrayAction = puzzle.applySlotTrayAction;
+	puzzle.applySlotTrayAction = function() {
+		appliedEliminatedTile = true;
+	};
+	puzzle.slotTrayOptions.children[wrong].listeners.pointerdown({
+		button: 0,
+		pointerId: 9,
+		currentTarget: puzzle.slotTrayOptions.children[wrong],
+		preventDefault() {},
+	});
+	puzzle.applySlotTrayAction = applySlotTrayAction;
+	assert(!appliedEliminatedTile && puzzle.expandedSlot == slot,
+	       "pressing an eliminated tray tile applied an action");
 	assert(puzzle.slotTrayOptions.children.every(function(tile, i) {
 		return !slot.possible[i] ||
 		       tile.attributes["aria-label"] == "Discard " + symbols[i];
