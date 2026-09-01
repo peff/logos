@@ -529,7 +529,7 @@ Deno.test("coarse pointers use an expanded slot tray", function() {
 
 	const source = slot.possibilityElems[0];
 	let capturedPointer;
-	source.setPointerCapture = function(pointerId) {
+	slot.elem.setPointerCapture = function(pointerId) {
 		capturedPointer = pointerId;
 	};
 	source.listeners.pointerdown({
@@ -538,10 +538,16 @@ Deno.test("coarse pointers use an expanded slot tray", function() {
 		currentTarget: source,
 		preventDefault() {},
 	});
+	slot.elem.listeners.pointerdown({
+		button: 0,
+		pointerId: 7,
+		currentTarget: slot.elem,
+		preventDefault() {},
+	});
 	assert(puzzle.expandedSlot == slot && !puzzle.slotTray.hidden,
 	       "a tile press did not open the expanded slot tray");
 	assert(capturedPointer == 7,
-	       "the opening press was not captured by its source tile");
+	       "the opening press was not captured by its slot");
 	source.listeners.click({ ctrlKey: false, currentTarget: source });
 	assert(!slot.single && puzzle.expandedSlot == slot,
 	       "the click after expansion made a move or closed the tray");
@@ -562,6 +568,17 @@ Deno.test("coarse pointers use an expanded slot tray", function() {
 	       panel.style["--tray-start-scale-x"] == String(30 / 260),
 	       "expanded tray did not animate from its source slot");
 	const trayTiles = puzzle.slotTrayOptions.children.slice();
+	puzzle.closeSlotTray();
+	slot.elem.listeners.pointerdown({
+		button: 0,
+		pointerId: 10,
+		currentTarget: slot.elem,
+		preventDefault() {},
+	});
+	assert(puzzle.expandedSlot == slot && !puzzle.slotTray.hidden,
+	       "pressing the space in a slot did not open its tray");
+	puzzle.slotTrayOpeningPointer = null;
+	puzzle.ignoreSlotClick = false;
 
 	selectTileAction(puzzle, "remove");
 	let tile = puzzle.slotTrayOptions.children[wrong];
@@ -718,9 +735,17 @@ Deno.test("expanded tiles support press-drag-release actions", function() {
 		currentTarget: cell,
 		preventDefault() { prevented = true; },
 	});
+	slot.elem.listeners.pointerdown({
+		button: 0,
+		pointerId: 1,
+		clientX: 100,
+		clientY: 100,
+		currentTarget: slot.elem,
+		preventDefault() { prevented = true; },
+	});
 	const target = puzzle.slotTrayOptions.children[wrong];
 	globalThis.document.elementFromPoint = function() { return target; };
-	cell.listeners.pointermove({
+	slot.elem.listeners.pointermove({
 		pointerId: 1,
 		clientX: 120,
 		clientY: 120,
@@ -728,7 +753,7 @@ Deno.test("expanded tiles support press-drag-release actions", function() {
 	});
 	assert(prevented && target.classList.contains("drag-target"),
 	       "drag did not open the tray and highlight its target");
-	cell.listeners.pointerup({
+	slot.elem.listeners.pointerup({
 		pointerId: 1,
 		clientX: 120,
 		clientY: 120,

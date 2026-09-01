@@ -3619,6 +3619,40 @@ function Slot(row, symbols, display) {
 	this.symbols = symbols;
 	this.elem = display;
 	this.elem.className = "slot " + row.familyClass;
+	this.elem.addEventListener("pointerdown", function(slot) {
+		return function(ev) {
+			slot.row.puzzle.beginSlotTrayDrag(slot, ev);
+		};
+	}(this));
+	this.elem.addEventListener("pointermove", function(slot) {
+		return function(ev) {
+			slot.row.puzzle.updateSlotTrayDrag(ev);
+		};
+	}(this));
+	this.elem.addEventListener("pointerup", function(slot) {
+		return function(ev) {
+			slot.row.puzzle.endSlotTrayDrag(ev, false);
+			slot.row.puzzle.finishSlotTrayOpening(ev);
+		};
+	}(this));
+	this.elem.addEventListener("pointercancel", function(slot) {
+		return function(ev) {
+			slot.row.puzzle.endSlotTrayDrag(ev, true);
+			slot.row.puzzle.finishSlotTrayOpening(ev);
+		};
+	}(this));
+	this.elem.addEventListener("click", function(slot) {
+		return function(ev) {
+			var puzzle = slot.row.puzzle;
+			if (!puzzle.expandTileChoices ||
+			    (puzzle.slotTrayOpeningPointer === null &&
+			     !puzzle.ignoreSlotClick))
+				return;
+			puzzle.slotTrayOpeningPointer = null;
+			puzzle.ignoreSlotClick = false;
+			ev.preventDefault();
+		};
+	}(this));
 
 	this.say = function(msg) { this.row.puzzle.say(msg) };
 
@@ -3844,24 +3878,15 @@ function Slot(row, symbols, display) {
 				function(s, j) { return function(ev) {
 					s.row.puzzle.beginTileActionPreview(
 						ev.currentTarget, ev, s, j);
-					s.row.puzzle.beginSlotTrayDrag(s, ev);
 				}}(this, j));
-			cell.addEventListener('pointermove',
-				function(s) { return function(ev) {
-					s.row.puzzle.updateSlotTrayDrag(ev);
-				}}(this));
 			cell.addEventListener('pointerup',
 				function(s, j) { return function(ev) {
 					s.row.puzzle.finishTileActionPreview(
 						ev.currentTarget, ev, s, j);
-					s.row.puzzle.endSlotTrayDrag(ev, false);
-					s.row.puzzle.finishSlotTrayOpening(ev);
 				}}(this, j));
 			cell.addEventListener('pointercancel',
 				function(s) { return function(ev) {
 					s.row.puzzle.clearTileActionPreview();
-					s.row.puzzle.endSlotTrayDrag(ev, true);
-					s.row.puzzle.finishSlotTrayOpening(ev);
 				}}(this));
 			cell.addEventListener('pointerleave',
 				function(s) { return function() {
