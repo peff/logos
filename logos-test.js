@@ -573,6 +573,8 @@ Deno.test("coarse pointers use an expanded slot tray", function() {
 	assert(!slot.possible[wrong], "tray removal did not commit");
 	assert(puzzle.expandedSlot === null && !puzzle.slotTray.hidden,
 	       "tray removal did not retain its input shield");
+	assert(puzzle.slotTray.classList.contains("shielding"),
+	       "tray removal did not hide the visible tray immediately");
 	tile.listeners.pointerup({ pointerId: 8 });
 	assert(!puzzle.slotTray.hidden,
 	       "tray removal released its input shield before the click");
@@ -587,6 +589,8 @@ Deno.test("coarse pointers use an expanded slot tray", function() {
 	assert(puzzle.losses == 0,
 	       "the click after a tray press repeated its action");
 	puzzle.releaseSlotTrayShield();
+	assert(!puzzle.slotTray.classList.contains("shielding"),
+	       "releasing the tray shield retained its visual state");
 
 	puzzle.openSlotTray(slot);
 	assert(puzzle.slotTrayOptions.children.every(function(tile, i) {

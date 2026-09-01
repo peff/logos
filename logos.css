@@ -1002,6 +1002,15 @@ body.proof-active #logo {
 	animation: slot-tray-backdrop-in 160ms ease-out both;
 }
 
+#slot-tray.shielding {
+	animation: none;
+	background-color: transparent;
+}
+
+#slot-tray.shielding .slot-tray-panel {
+	opacity: 0;
+}
+
 .slot-tray-panel.opening {
 	transform-origin: top left;
 	animation: slot-tray-open 240ms cubic-bezier(0.2, 0.85, 0.25, 1.12)

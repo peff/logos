@@ -707,6 +707,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.expandedSlot = slot;
 		this.animateSlotTray = true;
 		slot.elem.classList.add("expanded");
+		this.slotTray.classList.remove("shielding");
 		this.slotTray.hidden = false;
 		this.renderSlotTray();
 	}
@@ -717,6 +718,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.expandedSlot = null;
 		if (this.slotTrayPressPointer === null)
 			this.slotTray.hidden = true;
+		else
+			this.slotTray.classList.add("shielding");
 		this.slotTray.querySelector(".slot-tray-panel").classList.remove(
 			"opening");
 	}
@@ -735,6 +738,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		clearTimeout(this.slotTrayShieldTimeout);
 		this.slotTrayShieldTimeout = null;
 		this.slotTrayPressPointer = null;
+		this.slotTray.classList.remove("shielding");
 		this.slotTray.hidden = true;
 	}
 
