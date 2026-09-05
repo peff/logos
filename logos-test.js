@@ -438,6 +438,32 @@ Deno.test("control-tap falls back to the context-menu event", function() {
 	puzzle.stopTimer();
 });
 
+Deno.test("Tap controls apply the mark selector to right-click", function() {
+	const puzzle = makePuzzle(1);
+	const slot = puzzle.rows[0].slots[0];
+	const wrong = (slot.value + 1) % symbols.length;
+	const cell = slot.possibilityElems[wrong];
+	function rightClick() {
+		cell.listeners.contextmenu({
+			currentTarget: cell,
+			preventDefault() {},
+		});
+	}
+
+	puzzle.showActionSelector = true;
+	selectTileAction(puzzle, "pencil-select");
+	rightClick();
+	assert(puzzle.pencilMarks.length == 1 &&
+	       puzzle.pencilMarks[0].discard && slot.possible[wrong],
+	       "right-click did not use chalk discard");
+
+	selectTileAction(puzzle, "place");
+	rightClick();
+	assert(!slot.possible[wrong],
+	       "right-click did not use declared discard");
+	puzzle.stopTimer();
+});
+
 Deno.test("pointer presses preview their eventual tile action", function() {
 	const puzzle = makePuzzle(1);
 	const slot = puzzle.rows[0].slots[0];

@@ -766,7 +766,9 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 
 	this.tileActionForPointer = function(ev, contextMenu) {
 		if (contextMenu) {
-			if (ev.altKey || ev.shiftKey)
+			if (ev.altKey || ev.shiftKey ||
+			    (this.showActionSelector &&
+			     this.getTileAction().indexOf("pencil-") == 0))
 				return "pencil-remove";
 			return "remove";
 		}
