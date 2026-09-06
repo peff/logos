@@ -905,6 +905,52 @@ Deno.test("shift-press highlights clues with shared symbols", async function() {
 	await new Promise(resolve => setTimeout(resolve, 0));
 });
 
+Deno.test("pressing a filled slot highlights its clues", function() {
+	const puzzle = makePuzzle(3);
+	const slot = puzzle.rows[0].slots[0];
+	function column(top, bottom, column) {
+		const clue = new ColumnClue(puzzle);
+		clue.tRow = puzzle.rows[top];
+		clue.bRow = puzzle.rows[bottom];
+		clue.col = column;
+		clue.display = new FakeElement();
+		clue.active = true;
+		return clue;
+	}
+	const related = column(0, 1, 0);
+	const unrelated = column(1, 2, 1);
+	puzzle.clues = [related, unrelated];
+	for (const clue of puzzle.clues)
+		clue.render();
+	slot.displaySingle();
+
+	slot.elem.listeners.pointerdown({ button: 0 });
+	assert(slot.singleElem.classList.contains("clue-highlight-source") &&
+	       related.display.classList.contains("clue-highlight-related") &&
+	       unrelated.display.classList.contains("clue-highlight-muted"),
+	       "filled slot did not highlight its related clues");
+	slot.elem.listeners.pointerup({});
+	assert(!slot.singleElem.classList.contains("clue-highlight-source") &&
+	       !related.display.classList.contains("clue-highlight-related") &&
+	       !unrelated.display.classList.contains("clue-highlight-muted"),
+	       "filled-slot highlights survived pointer release");
+
+	slot.displayPossible();
+	slot.elem.listeners.pointerdown({ button: 0 });
+	assert(!related.display.classList.contains("clue-highlight-related"),
+	       "an unresolved slot highlighted clues");
+
+	const event = {
+		button: 0,
+		currentTarget: slot.possibilityElems[slot.value],
+	};
+	slot.possibilityElems[slot.value].listeners.pointerdown(event);
+	assert(slot.single, "the possibility press did not fill its slot");
+	slot.elem.listeners.pointerdown(event);
+	assert(!related.display.classList.contains("clue-highlight-related"),
+	       "a newly filled slot flashed its clue highlights");
+});
+
 Deno.test("placing every symbol in a clue dismisses it", function() {
 	const puzzle = makePuzzle(2);
 	const top = puzzle.rows[0].slots[0];

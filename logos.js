@@ -3535,6 +3535,15 @@ function Slot(row, symbols, display) {
 	this.elem.className = "slot " + row.familyClass;
 	this.elem.addEventListener("pointerdown", function(slot) {
 		return function(ev) {
+			if (slot.single && !ev.startedOnPossibility &&
+			    (ev.button === undefined || ev.button == 0) &&
+			    !slot.row.puzzle.proof) {
+				highlightCluesForSlots(slot.row.puzzle, [slot]);
+				slot.singleElem.classList.add(
+					"clue-highlight-source");
+				if (slot.elem.setPointerCapture)
+					slot.elem.setPointerCapture(ev.pointerId);
+			}
 			slot.row.puzzle.beginSlotTrayDrag(slot, ev);
 		};
 	}(this));
@@ -3545,11 +3554,15 @@ function Slot(row, symbols, display) {
 	}(this));
 	this.elem.addEventListener("pointerup", function(slot) {
 		return function(ev) {
+			clearClueHighlights(slot.row.puzzle);
+			slot.singleElem.classList.remove("clue-highlight-source");
 			slot.row.puzzle.endSlotTrayDrag(ev, false);
 		};
 	}(this));
 	this.elem.addEventListener("pointercancel", function(slot) {
 		return function(ev) {
+			clearClueHighlights(slot.row.puzzle);
+			slot.singleElem.classList.remove("clue-highlight-source");
 			slot.row.puzzle.endSlotTrayDrag(ev, true);
 		};
 	}(this));
@@ -3627,7 +3640,7 @@ function Slot(row, symbols, display) {
 
 	this.displayPossible = function() {
 		this.singleElem.classList.remove("placing", "failed-action",
-			"proof-change");
+			"proof-change", "clue-highlight-source");
 		this.possibleElem.className = "";
 		for (var i = 0; i < this.possibilityElems.length; i++)
 			this.possibilityElems[i].className = "possibility";
@@ -3788,6 +3801,7 @@ function Slot(row, symbols, display) {
 			cell.className = "possibility";
 			cell.addEventListener('pointerdown',
 				function(s, j) { return function(ev) {
+					ev.startedOnPossibility = true;
 					s.row.puzzle.beginTileActionPreview(
 						ev.currentTarget, ev, s, j);
 				}}(this, j));
@@ -3853,15 +3867,7 @@ function checkClueDisplay(clue) {
 		clue.display.classList.add("clue-hidden");
 }
 
-function cluesShareSymbol(a, b) {
-	var aSlots = clueSlots(a);
-	var bSlots = clueSlots(b);
-	return aSlots.some(function(aSlot) {
-		return bSlots.indexOf(aSlot) >= 0;
-	});
-}
-
-function highlightRelatedClues(puzzle, selected) {
+function highlightCluesForSlots(puzzle, slots, selected) {
 	for (var i = 0; i < puzzle.clues.length; i++) {
 		var clue = puzzle.clues[i];
 		if (!clue.display)
@@ -3870,11 +3876,17 @@ function highlightRelatedClues(puzzle, selected) {
 			"clue-highlight-related", "clue-highlight-muted");
 		if (clue == selected)
 			clue.display.classList.add("clue-highlight-source");
-		else if (cluesShareSymbol(selected, clue))
+		else if (clueSlots(clue).some(function(slot) {
+			return slots.indexOf(slot) >= 0;
+		}))
 			clue.display.classList.add("clue-highlight-related");
 		else
 			clue.display.classList.add("clue-highlight-muted");
 	}
+}
+
+function highlightRelatedClues(puzzle, selected) {
+	highlightCluesForSlots(puzzle, clueSlots(selected), selected);
 }
 
 function clearClueHighlights(puzzle) {

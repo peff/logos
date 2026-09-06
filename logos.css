@@ -1847,6 +1847,12 @@ body:not(.proof-active) .clue.clue-highlight-source {
 		0 0 0.35rem rgb(163 107 37 / 70%);
 }
 
+body:not(.proof-active) .board .single.clue-highlight-source {
+	box-shadow:
+		0 0 0 2px #a36b25,
+		0 0 0.4rem rgb(163 107 37 / 75%);
+}
+
 body.proof-active :is(#hclues, #vclues) .clue {
 	opacity: 0.45;
 }
