@@ -861,6 +861,50 @@ Deno.test("left clicks toggle clue dismissal", function() {
 	       "second left click did not restore the clue");
 });
 
+Deno.test("shift-press highlights clues with shared symbols", async function() {
+	const puzzle = makePuzzle(3);
+	function column(top, bottom, column) {
+		const clue = new ColumnClue(puzzle);
+		clue.tRow = puzzle.rows[top];
+		clue.bRow = puzzle.rows[bottom];
+		clue.col = column;
+		clue.display = new FakeElement();
+		clue.active = true;
+		return clue;
+	}
+	const selected = column(0, 1, 0);
+	const related = column(0, 2, 0);
+	const unrelated = column(1, 2, 1);
+	puzzle.clues = [selected, related, unrelated];
+	for (const clue of puzzle.clues)
+		clue.render();
+
+	let prevented = false;
+	selected.display.onpointerdown({
+		button: 0,
+		shiftKey: true,
+		preventDefault() { prevented = true; },
+	});
+	assert(prevented &&
+	       selected.display.classList.contains("clue-highlight-source") &&
+	       related.display.classList.contains("clue-highlight-related") &&
+	       unrelated.display.classList.contains("clue-highlight-muted"),
+	       "shift-press did not distinguish related clues");
+	selected.display.onpointerup({});
+	assert(!selected.display.classList.contains("clue-highlight-source") &&
+	       !related.display.classList.contains("clue-highlight-related") &&
+	       !unrelated.display.classList.contains("clue-highlight-muted"),
+	       "releasing the pointer did not clear clue highlights");
+
+	selected.display.onclick({ preventDefault() {} });
+	assert(selected.active,
+	       "the click following a shift-press dismissed the clue");
+	selected.display.onclick({ preventDefault() {} });
+	assert(!selected.active,
+	       "an ordinary click no longer dismissed the clue");
+	await new Promise(resolve => setTimeout(resolve, 0));
+});
+
 Deno.test("placing every symbol in a clue dismisses it", function() {
 	const puzzle = makePuzzle(2);
 	const top = puzzle.rows[0].slots[0];

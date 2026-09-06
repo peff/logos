@@ -1255,12 +1255,18 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			this.hClueSlots[i].className = "clue";
 			this.hClueSlots[i].onclick = null;
 			this.hClueSlots[i].oncontextmenu = null;
+			this.hClueSlots[i].onpointerdown = null;
+			this.hClueSlots[i].onpointerup = null;
+			this.hClueSlots[i].onpointercancel = null;
 		}
 		for (var i = 0; i < this.vClueSlots.length; i++) {
 			this.vClueSlots[i].innerHTML = "";
 			this.vClueSlots[i].className = "clue";
 			this.vClueSlots[i].onclick = null;
 			this.vClueSlots[i].oncontextmenu = null;
+			this.vClueSlots[i].onpointerdown = null;
+			this.vClueSlots[i].onpointerup = null;
+			this.vClueSlots[i].onpointercancel = null;
 		}
 
 		this.numHClues = 0;
@@ -3847,6 +3853,39 @@ function checkClueDisplay(clue) {
 		clue.display.classList.add("clue-hidden");
 }
 
+function cluesShareSymbol(a, b) {
+	var aSlots = clueSlots(a);
+	var bSlots = clueSlots(b);
+	return aSlots.some(function(aSlot) {
+		return bSlots.indexOf(aSlot) >= 0;
+	});
+}
+
+function highlightRelatedClues(puzzle, selected) {
+	for (var i = 0; i < puzzle.clues.length; i++) {
+		var clue = puzzle.clues[i];
+		if (!clue.display)
+			continue;
+		clue.display.classList.remove("clue-highlight-source",
+			"clue-highlight-related", "clue-highlight-muted");
+		if (clue == selected)
+			clue.display.classList.add("clue-highlight-source");
+		else if (cluesShareSymbol(selected, clue))
+			clue.display.classList.add("clue-highlight-related");
+		else
+			clue.display.classList.add("clue-highlight-muted");
+	}
+}
+
+function clearClueHighlights(puzzle) {
+	for (var i = 0; i < puzzle.clues.length; i++) {
+		if (puzzle.clues[i].display)
+			puzzle.clues[i].display.classList.remove(
+				"clue-highlight-source", "clue-highlight-related",
+				"clue-highlight-muted");
+	}
+}
+
 function renderClue(puzzle, clue, slot, type, elements, horizontal) {
 	slot.innerHTML = "";
 	var content = slot;
@@ -3864,6 +3903,10 @@ function renderClue(puzzle, clue, slot, type, elements, horizontal) {
 	if (!clue.listener) {
 		clue.listener = function(ev) {
 			ev.preventDefault();
+			if (clue.suppressClick) {
+				clue.suppressClick = false;
+				return;
+			}
 			if (puzzle.proof)
 				return;
 			if (clue.active)
@@ -3874,6 +3917,25 @@ function renderClue(puzzle, clue, slot, type, elements, horizontal) {
 	}
 	slot.onclick = clue.listener;
 	slot.oncontextmenu = clue.listener;
+	slot.onpointerdown = function(ev) {
+		if (!ev.shiftKey || (ev.button !== undefined && ev.button != 0) ||
+		    puzzle.proof)
+			return;
+		ev.preventDefault();
+		clue.suppressClick = true;
+		highlightRelatedClues(puzzle, clue);
+		if (slot.setPointerCapture)
+			slot.setPointerCapture(ev.pointerId);
+	};
+	slot.onpointerup = function() {
+		clearClueHighlights(puzzle);
+		/* A click normally follows; do not suppress some later click if it doesn't. */
+		setTimeout(function() { clue.suppressClick = false; }, 0);
+	};
+	slot.onpointercancel = function() {
+		clue.suppressClick = false;
+		clearClueHighlights(puzzle);
+	};
 }
 
 function OrderClue(puzzle) {

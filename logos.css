@@ -1829,6 +1829,24 @@ button.score-entry:focus-visible {
 	opacity: 0.2;
 }
 
+body:not(.proof-active) .clue.clue-highlight-muted {
+	opacity: 0.38;
+}
+
+body:not(.proof-active) .clue.clue-highlight-related {
+	background-color: #dcece5;
+	box-shadow:
+		inset 0 0 0 2px #558b82,
+		0 0 0.28rem rgb(85 139 130 / 55%);
+}
+
+body:not(.proof-active) .clue.clue-highlight-source {
+	background-color: #f4dfb2;
+	box-shadow:
+		inset 0 0 0 2px #a36b25,
+		0 0 0.35rem rgb(163 107 37 / 70%);
+}
+
 body.proof-active :is(#hclues, #vclues) .clue {
 	opacity: 0.45;
 }
