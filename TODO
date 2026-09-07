@@ -26,3 +26,13 @@
    - ability to rearrane / drag clues
    - highlighting clues that refer to a symbol; the big question is UI.
      Left-click on a clue could show clues with shared symbols?
+ - difficulty levels
+   - puzzle size changes difficulty somewhat but creates lots of
+     rendering headaches
+   - probably difficulty could be categorized by solver effort:
+     - which types of deductions can be used
+     - total length of deduction chain
+   - maybe a nice property if a seeded puzzle is always the same
+     shuffle of tiles, but only the clue set changes?
+   - pantheon should mark difficulty and/or keep separate pantheon
+     for various levels
