@@ -22,10 +22,11 @@
    - are chalk marks worth the interface complexity
    - is drag tiles any good
    - is release-to-act a good feature
- - clues
-   - ability to rearrane / drag clues
-   - highlighting clues that refer to a symbol; the big question is UI.
-     Left-click on a clue could show clues with shared symbols?
+ - evaluate clue interactions
+   - is rearranging / dragging clues useful?
+   - is highlighting clues that refer to a symbol useful?
+   - what UI should expose highlighting? Current experiments use
+     shift-click on a clue and pressing a filled board slot.
  - difficulty levels
    - puzzle size changes difficulty somewhat but creates lots of
      rendering headaches
