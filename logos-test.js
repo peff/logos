@@ -951,6 +951,92 @@ Deno.test("pressing a filled slot highlights its clues", function() {
 	       "a newly filled slot flashed its clue highlights");
 });
 
+Deno.test("dragging a clue inserts it between display slots", async function() {
+	const puzzle = makePuzzle(3);
+	function column(top, bottom, column) {
+		const clue = new ColumnClue(puzzle);
+		clue.tRow = puzzle.rows[top];
+		clue.bRow = puzzle.rows[bottom];
+		clue.col = column;
+		clue.display = puzzle.vClueSlots[column];
+		clue.active = true;
+		return clue;
+	}
+	const first = column(0, 1, 0);
+	const second = column(0, 2, 1);
+	const third = column(1, 2, 2);
+	puzzle.clues = [first, second, third];
+	for (const clue of puzzle.clues)
+		clue.render();
+	const originalClues = puzzle.clues.slice();
+	const sourceSlot = third.display;
+	const oldElementFromPoint = document.elementFromPoint;
+	document.elementFromPoint = function() { return first.display; };
+	const down = {
+		button: 0,
+		pointerId: 7,
+		clientX: 0,
+		clientY: 0,
+	};
+	third.display.onpointerdown(down);
+	third.display.onpointermove({
+		pointerId: 7,
+		clientX: 125,
+		clientY: 0,
+		preventDefault() {},
+	});
+	assert(third.display.classList.contains("clue-dragging") &&
+	       first.display.classList.contains("clue-drop-target"),
+	       "clue drag did not show its source and insertion point");
+	third.display.onpointerup({
+		pointerId: 7,
+		clientX: 125,
+		clientY: 0,
+		preventDefault() {},
+	});
+	assert(third.display == puzzle.vClueSlots[0] &&
+	       first.display == puzzle.vClueSlots[1] &&
+	       second.display == puzzle.vClueSlots[2],
+	       "clue was not inserted into its target slot");
+	assert(puzzle.clues.every((clue, i) => clue == originalClues[i]),
+	       "display rearrangement reordered the logical clue list");
+	sourceSlot.onclick({ preventDefault() {} });
+	assert(first.active && second.active && third.active,
+	       "the click after a drag dismissed a clue");
+	document.elementFromPoint = oldElementFromPoint;
+	await new Promise(resolve => setTimeout(resolve, 0));
+});
+
+Deno.test("wrapped clue insertions mark their target slot", async function() {
+	const puzzle = makePuzzle(3);
+	function horizontal(column) {
+		const clue = new ColumnClue(puzzle);
+		clue.displayType = "horizontal";
+		clue.display = puzzle.hClueSlots[column];
+		clue.active = true;
+		return clue;
+	}
+	const clues = [horizontal(0), horizontal(1), horizontal(2),
+		      horizontal(3)];
+	puzzle.clues = clues;
+	for (const clue of clues)
+		clue.render();
+	const nextRow = puzzle.hClueSlots[3];
+	const oldElementFromPoint = document.elementFromPoint;
+	document.elementFromPoint = function() { return nextRow; };
+	clues[0].display.onpointerdown({
+		button: 0, pointerId: 8, clientX: 100, clientY: 0,
+	});
+	clues[0].display.onpointermove({
+		pointerId: 8, clientX: 5, clientY: 20, preventDefault() {},
+	});
+	assert(nextRow.classList.contains("clue-drop-target"),
+	       "wrapped insertion did not highlight its target slot");
+	clues[0].display.onpointercancel({ pointerId: 8 });
+	document.elementFromPoint = oldElementFromPoint;
+	await new Promise(resolve => setTimeout(resolve, 0));
+});
+
 Deno.test("placing every symbol in a clue dismisses it", function() {
 	const puzzle = makePuzzle(2);
 	const top = puzzle.rows[0].slots[0];

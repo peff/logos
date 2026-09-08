@@ -1804,6 +1804,7 @@ button.score-entry:focus-visible {
 }
 
 .clue {
+	position: relative;
 	border: 1px solid #b6afa0;
 	background-color: #f6f2e9;
 	background-image:
@@ -1823,6 +1824,19 @@ button.score-entry:focus-visible {
 	border-radius: 0.18rem;
 	cursor: var(--action-cursor);
 	user-select: none;
+}
+
+.clue.clue-dragging {
+	opacity: 0.55;
+	transform: scale(1.03);
+	z-index: 1;
+}
+
+.clue.clue-drop-target {
+	background-color: #f4dfb2;
+	box-shadow:
+		inset 0 0 0 3px #a36b25,
+		0 0 0.35rem rgb(163 107 37 / 70%);
 }
 
 .clue-hidden:not(.proof-current) > * {
