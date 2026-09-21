@@ -2159,10 +2159,13 @@ body:not(.proof-active) :is(#hclues, #vclues).solution
 	letter-spacing: 0.05em;
 }
 
-.clue:hover,
 #controls input:hover,
 #board .possibility:hover {
 	filter: brightness(0.94);
+}
+
+.clue:hover:not(.clue-drop-target) {
+	background-color: #e6dfd2;
 }
 
 #board .possibility.action-preview-place {
