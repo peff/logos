@@ -2017,26 +2017,13 @@ body:not(.proof-active) :is(#hclues, #vclues).solution
 .help-tile,
 .slot-tray-symbol,
 .slot-tray-action-sample {
-	/*
-	 * image-set() lets Chromium reuse these gradients on cursor changes,
-	 * avoiding repaints of the unchanged texture layer. Use literal colors:
-	 * resolving the "transparent" keyword would prevent that reuse.
-	 */
-	background-image:
-		image-set(radial-gradient(ellipse at 14% 18%,
-			rgb(255 255 255 / 4%), rgb(0 0 0 / 0%) 42%) 1x),
-		image-set(radial-gradient(ellipse at 72% 76%,
-			rgb(255 255 255 / 2%), rgb(0 0 0 / 0%) 50%) 1x),
-		image-set(radial-gradient(circle at 88% 28%,
-			rgb(0 0 0 / 8%), rgb(0 0 0 / 0%) 44%) 1x),
-		url("slate-texture.png");
+	background-image: url("slate-texture.png");
 	background-position:
-		center, center, center,
 		calc(var(--slate-family-x, 0rem) +
 			var(--slate-slot-x, 0rem) + var(--slate-tile-x, 0rem))
 		calc(var(--slate-family-y, 0rem) +
 			var(--slate-slot-y, 0rem) + var(--slate-tile-y, 0rem));
-	background-size: auto, auto, auto, 5rem 5rem;
+	background-size: 5rem 5rem;
 	box-shadow:
 		inset 0 0 0.18rem rgb(0 0 0 / 32%),
 		inset 0 0.05rem 0.12rem rgb(255 255 255 / 5%);
