@@ -28,6 +28,8 @@ body {
 	--big-tile-height: 2.65rem;
 	--default-cursor: url("cursor-stylus.svg") 1 1, default;
 	--action-cursor: url("cursor-stylus-active.svg") 1 1, pointer;
+	--discard-cursor: url("cursor-ostracon.svg") 2 2, crosshair;
+	--discard-action-cursor: url("cursor-ostracon-active.svg") 2 2, crosshair;
 	cursor: var(--default-cursor);
 	display: grid;
 	grid-template-columns: max-content 27.5rem;
@@ -305,6 +307,8 @@ body {
 body[data-custom-cursor="false"] {
 	--default-cursor: default;
 	--action-cursor: pointer;
+	--discard-cursor: crosshair;
+	--discard-action-cursor: crosshair;
 }
 
 .board {
@@ -399,6 +403,11 @@ body[data-custom-cursor="false"] {
 
 #board .possibility {
 	cursor: var(--action-cursor);
+}
+
+body[data-discard-cursor="true"] {
+	--default-cursor: var(--discard-cursor);
+	--action-cursor: var(--discard-action-cursor);
 }
 
 :is(#board tr, #slot-tray .slot-tray-panel).pencil-conflict {

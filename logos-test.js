@@ -334,6 +334,36 @@ Deno.test("the custom cursor is a saved boolean option", function() {
 	puzzle.stopTimer();
 });
 
+Deno.test("control and Tap controls combine to select the discard cursor",
+		function() {
+	const puzzle = makePuzzle(6);
+	document.listeners.keydown({
+		key: "Control",
+		ctrlKey: true,
+	});
+	assert(document.body.dataset.discardCursor == "true",
+	       "pressing control did not enable the discard cursor");
+	selectTileAction(puzzle, "remove");
+	puzzle.setShowActionSelector(true);
+	document.listeners.keyup({ key: "Control" });
+	assert(document.body.dataset.discardCursor == "true",
+	       "releasing control cleared the selected discard mode");
+	puzzle.setShowActionSelector(false);
+	assert(!Object.hasOwn(document.body.dataset, "discardCursor"),
+	       "disabling Tap controls did not restore the regular cursor");
+	puzzle.setShowActionSelector(true);
+	selectTileAction(puzzle, "place");
+	puzzle.updateDiscardCursor();
+	assert(!Object.hasOwn(document.body.dataset, "discardCursor"),
+	       "selecting choose did not restore the regular cursor");
+	document.listeners.keydown({ key: "Control", ctrlKey: true });
+	puzzle.setShowActionSelector(false);
+	assert(document.body.dataset.discardCursor == "true",
+	       "disabling Tap controls cleared held control state");
+	document.listeners.keyup({ key: "Control" });
+	puzzle.stopTimer();
+});
+
 Deno.test("mouse action previews are an opt-in saved option", function() {
 	localStorage.removeItem("previewMouseActions");
 	const puzzle = makePuzzle(6);

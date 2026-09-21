@@ -184,6 +184,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		Math.min(innerWidth * 0.0208, innerHeight * 0.0345) < 20;
 	this.dragTileChoices = false;
 	this.showActionSelector = this.coarsePointer;
+	this.controlHeld = false;
 	this.slotTrayDrag = null;
 	this.ignoreSlotClick = false;
 	this.timerTimeout = null;
@@ -919,6 +920,15 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		return operation == "place" ? "pencil-select" : "pencil-remove";
 	}
 
+	this.updateDiscardCursor = function() {
+		var action = this.showActionSelector ? this.getTileAction() : null;
+		if (this.controlHeld || action == "remove" ||
+		    action == "pencil-remove")
+			document.body.dataset.discardCursor = "true";
+		else
+			delete document.body.dataset.discardCursor;
+	}
+
 	this.toggleTileAction = function(ev) {
 		ev.preventDefault();
 		var inputs = ev.currentTarget.children;
@@ -933,6 +943,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		var next = (checked + 1) % radios.length;
 		for (var i = 0; i < radios.length; i++)
 			radios[i].checked = i == next;
+		this.updateDiscardCursor();
 		this.playSound("toggle");
 	}
 
@@ -1534,6 +1545,10 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		puzzle.updateFullscreenButton();
 	});
 	document.addEventListener("keydown", function(ev) {
+		if (ev.key == "Control") {
+			puzzle.controlHeld = true;
+			puzzle.updateDiscardCursor();
+		}
 		if (ev.key == "Escape" && !ev.altKey && !ev.ctrlKey &&
 		    !ev.metaKey && !ev.shiftKey && puzzle.dismissTransientUi()) {
 			ev.preventDefault();
@@ -1552,13 +1567,24 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		ev.preventDefault();
 		puzzle.moveProof(direction);
 	});
+	document.addEventListener("keyup", function(ev) {
+		if (ev.key == "Control") {
+			puzzle.controlHeld = false;
+			puzzle.updateDiscardCursor();
+		}
+	});
 	document.addEventListener("visibilitychange", function() {
 		puzzle.setPageHidden(document.hidden);
 	});
-	if (typeof window != "undefined")
+	if (typeof window != "undefined") {
 		window.addEventListener("resize", function() {
 			puzzle.positionSlotTray();
 		});
+		window.addEventListener("blur", function() {
+			puzzle.controlHeld = false;
+			puzzle.updateDiscardCursor();
+		});
+	}
 
 	this.setCustomCursor = function(enabled) {
 		document.body.dataset.customCursor = enabled;
@@ -1675,6 +1701,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.setShowActionSelector = function(enabled) {
 		this.showActionSelector = enabled;
 		this.options.querySelector("#show-action-selector").checked = enabled;
+		this.updateDiscardCursor();
 		this.updateActionControls();
 		try {
 			localStorage.setItem("showActionSelector", enabled);
