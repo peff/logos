@@ -57,6 +57,10 @@ body {
 	user-select: none;
 }
 
+:where(body *) {
+	cursor: inherit;
+}
+
 /*
  * The landscape layout puts the clues beside the board. In portrait there is
  * enough area for the same pieces, but not in the same arrangement. Stack
@@ -776,7 +780,7 @@ body.proof-active #logo {
 		inset 0 0 0 1px rgb(89 79 66 / 28%),
 		0 0.04rem 0 rgb(255 255 255 / 45%);
 	padding: 0.1rem;
-	cursor: pointer;
+	cursor: var(--action-cursor);
 }
 
 .tile-action-group::after {
@@ -1125,6 +1129,10 @@ body.proof-active #logo {
 	letter-spacing: 0.04em;
 	line-height: 1;
 	user-select: text;
+}
+
+input[type="text"] {
+	cursor: text;
 }
 
 #options-menu .game-options .seed-option:hover #game-seed {
