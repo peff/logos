@@ -30,6 +30,8 @@ body {
 	--action-cursor: url("cursor-stylus-active.svg") 1 1, pointer;
 	--discard-cursor: url("cursor-ostracon.svg") 2 2, crosshair;
 	--discard-action-cursor: url("cursor-ostracon-active.svg") 2 2, crosshair;
+	--normal-cursor: var(--default-cursor);
+	--hover-discard-cursor: var(--discard-cursor);
 	cursor: var(--default-cursor);
 	display: grid;
 	grid-template-columns: max-content 27.5rem;
@@ -59,8 +61,9 @@ body {
 	user-select: none;
 }
 
+/* Give descendants stable cursors even when the body's cursor changes. */
 :where(body *) {
-	cursor: inherit;
+	cursor: var(--normal-cursor);
 }
 
 /*
@@ -402,12 +405,22 @@ body[data-custom-cursor="false"] {
 }
 
 #board .possibility {
+	--normal-cursor: var(--action-cursor);
+	--hover-discard-cursor: var(--discard-action-cursor);
 	cursor: var(--action-cursor);
 }
 
 body[data-discard-cursor="true"] {
-	--default-cursor: var(--discard-cursor);
-	--action-cursor: var(--discard-action-cursor);
+	cursor: var(--discard-cursor);
+}
+
+/* Only the hovered path needs the discard variant. */
+body[data-discard-cursor="true"] :hover {
+	cursor: var(--hover-discard-cursor) !important;
+}
+
+body[data-discard-cursor="true"] input[type="text"]:hover {
+	cursor: text !important;
 }
 
 :is(#board tr, #slot-tray .slot-tray-panel).pencil-conflict {
@@ -545,6 +558,8 @@ body[data-discard-cursor="true"] {
 	color: #432719;
 	font: 1.5rem/1 Forum, Georgia, serif;
 	text-shadow: 0 1px 0 rgb(255 237 190 / 48%);
+	--normal-cursor: var(--action-cursor);
+	--hover-discard-cursor: var(--discard-action-cursor);
 	cursor: var(--action-cursor);
 }
 
@@ -644,6 +659,8 @@ body.proof-active #logo {
 .control-buttons > input,
 .modal-done,
 .option-action {
+	--normal-cursor: var(--action-cursor);
+	--hover-discard-cursor: var(--discard-action-cursor);
 	cursor: var(--action-cursor);
 }
 
@@ -789,6 +806,8 @@ body.proof-active #logo {
 		inset 0 0 0 1px rgb(89 79 66 / 28%),
 		0 0.04rem 0 rgb(255 255 255 / 45%);
 	padding: 0.1rem;
+	--normal-cursor: var(--action-cursor);
+	--hover-discard-cursor: var(--discard-action-cursor);
 	cursor: var(--action-cursor);
 }
 
@@ -945,6 +964,8 @@ body.proof-active #logo {
 	border-radius: 4px;
 	background-color: var(--tile-bg);
 	color: var(--tile-fg);
+	--normal-cursor: var(--default-cursor);
+	--hover-discard-cursor: var(--discard-cursor);
 	cursor: var(--default-cursor);
 	font-family: "Logos Tiles";
 	font-size: 32px;
@@ -1096,6 +1117,8 @@ body.proof-active #logo {
 	display: flex;
 	align-items: flex-start;
 	gap: 0.3rem;
+	--normal-cursor: var(--action-cursor);
+	--hover-discard-cursor: var(--discard-action-cursor);
 	cursor: var(--action-cursor);
 	white-space: nowrap;
 }
@@ -1175,6 +1198,8 @@ input[type="text"] {
 	border: 1px solid #777267;
 	background-color: #eee8da;
 	box-shadow: inset 0.04rem 0.06rem 0.1rem rgb(70 60 45 / 22%);
+	--normal-cursor: var(--action-cursor);
+	--hover-discard-cursor: var(--discard-action-cursor);
 	cursor: var(--action-cursor);
 }
 
@@ -1441,6 +1466,8 @@ input[type="text"] {
 	border-radius: 0.15rem;
 	background: transparent;
 	color: #71552f;
+	--normal-cursor: var(--action-cursor);
+	--hover-discard-cursor: var(--discard-action-cursor);
 	cursor: var(--action-cursor);
 	font-family: Forum, Georgia, "Times New Roman", serif;
 	font-size: 0.9rem;
@@ -1526,6 +1553,8 @@ button.score-entry {
 	padding: 0;
 	width: 100%;
 	color: inherit;
+	--normal-cursor: var(--action-cursor);
+	--hover-discard-cursor: var(--discard-action-cursor);
 	cursor: var(--action-cursor);
 	font: inherit;
 	text-align: inherit;
@@ -1680,6 +1709,8 @@ button.score-entry:focus-visible {
 	margin: 0;
 	width: 18rem;
 	color: #293638;
+	--normal-cursor: var(--action-cursor);
+	--hover-discard-cursor: var(--discard-action-cursor);
 	cursor: var(--action-cursor);
 	text-align: center;
 	font-family: Forum, Georgia, "Times New Roman", serif;
@@ -1839,6 +1870,8 @@ button.score-entry:focus-visible {
 		inset 0.04rem 0.05rem 0.12rem rgb(255 255 255 / 45%),
 		inset -0.05rem -0.04rem 0.14rem rgb(117 94 55 / 8%);
 	border-radius: 0.18rem;
+	--normal-cursor: var(--action-cursor);
+	--hover-discard-cursor: var(--discard-action-cursor);
 	cursor: var(--action-cursor);
 	user-select: none;
 }
