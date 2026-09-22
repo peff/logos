@@ -767,18 +767,13 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.tileActionForPointer = function(ev, contextMenu) {
-		if (contextMenu) {
-			if (ev.altKey || ev.shiftKey ||
-			    (this.showActionSelector &&
-			     this.getTileAction().indexOf("pencil-") == 0))
-				return "pencil-remove";
-			return "remove";
-		}
-		if (this.showActionSelector)
-			return this.getTileAction();
-		if (ev.altKey || ev.shiftKey)
-			return "pencil-select";
-		return "place";
+		var action = this.showActionSelector ? this.getTileAction() : "place";
+		var discard = contextMenu || action == "remove" ||
+			action == "pencil-remove";
+		var chalk = ev.altKey || ev.shiftKey || action.indexOf("pencil-") == 0;
+		if (chalk)
+			return discard ? "pencil-remove" : "pencil-select";
+		return discard ? "remove" : "place";
 	}
 
 	this.beginTileActionPreview = function(cell, ev, slot, value) {

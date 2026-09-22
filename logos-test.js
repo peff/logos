@@ -452,6 +452,55 @@ Deno.test("modifier clicks toggle pencil marks", function() {
 	       "control-click was mistaken for a pencil mark");
 });
 
+Deno.test("chalk modifiers combine with Tap controls", function() {
+	const puzzle = makePuzzle(1);
+	const slot = puzzle.rows[0].slots[0];
+	const cell = slot.possibilityElems[slot.value];
+	const actions = [];
+	puzzle.requestTileAction = function(slot, value, action) {
+		actions.push(action);
+	};
+	for (const tapControls of [false, true]) {
+		puzzle.showActionSelector = tapControls;
+		for (const selected of ["place", "remove", "pencil-select", "pencil-remove"]) {
+			selectTileAction(puzzle, selected);
+			for (const modifier of [null, "shiftKey", "altKey"]) {
+				for (const click of ["left", "right", "control"]) {
+					const discard = click != "left" ||
+						(tapControls && selected.endsWith("remove"));
+					const chalk = modifier ||
+						(tapControls && selected.startsWith("pencil-"));
+					const expected = chalk ?
+						(discard ? "pencil-remove" : "pencil-select") :
+						(discard ? "remove" : "place");
+					for (const preview of [false, true]) {
+						puzzle.previewMouseActions = preview;
+						const event = {
+							button: click == "right" ? 2 : 0,
+							ctrlKey: click == "control",
+							shiftKey: modifier == "shiftKey",
+							altKey: modifier == "altKey",
+							currentTarget: cell,
+							preventDefault() {},
+						};
+						actions.length = 0;
+						cell.listeners.pointerdown(event);
+						if (click != "left")
+							cell.listeners.contextmenu(event);
+						cell.listeners.pointerup(event);
+						if (click != "right")
+							cell.listeners.click(event);
+						assert(actions.length == 1 && actions[0] == expected,
+						       `${selected}, ${modifier}, ${click}, taps=${tapControls}, ` +
+						       `preview=${preview}: expected ${expected}, got ${actions}`);
+					}
+				}
+			}
+		}
+	}
+	puzzle.stopTimer();
+});
+
 Deno.test("control-tap falls back to the context-menu event", function() {
 	const puzzle = makePuzzle(1);
 	const slot = puzzle.rows[0].slots[0];
