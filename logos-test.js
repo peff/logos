@@ -24,6 +24,7 @@ class FakeElement {
 		this.children = [];
 		this.attributes = {};
 		this.innerHTML = "";
+		this.value = "";
 		this.listeners = {};
 		this.queries = {};
 		this.style = {
@@ -293,19 +294,51 @@ Deno.test("a blank seed starts a random game from Options", function() {
 	puzzle.stopTimer();
 });
 
-Deno.test("opening options preserves the new-game button label", function() {
+Deno.test("opening options resets the seed and its action label", function() {
 	const puzzle = makePuzzle(6);
 	puzzle.say = function() {};
 	puzzle.newGame("12345678");
 	const start = puzzle.options.querySelector("#start-game-button");
-	start.value = "Start New Game";
+	const input = puzzle.options.querySelector("#game-seed");
+	input.value = "";
+	input.listeners.input();
 	puzzle.options.hidden = true;
 	puzzle.toggleOptions();
-	assert(start.value == "Start New Game" &&
+	assert(input.value == "12345678" && start.value == "Restart" &&
 	       puzzle.options.querySelector(".modal-close").value == "Resume game",
-	       "opening options rewrote the wrong footer button");
+	       "opening options did not restore the seed and distinct button labels");
 	puzzle.toggleOptions();
 	puzzle.stopTimer();
+});
+
+Deno.test("the seed action describes random, chosen, and restarted puzzles", function() {
+	const puzzle = makePuzzle(6);
+	puzzle.say = function() {};
+	const input = puzzle.options.querySelector("#game-seed");
+	const start = puzzle.options.querySelector("#start-game-button");
+	function edit(value, expected) {
+		input.value = value;
+		input.listeners.input();
+		assert(start.value == expected,
+		       "unexpected seed action for " + JSON.stringify(value));
+	}
+	edit("", "Start with random seed");
+	edit("0", "Start with seed");
+	puzzle.newGame(0x2a);
+	puzzle.stopTimer();
+	assert(start.value == "Restart", "a new game did not update the action");
+	edit("", "Start with random seed");
+	edit("   ", "Start with random seed");
+	edit("2b", "Start with seed");
+	edit("invalid", "Start with seed");
+	edit(" 2A ", "Restart");
+	edit("0000002a", "Restart");
+	puzzle.gameOver = true;
+	edit("2a", "Restart");
+	edit("2b", "Start with seed");
+	puzzle.newGame(0);
+	puzzle.stopTimer();
+	edit("0", "Restart");
 });
 
 Deno.test("the timer appears only after a timed game starts", function() {

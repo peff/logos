@@ -312,6 +312,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.gameIdentity = {};
 		this.seed = seed;
 		this.options.querySelector("#game-seed").value = formatSeed(seed);
+		this.updateSeedButton();
 		this.gameOver = true;
 		this.practiceMode = this.practiceModePreference;
 		this.timer.hidden = this.practiceMode;
@@ -346,6 +347,13 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.say(randomChoice(startMessages));
 		this.updateActionControls();
 		return true;
+	}
+
+	this.updateSeedButton = function() {
+		var value = this.options.querySelector("#game-seed").value.trim();
+		this.options.querySelector("#start-game-button").value =
+			!value ? "Start with random seed" :
+			parseSeed(value) === this.seed ? "Restart" : "Start with seed";
 	}
 
 	this.playSeed = function() {
@@ -1494,6 +1502,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		if (this.options.hidden && this.seed !== undefined)
 			this.options.querySelector("#game-seed").value =
 				formatSeed(this.seed);
+		this.updateSeedButton();
 		this.toggleModal(this.options, this.optionsButton, "Close");
 	}
 
@@ -1568,6 +1577,9 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	var puzzle = this;
+	this.options.querySelector("#game-seed").addEventListener("input", function() {
+		puzzle.updateSeedButton();
+	});
 	this.options.addEventListener("click", function(ev) {
 		if (ev.target == puzzle.options)
 			puzzle.toggleOptions();
