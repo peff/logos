@@ -513,13 +513,20 @@ body[data-discard-cursor="true"] {
 	display: none;
 }
 
+/*
+ * Wrap the button gradients over the stone PNG in a single-candidate image-set.
+ * Chromium can then reuse the gradient image across cursor style changes,
+ * avoiding image-observer churn that unnecessarily repaints the background.
+ * Keep these images in background-image directly: resolving a custom property
+ * defeats the cache. Explicit-angle gradients (145deg below) also still repaint,
+ * so leave those unwrapped.
+ */
 #proof-controls :where(button, .proof-step) {
-	--proof-paper-wash: linear-gradient(145deg,
-		rgb(247 243 233 / 91%), rgb(224 214 195 / 88%));
 	border: 1px solid #a48c65;
 	background-color: #f7f3e9;
 	background-image:
-		var(--proof-paper-wash),
+		linear-gradient(145deg,
+			rgb(247 243 233 / 91%), rgb(224 214 195 / 88%)),
 		url("stone-texture.png");
 	background-position: center;
 	background-size: auto, 6rem 3rem;
@@ -531,10 +538,12 @@ body[data-discard-cursor="true"] {
 }
 
 #proof-controls button {
-	--proof-paper-wash: linear-gradient(to right,
-		rgb(126 87 46 / 72%),
-		rgb(184 145 87 / 68%) 48%,
-		rgb(121 82 43 / 72%));
+	background-image:
+		image-set(linear-gradient(to right,
+			rgb(126 87 46 / 72%),
+			rgb(184 145 87 / 68%) 48%,
+			rgb(121 82 43 / 72%)) 1x),
+		url("stone-texture.png");
 	border-color: #624325;
 	background-color: #876038;
 	box-shadow:
@@ -618,8 +627,8 @@ body.proof-active #logo {
 	border-radius: 0.13rem 0.21rem 0.15rem 0.19rem;
 	background-color: #d7cbb5;
 	background-image:
-		linear-gradient(to bottom,
-			rgb(239 233 219 / 70%), rgb(190 176 151 / 64%)),
+		image-set(linear-gradient(to bottom,
+			rgb(239 233 219 / 70%), rgb(190 176 151 / 64%)) 1x),
 		url("stone-texture.png");
 	background-position: center, center;
 	background-size: auto, 4rem 2rem;
@@ -652,8 +661,8 @@ body.proof-active #logo {
 .option-action:hover {
 	background-color: #e2d7c3;
 	background-image:
-		linear-gradient(to bottom,
-			rgb(246 240 226 / 76%), rgb(201 187 162 / 59%)),
+		image-set(linear-gradient(to bottom,
+			rgb(246 240 226 / 76%), rgb(201 187 162 / 59%)) 1x),
 		url("stone-texture.png");
 }
 
@@ -662,8 +671,8 @@ body.proof-active #logo {
 .option-action:active {
 	background-color: #cbbda5;
 	background-image:
-		linear-gradient(to bottom,
-			rgb(165 149 124 / 67%), rgb(224 215 198 / 70%)),
+		image-set(linear-gradient(to bottom,
+			rgb(165 149 124 / 67%), rgb(224 215 198 / 70%)) 1x),
 		url("stone-texture.png");
 	box-shadow:
 		inset 0 0.05rem 0.12rem rgb(73 62 47 / 38%),
@@ -741,8 +750,8 @@ body.proof-active #logo {
 #explain-button.active {
 	background-color: #cbbda5;
 	background-image:
-		linear-gradient(to bottom,
-			rgb(165 149 124 / 67%), rgb(224 215 198 / 70%)),
+		image-set(linear-gradient(to bottom,
+			rgb(165 149 124 / 67%), rgb(224 215 198 / 70%)) 1x),
 		url("stone-texture.png");
 	box-shadow:
 		inset 0 0.05rem 0.12rem rgb(73 62 47 / 38%),
