@@ -185,6 +185,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.dragTileChoices = false;
 	this.showActionSelector = this.coarsePointer;
 	this.controlHeld = false;
+	this.shiftHeld = false;
+	this.altHeld = false;
 	this.slotTrayDrag = null;
 	this.ignoreSlotClick = false;
 	this.timerTimeout = null;
@@ -915,13 +917,19 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		return operation == "place" ? "pencil-select" : "pencil-remove";
 	}
 
-	this.updateDiscardCursor = function() {
-		var action = this.showActionSelector ? this.getTileAction() : null;
-		if (this.controlHeld || action == "remove" ||
-		    action == "pencil-remove")
+	this.updateActionCursor = function() {
+		var action = this.tileActionForPointer({
+			shiftKey: this.shiftHeld,
+			altKey: this.altHeld,
+		}, this.controlHeld);
+		if (action == "remove" || action == "pencil-remove")
 			document.body.dataset.discardCursor = "true";
 		else
 			delete document.body.dataset.discardCursor;
+		if (action.indexOf("pencil-") == 0)
+			document.body.dataset.chalkCursor = "true";
+		else
+			delete document.body.dataset.chalkCursor;
 	}
 
 	this.toggleTileAction = function(ev) {
@@ -938,7 +946,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		var next = (checked + 1) % radios.length;
 		for (var i = 0; i < radios.length; i++)
 			radios[i].checked = i == next;
-		this.updateDiscardCursor();
+		this.updateActionCursor();
 		this.playSound("toggle");
 	}
 
@@ -1540,9 +1548,14 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		puzzle.updateFullscreenButton();
 	});
 	document.addEventListener("keydown", function(ev) {
-		if (ev.key == "Control") {
-			puzzle.controlHeld = true;
-			puzzle.updateDiscardCursor();
+		if (ev.key == "Control" || ev.key == "Shift" || ev.key == "Alt") {
+			if (ev.key == "Control")
+				puzzle.controlHeld = true;
+			else if (ev.key == "Shift")
+				puzzle.shiftHeld = true;
+			else
+				puzzle.altHeld = true;
+			puzzle.updateActionCursor();
 		}
 		if (ev.key == "Escape" && !ev.altKey && !ev.ctrlKey &&
 		    !ev.metaKey && !ev.shiftKey && puzzle.dismissTransientUi()) {
@@ -1563,9 +1576,14 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		puzzle.moveProof(direction);
 	});
 	document.addEventListener("keyup", function(ev) {
-		if (ev.key == "Control") {
-			puzzle.controlHeld = false;
-			puzzle.updateDiscardCursor();
+		if (ev.key == "Control" || ev.key == "Shift" || ev.key == "Alt") {
+			if (ev.key == "Control")
+				puzzle.controlHeld = false;
+			else if (ev.key == "Shift")
+				puzzle.shiftHeld = false;
+			else
+				puzzle.altHeld = false;
+			puzzle.updateActionCursor();
 		}
 	});
 	document.addEventListener("visibilitychange", function() {
@@ -1577,7 +1595,9 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		});
 		window.addEventListener("blur", function() {
 			puzzle.controlHeld = false;
-			puzzle.updateDiscardCursor();
+			puzzle.shiftHeld = false;
+			puzzle.altHeld = false;
+			puzzle.updateActionCursor();
 		});
 	}
 
@@ -1696,7 +1716,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.setShowActionSelector = function(enabled) {
 		this.showActionSelector = enabled;
 		this.options.querySelector("#show-action-selector").checked = enabled;
-		this.updateDiscardCursor();
+		this.updateActionCursor();
 		this.updateActionControls();
 		try {
 			localStorage.setItem("showActionSelector", enabled);

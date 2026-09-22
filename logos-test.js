@@ -353,7 +353,7 @@ Deno.test("control and Tap controls combine to select the discard cursor",
 	       "disabling Tap controls did not restore the regular cursor");
 	puzzle.setShowActionSelector(true);
 	selectTileAction(puzzle, "place");
-	puzzle.updateDiscardCursor();
+	puzzle.updateActionCursor();
 	assert(!Object.hasOwn(document.body.dataset, "discardCursor"),
 	       "selecting choose did not restore the regular cursor");
 	document.listeners.keydown({ key: "Control", ctrlKey: true });
@@ -362,6 +362,57 @@ Deno.test("control and Tap controls combine to select the discard cursor",
 	       "disabling Tap controls cleared held control state");
 	document.listeners.keyup({ key: "Control" });
 	puzzle.stopTimer();
+});
+
+Deno.test("chalk cursors combine modifiers, Tap controls, and blur", function() {
+	const oldWindow = globalThis.window;
+	globalThis.window = new FakeElement();
+	try {
+		const puzzle = makePuzzle(6);
+		function check(chalk, discard, message) {
+			assert((document.body.dataset.chalkCursor == "true") == chalk &&
+			       (document.body.dataset.discardCursor == "true") == discard,
+			       message);
+		}
+		puzzle.setShowActionSelector(false);
+		document.listeners.keydown({ key: "Shift" });
+		check(true, false, "Shift did not enable the chalk cursor");
+		document.listeners.keydown({ key: "Alt" });
+		document.listeners.keyup({ key: "Shift" });
+		check(true, false, "releasing Shift ignored held Alt");
+		document.listeners.keydown({ key: "Control" });
+		check(true, true, "Control did not preserve chalk mode");
+		document.listeners.keyup({ key: "x" });
+		check(true, true, "an unrelated key cleared the modifiers");
+		document.listeners.keyup({ key: "Alt" });
+		check(false, true, "releasing Alt did not preserve discard mode");
+		document.listeners.keyup({ key: "Control" });
+		check(false, false, "releasing all modifiers did not restore the cursor");
+		selectTileAction(puzzle, "pencil-remove");
+		puzzle.setShowActionSelector(true);
+		document.listeners.keydown({ key: "Shift" });
+		document.listeners.keydown({ key: "Control" });
+		document.listeners.keyup({ key: "Shift" });
+		document.listeners.keyup({ key: "Control" });
+		check(true, true, "key releases cleared the tap selection");
+		puzzle.setShowActionSelector(false);
+		check(false, false, "hidden tap controls still affected the cursor");
+		for (const key of ["Control", "Shift", "Alt"])
+			document.listeners.keydown({ key });
+		window.listeners.blur();
+		check(false, false, "blur did not clear held modifiers");
+		puzzle.setShowActionSelector(true);
+		window.listeners.blur();
+		check(true, true, "blur cleared the tap selection");
+		selectTileAction(puzzle, "place");
+		puzzle.setShowActionSelector(false);
+		puzzle.stopTimer();
+	} finally {
+		if (oldWindow === undefined)
+			delete globalThis.window;
+		else
+			globalThis.window = oldWindow;
+	}
 });
 
 Deno.test("mouse action previews are an opt-in saved option", function() {
