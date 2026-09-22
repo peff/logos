@@ -193,6 +193,8 @@
 								       onKeyDown="if (event.key == 'Enter') puzzle.playSeed()">
 								<input id="start-game-button" class="option-action" type="button"
 								       onClick="puzzle.playSeed()" value="Start with random seed">
+								<input id="copy-seed-link" class="option-action" type="button" disabled
+								       onClick="puzzle.copySeedLink()" value="Copy link">
 							</div>
 						</div>
 					</fieldset>
@@ -475,6 +477,7 @@
 				document.getElementById("scores-button"),
 				document.getElementById("about-menu"),
 				document.getElementById("logo"));
+		puzzle.startFromURL(window.location.href);
 		</script>
 		<script src="logos-multiplayer.js"></script>
 		<script src="logos-webrtc.js"></script>

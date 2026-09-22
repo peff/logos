@@ -312,7 +312,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.gameIdentity = {};
 		this.seed = seed;
 		this.options.querySelector("#game-seed").value = formatSeed(seed);
-		this.updateSeedButton();
+		this.updateSeedControls();
 		this.gameOver = true;
 		this.practiceMode = this.practiceModePreference;
 		this.timer.hidden = this.practiceMode;
@@ -349,11 +349,37 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		return true;
 	}
 
-	this.updateSeedButton = function() {
+	this.startFromURL = function(url) {
+		var params = new URLSearchParams(new URL(url).hash.slice(1));
+		var seed = params.get("seed");
+		return seed !== null && this.newGame(seed);
+	}
+
+	this.updateSeedControls = function() {
 		var value = this.options.querySelector("#game-seed").value.trim();
+		var seed = parseSeed(value);
 		this.options.querySelector("#start-game-button").value =
 			!value ? "Start with random seed" :
-			parseSeed(value) === this.seed ? "Restart" : "Start with seed";
+			seed === this.seed ? "Restart" : "Start with seed";
+		var copy = this.options.querySelector("#copy-seed-link");
+		copy.disabled = seed === null;
+		copy.value = "Copy link";
+	}
+
+	this.copySeedLink = async function() {
+		var input = this.options.querySelector("#game-seed");
+		var seed = parseSeed(input.value.trim());
+		if (seed === null)
+			return;
+		var url = new URL(window.location.href);
+		url.hash = "seed=" + formatSeed(seed);
+		try {
+			await navigator.clipboard.writeText(url.href);
+			if (parseSeed(input.value.trim()) === seed)
+				this.options.querySelector("#copy-seed-link").value = "Copied";
+		} catch (e) {
+			window.prompt("Copy this puzzle link:", url.href);
+		}
 	}
 
 	this.playSeed = function() {
@@ -1502,7 +1528,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		if (this.options.hidden && this.seed !== undefined)
 			this.options.querySelector("#game-seed").value =
 				formatSeed(this.seed);
-		this.updateSeedButton();
+		this.updateSeedControls();
 		this.toggleModal(this.options, this.optionsButton, "Close");
 	}
 
@@ -1578,7 +1604,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 
 	var puzzle = this;
 	this.options.querySelector("#game-seed").addEventListener("input", function() {
-		puzzle.updateSeedButton();
+		puzzle.updateSeedControls();
 	});
 	this.options.addEventListener("click", function(ev) {
 		if (ev.target == puzzle.options)

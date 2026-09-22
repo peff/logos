@@ -321,6 +321,9 @@ Deno.test("the seed action describes random, chosen, and restarted puzzles", fun
 		input.listeners.input();
 		assert(start.value == expected,
 		       "unexpected seed action for " + JSON.stringify(value));
+		assert(puzzle.options.querySelector("#copy-seed-link").disabled ==
+		       (expected == "Start with random seed" || value == "invalid"),
+		       "copy link was not enabled only for a valid seed");
 	}
 	edit("", "Start with random seed");
 	edit("0", "Start with seed");
@@ -339,6 +342,93 @@ Deno.test("the seed action describes random, chosen, and restarted puzzles", fun
 	puzzle.newGame(0);
 	puzzle.stopTimer();
 	edit("0", "Restart");
+});
+
+Deno.test("puzzle links start the same seed over HTTP or from a file", function() {
+	const puzzle = makePuzzle(6);
+	puzzle.say = function() {};
+	puzzle.newGame(0x2a);
+	puzzle.stopTimer();
+	const expected = puzzleSignature(puzzle);
+	for (const url of [
+		"https://example.com/logos/#seed=0000002a",
+		"http://localhost:8000/index.html#seed=2A",
+		"file:///home/player/logos/index.html#seed=2a",
+	]) {
+		assert(puzzle.startFromURL(url), "puzzle link was not accepted: " + url);
+		puzzle.stopTimer();
+		assert(puzzle.seed == 0x2a && puzzleSignature(puzzle) == expected,
+		       "puzzle link did not reproduce the expected puzzle");
+	}
+	assert(puzzle.startFromURL("https://example.com/#seed=0") && puzzle.seed == 0,
+	       "a zero seed was not accepted from a URL");
+	puzzle.stopTimer();
+});
+
+Deno.test("missing or invalid URL seeds do not start a game", function() {
+	const puzzle = makePuzzle(6);
+	for (const fragment of ["", "#help", "#seed=", "#seed=xyz",
+	                       "#seed=100000000", "#seed=-1", "#seed=12.5"]) {
+		assert(!puzzle.startFromURL("https://example.com/" + fragment),
+		       "an absent or invalid URL seed was accepted: " + fragment);
+		assert(puzzle.seed === undefined, "an invalid link started a game");
+	}
+});
+
+Deno.test("copying a puzzle link preserves the game and has a manual fallback", async function() {
+	const puzzle = makePuzzle(6);
+	puzzle.say = function() {};
+	const oldWindow = globalThis.window;
+	const clipboard = Object.getOwnPropertyDescriptor(navigator, "clipboard");
+	const copied = [];
+	const prompted = [];
+	globalThis.window = {
+		location: { href: "https://example.com/logos/index.html?theme=stone#seed=42" },
+		prompt(message, value) { prompted.push(value); },
+	};
+	Object.defineProperty(navigator, "clipboard", {
+		configurable: true,
+		value: { async writeText(value) { copied.push(value); } },
+	});
+	try {
+		puzzle.newGame(42);
+		puzzle.stopTimer();
+		const before = puzzleSignature(puzzle);
+		const input = puzzle.options.querySelector("#game-seed");
+		const button = puzzle.options.querySelector("#copy-seed-link");
+		input.value = " AB ";
+		input.listeners.input();
+		await puzzle.copySeedLink();
+		assert(copied[0] == "https://example.com/logos/index.html?theme=stone#seed=000000ab" &&
+		       button.value == "Copied",
+		       "copy did not normalize the selected seed or replace the old fragment");
+		assert(puzzle.seed == 42 && puzzleSignature(puzzle) == before,
+		       "copying a different seed replaced the current puzzle");
+		input.value = "0";
+		input.listeners.input();
+		assert(button.value == "Copy link", "editing retained stale copy feedback");
+		window.location.href = "file:///home/player/logos/index.html";
+		navigator.clipboard.writeText = async function() { throw new Error("denied"); };
+		await puzzle.copySeedLink();
+		assert(prompted[0] == "file:///home/player/logos/index.html#seed=00000000",
+		       "clipboard failure did not offer the file URL for manual copying");
+		for (const value of ["", "xyz"]) {
+			input.value = value;
+			await puzzle.copySeedLink();
+		}
+		assert(copied.length == 1 && prompted.length == 1,
+		       "copying an invalid seed produced a link");
+	} finally {
+		puzzle.stopTimer();
+		if (oldWindow === undefined)
+			delete globalThis.window;
+		else
+			globalThis.window = oldWindow;
+		if (clipboard)
+			Object.defineProperty(navigator, "clipboard", clipboard);
+		else
+			delete navigator.clipboard;
+	}
 });
 
 Deno.test("the timer appears only after a timed game starts", function() {

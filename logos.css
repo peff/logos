@@ -668,7 +668,7 @@ body.proof-active #logo {
 
 .control-buttons > input:hover,
 .modal-done:hover,
-.option-action:hover {
+.option-action:not(:disabled):hover {
 	background-color: #e2d7c3;
 	background-image:
 		image-set(linear-gradient(to bottom,
@@ -678,7 +678,7 @@ body.proof-active #logo {
 
 .control-buttons > input:active,
 .modal-done:active,
-.option-action:active {
+.option-action:not(:disabled):active {
 	background-color: #cbbda5;
 	background-image:
 		image-set(linear-gradient(to bottom,
@@ -864,6 +864,11 @@ body.proof-active #logo {
 
 .option-action[hidden] {
 	display: none;
+}
+
+.option-action:disabled {
+	opacity: 0.5;
+	cursor: var(--default-cursor);
 }
 
 .modal {
