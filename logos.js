@@ -1161,45 +1161,23 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.timer.textContent = formatTime(elapsed);
 	}
 
-	/* Serialize this page's reads and writes so a slow read cannot replace
-	 * a newer result. Other tabs are coordinated by IndexedDB transactions.
-	 */
-	this.loadHistory = function(run) {
-		var puzzle = this;
-		this.historyOperation = Promise.resolve(this.historyOperation).then(function() {
-			return accessRunHistory(run);
-		}).then(function(history) {
-			if (history)
-				puzzle.savedHistory = history;
-			else if (run)
-				puzzle.unsavedRuns.push(run);
-			puzzle.historyUnavailable = !history;
-			var runs = puzzle.savedHistory.highScores.concat(puzzle.unsavedRuns);
-			puzzle.gameStats = Object.assign({}, puzzle.savedHistory.gameStats);
-			for (var i = 0; i < puzzle.unsavedRuns.length; i++) {
-				var outcome = puzzle.unsavedRuns[i].outcome;
-				if (outcome == "won" || outcome == "lost")
-					puzzle.gameStats[outcome]++;
-			}
-			puzzle.highScores = runs.filter(function(run) {
-				return run.outcome == "won";
-			}).sort(function(a, b) {
-				return a.elapsed - b.elapsed;
-			}).slice(0, 10);
-			var highlighted = puzzle.highlightedScore;
-			puzzle.highlightedScore = highlighted ?
-				puzzle.highScores.find(function(score) {
-					return score === highlighted ||
-						(highlighted.id !== undefined &&
-						 score.id === highlighted.id);
+	this.loadHistory = async function(run) {
+		var history = await accessRunHistory(run);
+		this.historyError = history ? "" : run ?
+			"Your result could not be saved." : "Run history could not be loaded.";
+		if (history) {
+			this.highScores = history.highScores;
+			this.gameStats = history.gameStats;
+			var highlighted = this.highlightedScore;
+			this.highlightedScore = highlighted ?
+				this.highScores.find(function(score) {
+					return score.id === highlighted.id;
 				}) || null : null;
-			return !!history;
-		});
-		return this.historyOperation;
+		}
+		return !!history;
 	}
 
-	this.recordOutcome = function(outcome) {
-		var puzzle = this;
+	this.recordOutcome = async function(outcome) {
 		var gameIdentity = this.gameIdentity;
 		/* Capture the finished game before the asynchronous save.
 		 * date is the finish time in Unix milliseconds; elapsed is
@@ -1214,33 +1192,36 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			columns: this.rows[0].slots.length,
 			generatorVersion: puzzleGeneratorVersion,
 		};
-		this.pendingRunSave = this.loadHistory(run).then(function(saved) {
-			var highScore = puzzle.highScores.find(function(score) {
-				return score === run ||
-					(run.id !== undefined && score.id === run.id);
-			});
-			/* A queued save must not interrupt a newer game. */
-			if (highScore && puzzle.gameIdentity === gameIdentity) {
-				puzzle.highlightedScore = highScore;
-				if (puzzle.scores.hidden)
-					puzzle.toggleModal(puzzle.scores, puzzle.scoresButton,
-						"Rejoin the mortal realm");
-			}
-			if (!puzzle.scores.hidden)
-				puzzle.renderHighScores();
-			return saved;
+		var saved = await this.loadHistory(run);
+		var highScore = this.highScores.find(function(score) {
+			return run.id !== undefined && score.id === run.id;
 		});
-		return this.pendingRunSave;
+		/* A completed save must not interrupt a newer game. */
+		if (highScore && this.gameIdentity === gameIdentity) {
+			this.highlightedScore = highScore;
+			if (this.scores.hidden)
+				this.toggleModal(this.scores, this.scoresButton,
+					"Rejoin the mortal realm");
+		}
+		if (!saved && this.gameIdentity === gameIdentity)
+			this.say("Your result could not be saved.");
+		if (!this.scores.hidden)
+			this.renderHighScores();
+		return saved;
 	}
 
 	this.renderHighScores = function() {
 		var status = this.scores.querySelector(".scores-status");
-		status.hidden = !this.historyUnavailable && !this.unsavedRuns.length;
-		status.textContent = this.historyUnavailable ?
-			"Run history is unavailable. Showing results available in this tab." :
-			this.unsavedRuns.length ? "Some results could not be saved." : "";
+		status.hidden = !this.historyError;
+		status.textContent = this.historyError || "";
 		var list = this.scores.querySelector("ol");
 		var empty = this.scores.querySelector(".scores-empty");
+		this.scores.querySelector(".game-stats").hidden = !!this.historyError;
+		list.hidden = !!this.historyError;
+		if (this.historyError) {
+			empty.hidden = true;
+			return;
+		}
 		var gamesSought = this.gameStats.won + this.gameStats.lost;
 		this.scores.querySelector(".games-sought").textContent = gamesSought;
 		this.scores.querySelector(".games-sought-unit").textContent =
@@ -1570,21 +1551,21 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.helpPages[this.helpPage].querySelector(selector).focus();
 	}
 
-	this.toggleScores = function() {
-		this.toggleModal(this.scores, this.scoresButton,
-			"Rejoin the mortal realm");
-		if (this.scores.hidden) {
+	this.toggleScores = async function() {
+		if (!this.scores.hidden) {
+			this.toggleModal(this.scores, this.scoresButton,
+				"Rejoin the mortal realm");
 			this.highlightedScore = null;
 			return;
 		}
-		var puzzle = this;
+		var gameIdentity = this.gameIdentity;
+		await this.loadHistory();
+		if (this.gameIdentity !== gameIdentity)
+			return;
 		this.renderHighScores();
-		this.scores.setAttribute("aria-busy", "true");
-		return this.loadHistory().then(function() {
-			puzzle.scores.setAttribute("aria-busy", "false");
-			if (!puzzle.scores.hidden)
-				puzzle.renderHighScores();
-		});
+		if (this.scores.hidden)
+			this.toggleModal(this.scores, this.scoresButton,
+				"Rejoin the mortal realm");
 	}
 
 	this.toggleAbout = function() {
@@ -2096,8 +2077,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	} catch (e) {
 		/* Storage may be unavailable for local files. */
 	}
-	this.savedHistory = { highScores: [], gameStats: { won: 0, lost: 0 } };
-	this.unsavedRuns = [];
 	this.highScores = [];
 	this.gameStats = { won: 0, lost: 0 };
 	/* Applying saved preferences must not write a stale snapshot back. */

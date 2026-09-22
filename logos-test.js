@@ -1402,8 +1402,6 @@ Deno.test("automatic clue dismissal can be disabled and saved", function() {
 
 Deno.test("practice mode is saved and suppresses timing and scores", function() {
 	localStorage.removeItem("practiceMode");
-	localStorage.removeItem("gameStats");
-	localStorage.removeItem("highScores");
 	let puzzle = makePuzzle(6, true);
 	puzzle.setPracticeMode(true);
 	puzzle.newGame(1);
@@ -1443,8 +1441,6 @@ Deno.test("practice mode is saved and suppresses timing and scores", function() 
 	puzzle.stopTimer();
 	puzzle.say("");
 	localStorage.removeItem("practiceMode");
-	localStorage.removeItem("gameStats");
-	localStorage.removeItem("highScores");
 });
 
 Deno.test("practice messages distinguish direct explanations", function() {
@@ -2203,42 +2199,10 @@ async function withRunHistory(callback, initial) {
 	}
 }
 
-Deno.test("Pantheon ranks only wins and highlights a new score", async function() {
-	await withRunHistory(async function(runs) {
-		const puzzle = makePuzzle(1);
-		puzzle.seed = 0x1234abcd;
-		puzzle.timerElapsed = 500;
-		await puzzle.recordOutcome("won");
-		assert(puzzle.highScores.length == 10 &&
-		       puzzle.highScores[0].elapsed == 500 &&
-		       puzzle.highScores[9].elapsed == 9000,
-		       "Pantheon did not retain the ten fastest wins");
-		assert(puzzle.highlightedScore === puzzle.highScores[0],
-		       "winning high score was not highlighted");
-		const scoreItem = puzzle.scores.querySelector("ol").children[0];
-		assert(scoreItem.className == "score-new", "new score lacked its highlight");
-		const scoreButton = scoreItem.children[0];
-		const scoreSeed = scoreItem.children[1];
-		assert(scoreSeed.hidden && scoreSeed.textContent == "Puzzle seed: 1234abcd",
-		       "high score did not retain its puzzle seed");
-		scoreButton.listeners.click.call(scoreButton);
-		assert(!scoreSeed.hidden, "activating a score did not reveal its seed");
-		assert(puzzle.gameStats.won == 12 && puzzle.gameStats.lost == 1,
-		       "totals did not count runs outside the top ten");
-		puzzle.timerElapsed = 12000;
-		await puzzle.recordOutcome("won");
-		assert(runs.length == 14 && puzzle.highScores.length == 10 &&
-		       puzzle.gameStats.won == 13,
-		       "a slow win was not retained in history and totals");
-	}, [9000, 3000, 7000, 1000, 11000, 5000, 4000, 8000, 2000, 10000, 6000]
-		.map(elapsed => ({ elapsed, date: null, outcome: "won" }))
-		.concat([{ elapsed: 1, date: null, outcome: "lost" }]));
-});
-
 Deno.test("a winning score opens the Pantheon after saving", async function() {
 	await withRunHistory(async function(runs) {
 		const puzzle = makePuzzle(1, true);
-		puzzle.seed = 123;
+		puzzle.seed = 0x1234abcd;
 		puzzle.scores.hidden = true;
 		puzzle.timerElapsed = 5000;
 		for (const slot of puzzle.rows[0].slots)
@@ -2250,6 +2214,14 @@ Deno.test("a winning score opens the Pantheon after saving", async function() {
 		assert(!puzzle.scores.hidden && runs.length == 1 &&
 		       puzzle.highlightedScore === puzzle.highScores[0],
 		       "win was duplicated or did not open the Pantheon");
+		const item = puzzle.scores.querySelector("ol").children[0];
+		const button = item.children[0];
+		const seed = item.children[1];
+		assert(item.className == "score-new" && seed.hidden &&
+		       seed.textContent == "Puzzle seed: 1234abcd",
+		       "new score lacked its highlight or puzzle seed");
+		button.listeners.click.call(button);
+		assert(!seed.hidden, "activating a score did not reveal its seed");
 	});
 });
 
@@ -2279,7 +2251,7 @@ Deno.test("opening the Pantheon refreshes runs and retains highlights by key", a
 	}, [{ date: 1, seed: 123, elapsed: 1000, outcome: "won" }]);
 });
 
-Deno.test("queued saves capture the finished game and do not interrupt a new one", async function() {
+Deno.test("pending saves capture the finished game and do not interrupt a new one", async function() {
 	let release;
 	const gate = new Promise(resolve => { release = resolve; });
 	let recorded;
@@ -2309,7 +2281,7 @@ Deno.test("queued saves capture the finished game and do not interrupt a new one
 		       recorded.seed == 123 && recorded.elapsed == 1500 &&
 		       recorded.rows == 6 && recorded.columns == 6 &&
 		       recorded.generatorVersion == 1 && puzzle.scores.hidden,
-		       "queued save used the new game or interrupted it");
+		       "pending save used the new game or interrupted it");
 	} finally {
 		release();
 		Logos.setHistoryStorage(Logos.accessRunHistory);
@@ -2323,7 +2295,7 @@ Deno.test("continued losses record only the first mistake", async function() {
 		puzzle.timerElapsed = 700;
 		puzzle.continueAfterLoss = true;
 		puzzle.lose("first loss");
-		await puzzle.pendingRunSave;
+		await puzzle.toggleScores();
 		puzzle.lose("practice mistake");
 		for (const slot of puzzle.rows[0].slots)
 			slot.displaySingle();
@@ -2337,24 +2309,22 @@ Deno.test("continued losses record only the first mistake", async function() {
 	});
 });
 
-Deno.test("failed history saves retain page results without writing localStorage", async function() {
+Deno.test("history failures display errors instead of an empty Pantheon", async function() {
 	Logos.setHistoryStorage(async function() { return null; });
-	const setItem = localStorage.setItem;
-	const writes = [];
 	try {
 		const puzzle = makePuzzle(1);
-		localStorage.setItem = function(key) { writes.push(key); };
-		puzzle.timerElapsed = 1000;
-		assert(!await puzzle.recordOutcome("won"), "failed save reported success");
-		await puzzle.recordOutcome("lost");
-		await puzzle.loadHistory();
-		puzzle.renderHighScores();
-		assert(puzzle.gameStats.won == 1 && puzzle.gameStats.lost == 1 &&
-		       puzzle.highScores.length == 1 && writes.length == 0 &&
-		       !puzzle.scores.querySelector(".scores-status").hidden,
-		       "failed saves lost page results or wrote a second source of truth");
+		await puzzle.recordOutcome("won");
+		assert(puzzle.messages.innerHTML == "Your result could not be saved.",
+		       "failed save did not report an error");
+		puzzle.scores.hidden = true;
+		await puzzle.toggleScores();
+		const status = puzzle.scores.querySelector(".scores-status");
+		assert(!puzzle.scores.hidden && !status.hidden &&
+		       status.textContent == "Run history could not be loaded." &&
+		       puzzle.scores.querySelector(".game-stats").hidden &&
+		       puzzle.scores.querySelector(".scores-empty").hidden,
+		       "failed read displayed an empty Pantheon instead of an error");
 	} finally {
-		localStorage.setItem = setItem;
 		Logos.setHistoryStorage(Logos.accessRunHistory);
 	}
 });
@@ -3021,7 +2991,6 @@ Deno.test("restarting a proof clears its tile highlight", function() {
 
 Deno.test("practice mistakes can be explained and play can continue", function() {
 	localStorage.removeItem("practiceMode");
-	localStorage.removeItem("gameStats");
 	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
 	puzzle.say = function() {};
 	puzzle.setPracticeMode(true);
@@ -3055,19 +3024,16 @@ Deno.test("practice mistakes can be explained and play can continue", function()
 	       "the player could not continue after a practice proof");
 	puzzle.stopTimer();
 	localStorage.removeItem("practiceMode");
-	localStorage.removeItem("gameStats");
 });
 
-Deno.test("a loss can continue as a Zen game", async function() {
+Deno.test("a loss can continue as a Zen game", function() {
 	localStorage.removeItem("continueAfterLoss");
 	localStorage.removeItem("practiceMode");
-	localStorage.removeItem("gameStats");
 	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
 	puzzle.setContinueAfterLoss(true);
 	puzzle.newGame("9ed0fb2b");
 	const slot = puzzle.rows[1].slots[4];
 	slot.discard(4);
-	await puzzle.pendingRunSave;
 	assert(!puzzle.gameOver && puzzle.practiceMode &&
 	       !puzzle.practiceModePreference && !puzzle.scoreEligible &&
 	       !puzzle.timer.hidden && puzzle.timerTimeout === null &&
@@ -3075,8 +3041,6 @@ Deno.test("a loss can continue as a Zen game", async function() {
 	       puzzle.pendingProof && puzzle.pendingProof.continueGame &&
 	       slot.possibleElem.className != "solution" &&
 	       slot.possibilityElems[4].classList.contains("failed-action") &&
-	       JSON.stringify(puzzle.gameStats) ==
-		       JSON.stringify({ won: 0, lost: 1 }) &&
 	       localStorage.getItem("continueAfterLoss") == "true",
 	       "a continued loss did not retain a live Zen game");
 	assert(puzzle.sounds.length == 1 && puzzle.sounds[0] == "mistake",
@@ -3095,7 +3059,6 @@ Deno.test("a loss can continue as a Zen game", async function() {
 	       "another tile action did not clear the continued loss marker");
 	localStorage.removeItem("continueAfterLoss");
 	localStorage.removeItem("practiceMode");
-	localStorage.removeItem("gameStats");
 });
 
 export { Logos, makePuzzle };
