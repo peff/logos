@@ -1786,9 +1786,33 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.setSoundEffects = function(enabled) {
 		this.soundEffects = enabled;
 		this.options.querySelector("#sound-effects").checked = enabled;
+		this.options.querySelector("#sound-volume").disabled = !enabled;
+		if (this.soundGain)
+			this.soundGain.gain.value = enabled ? this.soundVolume : 0;
+		for (var name in this.soundSamples)
+			this.soundSamples[name].muted = !enabled;
 		try {
 			if (!this.loadingOptions)
 				localStorage.setItem("soundEffects", enabled);
+		} catch (e) {
+			/* The choice still applies for the current page. */
+		}
+	}
+
+	this.setSoundVolume = function(volume) {
+		this.soundVolume = Number.isFinite(volume) ?
+			Math.max(0, Math.min(1, volume)) : 1;
+		var input = this.options.querySelector("#sound-volume");
+		input.value = Math.round(this.soundVolume * 100);
+		input.setAttribute("aria-valuetext", input.value + "%");
+		input.title = "Volume: " + input.value + "%";
+		if (this.soundGain)
+			this.soundGain.gain.value = this.soundEffects ? this.soundVolume : 0;
+		for (var name in this.soundSamples)
+			this.soundSamples[name].volume = this.soundVolumes[name] * this.soundVolume;
+		try {
+			if (!this.loadingOptions)
+				localStorage.setItem("soundVolume", this.soundVolume);
 		} catch (e) {
 			/* The choice still applies for the current page. */
 		}
@@ -1877,6 +1901,15 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		return this.audioContext;
 	}
 
+	this.getSoundOutput = function(context) {
+		if (!this.soundGain) {
+			this.soundGain = context.createGain();
+			this.soundGain.gain.value = this.soundEffects ? this.soundVolume : 0;
+			this.soundGain.connect(context.destination);
+		}
+		return this.soundGain;
+	}
+
 	this.loadSampleSound = function(name) {
 		var context = this.getAudioContext();
 		if (!context ||
@@ -1920,7 +1953,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 
 	this.playMediaSampleSound = function(name, rate) {
 		var audio = this.soundSamples[name];
-		audio.volume = this.soundVolumes[name];
+		audio.volume = this.soundVolumes[name] * this.soundVolume;
 		audio.playbackRate = rate;
 		var playback = audio.play();
 		if (playback)
@@ -1952,7 +1985,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		source.buffer = buffer;
 		source.playbackRate.value = rate;
 		gain.gain.value = this.soundVolumes[name];
-		source.connect(gain).connect(context.destination);
+		source.connect(gain).connect(this.getSoundOutput(context));
 		this.sampleSource = source;
 		var puzzle = this;
 		source.onended = function() {
@@ -1974,6 +2007,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			return;
 		if (context.state == "suspended")
 			context.resume();
+		var output = this.getSoundOutput(context);
 		var variation = 0.94 + Math.random() * 0.12;
 		if (type == "win") {
 			var notes = [587.33, 783.99, 659.25, 880,
@@ -1983,10 +2017,10 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 				      0.52, 0.62, 0.73, 0.85, 0.98, 1.12];
 			for (var i = 0; i < notes.length; i++)
 				playChime(context, notes[i] * variation, delays[i],
-					i == notes.length - 1 ? 0.07 : 0.05);
+					i == notes.length - 1 ? 0.07 : 0.05, output);
 		} else if (type == "practice-mistake") {
-			playChime(context, 523.25 * variation, 0, 0.018);
-			playChime(context, 440 * variation, 0.13, 0.014);
+			playChime(context, 523.25 * variation, 0, 0.018, output);
+			playChime(context, 440 * variation, 0.13, 0.014, output);
 		}
 	}
 
@@ -2000,6 +2034,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	var practiceMode = false;
 	var continueAfterLoss = false;
 	var soundEffects = true;
+	var soundVolume = 1;
 	var expandTileChoices = this.expandTileChoices;
 	var dragTileChoices = this.dragTileChoices;
 	var showActionSelector = this.showActionSelector;
@@ -2014,6 +2049,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		var storedContinueAfterLoss = localStorage.getItem(
 			"continueAfterLoss");
 		var storedSoundEffects = localStorage.getItem("soundEffects");
+		var storedSoundVolume = localStorage.getItem("soundVolume");
 		var storedExpandTileChoices = localStorage.getItem(
 			"expandTileChoices");
 		var storedDragTileChoices = localStorage.getItem(
@@ -2036,6 +2072,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			continueAfterLoss = storedContinueAfterLoss == "true";
 		if (storedSoundEffects !== null)
 			soundEffects = storedSoundEffects == "true";
+		if (storedSoundVolume !== null)
+			soundVolume = Number(storedSoundVolume);
 		if (storedExpandTileChoices !== null)
 			expandTileChoices = storedExpandTileChoices == "true";
 		else if (oldSelectionActionMenu !== null)
@@ -2058,6 +2096,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.setPracticeMode(practiceMode);
 	this.setContinueAfterLoss(continueAfterLoss);
 	this.setSoundEffects(soundEffects);
+	this.setSoundVolume(soundVolume);
 	this.setExpandTileChoices(expandTileChoices);
 	this.setDragTileChoices(dragTileChoices);
 	this.setShowActionSelector(showActionSelector);
@@ -2210,7 +2249,7 @@ function loadGameStats(fallback) {
 	return { won: stats.won, lost: stats.lost };
 }
 
-function playChime(context, frequency, delay, volume) {
+function playChime(context, frequency, delay, volume, output) {
 	var partials = [1, 2.76, 5.4, 8.93];
 	var strengths = [0.7, 1, 0.32, 0.12];
 	var durations = [1.5, 1.15, 0.65, 0.38];
@@ -2225,7 +2264,7 @@ function playChime(context, frequency, delay, volume) {
 			start + 0.002);
 		gain.gain.exponentialRampToValueAtTime(0.0001,
 			start + durations[i]);
-		oscillator.connect(gain).connect(context.destination);
+		oscillator.connect(gain).connect(output);
 		oscillator.start(start);
 		oscillator.stop(start + durations[i]);
 	}

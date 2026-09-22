@@ -132,11 +132,17 @@
 						              onChange="puzzle.setMilestones(this.checked)">
 						       <span>Milestone messages
 						             <small>Show progress messages while solving. Disable for deep focus.</small></span></label>
-						<label>
-						       <input id="sound-effects" type="checkbox"
-						              onChange="puzzle.setSoundEffects(this.checked)">
-						       <span>Sound effects
-						             <small>Play sounds for moves and results.</small></span></label>
+						<div class="sound-options">
+							<label>
+							       <input id="sound-effects" type="checkbox"
+							              onChange="puzzle.setSoundEffects(this.checked)">
+							       <span>Sound effects
+							             <small>Play sounds for moves and results.</small></span></label>
+							<input id="sound-volume" type="range" min="0" max="100" value="100"
+							       aria-label="Sound effects volume"
+							       onInput="puzzle.setSoundVolume(this.value / 100)"
+							       onChange="puzzle.playSound('place')">
+						</div>
 						<label>
 						       <input id="expand-tile-choices" type="checkbox"
 						              onChange="puzzle.setExpandTileChoices(this.checked)">

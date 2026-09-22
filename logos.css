@@ -1148,6 +1148,53 @@ body.proof-active #logo {
 	white-space: normal;
 }
 
+.sound-options {
+	display: flex;
+	align-items: flex-start;
+	gap: 0.6rem;
+}
+
+#sound-volume {
+	appearance: none;
+	flex: 0 0 5rem;
+	width: 5rem;
+	height: 0.95rem;
+	margin: 0.05rem 0 0;
+	background: linear-gradient(#9b9385, #c8c0b2) center / 100% 0.18rem no-repeat;
+	cursor: var(--action-cursor);
+}
+
+#sound-volume::-webkit-slider-thumb {
+	appearance: none;
+	width: 0.425rem;
+	height: 0.85rem;
+	border: 1px solid #8f826e;
+	border-radius: 0.1rem;
+	background: #d7cbb5 url("stone-texture.png") center / 4rem 2rem;
+	box-shadow: inset 0.04rem 0.04rem 0 rgb(255 255 255 / 55%),
+		0 0.04rem 0.08rem rgb(42 37 30 / 35%);
+}
+
+#sound-volume::-moz-range-thumb {
+	width: 0.425rem;
+	height: 0.85rem;
+	border: 1px solid #8f826e;
+	border-radius: 0.1rem;
+	background: #d7cbb5 url("stone-texture.png") center / 4rem 2rem;
+	box-shadow: inset 0.04rem 0.04rem 0 rgb(255 255 255 / 55%),
+		0 0.04rem 0.08rem rgb(42 37 30 / 35%);
+}
+
+#sound-volume:focus-visible {
+	outline: 2px solid #80633a;
+	outline-offset: 2px;
+}
+
+#sound-volume:disabled {
+	opacity: 0.5;
+	cursor: var(--default-cursor);
+}
+
 #options-menu .seed-options {
 	clear: both;
 	margin-top: 0.5rem;

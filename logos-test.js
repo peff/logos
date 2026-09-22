@@ -1987,6 +1987,87 @@ Deno.test("a player elimination makes one sound", function() {
 	       "elimination made the wrong sound");
 });
 
+Deno.test("sound volume is saved independently of the sound toggle", function() {
+	const saved = { ...localStorage.values };
+	try {
+		localStorage.removeItem("soundVolume");
+		const puzzle = makePuzzle(1);
+		const slider = puzzle.options.querySelector("#sound-volume");
+		assert(puzzle.soundVolume == 1 && slider.value == 100,
+		       "default volume changed existing sound levels");
+		puzzle.setSoundVolume(0.4);
+		puzzle.playMediaSampleSound("discard", 1);
+		assert(puzzle.soundSamples.discard.volume == 0.55 * 0.4,
+		       "media playback ignored the volume setting");
+		puzzle.setSoundEffects(false);
+		assert(slider.disabled && puzzle.soundSamples.discard.muted,
+		       "turning sound off did not disable the slider and mute playback");
+		const reloaded = makePuzzle(1);
+		assert(reloaded.soundVolume == 0.4 && !reloaded.soundEffects,
+		       "reloading did not retain the volume while muted");
+		reloaded.setSoundEffects(true);
+		assert(!reloaded.options.querySelector("#sound-volume").disabled &&
+		       !reloaded.soundSamples.discard.muted && reloaded.soundVolume == 0.4,
+		       "enabling sound did not retain its volume");
+		puzzle.setSoundVolume(0);
+		assert(puzzle.soundSamples.discard.volume == 0 &&
+		       slider.attributes["aria-valuetext"] == "0%",
+		       "zero volume did not silence an existing media sample");
+		puzzle.setSoundVolume(2);
+		assert(puzzle.soundVolume == 1, "volume exceeded the media range");
+		localStorage.setItem("soundVolume", "invalid");
+		assert(makePuzzle(1).soundVolume == 1, "invalid saved volume was not ignored");
+	} finally {
+		localStorage.values = saved;
+	}
+});
+
+Deno.test("samples and chimes share a live volume control", function() {
+	const saved = { ...localStorage.values };
+	const elem = () => new FakeElement();
+	const puzzle = new Puzzle(elem(), elem(), elem(), elem(), elem(), [symbols],
+		elem(), elem(), elem(), elem(), elem(), elem(), elem(), elem());
+	const outputs = [];
+	puzzle.audioContext = {
+		state: "running", currentTime: 0, destination: {},
+		createGain() {
+			return {
+				gain: { setValueAtTime() {}, exponentialRampToValueAtTime() {} },
+				connect(node) { outputs.push(node); return node; },
+			};
+		},
+		createBufferSource() {
+			return { playbackRate: {}, connect(node) { return node; }, start() {}, stop() {} };
+		},
+		createOscillator() {
+			return { frequency: {}, connect(node) { return node; }, start() {}, stop() {} };
+		},
+	};
+	try {
+		puzzle.setSoundEffects(true);
+		puzzle.setSoundVolume(0.4);
+		puzzle.soundBuffers.discard = {};
+		puzzle.playSound("discard");
+		const master = puzzle.soundGain;
+		assert(master.gain.value == 0.4 && outputs[0] == puzzle.audioContext.destination &&
+		       outputs[1] == master, "sample playback bypassed the master volume");
+		for (const type of ["win", "practice-mistake"]) {
+			outputs.length = 0;
+			puzzle.playSound(type);
+			assert(outputs.length > 0 && outputs.every(node => node == master),
+			       "synthesized chimes bypassed the master volume");
+		}
+		puzzle.setSoundVolume(0.2);
+		assert(master.gain.value == 0.2, "volume did not update existing audio routing");
+		puzzle.setSoundEffects(false);
+		assert(master.gain.value == 0, "muting left Web Audio sounds audible");
+		puzzle.setSoundEffects(true);
+		assert(master.gain.value == 0.2, "unmuting did not restore the saved level");
+	} finally {
+		localStorage.values = saved;
+	}
+});
+
 Deno.test("sample variation uses Web Audio resampling", function() {
 	const puzzle = makePuzzle(1);
 	const sources = [];
