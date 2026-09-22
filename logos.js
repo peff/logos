@@ -1161,82 +1161,83 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.timer.textContent = formatTime(elapsed);
 	}
 
-	/* Called while holding the Pantheon lock. */
-	this.recordHighScore = function(score) {
-		this.highScores = loadHighScores(this.highScores);
-		this.highScores.push(score);
-		this.highScores.sort(function(a, b) {
-			return a.elapsed - b.elapsed;
+	/* Serialize this page's reads and writes so a slow read cannot replace
+	 * a newer result. Other tabs are coordinated by IndexedDB transactions.
+	 */
+	this.loadHistory = function(run) {
+		var puzzle = this;
+		this.historyOperation = Promise.resolve(this.historyOperation).then(function() {
+			return accessRunHistory(run);
+		}).then(function(history) {
+			if (history)
+				puzzle.runs = history;
+			else if (run)
+				puzzle.unsavedRuns.push(run);
+			puzzle.historyUnavailable = !history;
+			var runs = puzzle.runs.concat(puzzle.unsavedRuns);
+			puzzle.gameStats = { won: 0, lost: 0 };
+			for (var i = 0; i < runs.length; i++) {
+				if (runs[i].outcome == "won" || runs[i].outcome == "lost")
+					puzzle.gameStats[runs[i].outcome]++;
+			}
+			puzzle.highScores = runs.filter(function(run) {
+				return run.outcome == "won";
+			}).sort(function(a, b) {
+				return a.elapsed - b.elapsed;
+			}).slice(0, 10);
+			var highlighted = puzzle.highlightedScore;
+			puzzle.highlightedScore = highlighted ?
+				puzzle.highScores.find(function(score) {
+					return score === highlighted ||
+						(highlighted.id !== undefined &&
+						 score.id === highlighted.id);
+				}) || null : null;
+			return !!history;
 		});
-		this.highScores = this.highScores.slice(0, 10);
-		try {
-			localStorage.setItem("highScores",
-				JSON.stringify(this.highScores));
-		} catch (e) {
-			/* The scores still apply for the current page. */
-		}
-		return this.highScores.indexOf(score) >= 0 ? score : null;
+		return this.historyOperation;
 	}
 
 	this.recordOutcome = function(outcome) {
 		var puzzle = this;
 		var gameIdentity = this.gameIdentity;
-		var date = Date.now();
-		if (this.seed !== undefined) {
-			/* Capture the finished game before either asynchronous save.
-			 * date is the finish time in Unix milliseconds; elapsed is
-			 * active play time in milliseconds, excluding pauses.
-			 */
-			this.pendingRunSave = appendRun({
-				date: date,
-				seed: this.seed,
-				elapsed: this.timerElapsed,
-				outcome: outcome,
-				rows: this.rows.length,
-				columns: this.rows[0].slots.length,
-				generatorVersion: puzzleGeneratorVersion,
+		/* Capture the finished game before the asynchronous save.
+		 * date is the finish time in Unix milliseconds; elapsed is
+		 * active play time in milliseconds, excluding pauses.
+		 */
+		var run = {
+			date: Date.now(),
+			seed: this.seed,
+			elapsed: this.timerElapsed,
+			outcome: outcome,
+			rows: this.rows.length,
+			columns: this.rows[0].slots.length,
+			generatorVersion: puzzleGeneratorVersion,
+		};
+		this.pendingRunSave = this.loadHistory(run).then(function(saved) {
+			var highScore = puzzle.highScores.find(function(score) {
+				return score === run ||
+					(run.id !== undefined && score.id === run.id);
 			});
-		}
-		var score = null;
-		if (outcome == "won") {
-			score = { elapsed: this.timerElapsed, date: date };
-			if (this.seed !== undefined)
-				score.seed = this.seed;
-		}
-		return withPantheonLock(function() {
-			puzzle.gameStats = loadGameStats(puzzle.gameStats);
-			puzzle.gameStats[outcome]++;
-			try {
-				localStorage.setItem("gameStats",
-					JSON.stringify(puzzle.gameStats));
-			} catch (e) {
-				/* The totals still apply for the current page. */
-			}
-			var highScore = score ? puzzle.recordHighScore(score) : null;
 			/* A queued save must not interrupt a newer game. */
 			if (highScore && puzzle.gameIdentity === gameIdentity) {
 				puzzle.highlightedScore = highScore;
 				if (puzzle.scores.hidden)
-					puzzle.toggleScores();
-				else
-					puzzle.renderHighScores();
-			} else if (!puzzle.scores.hidden) {
-				puzzle.renderHighScores();
+					puzzle.toggleModal(puzzle.scores, puzzle.scoresButton,
+						"Rejoin the mortal realm");
 			}
+			if (!puzzle.scores.hidden)
+				puzzle.renderHighScores();
+			return saved;
 		});
+		return this.pendingRunSave;
 	}
 
 	this.renderHighScores = function() {
-		this.gameStats = loadGameStats(this.gameStats);
-		this.highScores = loadHighScores(this.highScores);
-		/* Reloading replaces the score objects, including our highlight. */
-		var highlighted = this.highlightedScore;
-		this.highlightedScore = highlighted ?
-			this.highScores.find(function(score) {
-				return score.elapsed === highlighted.elapsed &&
-					score.date === highlighted.date &&
-					score.seed === highlighted.seed;
-			}) || null : null;
+		var status = this.scores.querySelector(".scores-status");
+		status.hidden = !this.historyUnavailable && !this.unsavedRuns.length;
+		status.textContent = this.historyUnavailable ?
+			"Run history is unavailable. Showing results available in this tab." :
+			this.unsavedRuns.length ? "Some results could not be saved." : "";
 		var list = this.scores.querySelector("ol");
 		var empty = this.scores.querySelector(".scores-empty");
 		var gamesSought = this.gameStats.won + this.gameStats.lost;
@@ -1569,11 +1570,20 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.toggleScores = function() {
-		this.renderHighScores();
 		this.toggleModal(this.scores, this.scoresButton,
 			"Rejoin the mortal realm");
-		if (this.scores.hidden)
+		if (this.scores.hidden) {
 			this.highlightedScore = null;
+			return;
+		}
+		var puzzle = this;
+		this.renderHighScores();
+		this.scores.setAttribute("aria-busy", "true");
+		return this.loadHistory().then(function() {
+			puzzle.scores.setAttribute("aria-busy", "false");
+			if (!puzzle.scores.hidden)
+				puzzle.renderHighScores();
+		});
 	}
 
 	this.toggleAbout = function() {
@@ -2085,6 +2095,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	} catch (e) {
 		/* Storage may be unavailable for local files. */
 	}
+	this.runs = [];
+	this.unsavedRuns = [];
 	this.highScores = [];
 	this.gameStats = { won: 0, lost: 0 };
 	/* Applying saved preferences must not write a stale snapshot back. */
@@ -2151,102 +2163,114 @@ function formatOlympiad(timestamp) {
 	return "Olympiad " + olympiad + "." + year;
 }
 
-/* Append one record without reading or rewriting earlier runs. The database
- * version describes the storage schema; generatorVersion in each record
- * identifies the puzzle-generation rules used to interpret its seed.
+/* Import legacy scores and optionally append a run, then return a committed
+ * snapshot. Record keys are exposed as id, but remain out-of-line in the store.
  */
-function appendRun(run) {
+function accessRunHistory(run) {
 	return new Promise(function(resolve) {
 		if (typeof indexedDB == "undefined") {
-			resolve(false);
+			resolve(null);
 			return;
 		}
 		var request = indexedDB.open("logos", 1);
 		request.onupgradeneeded = function() {
 			request.result.createObjectStore("runs", { autoIncrement: true });
 		};
-		request.onerror = function() { resolve(false); };
+		request.onerror = function() { resolve(null); };
 		request.onsuccess = function() {
 			var db = request.result;
 			db.onversionchange = function() { db.close(); };
+			var legacy = null;
 			try {
-				var transaction = db.transaction("runs", "readwrite");
+				legacy = localStorage.getItem("highScores");
+			} catch (e) {
+				/* IndexedDB may still be usable when localStorage is not. */
+			}
+			try {
+				var scores = parseLegacyScores(legacy);
+				var transaction = db.transaction("runs",
+					run || legacy !== null ? "readwrite" : "readonly");
+				var store = transaction.objectStore("runs");
+				var runs = [];
+				var added = [];
 				transaction.oncomplete = function() {
 					db.close();
-					resolve(true);
+					for (var i = 0; i < added.length; i++)
+						added[i].entry.id = added[i].id;
+					/* Leave legacy data intact until its import commits. */
+					try {
+						if (legacy !== null)
+							localStorage.removeItem("highScores");
+						localStorage.removeItem("gameStats");
+					} catch (e) {
+						/* A later access can retry the cleanup. */
+					}
+					resolve(runs);
 				};
 				transaction.onabort = function() {
 					db.close();
-					resolve(false);
+					resolve(null);
 				};
-				transaction.objectStore("runs").add(run);
+				var values = store.getAll();
+				var keys = store.getAllKeys();
+				keys.onsuccess = function() {
+					runs = values.result.map(function(value, i) {
+						return Object.assign({}, value, { id: keys.result[i] });
+					});
+					function add(entry) {
+						store.add(entry).onsuccess = function(event) {
+							added.push({ entry: entry, id: event.target.result });
+						};
+						runs.push(entry);
+					}
+					var known = new Set(runs.filter(function(entry) {
+						return entry.outcome == "won";
+					}).map(legacyScoreKey));
+					for (var i = 0; i < scores.length; i++) {
+						var key = legacyScoreKey(scores[i]);
+						if (known.has(key))
+							continue;
+						known.add(key);
+						add(Object.assign({}, scores[i], {
+							outcome: "won", generatorVersion: 1,
+							rows: 6, columns: 6,
+						}));
+					}
+					if (run)
+						add(run);
+				};
 			} catch (e) {
 				db.close();
-				resolve(false);
+				resolve(null);
 			}
 		};
 	}).catch(function() {
 		/* Storage failures must not prevent finishing the game. */
-		return false;
+		return null;
 	});
 }
 
-/* All Pantheon read/modify/write operations share this origin-wide lock.
- * Without Web Locks (e.g., plain HTTP), reloading still reduces lost updates,
- * but cannot make the read and write atomic.
- */
-function withPantheonLock(update) {
-	if (typeof navigator == "undefined" || !navigator.locks)
-		return update();
-	var started = false;
-	return navigator.locks.request("logos-pantheon", function() {
-		started = true;
-		return update();
-	}).catch(function(error) {
-		/* Storage restrictions may also prevent acquiring a lock. */
-		if (started)
-			throw error;
-		return update();
-	});
+function legacyScoreKey(score) {
+	return JSON.stringify([score.date, score.seed, score.elapsed]);
 }
 
-function loadHighScores(fallback) {
-	var scores = [];
-	try {
-		scores = JSON.parse(localStorage.getItem("highScores") || "[]");
-	} catch (e) {
-		return fallback || [];
-	}
+function parseLegacyScores(raw) {
+	var scores = JSON.parse(raw || "[]");
 	if (!Array.isArray(scores))
-		return [];
-	scores = scores.map(function(score) {
+		throw new Error("Invalid legacy high scores");
+	return scores.map(function(score) {
+		/* Early versions stored only elapsed times, then added dates and seeds. */
 		if (Number.isFinite(score) && score >= 0)
 			return { elapsed: score, date: null };
 		if (!score || !Number.isFinite(score.elapsed) || score.elapsed < 0)
-			return null;
-		if (!Number.isFinite(score.date) || score.date < 0)
-			score.date = null;
-		if (!Number.isInteger(score.seed) || score.seed < 0 ||
-		    score.seed > 0xffffffff)
-			delete score.seed;
-		return score;
-	}).filter(function(score) { return score !== null; });
-	return scores.sort(function(a, b) {
-		return a.elapsed - b.elapsed;
-	}).slice(0, 10);
-}
-
-function loadGameStats(fallback) {
-	var stats;
-	try {
-		stats = JSON.parse(localStorage.getItem("gameStats") || "{}");
-	} catch (e) {
-		return fallback || { won: 0, lost: 0 };
-	}
-	if (!stats || !Number.isSafeInteger(stats.won) || stats.won < 0 ||
-	    !Number.isSafeInteger(stats.lost) || stats.lost < 0)
-		return { won: 0, lost: 0 };
-	return { won: stats.won, lost: stats.lost };
+			throw new Error("Invalid legacy high score");
+		var entry = { elapsed: score.elapsed, date: null };
+		if (Number.isFinite(score.date) && score.date >= 0)
+			entry.date = score.date;
+		if (Number.isInteger(score.seed) && score.seed >= 0 && score.seed <= 0xffffffff)
+			entry.seed = score.seed;
+		return entry;
+	});
 }
 
 function playChime(context, frequency, delay, volume, output) {

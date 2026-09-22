@@ -39,8 +39,6 @@
      for various levels
  - run history
    - we're now storing all runs via indexdb
-   - pantheon should be converted to treat run history as source of
-     truth; we probably need to migrate old pantheon entries
    - run history should be exportable (maybe even just using dev tools)
      to feed difficulty analysis (e.g., seeing what is really "hard"
      based on completion times).
