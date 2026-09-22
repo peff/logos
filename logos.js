@@ -154,6 +154,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.vClues = vClues;
 	this.options = options;
 	this.optionsButton = optionsButton;
+	this.newGameButton = document.querySelector("#new-game-button");
+	this.newGameButton.value = "New Game";
 	this.help = help;
 	this.helpButton = helpButton;
 	this.scores = scores;
@@ -305,10 +307,17 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.updateActionControls();
 	}
 
+	this.startGame = function() {
+		return this.pendingSeed !== undefined ?
+			this.newGame(this.pendingSeed) : this.newGame();
+	}
+
 	this.newGame = function() {
 		var seed = arguments.length ? parseSeed(arguments[0]) : randomSeed();
 		if (seed === null)
 			return false;
+		this.pendingSeed = undefined;
+		this.newGameButton.value = "New Game";
 		this.gameIdentity = {};
 		this.seed = seed;
 		this.options.querySelector("#game-seed").value = formatSeed(seed);
@@ -349,10 +358,16 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		return true;
 	}
 
-	this.startFromURL = function(url) {
+	this.loadURLSeed = function(url) {
 		var params = new URLSearchParams(new URL(url).hash.slice(1));
-		var seed = params.get("seed");
-		return seed !== null && this.newGame(seed);
+		var seed = parseSeed(params.get("seed"));
+		if (seed === null)
+			return false;
+		this.pendingSeed = seed;
+		this.newGameButton.value = "Start Game";
+		this.options.querySelector("#game-seed").value = formatSeed(seed);
+		this.updateSeedControls();
+		return true;
 	}
 
 	this.updateSeedControls = function() {
@@ -1525,9 +1540,10 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.toggleOptions = function() {
-		if (this.options.hidden && this.seed !== undefined)
+		var seed = this.seed !== undefined ? this.seed : this.pendingSeed;
+		if (this.options.hidden && seed !== undefined)
 			this.options.querySelector("#game-seed").value =
-				formatSeed(this.seed);
+				formatSeed(seed);
 		this.updateSeedControls();
 		this.toggleModal(this.options, this.optionsButton, "Close");
 	}

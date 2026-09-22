@@ -26,5 +26,5 @@ simplicity.
 Puzzle links
 ============
 
-Append `#seed=1234abcd` to the page URL to start a particular puzzle when
-the page loads (seeds are up to 8 hexadecimal digits).
+Append `#seed=1234abcd` to the page URL to link to a particular puzzle
+(seeds are up to 8 hexadecimal digits). Click "Start Game" to begin it.

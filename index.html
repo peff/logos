@@ -424,7 +424,7 @@
 			<div id="application-footer">
 				<div class="control-buttons">
 					<input id="new-game-button" type="button"
-					       onClick="puzzle.newGame()" value="New Game">
+					       onClick="puzzle.startGame()" value="New Game">
 					<input id="help-button" type="button"
 					       onClick="puzzle.toggleHelp()" value="How to play"
 					       aria-expanded="false" aria-controls="help-menu">
@@ -477,7 +477,7 @@
 				document.getElementById("scores-button"),
 				document.getElementById("about-menu"),
 				document.getElementById("logo"));
-		puzzle.startFromURL(window.location.href);
+		puzzle.loadURLSeed(window.location.href);
 		</script>
 		<script src="logos-multiplayer.js"></script>
 		<script src="logos-webrtc.js"></script>

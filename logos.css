@@ -748,6 +748,11 @@ body.proof-active #logo {
 	font-size: 0.78rem;
 }
 
+#new-game-button {
+	box-sizing: content-box;
+	width: 4.5em;
+}
+
 #explain-button:disabled {
 	opacity: 0.35;
 }
