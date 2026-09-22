@@ -2184,6 +2184,7 @@ async function withRunHistory(callback, initial) {
 			runs.push(structuredClone(run));
 		}
 		return {
+			runs: structuredClone(runs),
 			highScores: structuredClone(runs.filter(run => run.outcome == "won")
 				.sort((a, b) => a.elapsed - b.elapsed).slice(0, 10)),
 			gameStats: {
@@ -2216,12 +2217,13 @@ Deno.test("a winning score opens the Pantheon after saving", async function() {
 		       "win was duplicated or did not open the Pantheon");
 		const item = puzzle.scores.querySelector("ol").children[0];
 		const button = item.children[0];
-		const seed = item.children[1];
-		assert(item.className == "score-new" && seed.hidden &&
-		       seed.textContent == "Puzzle seed: 1234abcd",
-		       "new score lacked its highlight or puzzle seed");
-		button.listeners.click.call(button);
-		assert(!seed.hidden, "activating a score did not reveal its seed");
+		assert(item.className == "score-new", "new score lacked its highlight");
+		await button.listeners.click.call(button);
+		const body = puzzle.scores.querySelector(".history-table tbody");
+		assert(!puzzle.scores.querySelector(".history-view").hidden &&
+		       body.children[0].className == "history-selected" &&
+		       body.children[0].children[3].textContent == "1234abcd",
+		       "score did not open its history entry with its seed");
 	});
 });
 
@@ -2309,6 +2311,84 @@ Deno.test("continued losses record only the first mistake", async function() {
 	});
 });
 
+Deno.test("run history sorts and filters without hiding unknown dates", async function() {
+	await withRunHistory(async function() {
+		const puzzle = makePuzzle(1);
+		puzzle.scores.hidden = false;
+		puzzle.gameOver = true;
+		await puzzle.showRunHistory();
+		const body = puzzle.scores.querySelector(".history-table tbody");
+		const seeds = () => body.children.map(row => row.children[3].textContent).join(",");
+		assert(seeds() == "00000002,00000001,—", "history was not newest first");
+		for (const [column, direction, expected] of [
+			["date", "ascending", "00000001,00000002,—"],
+			["time", "ascending", "00000002,—,00000001"],
+			["time", "descending", "00000001,—,00000002"],
+		]) {
+			puzzle.sortRunHistory(column);
+			assert(seeds() == expected &&
+			       puzzle.scores.querySelector(".history-" + column + "-sort").attributes["aria-sort"] == direction,
+			       "wrong order or indicator for " + column + " " + direction);
+		}
+		const wins = puzzle.scores.querySelector(".history-wins");
+		const losses = puzzle.scores.querySelector(".history-losses");
+		wins.checked = false;
+		puzzle.renderRunHistory();
+		assert(seeds() == "00000002", "loss filter included wins");
+		wins.checked = true;
+		losses.checked = false;
+		puzzle.renderRunHistory();
+		assert(seeds() == "00000001,—", "win filter omitted legacy run");
+		wins.checked = false;
+		puzzle.renderRunHistory();
+		assert(body.children.length == 0 &&
+		       puzzle.scores.querySelector(".history-status").textContent == "No runs match this filter.",
+		       "unchecking both results did not show an empty list");
+		assert(puzzle.scores.querySelector(".modal-close").value == "Back to Pantheon",
+		       "history did not label its back button");
+		await puzzle.toggleScores();
+		assert(puzzle.scores.querySelector(".history-view").hidden && !puzzle.scores.hidden,
+		       "returning to Pantheon closed the modal");
+		assert(puzzle.scores.querySelector(".modal-close").value == "Rejoin the mortal realm",
+		       "Pantheon did not restore its close label");
+		await puzzle.toggleScores();
+		assert(puzzle.scores.hidden, "second click did not close the Pantheon");
+	}, [
+		{ date: 1, elapsed: 300, seed: 1, outcome: "won" },
+		{ date: 2, elapsed: 100, seed: 2, outcome: "lost" },
+		{ date: null, elapsed: 200, outcome: "won" },
+	]);
+});
+
+Deno.test("Chronicle links select a leaf and sorting or filtering returns to the first", async function() {
+	await withRunHistory(async function() {
+		const puzzle = makePuzzle(1);
+		puzzle.scores.hidden = false;
+		await puzzle.showRunHistory(1);
+		const body = puzzle.scores.querySelector(".history-table tbody");
+		assert(puzzle.historyPage == 2 && body.children.length == 3 &&
+		       body.children[2].className == "history-selected",
+		       "link did not open the selected run's leaf");
+		puzzle.renderRunHistory(1);
+		assert(body.children.length == 8 && puzzle.historyPage == 1,
+		       "turning a leaf did not render the next slice");
+		puzzle.sortRunHistory("time");
+		assert(puzzle.historyPage == 0 && body.children[0].children[3].textContent == "00000000",
+		       "sorting did not return to the first leaf");
+		puzzle.renderRunHistory(2);
+		puzzle.scores.querySelector(".history-losses").checked = false;
+		puzzle.renderRunHistory();
+		assert(puzzle.historyPage == 0 && body.children.length == 8,
+		       "filtering did not return to the first leaf");
+		puzzle.renderRunHistory(1);
+		assert(body.children.length == 1 &&
+		       puzzle.scores.querySelector(".history-folio .help-page-next").disabled,
+		       "last leaf did not disable forward navigation");
+	}, Array.from({ length: 19 }, (_, i) => ({
+		date: i, seed: i, elapsed: i, outcome: i % 2 ? "won" : "lost",
+	})));
+});
+
 Deno.test("history failures display errors instead of an empty Pantheon", async function() {
 	Logos.setHistoryStorage(async function() { return null; });
 	try {
@@ -2320,10 +2400,15 @@ Deno.test("history failures display errors instead of an empty Pantheon", async 
 		await puzzle.toggleScores();
 		const status = puzzle.scores.querySelector(".scores-status");
 		assert(!puzzle.scores.hidden && !status.hidden &&
-		       status.textContent == "Run history could not be loaded." &&
+		       status.textContent == "The Chronicle could not be loaded." &&
 		       puzzle.scores.querySelector(".game-stats").hidden &&
 		       puzzle.scores.querySelector(".scores-empty").hidden,
 		       "failed read displayed an empty Pantheon instead of an error");
+		await puzzle.showRunHistory();
+		assert(puzzle.scores.querySelector(".history-status").textContent ==
+		       "The Chronicle could not be loaded." &&
+		       puzzle.scores.querySelector(".history-table").hidden,
+		       "history browser concealed a storage failure");
 	} finally {
 		Logos.setHistoryStorage(Logos.accessRunHistory);
 	}

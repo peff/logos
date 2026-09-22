@@ -1164,7 +1164,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.loadHistory = async function(run) {
 		var history = await accessRunHistory(run);
 		this.historyError = history ? "" : run ?
-			"Your result could not be saved." : "Run history could not be loaded.";
+			"Your result could not be saved." : "The Chronicle could not be loaded.";
 		if (history) {
 			this.highScores = history.highScores;
 			this.gameStats = history.gameStats;
@@ -1198,6 +1198,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		});
 		/* A completed save must not interrupt a newer game. */
 		if (highScore && this.gameIdentity === gameIdentity) {
+			this.showPantheon();
 			this.highlightedScore = highScore;
 			if (this.scores.hidden)
 				this.toggleModal(this.scores, this.scoresButton,
@@ -1236,13 +1237,12 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 				item.className = "score-new";
 				item.setAttribute("aria-current", "true");
 			}
-			var hasSeed = this.highScores[i].seed !== undefined;
-			var entry = document.createElement(hasSeed ? "button" : "span");
+			var entry = document.createElement("button");
 			entry.className = "score-entry";
-			if (hasSeed) {
-				entry.type = "button";
-				entry.setAttribute("aria-expanded", "false");
-			}
+			entry.type = "button";
+			entry.addEventListener("click", function(id) {
+				return function() { return puzzle.showRunHistory(id); };
+			}(this.highScores[i].id));
 			var date = document.createElement("span");
 			date.className = "score-date";
 			var modern = document.createElement("span");
@@ -1264,23 +1264,118 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			time.textContent = formatTime(this.highScores[i].elapsed);
 			entry.appendChild(time);
 			item.appendChild(entry);
-			if (hasSeed) {
-				var seed = document.createElement("span");
-				seed.className = "score-seed";
-				seed.textContent = "Puzzle seed: " +
-					formatSeed(this.highScores[i].seed);
-				seed.hidden = true;
-				entry.addEventListener("click", function(seed) {
-					return function() {
-						seed.hidden = !seed.hidden;
-						this.setAttribute("aria-expanded",
-							String(!seed.hidden));
-					};
-				}(seed));
-				item.appendChild(seed);
-			}
 			list.appendChild(item);
 		}
+	}
+
+	this.showPantheon = function() {
+		this.scores.querySelector(".pantheon-view").hidden = false;
+		this.scores.querySelector(".history-view").hidden = true;
+		this.scores.querySelector("#scores-title").textContent = "The Pantheon of the Wise";
+		this.scores.querySelector(".modal-close").value = this.resumeAfterModal ?
+			"Resume game" : "Rejoin the mortal realm";
+		this.scores.querySelector(".history-open").focus();
+	}
+
+	this.showRunHistory = async function(id) {
+		var gameIdentity = this.gameIdentity;
+		var history = await accessRunHistory(null, true);
+		if (this.scores.hidden || this.gameIdentity !== gameIdentity)
+			return;
+		this.runHistory = history ? history.runs : null;
+		this.selectedRun = id;
+		this.historySort = "newest";
+		this.scores.querySelector(".history-wins").checked = true;
+		this.scores.querySelector(".history-losses").checked = true;
+		this.scores.querySelector(".pantheon-view").hidden = true;
+		this.scores.querySelector(".history-view").hidden = false;
+		this.scores.querySelector("#scores-title").textContent = "Chronicle of Trials";
+		this.scores.querySelector(".modal-close").value = "Back to Pantheon";
+		this.renderRunHistory(0, id);
+		var selected = this.scores.querySelector(".history-selected");
+		if (id !== undefined && selected) {
+			selected.focus({ preventScroll: true });
+		} else {
+			this.scores.querySelector(".modal-close").focus();
+		}
+	}
+
+	this.sortRunHistory = function(column) {
+		if (column == "date")
+			this.historySort = this.historySort == "newest" ? "oldest" : "newest";
+		else
+			this.historySort = this.historySort == "fastest" ? "slowest" : "fastest";
+		this.renderRunHistory();
+	}
+
+	this.renderRunHistory = function(page = 0, selectedId) {
+		var wins = this.scores.querySelector(".history-wins").checked;
+		var losses = this.scores.querySelector(".history-losses").checked;
+		var sort = this.historySort;
+		this.scores.querySelector(".history-date-sort").setAttribute("aria-sort",
+			sort == "newest" ? "descending" : sort == "oldest" ? "ascending" : "none");
+		this.scores.querySelector(".history-time-sort").setAttribute("aria-sort",
+			sort == "fastest" ? "ascending" : sort == "slowest" ? "descending" : "none");
+		var runs = (this.runHistory || []).filter(function(run) {
+			return (wins && run.outcome == "won") || (losses && run.outcome == "lost");
+		}).sort(function(a, b) {
+			if (sort == "fastest" || sort == "slowest")
+				return (sort == "fastest" ? a.elapsed - b.elapsed : b.elapsed - a.elapsed) || a.id - b.id;
+			/* Imported runs with unknown dates always go last. */
+			if (a.date === null || b.date === null)
+				return (a.date === null) - (b.date === null) || a.id - b.id;
+			return (sort == "oldest" ? a.date - b.date : b.date - a.date) || a.id - b.id;
+		});
+		var status = this.scores.querySelector(".history-status");
+		status.hidden = this.runHistory !== null && runs.length > 0;
+		status.textContent = this.runHistory === null ? "The Chronicle could not be loaded." :
+			this.runHistory.length ? "No runs match this filter." : "No runs recorded yet.";
+		this.scores.querySelector(".history-table").hidden = !runs.length;
+		var body = this.scores.querySelector(".history-table tbody");
+		body.replaceChildren();
+		var selectedRun = this.selectedRun;
+		function makeRow(run) {
+			var row = document.createElement("tr");
+			if (run.id === selectedRun) {
+				row.className = "history-selected";
+				row.tabIndex = -1;
+				row.setAttribute("aria-current", "true");
+			}
+			var values = [formatScoreDate(run.date, true),
+				run.outcome == "won" ? "Win" : "Loss", formatTime(run.elapsed),
+				run.seed === undefined ? "—" : formatSeed(run.seed)];
+			for (var value of values) {
+				var cell = document.createElement("td");
+				cell.textContent = value;
+				row.appendChild(cell);
+			}
+			return row;
+		}
+		/* Measure one row to fit a leaf to the available panel height. */
+		var pageSize = 8;
+		if (runs.length) {
+			var sample = makeRow(runs[0]);
+			body.appendChild(sample);
+			var available = this.scores.querySelector(".history-page-content").clientHeight;
+			var heading = this.scores.querySelector(".history-table thead").offsetHeight;
+			if (sample.offsetHeight)
+				pageSize = Math.max(1, Math.floor((available - heading - 1) / sample.offsetHeight));
+			body.replaceChildren();
+		}
+		var pages = Math.max(1, Math.ceil(runs.length / pageSize));
+		if (selectedId !== undefined) {
+			var index = runs.findIndex(function(run) { return run.id === selectedId; });
+			if (index >= 0)
+				page = Math.floor(index / pageSize);
+		}
+		this.historyPage = Math.max(0, Math.min(page, pages - 1));
+		var start = this.historyPage * pageSize;
+		for (var run of runs.slice(start, start + pageSize))
+			body.appendChild(makeRow(run));
+		this.scores.querySelector(".history-folio .help-page-number").textContent =
+			"Leaf " + (this.historyPage + 1) + " of " + pages;
+		this.scores.querySelector(".history-folio .help-page-previous").disabled = this.historyPage == 0;
+		this.scores.querySelector(".history-folio .help-page-next").disabled = this.historyPage == pages - 1;
 	}
 
 	this.clearOutcome = function() {
@@ -1553,6 +1648,10 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 
 	this.toggleScores = async function() {
 		if (!this.scores.hidden) {
+			if (!this.scores.querySelector(".history-view").hidden) {
+				this.showPantheon();
+				return;
+			}
 			this.toggleModal(this.scores, this.scoresButton,
 				"Rejoin the mortal realm");
 			this.highlightedScore = null;
@@ -1566,6 +1665,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		if (this.scores.hidden)
 			this.toggleModal(this.scores, this.scoresButton,
 				"Rejoin the mortal realm");
+		this.showPantheon();
 	}
 
 	this.toggleAbout = function() {
@@ -1682,6 +1782,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	if (typeof window != "undefined") {
 		window.addEventListener("resize", function() {
 			puzzle.positionSlotTray();
+			if (!puzzle.scores.hidden && !puzzle.scores.querySelector(".history-view").hidden)
+				puzzle.renderRunHistory(puzzle.historyPage);
 		});
 		window.addEventListener("blur", function() {
 			puzzle.controlHeld = false;
@@ -2105,13 +2207,13 @@ function formatTime(elapsed) {
 	return minutes + ":" + (seconds < 10 ? "0" : "") + seconds;
 }
 
-function formatScoreDate(timestamp) {
+function formatScoreDate(timestamp, compact) {
 	if (timestamp === null)
 		return "Earlier";
 	var date = new Date(timestamp);
-	var month = date.toLocaleDateString(undefined, { month: "long" });
+	var month = date.toLocaleDateString(undefined, { month: compact ? "short" : "long" });
 	return date.getDate() + " " + month + " " +
-		date.getFullYear() + " CE";
+		date.getFullYear() + (compact ? "" : " CE");
 }
 
 function atticMonth(timestamp) {
@@ -2146,7 +2248,7 @@ function formatOlympiad(timestamp) {
 /* Import legacy scores and optionally append a run, then return a committed
  * Pantheon summary. Record keys are exposed as id, but remain out-of-line.
  */
-function accessRunHistory(run) {
+function accessRunHistory(run, includeRuns) {
 	return new Promise(function(resolve) {
 		if (typeof indexedDB == "undefined") {
 			resolve(null);
@@ -2203,6 +2305,17 @@ function accessRunHistory(run) {
 				function readSummary() {
 					if (run)
 						add(run);
+					if (includeRuns) {
+						summary.runs = [];
+						store.openCursor().onsuccess = function(event) {
+							var cursor = event.target.result;
+							if (!cursor)
+								return;
+							summary.runs.push(Object.assign({}, cursor.value,
+								{ id: cursor.primaryKey }));
+							cursor.continue();
+						};
+					}
 					var index = store.index("outcomeElapsed");
 					var wins = IDBKeyRange.bound(["won", 0], ["won", Number.MAX_VALUE]);
 					var losses = IDBKeyRange.bound(["lost", 0], ["lost", Number.MAX_VALUE]);

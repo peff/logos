@@ -58,6 +58,13 @@ var storageTestsDone = (async function() {
 			       history.highScores.length == 1 && history.highScores[0].id == win.id,
 			       "upgrade lost existing runs or failed to populate the index");
 		});
+		await test("history browsing returns wins and losses with their database keys", async function() {
+			const history = await accessRunHistory(null, true);
+			assert(history.runs.length == 2 && history.runs[0].id == win.id &&
+			       history.runs[1].id == loss.id && history.runs[1].outcome == "lost" &&
+			       history.runs[1].seed == loss.seed,
+			       "full history lost a run, its key, or its fields");
+		});
 		await test("import legacy scores without duplicating recorded wins", async function() {
 			storage.setItem("highScores", legacy);
 			storage.setItem("gameStats", JSON.stringify({ won: 99, lost: 88 }));

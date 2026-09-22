@@ -55,17 +55,47 @@
 			     aria-modal="true" aria-labelledby="scores-title">
 				<div class="modal-panel scores-panel">
 					<h2 id="scores-title">The Pantheon of the Wise</h2>
-					<p class="game-stats">
-						You have sought wisdom <strong class="games-sought">0</strong>
-						<span class="games-sought-unit">times</span> and attained it
-						<strong class="games-won">0</strong>.
-					</p>
-					<p class="scores-status" role="status" hidden></p>
-					<p class="scores-empty">No victors have been enshrined.</p>
-					<ol></ol>
-					<input class="modal-done modal-close" type="button"
-					       onClick="puzzle.toggleScores()"
-					       value="Rejoin the mortal realm">
+					<div class="pantheon-view">
+						<p class="game-stats">
+							You have sought wisdom <strong class="games-sought">0</strong>
+							<span class="games-sought-unit">times</span> and attained it
+							<strong class="games-won">0</strong>.
+						</p>
+						<p class="scores-status" role="status" hidden></p>
+						<p class="scores-empty">No victors have been enshrined.</p>
+						<ol></ol>
+					</div>
+					<div class="history-view" hidden>
+						<div class="history-controls">
+							<div role="group" aria-label="Show results">
+								<label><input type="checkbox" class="history-wins" checked onChange="puzzle.renderRunHistory()"> Wins</label>
+								<label><input type="checkbox" class="history-losses" checked onChange="puzzle.renderRunHistory()"> Losses</label>
+							</div>
+						</div>
+						<p class="history-status" role="status" hidden></p>
+						<div class="history-page-content">
+							<table class="history-table">
+								<thead><tr>
+									<th scope="col" class="history-date-sort" aria-sort="descending"><button type="button" onClick="puzzle.sortRunHistory('date')">Date</button></th>
+									<th scope="col">Result</th>
+									<th scope="col" class="history-time-sort" aria-sort="none"><button type="button" onClick="puzzle.sortRunHistory('time')">Time</button></th>
+									<th scope="col">Seed</th>
+								</tr></thead>
+								<tbody></tbody>
+							</table>
+						</div>
+						<nav class="help-folio history-folio" aria-label="Chronicle leaves">
+							<button class="help-page-turn help-page-previous" type="button" onClick="puzzle.renderRunHistory(puzzle.historyPage - 1)">‹ Previous</button>
+							<span class="help-page-number" aria-live="polite"></span>
+							<button class="help-page-turn help-page-next" type="button" onClick="puzzle.renderRunHistory(puzzle.historyPage + 1)">Next ›</button>
+						</nav>
+					</div>
+					<div class="scores-actions">
+						<button type="button" class="history-open modal-done" onClick="puzzle.showRunHistory()">Chronicle</button>
+						<input class="modal-done modal-close" type="button"
+						       onClick="puzzle.toggleScores()"
+						       value="Rejoin the mortal realm">
+					</div>
 				</div>
 			</div>
 			<div id="friends-menu" class="modal" hidden role="dialog"

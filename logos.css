@@ -1254,7 +1254,7 @@ input[type="text"] {
 }
 
 #options-menu input[type="radio"],
-#options-menu input[type="checkbox"] {
+:is(#options-menu, .history-controls) input[type="checkbox"] {
 	appearance: none;
 	display: inline-grid;
 	place-content: center;
@@ -1273,12 +1273,12 @@ input[type="text"] {
 	border-radius: 50%;
 }
 
-#options-menu input[type="checkbox"] {
+:is(#options-menu, .history-controls) input[type="checkbox"] {
 	border-radius: 0.12rem;
 }
 
 #options-menu input[type="radio"]::before,
-#options-menu input[type="checkbox"]::before {
+:is(#options-menu, .history-controls) input[type="checkbox"]::before {
 	content: "";
 	width: 0.42rem;
 	height: 0.42rem;
@@ -1291,23 +1291,23 @@ input[type="text"] {
 	border-radius: 50%;
 }
 
-#options-menu input[type="checkbox"]::before {
+:is(#options-menu, .history-controls) input[type="checkbox"]::before {
 	clip-path: polygon(10% 48%, 0 62%, 40% 100%, 100% 18%, 84% 5%, 38% 72%);
 }
 
 #options-menu input[type="radio"]:checked::before,
-#options-menu input[type="checkbox"]:checked::before {
+:is(#options-menu, .history-controls) input[type="checkbox"]:checked::before {
 	transform: scale(1);
 }
 
 #options-menu label:hover input[type="radio"]:not(:disabled),
-#options-menu label:hover input[type="checkbox"]:not(:disabled) {
+:is(#options-menu, .history-controls) label:hover input[type="checkbox"]:not(:disabled) {
 	border-color: #80633a;
 	background-color: #f7f3e9;
 }
 
 #options-menu input[type="radio"]:focus-visible,
-#options-menu input[type="checkbox"]:focus-visible {
+:is(#options-menu, .history-controls) input[type="checkbox"]:focus-visible {
 	outline: 2px solid #80633a;
 	outline-offset: 2px;
 }
@@ -1598,7 +1598,37 @@ input[type="text"] {
 }
 
 .scores-panel {
+	display: grid;
+	grid-template-rows: auto minmax(0, 1fr) auto;
 	min-width: 16rem;
+	min-height: min(14rem, calc(100dvh - 1rem));
+	max-width: calc(100vw - 1rem);
+	max-height: calc(100dvh - 1rem);
+	overflow: auto;
+}
+
+/* Keep the Pantheon's footprint while history occupies the same grid cell. */
+.pantheon-view,
+.history-view {
+	grid-area: 2 / 1;
+	min-height: 0;
+	min-width: 0;
+	overflow: auto;
+}
+
+.pantheon-view[hidden] {
+	display: block;
+	visibility: hidden;
+}
+
+.history-view:not([hidden]) {
+	display: flex;
+	flex-direction: column;
+	contain: size;
+}
+
+.history-view > :not(.history-page-content) {
+	flex-shrink: 0;
 }
 
 .scores-panel h2 {
@@ -1661,15 +1691,124 @@ button.score-entry:focus-visible {
 	outline-offset: 0.08rem;
 }
 
-.score-seed {
-	display: block;
-	margin-top: 0.05rem;
-	text-align: right;
-	color: #68685f;
-	font: 0.7em monospace;
+.history-controls {
+	margin: 0.65rem 0;
 }
 
-.score-seed[hidden] {
+.history-controls [role="group"] {
+	display: flex;
+	justify-content: center;
+	gap: 1rem;
+}
+
+.history-controls label {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.3rem;
+	cursor: var(--action-cursor);
+}
+
+.history-page-content {
+	flex: 1;
+	min-height: 0;
+	overflow: hidden;
+}
+
+.history-folio {
+	margin-top: 0.3rem;
+}
+
+.history-folio button:disabled {
+	visibility: hidden;
+}
+
+.history-table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 0.85em;
+	font-variant-numeric: tabular-nums;
+}
+
+.history-table th,
+.history-table td {
+	padding: 0.4rem;
+	text-align: left;
+	border-bottom: 1px solid #b8b3a5;
+}
+
+.history-table th {
+	background: #ece9df;
+}
+
+.history-table th button {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.3em;
+	padding: 0;
+	border: 0;
+	background: none;
+	color: inherit;
+	font: inherit;
+	cursor: var(--action-cursor);
+}
+
+.history-table th button:hover {
+	color: #80633a;
+}
+
+.history-table th button:focus-visible {
+	outline: 2px solid #80633a;
+	outline-offset: 2px;
+}
+
+/* A notched bronze arrowhead; reserve its space in inactive headers too. */
+.history-table th button::after {
+	content: "";
+	width: 0.65em;
+	height: 0.65em;
+	flex-shrink: 0;
+	clip-path: polygon(50% 0, 100% 100%, 50% 75%, 0 100%);
+	background: linear-gradient(110deg, #e4c584, #aa7c3e 48%, #76512e 50%, #b99556);
+	visibility: hidden;
+}
+
+.history-table th[aria-sort="ascending"] button::after,
+.history-table th[aria-sort="descending"] button::after {
+	visibility: visible;
+}
+
+.history-table th[aria-sort="descending"] button::after {
+	transform: scaleY(-1);
+}
+
+.history-table td:first-child,
+.history-table td:nth-child(3) {
+	white-space: nowrap;
+}
+
+.history-table td:last-child {
+	font-family: monospace;
+}
+
+.history-selected {
+	background: #e8d69b;
+	outline: 1px solid #b89a46;
+	outline-offset: -1px;
+}
+
+.scores-actions {
+	display: flex;
+	justify-content: center;
+	flex-wrap: wrap;
+	gap: 0.5rem;
+	margin-top: 0.55rem;
+}
+
+.scores-actions .modal-done {
+	margin: 0;
+}
+
+.scores-panel:has(.history-view:not([hidden])) .history-open {
 	display: none;
 }
 

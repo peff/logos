@@ -42,11 +42,7 @@
    - run history should be exportable (maybe even just using dev tools)
      to feed difficulty analysis (e.g., seeing what is really "hard"
      based on completion times).
-   - run history should probably be accessible from pantheon via button
-     - should allow filtering by difficulty, date, score
-     - should allow sorting by date or score
-   - clicking pantheon entries should go to individual entries within
-     the run history
+   - add filtering by difficulty, date range, and elapsed-time range
  - status bar is too small on mobile; we scroll the messages but it
    looks kind of crappy (and is easy to miss the start), and covers the
    final time field. We might need a drastically different messaging
