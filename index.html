@@ -167,6 +167,12 @@
 					</fieldset>
 					<fieldset class="game-options">
 						<legend>Game</legend>
+						<button id="friends-button" type="button" aria-expanded="false"
+						        aria-controls="friends-menu">
+							<span class="friends-badge-title">Logos</span>
+							<span class="friends-badge-caption">with Friends</span>
+							<small class="friends-badge-experimental">experimental!</small>
+						</button>
 						<label>
 						       <input id="practice-mode" type="checkbox"
 						              onChange="puzzle.setPracticeMode(this.checked)">
@@ -185,9 +191,6 @@
 						             </span>
 						             <small>Replay or share a particular puzzle.</small></span>
 						</label>
-						<input id="friends-button" class="option-action" type="button"
-						       value="Play with friends" aria-expanded="false"
-						       aria-controls="friends-menu">
 					</fieldset>
 					<div class="options-actions">
 						<input id="start-game-button" class="modal-done" type="button"

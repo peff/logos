@@ -9,6 +9,7 @@ var {
 } = globalThis.LogosFriends;
 
 var friendsButton = document.querySelector("#friends-button");
+var friendsBadgeCaption = friendsButton.querySelector(".friends-badge-caption");
 var friendsMenu = document.querySelector("#friends-menu");
 var status = friendsMenu.querySelector(".friends-status");
 var nameControls = friendsMenu.querySelector(".friends-name-controls");
@@ -141,25 +142,25 @@ function updateWebRTCHost(state) {
 		status.textContent = "Connecting to the guest...";
 	else
 		status.textContent = "Hosting a game.";
-	friendsButton.value = "Friends (hosting)";
+	friendsBadgeCaption.textContent = "Hosting";
 }
 
 function updateWebRTCGuest(state) {
 	if (state.connected) {
 		status.textContent = "Connected to the host.";
-		friendsButton.value = "Friends (joined)";
+		friendsBadgeCaption.textContent = "Joined";
 		if (!friendsMenu.hidden)
 			toggleMenu();
 	} else if (state.state == "disconnected") {
 		status.textContent = "The connection to the host was interrupted.";
-		friendsButton.value = "Friends (disconnected)";
+		friendsBadgeCaption.textContent = "Disconnected";
 	} else if (state.state == "failed" || state.state == "closed") {
 		status.textContent = "The connection to the host closed. " +
 			"Leave the game to return to single-player.";
-		friendsButton.value = "Friends (disconnected)";
+		friendsBadgeCaption.textContent = "Disconnected";
 	} else {
 		status.textContent = "Send the response to the host and wait for connection.";
-		friendsButton.value = "Friends (connecting)";
+		friendsBadgeCaption.textContent = "Connecting";
 	}
 }
 
@@ -304,7 +305,7 @@ function leave() {
 		field.value = "";
 		field.setCustomValidity("");
 	}
-	friendsButton.value = "Play with friends";
+	friendsBadgeCaption.textContent = "with Friends";
 	setGameControlsDisabled(false);
 	newGameButton.onclick = function() { window.puzzle.newGame(); };
 	if (!friendsMenu.hidden)
