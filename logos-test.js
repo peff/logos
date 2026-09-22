@@ -124,7 +124,7 @@ const Logos = eval(source +
 	"Adjacent3Clue: Adjacent3Clue, " +
 	"ColumnClue: ColumnClue, " +
 	"OrderClue: OrderClue, " +
-	"defaultSymbols: defaultSymbols, " +
+	"defaultSymbols: defaultSymbols, appendRun: appendRun, " +
 	"adjacent3DeductionMessage: adjacent3DeductionMessage, " +
 	"clueProofStep: clueProofStep, " +
 	"orderDeductionMessage: orderDeductionMessage, " +
@@ -1991,6 +1991,160 @@ Deno.test("game outcomes are persisted and rendered", function() {
 	assert(puzzle.scores.querySelector(".games-sought-unit").textContent ==
 	       "times", "plural game count was not rendered");
 	localStorage.removeItem("gameStats");
+});
+
+/* Keep IndexedDB requests pending so tests control open and commit timing. */
+function fakeRunStorage() {
+	const descriptor = Object.getOwnPropertyDescriptor(globalThis, "indexedDB");
+	const requests = [];
+	Object.defineProperty(globalThis, "indexedDB", { configurable: true, value: {
+		open(name, version) {
+			assert(name == "logos" && version == 1, "wrong history database");
+			const request = {};
+			requests.push(request);
+			return request;
+		},
+	} });
+	return {
+		requests,
+		open(request) {
+			const result = { records: [], closed: false };
+			const store = { add(run) { result.records.push(structuredClone(run)); } };
+			const transaction = {
+				objectStore(name) {
+					assert(name == "runs", "wrong history store");
+					return store;
+				},
+			};
+			result.transaction = transaction;
+			request.result = {
+				createObjectStore(name, options) {
+					assert(name == "runs" && options.autoIncrement,
+					       "history keys are not automatically generated");
+					result.created = true;
+				},
+				transaction(name, mode) {
+					assert(name == "runs" && mode == "readwrite",
+					       "history insert did not use a write transaction");
+					return transaction;
+				},
+				close() { result.closed = true; },
+			};
+			request.onupgradeneeded();
+			request.onsuccess();
+			return result;
+		},
+		restore() {
+			if (descriptor)
+				Object.defineProperty(globalThis, "indexedDB", descriptor);
+			else
+				delete globalThis.indexedDB;
+		},
+	};
+}
+
+Deno.test("run history waits for commit and handles storage failures", async function() {
+	const storage = fakeRunStorage();
+	try {
+		const run = { date: 123, seed: 456, elapsed: 789, outcome: "won" };
+		let finished = false;
+		const saved = Logos.appendRun(run).then(ok => { finished = true; return ok; });
+		const opened = storage.open(storage.requests.shift());
+		await Promise.resolve();
+		assert(opened.created && !finished && !opened.closed &&
+		       JSON.stringify(opened.records) == JSON.stringify([run]),
+		       "history save finished before commit or failed to append");
+		opened.transaction.oncomplete();
+		assert(await saved && opened.closed, "committed history save failed");
+
+		const aborted = Logos.appendRun(run);
+		const failing = storage.open(storage.requests.shift());
+		failing.transaction.onabort();
+		assert(!await aborted && failing.closed, "aborted save reported success");
+
+		const denied = Logos.appendRun(run);
+		storage.requests.shift().onerror();
+		assert(!await denied, "failed database open reported success");
+
+		indexedDB.open = function() { throw new Error("storage denied"); };
+		assert(!await Logos.appendRun(run), "synchronous storage error escaped");
+	} finally {
+		storage.restore();
+	}
+});
+
+Deno.test("run history captures wins and losses without duplicate continued games", async function() {
+	const storage = fakeRunStorage();
+	localStorage.removeItem("gameStats");
+	localStorage.removeItem("highScores");
+	try {
+		const puzzle = makePuzzle(6, true);
+		puzzle.seed = 123;
+		puzzle.timerElapsed = 1500;
+		for (const row of puzzle.rows)
+			for (const slot of row.slots)
+				slot.displaySingle();
+		const before = Date.now();
+		puzzle.checkWin();
+		const after = Date.now();
+		const winSave = puzzle.pendingRunSave;
+		puzzle.checkWin();
+		assert(storage.requests.length == 1, "win was recorded more than once");
+		puzzle.say = function() {};
+		puzzle.newGame(456);
+		puzzle.stopTimer();
+		const win = storage.open(storage.requests.shift());
+		const run = win.records[0];
+		assert(run.date >= before && run.date <= after && run.seed == 123 &&
+		       run.elapsed == 1500 && run.outcome == "won" && run.rows == 6 &&
+		       run.columns == 6 && run.generatorVersion == 1,
+		       "queued history save did not capture the completed game");
+		win.transaction.oncomplete();
+		assert(await winSave, "win did not commit");
+
+		puzzle.continueAfterLoss = true;
+		puzzle.timerElapsed = 700;
+		puzzle.lose("test loss");
+		const lossSave = puzzle.pendingRunSave;
+		puzzle.lose("another practice mistake");
+		for (const row of puzzle.rows)
+			for (const slot of row.slots)
+				slot.displaySingle();
+		puzzle.checkWin();
+		assert(storage.requests.length == 1,
+		       "continued Zen play recorded extra runs");
+		const loss = storage.open(storage.requests.shift());
+		assert(loss.records[0].outcome == "lost" &&
+		       loss.records[0].elapsed == 700 && loss.records[0].seed == 456,
+		       "loss did not record time and seed at the first mistake");
+		loss.transaction.oncomplete();
+		assert(await lossSave, "loss did not commit");
+
+		const practice = makePuzzle(1, true);
+		practice.seed = 789;
+		practice.practiceMode = true;
+		practice.scoreEligible = false;
+		practice.lose("practice mistake");
+		for (const slot of practice.rows[0].slots)
+			slot.displaySingle();
+		practice.checkWin();
+		assert(storage.requests.length == 0, "an ineligible game was recorded");
+
+		const normal = makePuzzle(1);
+		normal.seed = 999;
+		normal.timerElapsed = 900;
+		normal.lose("ordinary loss");
+		normal.lose("repeated loss");
+		assert(storage.requests.length == 1, "ordinary loss was not recorded once");
+		storage.requests.shift().onerror();
+		assert(!await normal.pendingRunSave && normal.gameOver &&
+		       JSON.parse(localStorage.getItem("gameStats")).lost == 2,
+		       "history failure interfered with the game or Pantheon update");
+	} finally {
+		storage.restore();
+		localStorage.removeItem("gameStats");
+		localStorage.removeItem("highScores");
+	}
 });
 
 Deno.test("stale pages merge Pantheon results before writing", function() {

@@ -1,3 +1,6 @@
+/* Increment when changes to puzzle generation alter the meaning of a seed. */
+var puzzleGeneratorVersion = 1;
+
 var defaultSymbols = [
 	["1", "2", "3", "4", "5", "6"],
 	["A", "B", "C", "D", "E", "F"],
@@ -1129,9 +1132,25 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.recordOutcome = function(outcome) {
 		var puzzle = this;
 		var gameIdentity = this.gameIdentity;
+		var date = Date.now();
+		if (this.seed !== undefined) {
+			/* Capture the finished game before either asynchronous save.
+			 * date is the finish time in Unix milliseconds; elapsed is
+			 * active play time in milliseconds, excluding pauses.
+			 */
+			this.pendingRunSave = appendRun({
+				date: date,
+				seed: this.seed,
+				elapsed: this.timerElapsed,
+				outcome: outcome,
+				rows: this.rows.length,
+				columns: this.rows[0].slots.length,
+				generatorVersion: puzzleGeneratorVersion,
+			});
+		}
 		var score = null;
 		if (outcome == "won") {
-			score = { elapsed: this.timerElapsed, date: Date.now() };
+			score = { elapsed: this.timerElapsed, date: date };
 			if (this.seed !== undefined)
 				score.seed = this.seed;
 		}
@@ -2037,6 +2056,46 @@ function formatOlympiad(timestamp) {
 	var olympiad = Math.floor(yearsSinceFirst / 4) + 1;
 	var year = yearsSinceFirst % 4 + 1;
 	return "Olympiad " + olympiad + "." + year;
+}
+
+/* Append one record without reading or rewriting earlier runs. The database
+ * version describes the storage schema; generatorVersion in each record
+ * identifies the puzzle-generation rules used to interpret its seed.
+ */
+function appendRun(run) {
+	return new Promise(function(resolve) {
+		if (typeof indexedDB == "undefined") {
+			resolve(false);
+			return;
+		}
+		var request = indexedDB.open("logos", 1);
+		request.onupgradeneeded = function() {
+			request.result.createObjectStore("runs", { autoIncrement: true });
+		};
+		request.onerror = function() { resolve(false); };
+		request.onsuccess = function() {
+			var db = request.result;
+			db.onversionchange = function() { db.close(); };
+			try {
+				var transaction = db.transaction("runs", "readwrite");
+				transaction.oncomplete = function() {
+					db.close();
+					resolve(true);
+				};
+				transaction.onabort = function() {
+					db.close();
+					resolve(false);
+				};
+				transaction.objectStore("runs").add(run);
+			} catch (e) {
+				db.close();
+				resolve(false);
+			}
+		};
+	}).catch(function() {
+		/* Storage failures must not prevent finishing the game. */
+		return false;
+	});
 }
 
 /* All Pantheon read/modify/write operations share this origin-wide lock.
