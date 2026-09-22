@@ -2224,6 +2224,9 @@ Deno.test("a winning score opens the Pantheon after saving", async function() {
 		       body.children[0].className == "history-selected" &&
 		       body.children[0].children[3].textContent == "1234abcd",
 		       "score did not open its history entry with its seed");
+		const link = body.children[0].children[3].children[0];
+		assert(link.href == "#seed=1234abcd" && link.target == "_blank",
+		       "Chronicle seed did not link to a new puzzle tab");
 	});
 });
 

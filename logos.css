@@ -1790,6 +1790,24 @@ button.score-entry:focus-visible {
 	font-family: monospace;
 }
 
+.history-table a {
+	color: inherit;
+	text-decoration: none;
+	text-underline-offset: 0.15em;
+	cursor: var(--action-cursor);
+}
+
+.history-table a:hover,
+.history-table a:focus-visible {
+	color: #80633a;
+	text-decoration: underline;
+}
+
+.history-table a:focus-visible {
+	outline: 2px solid #80633a;
+	outline-offset: 2px;
+}
+
 .history-selected {
 	background: #e8d69b;
 	outline: 1px solid #b89a46;

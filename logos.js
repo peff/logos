@@ -1349,6 +1349,15 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 				cell.textContent = value;
 				row.appendChild(cell);
 			}
+			if (run.seed !== undefined) {
+				var link = document.createElement("a");
+				link.textContent = formatSeed(run.seed);
+				link.href = "#seed=" + formatSeed(run.seed);
+				link.target = "_blank";
+				link.rel = "noopener";
+				link.title = "Open this puzzle in a new tab";
+				row.children[3].replaceChildren(link);
+			}
 			if (run.date !== null)
 				row.children[0].title = new Date(run.date).toLocaleString(undefined, {
 					dateStyle: "full", timeStyle: "long", hourCycle: "h23",
