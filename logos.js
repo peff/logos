@@ -1349,6 +1349,10 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 				cell.textContent = value;
 				row.appendChild(cell);
 			}
+			if (run.date !== null)
+				row.children[0].title = new Date(run.date).toLocaleString(undefined, {
+					dateStyle: "full", timeStyle: "long", hourCycle: "h23",
+				});
 			return row;
 		}
 		/* Measure one row to fit a leaf to the available panel height. */
