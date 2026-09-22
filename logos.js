@@ -1170,15 +1170,16 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			return accessRunHistory(run);
 		}).then(function(history) {
 			if (history)
-				puzzle.runs = history;
+				puzzle.savedHistory = history;
 			else if (run)
 				puzzle.unsavedRuns.push(run);
 			puzzle.historyUnavailable = !history;
-			var runs = puzzle.runs.concat(puzzle.unsavedRuns);
-			puzzle.gameStats = { won: 0, lost: 0 };
-			for (var i = 0; i < runs.length; i++) {
-				if (runs[i].outcome == "won" || runs[i].outcome == "lost")
-					puzzle.gameStats[runs[i].outcome]++;
+			var runs = puzzle.savedHistory.highScores.concat(puzzle.unsavedRuns);
+			puzzle.gameStats = Object.assign({}, puzzle.savedHistory.gameStats);
+			for (var i = 0; i < puzzle.unsavedRuns.length; i++) {
+				var outcome = puzzle.unsavedRuns[i].outcome;
+				if (outcome == "won" || outcome == "lost")
+					puzzle.gameStats[outcome]++;
 			}
 			puzzle.highScores = runs.filter(function(run) {
 				return run.outcome == "won";
@@ -2095,7 +2096,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	} catch (e) {
 		/* Storage may be unavailable for local files. */
 	}
-	this.runs = [];
+	this.savedHistory = { highScores: [], gameStats: { won: 0, lost: 0 } };
 	this.unsavedRuns = [];
 	this.highScores = [];
 	this.gameStats = { won: 0, lost: 0 };
@@ -2164,7 +2165,7 @@ function formatOlympiad(timestamp) {
 }
 
 /* Import legacy scores and optionally append a run, then return a committed
- * snapshot. Record keys are exposed as id, but remain out-of-line in the store.
+ * Pantheon summary. Record keys are exposed as id, but remain out-of-line.
  */
 function accessRunHistory(run) {
 	return new Promise(function(resolve) {
@@ -2172,9 +2173,13 @@ function accessRunHistory(run) {
 			resolve(null);
 			return;
 		}
-		var request = indexedDB.open("logos", 1);
-		request.onupgradeneeded = function() {
-			request.result.createObjectStore("runs", { autoIncrement: true });
+		var request = indexedDB.open("logos", 2);
+		request.onupgradeneeded = function(event) {
+			var store = event.oldVersion < 1 ?
+				request.result.createObjectStore("runs", { autoIncrement: true }) :
+				request.transaction.objectStore("runs");
+			if (event.oldVersion < 2)
+				store.createIndex("outcomeElapsed", ["outcome", "elapsed"]);
 		};
 		request.onerror = function() { resolve(null); };
 		request.onsuccess = function() {
@@ -2191,7 +2196,7 @@ function accessRunHistory(run) {
 				var transaction = db.transaction("runs",
 					run || legacy !== null ? "readwrite" : "readonly");
 				var store = transaction.objectStore("runs");
-				var runs = [];
+				var summary = { highScores: [], gameStats: { won: 0, lost: 0 } };
 				var added = [];
 				transaction.oncomplete = function() {
 					db.close();
@@ -2205,40 +2210,60 @@ function accessRunHistory(run) {
 					} catch (e) {
 						/* A later access can retry the cleanup. */
 					}
-					resolve(runs);
+					resolve(summary);
 				};
 				transaction.onabort = function() {
 					db.close();
 					resolve(null);
 				};
-				var values = store.getAll();
-				var keys = store.getAllKeys();
-				keys.onsuccess = function() {
-					runs = values.result.map(function(value, i) {
-						return Object.assign({}, value, { id: keys.result[i] });
-					});
-					function add(entry) {
-						store.add(entry).onsuccess = function(event) {
-							added.push({ entry: entry, id: event.target.result });
-						};
-						runs.push(entry);
-					}
-					var known = new Set(runs.filter(function(entry) {
-						return entry.outcome == "won";
-					}).map(legacyScoreKey));
-					for (var i = 0; i < scores.length; i++) {
-						var key = legacyScoreKey(scores[i]);
-						if (known.has(key))
-							continue;
-						known.add(key);
-						add(Object.assign({}, scores[i], {
-							outcome: "won", generatorVersion: 1,
-							rows: 6, columns: 6,
-						}));
-					}
+				function add(entry) {
+					store.add(entry).onsuccess = function(event) {
+						added.push({ entry: entry, id: event.target.result });
+					};
+				}
+				function readSummary() {
 					if (run)
 						add(run);
-				};
+					var index = store.index("outcomeElapsed");
+					var wins = IDBKeyRange.bound(["won", 0], ["won", Number.MAX_VALUE]);
+					var losses = IDBKeyRange.bound(["lost", 0], ["lost", Number.MAX_VALUE]);
+					index.count(wins).onsuccess = function(event) {
+						summary.gameStats.won = event.target.result;
+					};
+					index.count(losses).onsuccess = function(event) {
+						summary.gameStats.lost = event.target.result;
+					};
+					index.openCursor(wins).onsuccess = function(event) {
+						var cursor = event.target.result;
+						if (!cursor)
+							return;
+						summary.highScores.push(Object.assign({}, cursor.value,
+							{ id: cursor.primaryKey }));
+						if (summary.highScores.length < 10)
+							cursor.continue();
+					};
+				}
+				if (!scores.length) {
+					readSummary();
+				} else {
+					/* Only legacy import needs to inspect the full history. */
+					store.getAll().onsuccess = function(event) {
+						var known = new Set(event.target.result.filter(function(entry) {
+							return entry.outcome == "won";
+						}).map(legacyScoreKey));
+						for (var i = 0; i < scores.length; i++) {
+							var key = legacyScoreKey(scores[i]);
+							if (known.has(key))
+								continue;
+							known.add(key);
+							add(Object.assign({}, scores[i], {
+								outcome: "won", generatorVersion: 1,
+								rows: 6, columns: 6,
+							}));
+						}
+						readSummary();
+					};
+				}
 			} catch (e) {
 				db.close();
 				resolve(null);

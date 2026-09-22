@@ -2187,7 +2187,14 @@ async function withRunHistory(callback, initial) {
 			run.id = nextId++;
 			runs.push(structuredClone(run));
 		}
-		return structuredClone(runs);
+		return {
+			highScores: structuredClone(runs.filter(run => run.outcome == "won")
+				.sort((a, b) => a.elapsed - b.elapsed).slice(0, 10)),
+			gameStats: {
+				won: runs.filter(run => run.outcome == "won").length,
+				lost: runs.filter(run => run.outcome == "lost").length,
+			},
+		};
 	});
 	try {
 		await callback(runs, () => reads);
@@ -2280,7 +2287,7 @@ Deno.test("queued saves capture the finished game and do not interrupt a new one
 		await gate;
 		recorded = structuredClone(run);
 		run.id = 1;
-		return [Object.assign({}, run)];
+		return { highScores: [Object.assign({}, run)], gameStats: { won: 1, lost: 0 } };
 	});
 	try {
 		const puzzle = makePuzzle(6, true);

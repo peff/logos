@@ -37,21 +37,35 @@ var storageTestsDone = (async function() {
 		{ date: win.date, seed: win.seed, elapsed: win.elapsed }, old, 1200,
 	]);
 	try {
-		await test("append and reopen existing run history", async function() {
-			assert((await accessRunHistory(win)).length == 1, "win did not save");
-			assert((await accessRunHistory(loss)).length == 2, "loss did not save");
-			const runs = await accessRunHistory();
-			assert(runs.length == 2 && runs[0].id == win.id &&
-			       runs[1].id == loss.id && win.id != loss.id,
-			       "run keys or saved records were lost on reopening");
+		await test("upgrade version-1 history and index existing runs", async function() {
+			await new Promise((resolve, reject) => {
+				const request = factory.open(database, 1);
+				request.onupgradeneeded = () =>
+					request.result.createObjectStore("runs", { autoIncrement: true });
+				request.onerror = () => reject(request.error);
+				request.onsuccess = () => {
+					const db = request.result;
+					const transaction = db.transaction("runs", "readwrite");
+					const store = transaction.objectStore("runs");
+					store.add(win).onsuccess = event => { win.id = event.target.result; };
+					store.add(loss).onsuccess = event => { loss.id = event.target.result; };
+					transaction.oncomplete = () => { db.close(); resolve(); };
+					transaction.onabort = () => { db.close(); reject(transaction.error); };
+				};
+			});
+			const history = await accessRunHistory();
+			assert(history.gameStats.won == 1 && history.gameStats.lost == 1 &&
+			       history.highScores.length == 1 && history.highScores[0].id == win.id,
+			       "upgrade lost existing runs or failed to populate the index");
 		});
 		await test("import legacy scores without duplicating recorded wins", async function() {
 			storage.setItem("highScores", legacy);
 			storage.setItem("gameStats", JSON.stringify({ won: 99, lost: 88 }));
 			storage.setItem("soundEffects", "false");
 			storage.setItem("multiplayerPlayerName", "test player");
-			const runs = await accessRunHistory();
-			assert(runs.length == 4 && runs.filter(run => run.outcome == "won").length == 3,
+			const history = await accessRunHistory();
+			const runs = history.highScores;
+			assert(history.gameStats.won == 3 && history.gameStats.lost == 1 && runs.length == 3,
 			       "import duplicated a win or preserved obsolete aggregate counts");
 			const imported = runs.find(run => run.seed == old.seed);
 			assert(imported.date == old.date && imported.elapsed == old.elapsed &&
@@ -67,14 +81,14 @@ var storageTestsDone = (async function() {
 		});
 		await test("repeating an import is harmless", async function() {
 			storage.setItem("highScores", legacy);
-			assert((await accessRunHistory()).length == 4,
+			assert((await accessRunHistory()).gameStats.won == 3,
 			       "repeating the migration duplicated scores");
 		});
 		await test("new runs are appended even when their score matches", async function() {
 			const repeated = Object.assign({}, win);
 			delete repeated.id;
-			const runs = await accessRunHistory(repeated);
-			assert(runs.length == 5 && repeated.id != win.id,
+			const history = await accessRunHistory(repeated);
+			assert(history.gameStats.won == 4 && repeated.id != win.id,
 			       "de-duplication incorrectly discarded a new run");
 		});
 		await test("failed opening leaves legacy data for retry", async function() {
@@ -88,7 +102,7 @@ var storageTestsDone = (async function() {
 			} finally {
 				indexedDB.open = open;
 			}
-			assert((await accessRunHistory()).length == 5 && !values.has("highScores"),
+			assert((await accessRunHistory()).gameStats.won == 4 && !values.has("highScores"),
 			       "retry failed or duplicated legacy scores");
 		});
 		await test("aborted import preserves legacy data", async function() {
@@ -105,8 +119,65 @@ var storageTestsDone = (async function() {
 			} finally {
 				IDBObjectStore.prototype.add = add;
 			}
-			assert((await accessRunHistory()).length == 6 && !values.has("highScores"),
+			assert((await accessRunHistory()).gameStats.won == 5 && !values.has("highScores"),
 			       "retry after abort did not import exactly one score");
+		});
+		await test("Pantheon reads only the ten fastest wins", async function() {
+			/* Include many faster losses and tied winning times. */
+			for (let i = 1; i <= 25; i++) {
+				await accessRunHistory({ outcome: "won", elapsed: i * 100, date: i, seed: i });
+				await accessRunHistory({ outcome: "lost", elapsed: 0, date: i, seed: i });
+			}
+			const getAll = IDBObjectStore.prototype.getAll;
+			const getAllKeys = IDBObjectStore.prototype.getAllKeys;
+			const openCursor = IDBObjectStore.prototype.openCursor;
+			const indexCursor = IDBIndex.prototype.openCursor;
+			let visited = 0;
+			IDBObjectStore.prototype.getAll = IDBObjectStore.prototype.getAllKeys =
+				IDBObjectStore.prototype.openCursor = function() {
+					throw new Error("unexpected full-store read");
+				};
+			IDBIndex.prototype.openCursor = function(range) {
+				const request = indexCursor.call(this, range);
+				request.addEventListener("success", () => {
+					if (request.result)
+						visited++;
+				});
+				return request;
+			};
+			try {
+				const history = await accessRunHistory();
+				assert(history && history.gameStats.won == 30 && history.gameStats.lost == 26 &&
+				       history.highScores.length == 10 && visited == 10,
+				       "indexed query read too many records or returned incorrect totals");
+				assert(JSON.stringify(history.highScores.map(run => run.elapsed)) ==
+				       JSON.stringify([100, 200, 300, 400, 500, 500, 500, 600, 700, 800]) &&
+				       history.highScores.every(run => run.outcome == "won"),
+				       "indexed query ranked losses or returned the wrong top ten");
+				assert(history.highScores[4].id == win.id,
+				       "ties did not retain primary-key order");
+				visited = 0;
+				const run = { outcome: "won", elapsed: 50, date: 4000, seed: 888 };
+				const updated = await accessRunHistory(run);
+				assert(updated && updated.gameStats.won == 31 && visited == 10 &&
+				       updated.highScores[0].id == run.id,
+				       "saving a result did not use the index or include the new run");
+			} finally {
+				IDBObjectStore.prototype.getAll = getAll;
+				IDBObjectStore.prototype.getAllKeys = getAllKeys;
+				IDBObjectStore.prototype.openCursor = openCursor;
+				IDBIndex.prototype.openCursor = indexCursor;
+			}
+		});
+		await test("a new database creates the index", async function() {
+			await new Promise((resolve, reject) => {
+				const request = factory.deleteDatabase(database);
+				request.onsuccess = resolve;
+				request.onerror = () => reject(request.error);
+			});
+			const history = await accessRunHistory();
+			assert(history && !history.gameStats.won && !history.gameStats.lost &&
+			       !history.highScores.length, "new database could not query its index");
 		});
 		output.textContent += "\n" + passed.length + " tests passed";
 		return true;
