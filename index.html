@@ -183,21 +183,21 @@
 						              onChange="puzzle.setContinueAfterLoss(this.checked)">
 						       <span>Continue after loss
 						             <small>Enter Zen mode instead of revealing the solution.</small></span></label>
-						<label class="seed-option">
-						       <span><span class="seed-control">Seed:
-						                   <input id="game-seed" type="text" maxlength="8"
-						                          autocapitalize="none" autocomplete="off" spellcheck="false"
-						                          onKeyDown="if (event.key == 'Enter') puzzle.playSeed()">
-						             </span>
-						             <small>Replay or share a particular puzzle.</small></span>
-						</label>
+						<div class="seed-options">
+							<label for="game-seed">Puzzle seed
+							       <small id="seed-help">Replay or share a particular puzzle.</small></label>
+							<div class="seed-controls">
+								<input id="game-seed" type="text" maxlength="8"
+								       autocapitalize="none" autocomplete="off" spellcheck="false"
+								       aria-describedby="seed-help"
+								       onKeyDown="if (event.key == 'Enter') puzzle.playSeed()">
+								<input id="start-game-button" class="option-action" type="button"
+								       onClick="puzzle.playSeed()" value="Start">
+							</div>
+						</div>
 					</fieldset>
-					<div class="options-actions">
-						<input id="start-game-button" class="modal-done" type="button"
-						       onClick="puzzle.playSeed()" value="Start New Game">
-						<input class="modal-done modal-close" type="button"
-						       onClick="puzzle.toggleOptions()" value="Close">
-					</div>
+					<input class="modal-done modal-close" type="button"
+					       onClick="puzzle.toggleOptions()" value="Close">
 				</div>
 			</div>
 			<div id="help-menu" class="modal" hidden role="dialog"

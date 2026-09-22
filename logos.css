@@ -1107,6 +1107,11 @@ body.proof-active #logo {
 	padding-top: 0.3rem;
 }
 
+#options-menu .game-options {
+	border-bottom: 1px solid #c8c0b2;
+	padding-bottom: 0.55rem;
+}
+
 #options-menu legend {
 	margin-bottom: 0.2rem;
 	font-weight: bold;
@@ -1133,15 +1138,23 @@ body.proof-active #logo {
 	white-space: normal;
 }
 
-#options-menu .game-options .seed-option {
+#options-menu .seed-options {
 	clear: both;
-	margin-top: 0.18rem;
+	margin-top: 0.5rem;
 }
 
-#options-menu .seed-control {
+#options-menu .seed-controls {
 	display: flex;
 	align-items: center;
 	gap: 0.4rem;
+}
+
+.seed-controls .option-action {
+	margin: 0;
+}
+
+#options-menu .seed-options label {
+	align-items: baseline;
 }
 
 #game-seed {
@@ -1165,7 +1178,7 @@ input[type="text"] {
 	cursor: text;
 }
 
-#options-menu .game-options .seed-option:hover #game-seed {
+#options-menu .seed-options:has(label:hover) #game-seed {
 	border-color: #80633a;
 	background-color: #f7f3e9;
 }
@@ -1245,17 +1258,6 @@ input[type="text"] {
 .modal-done {
 	display: block;
 	margin: 0.55rem auto 0;
-}
-
-.options-actions {
-	display: flex;
-	justify-content: center;
-	gap: 0.45rem;
-}
-
-.options-actions .modal-done {
-	margin-right: 0;
-	margin-left: 0;
 }
 
 #friends-button {
