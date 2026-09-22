@@ -306,6 +306,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		var seed = arguments.length ? parseSeed(arguments[0]) : randomSeed();
 		if (seed === null)
 			return false;
+		this.gameIdentity = {};
 		this.seed = seed;
 		this.options.querySelector("#game-seed").value = formatSeed(seed);
 		this.gameOver = true;
@@ -368,18 +369,11 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.updateActionControls();
 		this.playSound("win");
 		this.stopTimer();
-		var highScore = null;
-		if (this.scoreEligible) {
-			this.recordOutcome("won");
-			highScore = this.recordHighScore(this.timerElapsed);
-		}
 		this.timer.classList.add("won");
 		this.messages.classList.add("won");
 		this.say(randomChoice(winMessages));
-		if (highScore) {
-			this.highlightedScore = highScore;
-			this.toggleScores();
-		}
+		if (this.scoreEligible)
+			return this.recordOutcome("won");
 	}
 
 	this.checkMilestones = function() {
@@ -1115,10 +1109,9 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.timer.textContent = formatTime(elapsed);
 	}
 
-	this.recordHighScore = function(elapsed) {
-		var score = { elapsed: elapsed, date: Date.now() };
-		if (this.seed !== undefined)
-			score.seed = this.seed;
+	/* Called while holding the Pantheon lock. */
+	this.recordHighScore = function(score) {
+		this.highScores = loadHighScores(this.highScores);
 		this.highScores.push(score);
 		this.highScores.sort(function(a, b) {
 			return a.elapsed - b.elapsed;
@@ -1134,16 +1127,48 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.recordOutcome = function(outcome) {
-		this.gameStats[outcome]++;
-		try {
-			localStorage.setItem("gameStats",
-				JSON.stringify(this.gameStats));
-		} catch (e) {
-			/* The totals still apply for the current page. */
+		var puzzle = this;
+		var gameIdentity = this.gameIdentity;
+		var score = null;
+		if (outcome == "won") {
+			score = { elapsed: this.timerElapsed, date: Date.now() };
+			if (this.seed !== undefined)
+				score.seed = this.seed;
 		}
+		return withPantheonLock(function() {
+			puzzle.gameStats = loadGameStats(puzzle.gameStats);
+			puzzle.gameStats[outcome]++;
+			try {
+				localStorage.setItem("gameStats",
+					JSON.stringify(puzzle.gameStats));
+			} catch (e) {
+				/* The totals still apply for the current page. */
+			}
+			var highScore = score ? puzzle.recordHighScore(score) : null;
+			/* A queued save must not interrupt a newer game. */
+			if (highScore && puzzle.gameIdentity === gameIdentity) {
+				puzzle.highlightedScore = highScore;
+				if (puzzle.scores.hidden)
+					puzzle.toggleScores();
+				else
+					puzzle.renderHighScores();
+			} else if (!puzzle.scores.hidden) {
+				puzzle.renderHighScores();
+			}
+		});
 	}
 
 	this.renderHighScores = function() {
+		this.gameStats = loadGameStats(this.gameStats);
+		this.highScores = loadHighScores(this.highScores);
+		/* Reloading replaces the score objects, including our highlight. */
+		var highlighted = this.highlightedScore;
+		this.highlightedScore = highlighted ?
+			this.highScores.find(function(score) {
+				return score.elapsed === highlighted.elapsed &&
+					score.date === highlighted.date &&
+					score.seed === highlighted.seed;
+			}) || null : null;
 		var list = this.scores.querySelector("ol");
 		var empty = this.scores.querySelector(".scores-empty");
 		var gamesSought = this.gameStats.won + this.gameStats.lost;
@@ -1605,7 +1630,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		document.body.dataset.customCursor = enabled;
 		this.options.querySelector("#custom-cursor").checked = enabled;
 		try {
-			localStorage.setItem("customCursor", enabled);
+			if (!this.loadingOptions)
+				localStorage.setItem("customCursor", enabled);
 		} catch (e) {
 			/* The choice still applies for the current page. */
 		}
@@ -1615,7 +1641,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.previewMouseActions = enabled;
 		this.options.querySelector("#preview-mouse-actions").checked = enabled;
 		try {
-			localStorage.setItem("previewMouseActions", enabled);
+			if (!this.loadingOptions)
+				localStorage.setItem("previewMouseActions", enabled);
 		} catch (e) {
 			/* The choice still applies for the current page. */
 		}
@@ -1625,7 +1652,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.showMilestones = show;
 		this.options.querySelector("#show-milestones").checked = show;
 		try {
-			localStorage.setItem("showMilestones", show);
+			if (!this.loadingOptions)
+				localStorage.setItem("showMilestones", show);
 		} catch (e) {
 			/* The choice still applies for the current page. */
 		}
@@ -1637,7 +1665,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		if (enabled)
 			this.dismissExhaustedClues();
 		try {
-			localStorage.setItem("autoDismissClues", enabled);
+			if (!this.loadingOptions)
+				localStorage.setItem("autoDismissClues", enabled);
 		} catch (e) {
 			/* The choice still applies for the current page. */
 		}
@@ -1647,7 +1676,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.practiceModePreference = enabled;
 		this.options.querySelector("#practice-mode").checked = enabled;
 		try {
-			localStorage.setItem("practiceMode", enabled);
+			if (!this.loadingOptions)
+				localStorage.setItem("practiceMode", enabled);
 		} catch (e) {
 			/* The choice still applies for the current page. */
 		}
@@ -1673,7 +1703,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.continueAfterLoss = enabled;
 		this.options.querySelector("#continue-after-loss").checked = enabled;
 		try {
-			localStorage.setItem("continueAfterLoss", enabled);
+			if (!this.loadingOptions)
+				localStorage.setItem("continueAfterLoss", enabled);
 		} catch (e) {
 			/* The choice still applies for the current page. */
 		}
@@ -1683,7 +1714,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.soundEffects = enabled;
 		this.options.querySelector("#sound-effects").checked = enabled;
 		try {
-			localStorage.setItem("soundEffects", enabled);
+			if (!this.loadingOptions)
+				localStorage.setItem("soundEffects", enabled);
 		} catch (e) {
 			/* The choice still applies for the current page. */
 		}
@@ -1696,7 +1728,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		if (!enabled)
 			this.closeSlotTray();
 		try {
-			localStorage.setItem("expandTileChoices", enabled);
+			if (!this.loadingOptions)
+				localStorage.setItem("expandTileChoices", enabled);
 		} catch (e) {
 			/* The choice still applies for the current page. */
 		}
@@ -1707,7 +1740,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.ignoreSlotClick = false;
 		this.options.querySelector("#drag-tile-choices").checked = enabled;
 		try {
-			localStorage.setItem("dragTileChoices", enabled);
+			if (!this.loadingOptions)
+				localStorage.setItem("dragTileChoices", enabled);
 		} catch (e) {
 			/* The choice still applies for the current page. */
 		}
@@ -1719,7 +1753,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.updateActionCursor();
 		this.updateActionControls();
 		try {
-			localStorage.setItem("showActionSelector", enabled);
+			if (!this.loadingOptions)
+				localStorage.setItem("showActionSelector", enabled);
 		} catch (e) {
 			/* The choice still applies for the current page. */
 		}
@@ -1939,8 +1974,10 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	} catch (e) {
 		/* Storage may be unavailable for local files. */
 	}
-	this.highScores = loadHighScores();
-	this.gameStats = loadGameStats();
+	this.highScores = [];
+	this.gameStats = { won: 0, lost: 0 };
+	/* Applying saved preferences must not write a stale snapshot back. */
+	this.loadingOptions = true;
 	this.setCustomCursor(customCursor);
 	this.setPreviewMouseActions(previewMouseActions);
 	this.setMilestones(showMilestones);
@@ -1951,6 +1988,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.setExpandTileChoices(expandTileChoices);
 	this.setDragTileChoices(dragTileChoices);
 	this.setShowActionSelector(showActionSelector);
+	this.loadingOptions = false;
 	this.updateFullscreenButton();
 
 	this.clear();
@@ -2001,12 +2039,31 @@ function formatOlympiad(timestamp) {
 	return "Olympiad " + olympiad + "." + year;
 }
 
-function loadHighScores() {
+/* All Pantheon read/modify/write operations share this origin-wide lock.
+ * Without Web Locks (e.g., plain HTTP), reloading still reduces lost updates,
+ * but cannot make the read and write atomic.
+ */
+function withPantheonLock(update) {
+	if (typeof navigator == "undefined" || !navigator.locks)
+		return update();
+	var started = false;
+	return navigator.locks.request("logos-pantheon", function() {
+		started = true;
+		return update();
+	}).catch(function(error) {
+		/* Storage restrictions may also prevent acquiring a lock. */
+		if (started)
+			throw error;
+		return update();
+	});
+}
+
+function loadHighScores(fallback) {
 	var scores = [];
 	try {
 		scores = JSON.parse(localStorage.getItem("highScores") || "[]");
 	} catch (e) {
-		return [];
+		return fallback || [];
 	}
 	if (!Array.isArray(scores))
 		return [];
@@ -2027,12 +2084,12 @@ function loadHighScores() {
 	}).slice(0, 10);
 }
 
-function loadGameStats() {
+function loadGameStats(fallback) {
 	var stats;
 	try {
 		stats = JSON.parse(localStorage.getItem("gameStats") || "{}");
 	} catch (e) {
-		return { won: 0, lost: 0 };
+		return fallback || { won: 0, lost: 0 };
 	}
 	if (!stats || !Number.isSafeInteger(stats.won) || stats.won < 0 ||
 	    !Number.isSafeInteger(stats.lost) || stats.lost < 0)

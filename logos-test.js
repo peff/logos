@@ -1923,7 +1923,7 @@ Deno.test("high scores retain the ten fastest times", function() {
 	const puzzle = makePuzzle(1);
 	puzzle.seed = 0x1234abcd;
 
-	const entry = puzzle.recordHighScore(500);
+	const entry = puzzle.recordHighScore({ elapsed: 500, date: Date.now(), seed: puzzle.seed });
 	assert(puzzle.highScores.length == 10,
 	       "high-score list was not limited to ten entries");
 	assert(entry == puzzle.highScores[0],
@@ -1948,7 +1948,7 @@ Deno.test("high scores retain the ten fastest times", function() {
 	assert(JSON.stringify(puzzle.highScores) ==
 	       localStorage.getItem("highScores"),
 	       "high scores were not persisted");
-	assert(puzzle.recordHighScore(12000) === null,
+	assert(puzzle.recordHighScore({ elapsed: 12000, date: Date.now() }) === null,
 	       "non-qualifying score was returned");
 	localStorage.removeItem("highScores");
 });
@@ -1958,6 +1958,7 @@ Deno.test("a winning high score opens the Pantheon", function() {
 	const puzzle = makePuzzle(1, true);
 	for (const slot of puzzle.rows[0].slots)
 		slot.displaySingle();
+	puzzle.scores.hidden = true;
 	puzzle.toggleScores = function() {
 		this.scoresShown = true;
 	};
@@ -1990,6 +1991,215 @@ Deno.test("game outcomes are persisted and rendered", function() {
 	assert(puzzle.scores.querySelector(".games-sought-unit").textContent ==
 	       "times", "plural game count was not rendered");
 	localStorage.removeItem("gameStats");
+});
+
+Deno.test("stale pages merge Pantheon results before writing", function() {
+	localStorage.removeItem("gameStats");
+	localStorage.removeItem("highScores");
+	try {
+		const first = makePuzzle(1);
+		const second = makePuzzle(1);
+		first.timerElapsed = 1000;
+		second.timerElapsed = 2000;
+		first.recordOutcome("won");
+		second.recordOutcome("won");
+		first.recordOutcome("lost");
+		assert(localStorage.getItem("gameStats") ==
+		       JSON.stringify({ won: 2, lost: 1 }),
+		       "a stale page overwrote another result");
+		const scores = JSON.parse(localStorage.getItem("highScores"));
+		assert(scores.length == 2 && scores[0].elapsed == 1000 &&
+		       scores[1].elapsed == 2000,
+		       "a stale page overwrote another high score");
+	} finally {
+		localStorage.removeItem("gameStats");
+		localStorage.removeItem("highScores");
+	}
+});
+
+Deno.test("queued Pantheon saves reload under the lock and retain game data", async function() {
+	const descriptor = Object.getOwnPropertyDescriptor(navigator, "locks");
+	let release;
+	let queue = new Promise(resolve => { release = resolve; });
+	const names = [];
+	Object.defineProperty(navigator, "locks", { configurable: true, value: {
+		request(name, update) {
+			names.push(name);
+			queue = queue.then(update);
+			return queue;
+		},
+	} });
+	localStorage.removeItem("gameStats");
+	localStorage.removeItem("highScores");
+	try {
+		const first = makePuzzle(6, true);
+		const second = makePuzzle(1, true);
+		for (const puzzle of [first, second]) {
+			for (const row of puzzle.rows)
+				for (const slot of row.slots)
+					slot.displaySingle();
+			puzzle.scores.hidden = true;
+			puzzle.toggleScores = function() { this.scoresShown = true; };
+		}
+		first.seed = 123;
+		first.timerElapsed = 1000;
+		second.timerElapsed = 2000;
+		const firstSave = first.checkWin();
+		const secondSave = second.checkWin();
+		assert(first.gameOver && second.gameOver,
+		       "finishing a game waited for the storage lock");
+		assert(localStorage.getItem("gameStats") === null &&
+		       localStorage.getItem("highScores") === null,
+		       "Pantheon data was written outside the lock");
+		assert(names.length == 2 && names[0] == names[1],
+		       "pages did not request the same lock");
+		first.say = function() {};
+		first.newGame(456);
+		first.stopTimer();
+		/* Simulate another tab saving before these requests are granted. */
+		localStorage.setItem("gameStats", JSON.stringify({ won: 3, lost: 4 }));
+		localStorage.setItem("highScores", JSON.stringify([500]));
+		release();
+		await Promise.all([firstSave, secondSave]);
+		assert(localStorage.getItem("gameStats") ==
+		       JSON.stringify({ won: 5, lost: 4 }),
+		       "queued results did not reload totals after acquiring the lock");
+		const scores = JSON.parse(localStorage.getItem("highScores"));
+		assert(scores.length == 3 && scores[0].elapsed == 500 &&
+		       scores[1].elapsed == 1000 && scores[1].seed == 123 &&
+		       scores[2].elapsed == 2000,
+		       "queued scores lost another tab's score or used the new game");
+		assert(!first.scoresShown && second.scoresShown,
+		       "a queued save interrupted a newer game or failed to show scores");
+	} finally {
+		release();
+		await queue;
+		if (descriptor)
+			Object.defineProperty(navigator, "locks", descriptor);
+		else
+			delete navigator.locks;
+		localStorage.removeItem("gameStats");
+		localStorage.removeItem("highScores");
+	}
+});
+
+Deno.test("unavailable locks fall back to reloading Pantheon data", async function() {
+	const descriptor = Object.getOwnPropertyDescriptor(navigator, "locks");
+	Object.defineProperty(navigator, "locks", { configurable: true, value: {
+		request() { return Promise.reject(new Error("storage denied")); },
+	} });
+	localStorage.removeItem("gameStats");
+	try {
+		const puzzle = makePuzzle(1);
+		localStorage.setItem("gameStats", JSON.stringify({ won: 2, lost: 3 }));
+		await puzzle.recordOutcome("lost");
+		assert(localStorage.getItem("gameStats") ==
+		       JSON.stringify({ won: 2, lost: 4 }),
+		       "a rejected lock lost or duplicated the outcome");
+	} finally {
+		if (descriptor)
+			Object.defineProperty(navigator, "locks", descriptor);
+		else
+			delete navigator.locks;
+		localStorage.removeItem("gameStats");
+	}
+});
+
+Deno.test("unavailable storage retains results for the current page", function() {
+	localStorage.removeItem("gameStats");
+	localStorage.removeItem("highScores");
+	const puzzle = makePuzzle(1);
+	const getItem = localStorage.getItem;
+	const setItem = localStorage.setItem;
+	localStorage.getItem = localStorage.setItem = function() {
+		throw new Error("storage denied");
+	};
+	try {
+		puzzle.timerElapsed = 1000;
+		puzzle.recordOutcome("won");
+		puzzle.timerElapsed = 2000;
+		puzzle.recordOutcome("won");
+		puzzle.recordOutcome("lost");
+		assert(puzzle.gameStats.won == 2 && puzzle.gameStats.lost == 1 &&
+		       puzzle.highScores.length == 2,
+		       "reloading unavailable storage discarded in-memory results");
+	} finally {
+		localStorage.getItem = getItem;
+		localStorage.setItem = setItem;
+	}
+});
+
+Deno.test("initializing options does not write stale preferences", function() {
+	const setItem = localStorage.setItem;
+	const writes = [];
+	localStorage.setItem = function(key, value) { writes.push([key, value]); };
+	try {
+		const puzzle = makePuzzle(1);
+		assert(writes.length == 0, "initializing options wrote to storage");
+		puzzle.setCustomCursor(false);
+		puzzle.setSoundEffects(true);
+		assert(JSON.stringify(writes) ==
+		       JSON.stringify([["customCursor", false], ["soundEffects", true]]),
+		       "changing options did not write only the changed preferences");
+	} finally {
+		localStorage.setItem = setItem;
+	}
+});
+
+Deno.test("Pantheon storage is not read during initialization", function() {
+	const getItem = localStorage.getItem;
+	const reads = [];
+	localStorage.getItem = function(key) {
+		reads.push(key);
+		return getItem.call(this, key);
+	};
+	try {
+		const puzzle = makePuzzle(1);
+		assert(!reads.includes("highScores") && !reads.includes("gameStats"),
+		       "initializing a puzzle read Pantheon storage");
+		puzzle.scores.hidden = true;
+		puzzle.toggleScores();
+		assert(reads.includes("highScores") && reads.includes("gameStats"),
+		       "opening the Pantheon did not read storage");
+	} finally {
+		localStorage.getItem = getItem;
+	}
+});
+
+Deno.test("opening the Pantheon reloads results and preserves the highlight", function() {
+	localStorage.removeItem("gameStats");
+	localStorage.removeItem("highScores");
+	try {
+		const puzzle = makePuzzle(1);
+		const score = { elapsed: 1000, date: 123456, seed: 123 };
+		puzzle.highlightedScore = puzzle.recordHighScore(score);
+		/* Another tab finishes before this page opens the Pantheon. */
+		localStorage.setItem("gameStats", JSON.stringify({ won: 4, lost: 2 }));
+		localStorage.setItem("highScores", JSON.stringify([
+			{ elapsed: 500, date: 123457, seed: 456 }, score,
+		]));
+		puzzle.scores.hidden = true;
+		puzzle.toggleScores();
+		assert(puzzle.gameStats.won == 4 && puzzle.gameStats.lost == 2 &&
+		       puzzle.highScores.length == 2 &&
+		       puzzle.highScores[0].elapsed == 500,
+		       "opening the Pantheon did not reload another tab's results");
+		assert(puzzle.scores.querySelector(".games-sought").textContent == 6,
+		       "opening the Pantheon rendered stale totals");
+		assert(puzzle.highlightedScore === puzzle.highScores[1] &&
+		       puzzle.scores.querySelector("ol").children[1].className == "score-new",
+		       "reloading lost the new score's highlight");
+
+		/* The highlighted score may have fallen out of the top ten. */
+		localStorage.setItem("highScores", "[]");
+		puzzle.scores.hidden = true;
+		puzzle.toggleScores();
+		assert(puzzle.highlightedScore === null && puzzle.highScores.length == 0,
+		       "a removed score kept its highlight");
+	} finally {
+		localStorage.removeItem("gameStats");
+		localStorage.removeItem("highScores");
+	}
 });
 
 Deno.test("game statistics use singular wording", function() {
