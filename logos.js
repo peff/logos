@@ -1292,7 +1292,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.scores.querySelector("#scores-title").textContent = "Chronicle of Trials";
 		this.scores.querySelector(".modal-close").value = this.resumeAfterModal ?
 			"Resume game" : "Close the Chronicle";
-		this.renderRunHistory(0, id);
+		this.renderRunHistory();
 		var selected = this.scores.querySelector(".history-selected");
 		if (id !== undefined && selected) {
 			selected.focus({ preventScroll: true });
@@ -1309,7 +1309,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.renderRunHistory();
 	}
 
-	this.renderRunHistory = function(page = 0, selectedId) {
+	this.renderRunHistory = function(page) {
 		var wins = this.scores.querySelector(".history-wins").checked;
 		var losses = this.scores.querySelector(".history-losses").checked;
 		var sort = this.historySort;
@@ -1377,10 +1377,10 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			body.replaceChildren();
 		}
 		var pages = Math.max(1, Math.ceil(runs.length / pageSize));
-		if (selectedId !== undefined) {
-			var index = runs.findIndex(function(run) { return run.id === selectedId; });
-			if (index >= 0)
-				page = Math.floor(index / pageSize);
+		/* Explicit page turns take precedence; otherwise follow the highlight. */
+		if (page === undefined) {
+			var index = runs.findIndex(function(run) { return run.id === selectedRun; });
+			page = index < 0 ? 0 : Math.floor(index / pageSize);
 		}
 		this.historyPage = Math.max(0, Math.min(page, pages - 1));
 		var start = this.historyPage * pageSize;

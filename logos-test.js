@@ -2368,30 +2368,46 @@ Deno.test("run history sorts and filters without hiding unknown dates", async fu
 	]);
 });
 
-Deno.test("Chronicle links select a leaf and sorting or filtering returns to the first", async function() {
+Deno.test("Chronicle follows the highlighted run when sorting and filtering", async function() {
 	await withRunHistory(async function() {
 		const puzzle = makePuzzle(1);
 		puzzle.scores.hidden = false;
-		await puzzle.showRunHistory(1);
+		await puzzle.showRunHistory(2);
 		const body = puzzle.scores.querySelector(".history-table tbody");
-		assert(puzzle.historyPage == 2 && body.children.length == 3 &&
-		       body.children[2].className == "history-selected",
+		const highlighted = () => body.children.some(row => row.className == "history-selected");
+		assert(puzzle.historyPage == 2 && highlighted(),
 		       "link did not open the selected run's leaf");
 		puzzle.renderRunHistory(1);
-		assert(body.children.length == 8 && puzzle.historyPage == 1,
-		       "turning a leaf did not render the next slice");
+		assert(body.children.length == 8 && puzzle.historyPage == 1 && !highlighted(),
+		       "highlight prevented an explicit page turn");
 		puzzle.sortRunHistory("time");
-		assert(puzzle.historyPage == 0 && body.children[0].children[3].textContent == "00000000",
-		       "sorting did not return to the first leaf");
+		assert(puzzle.historyPage == 0 && highlighted(),
+		       "ascending sort lost the highlighted run");
+		puzzle.sortRunHistory("time");
+		assert(puzzle.historyPage == 2 && highlighted(),
+		       "descending sort lost the highlighted run");
+		const wins = puzzle.scores.querySelector(".history-wins");
+		puzzle.scores.querySelector(".history-losses").checked = false;
+		puzzle.renderRunHistory();
+		assert(puzzle.historyPage == 1 && body.children.length == 1 && highlighted() &&
+		       puzzle.scores.querySelector(".history-folio .help-page-next").disabled,
+		       "filter did not follow the highlight to its new leaf");
+		wins.checked = false;
+		puzzle.renderRunHistory();
+		assert(puzzle.historyPage == 0 && !highlighted(),
+		       "excluding the highlighted run did not return to the first leaf");
+		wins.checked = true;
+		puzzle.renderRunHistory();
+		assert(puzzle.historyPage == 1 && highlighted(),
+		       "restoring the filter lost the highlighted run");
+		await puzzle.showRunHistory();
+		puzzle.renderRunHistory(2);
+		puzzle.sortRunHistory("time");
+		assert(puzzle.historyPage == 0, "unselected sorting did not return to the first leaf");
 		puzzle.renderRunHistory(2);
 		puzzle.scores.querySelector(".history-losses").checked = false;
 		puzzle.renderRunHistory();
-		assert(puzzle.historyPage == 0 && body.children.length == 8,
-		       "filtering did not return to the first leaf");
-		puzzle.renderRunHistory(1);
-		assert(body.children.length == 1 &&
-		       puzzle.scores.querySelector(".history-folio .help-page-next").disabled,
-		       "last leaf did not disable forward navigation");
+		assert(puzzle.historyPage == 0, "unselected filtering did not return to the first leaf");
 	}, Array.from({ length: 19 }, (_, i) => ({
 		date: i, seed: i, elapsed: i, outcome: i % 2 ? "won" : "lost",
 	})));
