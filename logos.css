@@ -325,6 +325,8 @@ body[data-custom-cursor="false"] {
 
 #board {
 	--chalk-mark: rgb(240 232 211 / 88%);
+	/* Resolve the board-local cursor rather than inherit body's cursor. */
+	cursor: var(--default-cursor);
 }
 
 .board .slot {
@@ -405,17 +407,17 @@ body[data-custom-cursor="false"] {
 	cursor: var(--action-cursor);
 }
 
-body[data-discard-cursor="true"] {
+body[data-discard-cursor="true"] #board {
 	--default-cursor: var(--discard-cursor);
 	--action-cursor: var(--discard-action-cursor);
 }
 
-body[data-chalk-cursor="true"]:not([data-custom-cursor="false"]) {
+body[data-chalk-cursor="true"]:not([data-custom-cursor="false"]) #board {
 	--default-cursor: url("cursor-chalk.svg") 2 2, default;
 	--action-cursor: url("cursor-chalk-active.svg") 2 2, pointer;
 }
 
-body[data-chalk-cursor="true"][data-discard-cursor="true"]:not([data-custom-cursor="false"]) {
+body[data-chalk-cursor="true"][data-discard-cursor="true"]:not([data-custom-cursor="false"]) #board {
 	--default-cursor: url("cursor-chalk-discard.svg") 2 2, crosshair;
 	--action-cursor: url("cursor-chalk-discard-active.svg") 2 2, crosshair;
 }
