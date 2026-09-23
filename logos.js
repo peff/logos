@@ -1272,8 +1272,13 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.scores.querySelector(".pantheon-view").hidden = false;
 		this.scores.querySelector(".history-view").hidden = true;
 		this.scores.querySelector("#scores-title").textContent = "The Pantheon of the Wise";
-		this.scores.querySelector(".modal-close").value = this.resumeAfterModal ?
-			"Resume game" : "Rejoin the mortal realm";
+		var close = this.scores.querySelector(".modal-close");
+		close.classList.remove("help-page-turn");
+		close.classList.add("modal-done");
+		close.value = this.resumeAfterModal ? "Resume game" : "Rejoin the mortal realm";
+		close.title = close.value;
+		close.setAttribute("aria-label", close.value);
+		this.scores.querySelector(".scores-actions").appendChild(close);
 		this.scores.querySelector(".history-open").focus();
 	}
 
@@ -1290,8 +1295,13 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.scores.querySelector(".pantheon-view").hidden = true;
 		this.scores.querySelector(".history-view").hidden = false;
 		this.scores.querySelector("#scores-title").textContent = "Chronicle of Trials";
-		this.scores.querySelector(".modal-close").value = this.resumeAfterModal ?
-			"Resume game" : "Close the Chronicle";
+		var close = this.scores.querySelector(".modal-close");
+		close.classList.remove("modal-done");
+		close.classList.add("help-page-turn");
+		close.value = "Exitus";
+		close.title = "Close the Chronicle";
+		close.setAttribute("aria-label", "Close the Chronicle");
+		this.scores.querySelector(".history-folio").appendChild(close);
 		this.renderRunHistory();
 		var selected = this.scores.querySelector(".history-selected");
 		if (id !== undefined && selected) {
