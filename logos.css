@@ -1662,6 +1662,37 @@ input[type="text"] {
 	font-variant-numeric: tabular-nums;
 }
 
+.history-open {
+	border: 0;
+	padding: 0;
+	background: none;
+	color: inherit;
+	font: inherit;
+	cursor: var(--action-cursor);
+}
+
+.history-open:hover,
+.history-open:focus-visible {
+	color: #80633a;
+}
+
+.history-open:focus-visible {
+	outline: 2px solid #80633a;
+	outline-offset: 0.15rem;
+}
+
+.chronicle-icon {
+	width: 1.15em;
+	height: 1em;
+	margin-left: 0.2em;
+	vertical-align: -0.12em;
+	fill: none;
+	stroke: #80633a;
+	stroke-width: 1.4;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+}
+
 .scores-panel li {
 	padding: 0.08rem 0.3rem;
 }
