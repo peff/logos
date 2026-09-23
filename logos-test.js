@@ -2347,15 +2347,20 @@ Deno.test("run history sorts and filters without hiding unknown dates", async fu
 		assert(body.children.length == 0 &&
 		       puzzle.scores.querySelector(".history-status").textContent == "No runs match this filter.",
 		       "unchecking both results did not show an empty list");
-		assert(puzzle.scores.querySelector(".modal-close").value == "Back to Pantheon",
-		       "history did not label its back button");
+		assert(puzzle.scores.querySelector(".modal-close").value == "Close the Chronicle",
+		       "history did not label its close button");
 		await puzzle.toggleScores();
-		assert(puzzle.scores.querySelector(".history-view").hidden && !puzzle.scores.hidden,
-		       "returning to Pantheon closed the modal");
-		assert(puzzle.scores.querySelector(".modal-close").value == "Rejoin the mortal realm",
-		       "Pantheon did not restore its close label");
+		assert(puzzle.scores.hidden, "closing the Chronicle did not dismiss the modal");
 		await puzzle.toggleScores();
-		assert(puzzle.scores.hidden, "second click did not close the Pantheon");
+		assert(puzzle.scores.querySelector(".history-view").hidden &&
+		       puzzle.scores.querySelector(".modal-close").value == "Rejoin the mortal realm",
+		       "reopening did not return to the Pantheon");
+		puzzle.resumeAfterModal = true;
+		await puzzle.showRunHistory();
+		assert(puzzle.scores.querySelector(".modal-close").value == "Resume game",
+		       "Chronicle did not preserve the resume label");
+		puzzle.scores.listeners.click({ target: puzzle.scores });
+		assert(puzzle.scores.hidden, "outside click did not dismiss the Chronicle");
 	}, [
 		{ date: 1, elapsed: 300, seed: 1, outcome: "won" },
 		{ date: 2, elapsed: 100, seed: 2, outcome: "lost" },

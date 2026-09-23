@@ -1290,7 +1290,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.scores.querySelector(".pantheon-view").hidden = true;
 		this.scores.querySelector(".history-view").hidden = false;
 		this.scores.querySelector("#scores-title").textContent = "Chronicle of Trials";
-		this.scores.querySelector(".modal-close").value = "Back to Pantheon";
+		this.scores.querySelector(".modal-close").value = this.resumeAfterModal ?
+			"Resume game" : "Close the Chronicle";
 		this.renderRunHistory(0, id);
 		var selected = this.scores.querySelector(".history-selected");
 		if (id !== undefined && selected) {
@@ -1661,10 +1662,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 
 	this.toggleScores = async function() {
 		if (!this.scores.hidden) {
-			if (!this.scores.querySelector(".history-view").hidden) {
-				this.showPantheon();
-				return;
-			}
 			this.toggleModal(this.scores, this.scoresButton,
 				"Rejoin the mortal realm");
 			this.highlightedScore = null;
