@@ -1715,7 +1715,23 @@ button.score-entry:focus-visible {
 }
 
 .history-folio {
+	border-top: 0;
+	grid-template-columns: 1fr 1fr;
+	row-gap: 0.1rem;
 	margin-top: 0.3rem;
+}
+
+.history-folio .help-page-number {
+	grid-area: 1 / 1 / 2 / 3;
+	text-align: center;
+}
+
+.history-folio .help-page-previous {
+	grid-area: 2 / 1;
+}
+
+.history-folio .help-page-next {
+	grid-area: 2 / 2;
 }
 
 .history-folio button:disabled {
