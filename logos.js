@@ -1387,7 +1387,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		for (var run of runs.slice(start, start + pageSize))
 			body.appendChild(makeRow(run));
 		this.scores.querySelector(".history-folio .help-page-number").textContent =
-			"Leaf " + (this.historyPage + 1) + " of " + pages;
+			"Leaf " + romanNumeral(this.historyPage + 1) + " of " + romanNumeral(pages);
 		this.scores.querySelector(".history-folio .help-page-previous").disabled = this.historyPage == 0;
 		this.scores.querySelector(".history-folio .help-page-next").disabled = this.historyPage == pages - 1;
 	}
@@ -2215,6 +2215,21 @@ function formatTime(elapsed) {
 	var minutes = Math.floor(totalSeconds / 60);
 	var seconds = totalSeconds % 60;
 	return minutes + ":" + (seconds < 10 ? "0" : "") + seconds;
+}
+
+function romanNumeral(number) {
+	var result = "";
+	for (var [value, symbol] of [
+		[1000, "M"], [900, "CM"], [500, "D"], [400, "CD"],
+		[100, "C"], [90, "XC"], [50, "L"], [40, "XL"],
+		[10, "X"], [9, "IX"], [5, "V"], [4, "IV"], [1, "I"],
+	]) {
+		while (number >= value) {
+			result += symbol;
+			number -= value;
+		}
+	}
+	return result;
 }
 
 function formatScoreDate(timestamp, compact) {

@@ -137,7 +137,7 @@ const Logos = eval(source +
 	"drainForcedProofSteps: drainForcedProofSteps, " +
 	"nextForcedProofStep: nextForcedProofStep, " +
 	"proofConclusionPresented: proofConclusionPresented, " +
-	"formatOlympiad: formatOlympiad, greekNumeralDay: greekNumeralDay });");
+	"romanNumeral: romanNumeral, formatOlympiad: formatOlympiad, greekNumeralDay: greekNumeralDay });");
 const Puzzle = Logos.Puzzle;
 const ExactClue = Logos.ExactClue;
 const Adjacent2Clue = Logos.Adjacent2Clue;
@@ -2366,6 +2366,15 @@ Deno.test("run history sorts and filters without hiding unknown dates", async fu
 		{ date: 2, elapsed: 100, seed: 2, outcome: "lost" },
 		{ date: null, elapsed: 200, outcome: "won" },
 	]);
+});
+
+Deno.test("Roman leaf numbers use subtractive notation", function() {
+	for (const [number, expected] of [
+		[1, "I"], [3, "III"], [4, "IV"], [9, "IX"], [14, "XIV"],
+		[49, "XLIX"], [99, "XCIX"], [444, "CDXLIV"],
+		[2026, "MMXXVI"], [3999, "MMMCMXCIX"], [4000, "MMMM"],
+	])
+		assert(Logos.romanNumeral(number) == expected, "wrong numeral for " + number);
 });
 
 Deno.test("Chronicle follows the highlighted run when sorting and filtering", async function() {
