@@ -1618,6 +1618,58 @@ input[type="text"] {
 	overflow: auto;
 }
 
+/*
+ * The game layout shrinks rem units to fit all of the board and clues on a
+ * portrait screen. Options and scores do not need to share that constraint;
+ * give them the available width and keep their prose at a readable size.
+ * Help already fills the viewport through its own folio layout.
+ */
+@media (orientation: portrait) {
+	.options-panel,
+	.scores-panel {
+		width: min(28rem, calc(100vw - 1rem));
+		font-size: max(1rem, 16px);
+	}
+
+	:is(.options-panel, .scores-panel)
+		:is(.modal-done, .option-action, button) {
+		font-size: inherit;
+	}
+
+	#options-menu label small {
+		font-size: max(0.72em, 13px);
+	}
+
+	#options-menu input[type="radio"],
+	#options-menu input[type="checkbox"] {
+		width: max(0.78rem, 14px);
+		height: max(0.78rem, 14px);
+	}
+
+	#friends-button {
+		width: max(4rem, 72px);
+	}
+
+	.friends-badge-title {
+		font-size: max(0.85rem, 14px);
+	}
+
+	.friends-badge-caption {
+		font-size: max(0.5rem, 10px);
+	}
+
+	.friends-badge-experimental {
+		font-size: max(0.4rem, 9px);
+	}
+
+	#game-seed {
+		flex-basis: max(4rem, 80px);
+		width: max(4rem, 80px);
+		height: max(1.05rem, 28px);
+		font-size: max(0.6rem, 14px);
+	}
+}
+
 /* Keep the Pantheon's footprint while history occupies the same grid cell. */
 .pantheon-view,
 .history-view {
@@ -2000,6 +2052,57 @@ button.score-entry:focus-visible {
 .help-option {
 	font-weight: bold;
 	white-space: nowrap;
+}
+
+@media (orientation: portrait) {
+	.help-panel {
+		width: min(34rem, calc(100vw - 1rem));
+		max-height: calc(100dvh - 1rem);
+		font-size: max(0.78rem, 15px);
+		line-height: 1.3;
+	}
+
+	.help-panel h2 {
+		flex: 0 0 auto;
+		font-size: max(1.35rem, 22px);
+	}
+
+	.help-panel h3 {
+		font-size: max(0.95rem, 17px);
+	}
+
+	.help-panel > .modal-close,
+	.help-page-number {
+		font-size: max(0.72rem, 13px);
+	}
+
+	.help-page-turn {
+		font-size: max(0.9rem, 15px);
+	}
+
+	.help-example-row {
+		zoom: 1.2;
+	}
+
+	.help-tile {
+		width: 1.15em;
+		height: 1.15em;
+	}
+
+	.help-clues td:first-child .help-tile {
+		width: max(1.15rem, 26px);
+		height: max(1.15rem, 26px);
+	}
+
+	.help-panel .arrow {
+		width: max(1.4rem, 30px);
+		height: max(1rem, 24px);
+		font-size: max(1.4rem, 26px);
+	}
+
+	.help-panel .dots {
+		font-size: max(1.25rem, 24px);
+	}
 }
 
 .about-panel {
