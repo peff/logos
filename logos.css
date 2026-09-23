@@ -1516,6 +1516,7 @@ input[type="text"] {
 }
 
 .help-panel {
+	position: relative;
 	display: flex;
 	flex-direction: column;
 	width: min(34rem, calc(100vw - 2rem));
@@ -1524,6 +1525,14 @@ input[type="text"] {
 	padding: 0.4rem 0.7rem 0.45rem;
 	font-size: 0.78rem;
 	line-height: 1.25;
+}
+
+.help-panel > .modal-close {
+	position: absolute;
+	top: 0.65rem;
+	right: 0.7rem;
+	font-size: 0.65rem;
+	font-weight: normal;
 }
 
 .help-pages {

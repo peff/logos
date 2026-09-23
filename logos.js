@@ -1653,7 +1653,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.toggleHelp = function() {
 		if (this.help.hidden)
 			this.showHelpPage(0);
-		this.toggleModal(this.help, this.helpButton);
+		this.toggleModal(this.help, this.helpButton, "Close");
 	}
 
 	this.showHelpPage = function(page) {
