@@ -1692,7 +1692,7 @@ button.score-entry:focus-visible {
 }
 
 .history-controls {
-	margin: 0.65rem 0;
+	margin: 0.25rem 0 0.65rem;
 }
 
 .history-controls [role="group"] {
@@ -1718,7 +1718,8 @@ button.score-entry:focus-visible {
 	border-top: 0;
 	grid-template-columns: 1fr 1fr;
 	row-gap: 0.1rem;
-	margin-top: 0.3rem;
+	margin-top: 0.45rem;
+	padding-top: 0;
 }
 
 .history-folio .help-page-number {
@@ -1747,7 +1748,7 @@ button.score-entry:focus-visible {
 
 .history-table th,
 .history-table td {
-	padding: 0.4rem;
+	padding: 0.25rem 0.4rem;
 	text-align: left;
 	border-bottom: 1px solid #b8b3a5;
 }
