@@ -347,6 +347,37 @@ Deno.test("the seed action describes random, chosen, and restarted puzzles", fun
 	edit("0", "Restart");
 });
 
+Deno.test("seed difficulty previews complete input and shorter seeds on blur", function() {
+	const puzzle = makePuzzle(6);
+	puzzle.options.hidden = false;
+	const input = puzzle.options.querySelector("#game-seed");
+	const display = puzzle.options.querySelector("#seed-difficulty");
+	for (const value of ["9", "98", "9807924"]) {
+		input.value = value;
+		input.listeners.input();
+		assert(!puzzle.seedDifficultyCache && display.textContent == "",
+		       "typing an incomplete seed computed difficulty");
+	}
+	input.value = "98079244";
+	input.listeners.input();
+	assert(display.textContent == "Difficulty: Easy", "complete seed was not rated immediately");
+	const cache = puzzle.seedDifficultyCache;
+	input.listeners.blur();
+	assert(puzzle.seedDifficultyCache === cache, "blur recomputed the same seed");
+	input.value = "2a";
+	input.listeners.input();
+	assert(display.textContent == "", "editing left stale difficulty");
+	input.listeners.blur();
+	assert(puzzle.seedDifficultyCache.seed === 42 && display.textContent.startsWith("Difficulty: "),
+	       "blur did not rate a shorter valid seed");
+	for (const value of ["", "invalid!"]) {
+		input.value = value;
+		input.listeners.input();
+		input.listeners.blur();
+		assert(display.textContent == "", "invalid input displayed difficulty");
+	}
+});
+
 Deno.test("puzzle links wait for Start Game before starting their seed", function() {
 	const reference = makePuzzle(6);
 	reference.say = function() {};

@@ -1288,6 +1288,13 @@ body.proof-active #logo {
 	margin: 0;
 }
 
+#seed-difficulty {
+	min-height: 1.2em;
+	margin-top: 0.25em;
+	color: #68685f;
+	font-family: Forum, Georgia, "Times New Roman", serif;
+}
+
 #options-menu .seed-options label {
 	align-items: baseline;
 }
