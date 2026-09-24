@@ -2221,44 +2221,26 @@ button.score-entry:focus-visible {
 }
 
 .logo-greek,
-#timer.won,
-#status.won {
+:is(#timer, #status):is(.won, .lost) {
+	-webkit-background-clip: text;
+	background-clip: text;
+	-webkit-text-fill-color: transparent;
+}
+
+.logo-greek,
+:is(#timer, #status).won {
 	color: #f1d47a;
 	background-image: linear-gradient(to bottom,
 		#fff4b0 0%,
 		#d7a83e 42%,
 		#ffe89a 58%,
 		#9d6f1e 100%);
-	-webkit-background-clip: text;
-	background-clip: text;
-	-webkit-text-fill-color: transparent;
+}
+
+.logo-greek {
 	text-shadow:
 		0 -1px 0 rgb(255 247 190 / 35%),
 		0 1px 0 rgb(75 49 8 / 70%);
-}
-
-#timer.lost,
-#status.lost {
-	color: #d97865;
-	background-image: linear-gradient(to bottom,
-		#ff9b82 0%,
-		#c44135 34%,
-		#74191d 68%,
-		#d85443 100%);
-	-webkit-background-clip: text;
-	background-clip: text;
-	-webkit-text-fill-color: transparent;
-	text-shadow:
-		0 -1px 0 rgb(255 190 170 / 28%),
-		0 1px 0 rgb(55 5 9 / 80%);
-}
-
-#status.lost {
-	background-image: linear-gradient(to bottom,
-		#ffc5a8 0%,
-		#f06b4d 36%,
-		#dc493d 68%,
-		#f17d5d 100%);
 }
 
 :is(#timer, #status).won {
@@ -2268,11 +2250,24 @@ button.score-entry:focus-visible {
 }
 
 :is(#timer, #status).lost {
+	color: #d97865;
+	background-image: linear-gradient(to bottom,
+		#ff9b82 0%,
+		#c44135 34%,
+		#74191d 68%,
+		#d85443 100%);
 	text-shadow:
 		0 -0.025em 0 rgb(255 190 170 / 28%),
 		0 0.03em 0 rgb(55 5 9 / 80%);
 }
 
+#status.lost {
+	background-image: linear-gradient(to bottom,
+		#ffc5a8 0%,
+		#f06b4d 36%,
+		#dc493d 68%,
+		#f17d5d 100%);
+}
 #hclues {
 	grid-area: hclues;
 	flex: 0 0 auto;
