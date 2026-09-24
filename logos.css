@@ -209,6 +209,77 @@ body {
 	}
 }
 
+/* Give the landscape timer its own plaque beside the message area. */
+@media (orientation: landscape) {
+	body #message {
+		--status-timer-lane: 4.25rem;
+		--status-lane-gap: 0.25rem;
+		overflow: visible;
+		background: transparent;
+	}
+
+	body #status-lane {
+		display: flex;
+		position: absolute;
+		inset: 0 calc(var(--status-timer-lane) + var(--status-lane-gap)) 0 0;
+		align-items: center;
+		justify-content: center;
+		overflow: hidden;
+		border-radius: 5px;
+		background: #293638;
+	}
+
+	body #message:has(#timer[hidden]) #status-lane {
+		right: 0;
+	}
+
+	body #timer {
+		z-index: 1;
+		box-sizing: border-box;
+		top: 0;
+		right: 0;
+		transform: none;
+		width: var(--status-timer-lane);
+		height: 100%;
+		line-height: 1;
+		text-align: center;
+	}
+
+	body #timer::before {
+		content: "";
+		position: absolute;
+		z-index: -1;
+		inset: 0;
+		box-sizing: border-box;
+		border: 1px solid #706b5e;
+		border-radius: 5px;
+		box-shadow:
+			0 1px 1px rgb(0 0 0 / 35%),
+			inset 1px 1px rgb(230 224 198 / 24%),
+			inset -1px -1px rgb(0 0 0 / 48%),
+			inset 0 0 0 2px rgb(32 42 43 / 55%);
+		background:
+			linear-gradient(rgb(49 66 68 / 82%), rgb(35 48 50 / 92%)),
+			url("stone-texture.png") center / 8rem auto;
+	}
+
+	body #timer::after {
+		content: "";
+		position: absolute;
+		z-index: -1;
+		inset: 0.18rem;
+		border-block: 1px solid rgb(202 180 113 / 22%);
+		background:
+			radial-gradient(circle at left center,
+				#b69a55 0 0.07rem, #51472f 0.08rem 0.1rem,
+				transparent 0.11rem),
+			radial-gradient(circle at right center,
+				#b69a55 0 0.07rem, #51472f 0.08rem 0.1rem,
+				transparent 0.11rem);
+		pointer-events: none;
+	}
+}
+
 /* Use the extra height on modern, edge-to-edge phones for a larger board. */
 @media (orientation: portrait) and (max-aspect-ratio: 1 / 2) {
 	body.game-started #board {
@@ -2188,6 +2259,10 @@ button.score-entry:focus-visible {
 	text-align: center;
 	font-family: Georgia, "Times New Roman", serif;
 	letter-spacing: 0.025em;
+}
+
+#status-lane {
+	display: contents;
 }
 
 #status {
