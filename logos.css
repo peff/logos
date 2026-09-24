@@ -2299,14 +2299,16 @@ button.score-entry:focus-visible {
 }
 
 .logo-greek,
-:is(#timer, #status):is(.won, .lost) {
+#timer:is(.won, .lost) #timer-text,
+#status:is(.won, .lost) {
 	-webkit-background-clip: text;
 	background-clip: text;
 	-webkit-text-fill-color: transparent;
 }
 
 .logo-greek,
-:is(#timer, #status).won {
+#timer.won #timer-text,
+#status.won {
 	color: #f1d47a;
 	background-image: linear-gradient(to bottom,
 		#fff4b0 0%,
@@ -2321,13 +2323,15 @@ button.score-entry:focus-visible {
 		0 1px 0 rgb(75 49 8 / 70%);
 }
 
-:is(#timer, #status).won {
+#timer.won #timer-text,
+#status.won {
 	text-shadow:
 		0 -0.025em 0 rgb(255 247 190 / 35%),
 		0 0.03em 0 rgb(75 49 8 / 70%);
 }
 
-:is(#timer, #status).lost {
+#timer.lost #timer-text,
+#status.lost {
 	color: #d97865;
 	background-image: linear-gradient(to bottom,
 		#ff9b82 0%,

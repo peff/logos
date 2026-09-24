@@ -150,6 +150,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 
 	this.messages = messages;
 	this.timer = timer;
+	this.timerText = timer.firstElementChild || timer;
 	this.hClues = hClues;
 	this.vClues = vClues;
 	this.options = options;
@@ -1166,7 +1167,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.updateTimer = function(elapsed) {
-		this.timer.textContent = formatTime(elapsed);
+		this.timerText.textContent = formatTime(elapsed);
 	}
 
 	this.loadHistory = async function(run) {
