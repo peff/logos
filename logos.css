@@ -1685,7 +1685,7 @@ input[type="text"] {
 }
 
 .scores-panel {
-	width: min(22rem, calc(100vw - 1rem));
+	width: min(18em, calc(100vw - 1rem));
 	display: grid;
 	grid-template-rows: auto minmax(0, 1fr) auto;
 	min-width: 16rem;
@@ -1704,8 +1704,15 @@ input[type="text"] {
 @media (orientation: portrait) {
 	.options-panel,
 	.scores-panel {
-		width: min(28rem, calc(100vw - 1rem));
 		font-size: max(1rem, 16px);
+	}
+
+	.options-panel {
+		width: min(28rem, calc(100vw - 1rem));
+	}
+
+	.scores-panel {
+		width: min(20em, calc(100vw - 1rem));
 	}
 
 	:is(.options-panel, .scores-panel)
@@ -1747,7 +1754,7 @@ input[type="text"] {
 	}
 }
 
-/* Keep the Pantheon's footprint while history occupies the same grid cell. */
+/* The two views share a panel, but each has its own dimensions. */
 .pantheon-view,
 .history-view {
 	grid-area: 2 / 1;
@@ -1756,15 +1763,9 @@ input[type="text"] {
 	overflow: auto;
 }
 
-.pantheon-view[hidden] {
-	display: block;
-	visibility: hidden;
-}
-
 .history-view:not([hidden]) {
 	display: flex;
 	flex-direction: column;
-	contain: size;
 }
 
 .history-view > :not(.history-page-content) {
@@ -2078,7 +2079,15 @@ button.score-entry:focus-visible {
 }
 
 .scores-panel:has(.history-view:not([hidden])) {
+	width: min(22rem, calc(100vw - 1rem));
 	min-width: min(22rem, calc(100vw - 1rem));
+	height: min(max(26rem, 30em), calc(100dvh - 1rem));
+}
+
+@media (orientation: portrait) {
+	.scores-panel:has(.history-view:not([hidden])) {
+		width: min(28rem, calc(100vw - 1rem));
+	}
 }
 
 @media (max-width: 360px) {
