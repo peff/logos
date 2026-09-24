@@ -38,9 +38,3 @@
    - show the current puzzle's difficulty
    - pantheon should mark difficulty and/or keep separate pantheon
      for various levels
- - run history
-   - we're now storing all runs via indexdb
-   - run history should be exportable (maybe even just using dev tools)
-     to feed difficulty analysis (e.g., seeing what is really "hard"
-     based on completion times).
-   - add filtering by date range and elapsed-time range
