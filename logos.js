@@ -1157,6 +1157,14 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		}
 	}
 
+	this.restartMessage = function() {
+		if (!this.messages.innerHTML)
+			return;
+		this.messages.classList.add("marquee-restarting");
+		this.messages.offsetWidth;
+		this.messages.classList.remove("marquee-restarting");
+	}
+
 	this.updateTimer = function(elapsed) {
 		this.timer.textContent = formatTime(elapsed);
 	}

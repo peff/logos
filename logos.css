@@ -245,12 +245,18 @@ body #timer::after {
 		left: 50%;
 		width: max-content;
 		max-width: none;
-		animation: status-marquee 8s ease-in-out forwards;
+		font-size: max(1rem, 15px);
+		line-height: 1;
+		animation: status-marquee 8s ease-in-out infinite;
 		white-space: nowrap;
 	}
 
-	body #status.appearing {
+	body #status:is(.appearing, .marquee-restarting) {
 		animation: none;
+	}
+
+	body #timer {
+		font-size: max(1rem, 15px);
 	}
 
 	@media (prefers-reduced-motion: reduce) {
@@ -269,8 +275,11 @@ body #timer::after {
 	0%, 20% {
 		transform: translateX(max(-50%, calc(-50cqw + 0.5rem)));
 	}
-	100% {
+	50%, 70% {
 		transform: translateX(min(-50%, calc(50cqw - 100% - 0.5rem)));
+	}
+	100% {
+		transform: translateX(max(-50%, calc(-50cqw + 0.5rem)));
 	}
 }
 
