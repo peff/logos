@@ -2293,11 +2293,6 @@ button.score-entry:focus-visible {
 	letter-spacing: 0;
 }
 
-#timer.won,
-#timer.lost {
-	font-weight: bold;
-}
-
 .logo-greek,
 #timer:is(.won, .lost) #timer-text,
 #status:is(.won, .lost) {
