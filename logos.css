@@ -2261,6 +2261,18 @@ button.score-entry:focus-visible {
 		#f17d5d 100%);
 }
 
+:is(#timer, #status).won {
+	text-shadow:
+		0 -0.025em 0 rgb(255 247 190 / 35%),
+		0 0.03em 0 rgb(75 49 8 / 70%);
+}
+
+:is(#timer, #status).lost {
+	text-shadow:
+		0 -0.025em 0 rgb(255 190 170 / 28%),
+		0 0.03em 0 rgb(55 5 9 / 80%);
+}
+
 #hclues {
 	grid-area: hclues;
 	flex: 0 0 auto;
