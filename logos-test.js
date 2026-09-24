@@ -261,6 +261,44 @@ Deno.test("a puzzle seed reproduces the board and clues", function() {
 	       "the current seed was not exposed in the options");
 });
 
+Deno.test("random difficulty preferences filter candidates without changing explicit seeds", function() {
+	const originalRandom = crypto.getRandomValues;
+	const seeds = [0x98079244, 0xe2a689dd];
+	const puzzle = makePuzzle(6);
+	let message;
+	puzzle.say = value => { message = value; };
+	crypto.getRandomValues = values => {
+		assert(seeds.length, "generation requested an unexpected candidate");
+		values[0] = seeds.shift();
+		return values;
+	};
+	try {
+		puzzle.setRandomDifficulties(["hard"]);
+		assert(puzzle.newGame() && puzzle.seed == 0xe2a689dd && seeds.length == 0,
+		       "random generation did not skip the easy candidate");
+		assert(puzzle.newGame("98079244") && puzzle.seed == 0x98079244,
+		       "difficulty preferences rejected an explicit seed");
+		puzzle.setRandomDifficulties([]);
+		const identity = puzzle.gameIdentity;
+		assert(!puzzle.newGame() && puzzle.gameIdentity !== identity && puzzle.timerTimeout === null &&
+		       puzzle.gameOver && puzzle.seed === undefined && puzzle.clues.length == 0 &&
+		       puzzle.timer.classList.contains("contemplating") && puzzle.messages.classList.contains("won") &&
+		       message == "You have chosen the path of contemplation.",
+		       "empty selection did not replace the game with contemplation");
+		assert(puzzle.newGame("98079244"), "empty selection blocked an explicit seed");
+		assert(!puzzle.timer.classList.contains("contemplating") && !puzzle.messages.classList.contains("won"),
+		       "a new puzzle retained contemplation styling");
+		const restored = makePuzzle(6);
+		assert(restored.randomDifficulties.length == 0, "empty preference was not restored");
+		restored.setRandomDifficulties(["easy", "hard"]);
+		assert(makePuzzle(6).randomDifficulties.join() == "easy,hard", "mixed preference was not restored");
+	} finally {
+		puzzle.stopTimer();
+		crypto.getRandomValues = originalRandom;
+		localStorage.removeItem("randomDifficulties");
+	}
+});
+
 Deno.test("invalid puzzle seeds do not replace the current game", function() {
 	const puzzle = makePuzzle(6);
 	puzzle.say = function() {};

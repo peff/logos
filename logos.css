@@ -131,6 +131,20 @@ body.game-paused .pause-columns {
 	display: block;
 }
 
+.contemplation-infinity {
+	display: none;
+	width: 2rem;
+	height: 1rem;
+}
+
+body #timer.contemplating :is(#timer-text, .pause-columns) {
+	display: none;
+}
+
+body #timer.contemplating .contemplation-infinity {
+	display: block;
+}
+
 body.game-paused :is(#board-container, #hclues, #vclues) {
 	filter: blur(0.12rem);
 	pointer-events: none;
@@ -1249,7 +1263,8 @@ body.proof-active #logo {
 	flex-direction: column;
 }
 
-#options-menu label small {
+#options-menu label small,
+#options-menu .random-difficulties-heading small {
 	max-width: 18rem;
 	color: #736d63;
 	font-size: 0.72em;
@@ -1313,6 +1328,29 @@ body.proof-active #logo {
 	display: flex;
 	align-items: center;
 	gap: 0.4rem;
+}
+
+#options-menu .random-difficulties {
+	margin-bottom: 0.4em;
+}
+
+#options-menu .random-difficulties-heading {
+	display: flex;
+	align-items: baseline;
+	gap: 0.3rem;
+}
+
+#options-menu .random-difficulty-choices {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.25em 0.6em;
+	margin-top: 0.15em;
+}
+
+#options-menu .random-difficulties label {
+	margin: 0;
+	align-items: center;
 }
 
 .seed-controls .option-action {
@@ -1758,7 +1796,8 @@ input[type="text"] {
 		font-size: inherit;
 	}
 
-	#options-menu label small {
+	#options-menu label small,
+	#options-menu .random-difficulties-heading small {
 		font-size: max(0.72em, 13px);
 	}
 

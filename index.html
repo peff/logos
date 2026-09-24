@@ -19,6 +19,18 @@
 						<path d="M8.5 8v10 M27.5 8v10" stroke-width="0.8"/>
 					</g>
 				</svg>
+				<svg class="contemplation-infinity" viewBox="0 0 40 20" aria-hidden="true" focusable="false">
+					<defs>
+						<linearGradient id="infinity-gold" x1="0" y1="0" x2="0" y2="1">
+							<stop offset="0" stop-color="#fff4b0"/>
+							<stop offset=".42" stop-color="#d7a83e"/>
+							<stop offset=".58" stop-color="#ffe89a"/>
+							<stop offset="1" stop-color="#9d6f1e"/>
+						</linearGradient>
+					</defs>
+					<path d="M20 10C14 2 4 2 4 10s10 8 16 0 16-8 16 0-10 8-16 0Z"
+					      fill="none" stroke="url(#infinity-gold)" stroke-width="2.4"/>
+				</svg>
 			</button>
 		</div>
 		<div id="board-container">
@@ -252,6 +264,16 @@
 						       <span>Continue after loss
 						             <small>Enter Zen mode instead of revealing the solution.</small></span></label>
 						<div class="seed-options">
+							<div class="random-difficulties" role="group" aria-label="Random puzzle difficulties"
+							     title="New random games use these difficulty levels. Entering a seed always plays that exact puzzle.">
+								<div class="random-difficulties-heading">Difficulty
+									<small>For new random puzzles.</small></div>
+								<div class="random-difficulty-choices">
+									<label><input id="random-easy" type="checkbox" checked onChange="puzzle.changeRandomDifficulties()">Easy</label>
+									<label><input id="random-medium" type="checkbox" checked onChange="puzzle.changeRandomDifficulties()">Medium</label>
+									<label><input id="random-hard" type="checkbox" checked onChange="puzzle.changeRandomDifficulties()">Hard</label>
+								</div>
+							</div>
 							<label for="game-seed">Puzzle seed
 							       <small id="seed-help">Replay or share a particular puzzle.</small></label>
 							<div class="seed-controls">

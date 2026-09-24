@@ -315,8 +315,41 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			this.newGame(this.pendingSeed) : this.newGame();
 	}
 
+	this.randomPuzzleSeed = function() {
+		if (!this.randomDifficulties.length) {
+			this.gameIdentity = {};
+			this.seed = this.pendingSeed = undefined;
+			this.paused = this.resumeAfterModal = false;
+			this.clear();
+			this.clues = [];
+			for (var slot of [...this.hClueSlots, ...this.vClueSlots])
+				slot.replaceChildren();
+			this.options.querySelector("#game-seed").value = "";
+			this.newGameButton.value = "New Game";
+			this.updateSeedControls();
+			this.updateSeedDifficulty();
+			this.timer.hidden = false;
+			this.timer.classList.add("contemplating");
+			this.timer.title = "Contemplation has no time limit";
+			this.timer.setAttribute("aria-label", this.timer.title);
+			this.messages.classList.add("won");
+			this.say("You have chosen the path of contemplation.");
+			return null;
+		}
+		for (;;) {
+			var seed = randomSeed();
+			if (this.randomDifficulties.length == 3)
+				return seed;
+			var difficulty = puzzleDifficulty(puzzleFromSeed(seed));
+			if (this.randomDifficulties.includes(difficulty.level)) {
+				this.seedDifficultyCache = { seed: seed, difficulty: difficulty };
+				return seed;
+			}
+		}
+	}
+
 	this.newGame = function() {
-		var seed = arguments.length ? parseSeed(arguments[0]) : randomSeed();
+		var seed = arguments.length ? parseSeed(arguments[0]) : this.randomPuzzleSeed();
 		if (seed === null)
 			return false;
 		this.pendingSeed = undefined;
@@ -420,6 +453,11 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		var value = input.value.trim();
 		var started = value ? this.newGame(value) : this.newGame();
 		if (!started) {
+			if (!value) {
+				input.setCustomValidity("");
+				this.toggleOptions();
+				return;
+			}
 			input.setCustomValidity("Enter up to eight hexadecimal digits.");
 			input.reportValidity();
 			return;
@@ -1629,7 +1667,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.clearOutcome = function() {
-		this.timer.classList.remove("won", "lost");
+		this.timer.classList.remove("won", "lost", "contemplating");
 		this.messages.classList.remove("won", "lost");
 	}
 
@@ -2075,6 +2113,23 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		}
 	}
 
+	this.setRandomDifficulties = function(levels) {
+		this.randomDifficulties = ["easy", "medium", "hard"].filter(level => levels.includes(level));
+		for (var level of ["easy", "medium", "hard"])
+			this.options.querySelector("#random-" + level).checked = this.randomDifficulties.includes(level);
+		try {
+			if (!this.loadingOptions)
+				localStorage.setItem("randomDifficulties", JSON.stringify(this.randomDifficulties));
+		} catch (e) {
+			/* The choice still applies for the current page. */
+		}
+	}
+
+	this.changeRandomDifficulties = function() {
+		this.setRandomDifficulties(["easy", "medium", "hard"].filter(level =>
+			this.options.querySelector("#random-" + level).checked));
+	}
+
 	this.setPracticeMode = function(enabled) {
 		this.practiceModePreference = enabled;
 		this.options.querySelector("#practice-mode").checked = enabled;
@@ -2365,6 +2420,15 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	var showMilestones = true;
 	var autoDismissClues = true;
 	var practiceMode = false;
+	var randomDifficulties = ["easy", "medium", "hard"];
+	try {
+		var storedDifficulties = JSON.parse(localStorage.getItem("randomDifficulties"));
+		if (Array.isArray(storedDifficulties) &&
+		    storedDifficulties.every(level => randomDifficulties.includes(level)))
+			randomDifficulties = storedDifficulties;
+	} catch (e) {
+		/* Missing or invalid preferences use all difficulties. */
+	}
 	var continueAfterLoss = false;
 	var soundEffects = true;
 	var soundVolume = 1;
@@ -2424,6 +2488,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.gameStats = { won: 0, lost: 0 };
 	/* Applying saved preferences must not write a stale snapshot back. */
 	this.loadingOptions = true;
+	this.setRandomDifficulties(randomDifficulties);
 	this.setCustomCursor(customCursor);
 	this.setPreviewMouseActions(previewMouseActions);
 	this.setMilestones(showMilestones);

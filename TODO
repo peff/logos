@@ -27,15 +27,6 @@
    - is highlighting clues that refer to a symbol useful?
    - what UI should expose highlighting? Current experiments use
      shift-click on a clue and pressing a filled board slot.
- - wire up difficulty levels
-   - puzzleDifficulty(puzzle) now returns a score and easy/medium/hard
-     label; see DIFFICULTY.md for the scoring model and play tests
-   - rate generated candidates and retry until one matches the requested
-     difficulty; keep seed meanings stable, and play explicitly requested
-     seeds regardless of the difficulty preference
-   - add difficulty selection to the Game section in Options; probably
-     checkboxes so players can choose one level or a mix
-   - show the current puzzle's difficulty
  - revisit difficulty backfill once beta players' older runs are rated
    - we only have a few players with a few days of legacy data; we can
      give them a week or two to visit the chronicle and backfill, and

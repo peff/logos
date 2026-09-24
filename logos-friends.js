@@ -55,7 +55,9 @@ function setGameControlsDisabled(disabled) {
 }
 
 function startSharedGame() {
-	session.start(parseInt(randomHex(4), 16));
+	var seed = window.puzzle.randomPuzzleSeed();
+	if (seed !== null)
+		session.start(seed);
 }
 
 function beginSession(role) {
