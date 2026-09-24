@@ -662,21 +662,6 @@ Deno.test("chalk cursors combine modifiers, Tap controls, and blur", function() 
 	}
 });
 
-Deno.test("mouse action previews are an opt-in saved option", function() {
-	localStorage.removeItem("previewMouseActions");
-	const puzzle = makePuzzle(6);
-	assert(!puzzle.previewMouseActions &&
-	       !puzzle.options.querySelector("#preview-mouse-actions").checked,
-	       "mouse action previews were enabled by default");
-	puzzle.setPreviewMouseActions(true);
-	assert(puzzle.previewMouseActions &&
-	       puzzle.options.querySelector("#preview-mouse-actions").checked &&
-	       localStorage.getItem("previewMouseActions") == "true",
-	       "the mouse preview choice was not applied and saved");
-	localStorage.removeItem("previewMouseActions");
-	puzzle.stopTimer();
-});
-
 Deno.test("a false placement loses the game", function() {
 	const puzzle = makePuzzle(1);
 	const slot = puzzle.rows[0].slots[0];
@@ -717,7 +702,6 @@ Deno.test("modifier clicks toggle pencil marks", function() {
 		target.listeners.pointerdown(event);
 		if (options.button == 2)
 			target.listeners.contextmenu(event);
-		target.listeners.pointerup(event);
 	}
 
 	pointerAction(cell, { button: 0, shiftKey: true });
@@ -771,27 +755,25 @@ Deno.test("chalk modifiers combine with Tap controls", function() {
 					const expected = chalk ?
 						(discard ? "pencil-remove" : "pencil-select") :
 						(discard ? "remove" : "place");
-					for (const preview of [false, true]) {
-						puzzle.previewMouseActions = preview;
-						const event = {
-							button: click == "right" ? 2 : 0,
-							ctrlKey: click == "control",
-							shiftKey: modifier == "shiftKey",
-							altKey: modifier == "altKey",
-							currentTarget: cell,
-							preventDefault() {},
-						};
-						actions.length = 0;
-						cell.listeners.pointerdown(event);
-						if (click != "left")
-							cell.listeners.contextmenu(event);
-						cell.listeners.pointerup(event);
-						if (click != "right")
-							cell.listeners.click(event);
-						assert(actions.length == 1 && actions[0] == expected,
-						       `${selected}, ${modifier}, ${click}, taps=${tapControls}, ` +
-						       `preview=${preview}: expected ${expected}, got ${actions}`);
-					}
+					const event = {
+						button: click == "right" ? 2 : 0,
+						ctrlKey: click == "control",
+						shiftKey: modifier == "shiftKey",
+						altKey: modifier == "altKey",
+						currentTarget: cell,
+						preventDefault() {},
+					};
+					actions.length = 0;
+					cell.listeners.pointerdown(event);
+					assert(actions.length == 1 && actions[0] == expected,
+					       "mouse action did not commit on press");
+					if (click != "left")
+						cell.listeners.contextmenu(event);
+					if (click != "right")
+						cell.listeners.click(event);
+					assert(actions.length == 1 && actions[0] == expected,
+					       `${selected}, ${modifier}, ${click}, taps=${tapControls}, ` +
+					       `expected ${expected}, got ${actions}`);
 				}
 			}
 		}
@@ -838,72 +820,6 @@ Deno.test("Tap controls apply the mark selector to right-click", function() {
 	rightClick();
 	assert(!slot.possible[wrong],
 	       "right-click did not use declared discard");
-	puzzle.stopTimer();
-});
-
-Deno.test("pointer presses preview their eventual tile action", function() {
-	const puzzle = makePuzzle(1);
-	const slot = puzzle.rows[0].slots[0];
-	const cell = slot.possibilityElems[0];
-	const actions = [];
-	puzzle.requestTileAction = function(slot, value, action) {
-		actions.push(action);
-	};
-	function press(options) {
-		cell.listeners.pointerdown({
-			button: options.button,
-			ctrlKey: !!options.ctrlKey,
-			altKey: !!options.altKey,
-			shiftKey: !!options.shiftKey,
-			currentTarget: cell,
-		});
-	}
-
-	press({ button: 0 });
-	assert(actions.join() == "place" &&
-	       !cell.classList.contains("action-preview"),
-	       "the default mouse action did not commit on press");
-	cell.listeners.click({ currentTarget: cell });
-	actions.length = 0;
-	puzzle.setPreviewMouseActions(true);
-
-	press({ button: 0 });
-	assert(cell.classList.contains("action-preview-place"),
-	       "a primary press did not preview placement");
-	cell.listeners.pointerup({ button: 0, currentTarget: cell });
-	assert(!cell.classList.contains("action-preview"),
-	       "pointer release did not clear the action preview");
-	assert(actions.join() == "place",
-	       "pointer release did not commit the previewed placement");
-
-	press({ button: 2 });
-	assert(cell.classList.contains("action-preview-remove"),
-	       "a secondary press did not preview removal");
-	cell.listeners.contextmenu({
-		currentTarget: cell,
-		preventDefault() {},
-	});
-	assert(actions.join() == "place",
-	       "the context-menu event committed removal before release");
-	cell.listeners.pointerup({ button: 2, currentTarget: cell });
-	assert(actions.join() == "place,remove",
-	       "pointer release did not commit the previewed removal");
-
-	press({ button: 2 });
-	cell.listeners.pointercancel({});
-	assert(!cell.classList.contains("action-preview"),
-	       "pointer cancellation did not clear the action preview");
-
-	press({ button: 0, ctrlKey: true });
-	assert(cell.classList.contains("action-preview-remove"),
-	       "a control-press did not preview removal");
-	cell.listeners.pointerleave({});
-
-	puzzle.coarsePointer = true;
-	press({ button: 0 });
-	assert(!cell.classList.contains("action-preview"),
-	       "a coarse pointer received a mouse action preview");
-	localStorage.removeItem("previewMouseActions");
 	puzzle.stopTimer();
 });
 
