@@ -1201,6 +1201,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			columns: this.rows[0].slots.length,
 			generatorVersion: puzzleGeneratorVersion,
 		};
+		if (canRateRun(run))
+			run.difficulty = puzzleDifficulty(this);
 		var saved = await this.loadHistory(run);
 		var highScore = this.highScores.find(function(score) {
 			return run.id !== undefined && score.id === run.id;
@@ -1329,6 +1331,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.renderRunHistory = function(page) {
+		var request = this.historyDifficultyRequest = {};
 		var wins = this.scores.querySelector(".history-wins").checked;
 		var losses = this.scores.querySelector(".history-losses").checked;
 		var sort = this.historySort;
@@ -1354,6 +1357,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		var body = this.scores.querySelector(".history-table tbody");
 		body.replaceChildren();
 		var selectedRun = this.selectedRun;
+		var difficultyEntries = [];
 		function makeRow(run) {
 			var row = document.createElement("tr");
 			if (run.id === selectedRun) {
@@ -1378,6 +1382,11 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 				link.title = "Open this puzzle in a new tab";
 				row.children[3].replaceChildren(link);
 			}
+			var difficulty = document.createElement("td");
+			difficulty.className = "history-difficulty";
+			showRunDifficulty(difficulty, run);
+			row.appendChild(difficulty);
+			difficultyEntries.push({ run: run, element: difficulty });
 			if (run.date !== null)
 				row.children[0].title = new Date(run.date).toLocaleString(undefined, {
 					dateStyle: "full", timeStyle: "long", hourCycle: "h23",
@@ -1395,6 +1404,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 				pageSize = Math.max(1, Math.floor((available - heading - 1) / sample.offsetHeight));
 			body.replaceChildren();
 		}
+		difficultyEntries = [];
 		var pages = Math.max(1, Math.ceil(runs.length / pageSize));
 		/* Explicit page turns take precedence; otherwise follow the highlight. */
 		if (page === undefined) {
@@ -1409,6 +1419,29 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			"Leaf " + romanNumeral(this.historyPage + 1) + " of " + romanNumeral(pages);
 		this.scores.querySelector(".history-folio .help-page-previous").disabled = this.historyPage == 0;
 		this.scores.querySelector(".history-folio .help-page-next").disabled = this.historyPage == pages - 1;
+		this.historyDifficultyTask = this.fillRunDifficulties(difficultyEntries, request);
+	}
+
+	this.fillRunDifficulties = async function(entries, request) {
+		for (var entry of entries) {
+			var run = entry.run;
+			if (hasRunDifficulty(run) || !canRateRun(run))
+				continue;
+			/* Let the page paint and handle input between expensive ratings. */
+			await new Promise(resolve => setTimeout(resolve, 0));
+			if (this.historyDifficultyRequest !== request || this.scores.hidden ||
+			    this.scores.querySelector(".history-view").hidden)
+				return;
+			try {
+				run.difficulty = puzzleDifficulty(puzzleFromSeed(run.seed));
+				showRunDifficulty(entry.element, run);
+				await saveRunDifficulty(run.id, run.difficulty);
+			} catch (e) {
+				entry.element.textContent = "—";
+				entry.element.title = "Difficulty unavailable";
+				entry.element.setAttribute("aria-label", entry.element.title);
+			}
+		}
 	}
 
 	this.clearOutcome = function() {
@@ -1444,30 +1477,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.generateClues = function() {
 		this.hClues.classList.remove("solution");
 		this.vClues.classList.remove("solution");
-		this.clues = [];
-		var types = [ExactClue, OrderClue, Adjacent2Clue,
-			     Adjacent3Clue, ColumnClue];
-		do {
-			while (!this.sufficientClues()) {
-				var type = weightedChoice(types);
-				var clue = new type(this);
-				this.clues.push(clue);
-				if (clue.displayType)
-					clue.active = true;
-			}
-
-			for (var i = this.clues.length - 1; i >= 0; i--) {
-				var without = this.clues.slice();
-				without.splice(i, 1);
-				if (cluesSolve(this, without))
-					this.clues = without;
-			}
-
-			this.clues = limitDisplayedClues(this.clues,
-				"horizontal", this.hClueSlots.length);
-			this.clues = limitDisplayedClues(this.clues,
-				"vertical", this.vClueSlots.length);
-		} while (!this.sufficientClues());
+		generatePuzzleClues(this, this.hClueSlots.length, this.vClueSlots.length);
 
 		for (var i = 0; i < this.hClueSlots.length; i++) {
 			this.hClueSlots[i].innerHTML = "";
@@ -2411,6 +2421,40 @@ function accessRunHistory(run, includeRuns) {
 	});
 }
 
+/* Patch only difficulty, preserving the stored run and its out-of-line key.
+ * A failed cache write is harmless: a future visit can calculate it again.
+ */
+function saveRunDifficulty(id, difficulty) {
+	return new Promise(function(resolve) {
+		if (typeof indexedDB == "undefined" || id === undefined) {
+			resolve(false);
+			return;
+		}
+		var request = indexedDB.open("logos", 2);
+		request.onerror = function() { resolve(false); };
+		request.onsuccess = function() {
+			var db = request.result;
+			db.onversionchange = function() { db.close(); };
+			try {
+				var transaction = db.transaction("runs", "readwrite");
+				transaction.oncomplete = function() { db.close(); resolve(true); };
+				transaction.onabort = function() { db.close(); resolve(false); };
+				var store = transaction.objectStore("runs");
+				store.get(id).onsuccess = function(event) {
+					var run = event.target.result;
+					if (run) {
+						run.difficulty = difficulty;
+						store.put(run, id);
+					}
+				};
+			} catch (e) {
+				db.close();
+				resolve(false);
+			}
+		};
+	}).catch(function() { return false; });
+}
+
 function legacyScoreKey(score) {
 	return JSON.stringify([score.date, score.seed, score.elapsed]);
 }
@@ -2453,6 +2497,73 @@ function playChime(context, frequency, delay, volume, output) {
 		oscillator.start(start);
 		oscillator.stop(start + durations[i]);
 	}
+}
+
+/* Shared by gameplay and reconstruction of stored version-1 seeds. */
+function generatePuzzleClues(puzzle, horizontalLimit, verticalLimit) {
+	puzzle.clues = [];
+	var types = [ExactClue, OrderClue, Adjacent2Clue,
+		     Adjacent3Clue, ColumnClue];
+	do {
+		while (!cluesSolve(puzzle, puzzle.clues)) {
+			var type = weightedChoice(types);
+			var clue = new type(puzzle);
+			puzzle.clues.push(clue);
+			if (clue.displayType)
+				clue.active = true;
+		}
+
+		for (var i = puzzle.clues.length - 1; i >= 0; i--) {
+			var without = puzzle.clues.slice();
+			without.splice(i, 1);
+			if (cluesSolve(puzzle, without))
+				puzzle.clues = without;
+		}
+
+		puzzle.clues = limitDisplayedClues(puzzle.clues,
+			"horizontal", horizontalLimit);
+		puzzle.clues = limitDisplayedClues(puzzle.clues,
+			"vertical", verticalLimit);
+	} while (!cluesSolve(puzzle, puzzle.clues));
+}
+
+function puzzleFromSeed(seed) {
+	return withPuzzleRandom(seed, function() {
+		var puzzle = { rows: [], clues: [] };
+		for (var r = 0; r < 6; r++) {
+			var row = { puzzle: puzzle, slots: [] };
+			var values = shuffle([0, 1, 2, 3, 4, 5]);
+			for (var value of values)
+				row.slots.push({ row: row, value: value });
+			puzzle.rows.push(row);
+		}
+		generatePuzzleClues(puzzle, 18, 8);
+		return puzzle;
+	});
+}
+
+function canRateRun(run) {
+	return Number.isInteger(run.seed) && run.seed >= 0 && run.seed <= 0xffffffff &&
+		run.generatorVersion == puzzleGeneratorVersion &&
+		run.rows == 6 && run.columns == 6;
+}
+
+function hasRunDifficulty(run) {
+	return run.difficulty && Number.isFinite(run.difficulty.score) &&
+		run.difficulty.score >= 0 &&
+		["easy", "medium", "hard"].includes(run.difficulty.level);
+}
+
+function showRunDifficulty(element, run) {
+	if (hasRunDifficulty(run)) {
+		var level = run.difficulty.level;
+		element.textContent = level[0].toUpperCase() + level.slice(1);
+		element.title = "Difficulty: " + element.textContent;
+	} else {
+		element.textContent = canRateRun(run) ? "…" : "—";
+		element.title = "Difficulty unavailable";
+	}
+	element.setAttribute("aria-label", element.title);
 }
 
 function limitDisplayedClues(clues, displayType, limit) {

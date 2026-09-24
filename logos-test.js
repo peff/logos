@@ -120,7 +120,7 @@ Object.defineProperty(globalThis, "localStorage", { value: {
 const source = await Deno.readTextFile(
 	new URL("./logos.js", import.meta.url));
 const Logos = eval(source +
-	"\n;({ puzzleDifficulty, difficultyRating, " +
+	"\n;({ puzzleDifficulty, difficultyRating, puzzleFromSeed, " +
 	"difficultyOpportunities, " +
 	"Puzzle: Puzzle, ExactClue: ExactClue, " +
 	"Adjacent2Clue: Adjacent2Clue, " +
@@ -2270,7 +2270,8 @@ Deno.test("pending saves capture the finished game and do not interrupt a new on
 	});
 	try {
 		const puzzle = makePuzzle(6, true);
-		puzzle.seed = 123;
+		puzzle.newGame(123);
+		puzzle.stopTimer();
 		puzzle.timerElapsed = 1500;
 		puzzle.scores.hidden = true;
 		for (const row of puzzle.rows)
@@ -3231,4 +3232,64 @@ Deno.test("opportunities distinguish anchors from candidate-set deductions", () 
 	moves = opportunities(puzzle, domains);
 	assert(moves.length == 1 && moves[0].tier == 1 && moves[0].placement);
 	assert(moves[0].after == 1);
+});
+
+Deno.test("seed reconstruction matches gameplay without changing the active puzzle", () => {
+	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
+	puzzle.startTimer = function() {};
+	for (const seed of [0, 0xffffffff, 0x98079244, 0xe2a689dd]) {
+		puzzle.newGame(seed);
+		const before = puzzleSignature(puzzle);
+		const reconstructed = Logos.puzzleFromSeed(seed);
+		const signature = model => {
+			const result = JSON.parse(puzzleSignature(model));
+			for (const clue of result.clues) delete clue.rendered;
+			return JSON.stringify(result);
+		};
+		assert(signature(puzzle) == signature(reconstructed), "seed reconstruction differs");
+		assert(JSON.stringify(Logos.puzzleDifficulty(puzzle)) ==
+		       JSON.stringify(Logos.puzzleDifficulty(reconstructed)));
+		assert(before == puzzleSignature(puzzle), "reconstruction changed the active board");
+	}
+});
+
+Deno.test("Chronicle backfills only visible supported runs and reuses their ratings", async () => {
+	const initial = Array.from({ length: 10 }, (_, i) => ({
+		date: i, seed: 0x98079244, elapsed: i, outcome: "won",
+		rows: 6, columns: 6, generatorVersion: 1,
+	}));
+	initial[9].difficulty = { score: 75, level: "hard" };
+	initial[8].generatorVersion = 99;
+	await withRunHistory(async () => {
+		const puzzle = makePuzzle(6);
+		puzzle.scores.hidden = false;
+		await puzzle.showRunHistory();
+		const body = puzzle.scores.querySelector(".history-table tbody");
+		const text = i => body.children[i].children[4].textContent;
+		assert(text(0) == "Hard" && text(1) == "—" && text(2) == "…");
+		await puzzle.historyDifficultyTask;
+		assert(text(2) == "Easy");
+		assert(!puzzle.runHistory[0].difficulty && !puzzle.runHistory[1].difficulty,
+		       "backfilled runs outside the visible page");
+		const cached = puzzle.runHistory[7].difficulty;
+		puzzle.renderRunHistory(0);
+		await puzzle.historyDifficultyTask;
+		assert(puzzle.runHistory[7].difficulty === cached, "recomputed cached difficulty");
+		puzzle.renderRunHistory(1);
+		puzzle.scores.hidden = true;
+		await puzzle.historyDifficultyTask;
+		assert(!puzzle.runHistory[0].difficulty, "continued rating after closing history");
+	}, initial);
+});
+
+Deno.test("new runs include difficulty in their saved record", async () => {
+	await withRunHistory(async runs => {
+		const puzzle = makePuzzle(6);
+		puzzle.say = function() {};
+		puzzle.newGame(0x98079244);
+		puzzle.stopTimer();
+		await puzzle.recordOutcome("lost");
+		assert(runs.length == 1 && runs[0].difficulty.level == "easy");
+		assert(runs[0].difficulty.score == Logos.puzzleDifficulty(puzzle).score);
+	});
 });

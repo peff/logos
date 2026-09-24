@@ -65,6 +65,31 @@ var storageTestsDone = (async function() {
 			       history.runs[1].seed == loss.seed,
 			       "full history lost a run, its key, or its fields");
 		});
+		await test("difficulty backfill preserves the run and survives another read", async function() {
+			const before = (await accessRunHistory(null, true)).runs;
+			const difficulty = { score: 60.5, level: "medium" };
+			assert(await saveRunDifficulty(win.id, difficulty), "cache write failed");
+			const after = (await accessRunHistory(null, true)).runs;
+			const saved = after.find(run => run.id == win.id);
+			assert(saved.difficulty.score == 60.5 && saved.difficulty.level == "medium",
+			       "difficulty did not persist");
+			delete saved.difficulty;
+			assert(JSON.stringify(before) == JSON.stringify(after),
+			       "backfill changed other fields, keys, counts, or runs");
+			assert(await saveRunDifficulty(999999, difficulty), "missing-key transaction failed");
+			assert((await accessRunHistory(null, true)).runs.length == before.length,
+			       "backfill recreated a missing run");
+		});
+		await test("difficulty cache failures are harmless", async function() {
+			const open = indexedDB.open;
+			indexedDB.open = function() { throw new Error("storage unavailable"); };
+			try {
+				assert(await saveRunDifficulty(win.id, { score: 1, level: "easy" }) === false,
+				       "cache failure escaped to the caller");
+			} finally {
+				indexedDB.open = open;
+			}
+		});
 		await test("import legacy scores without duplicating recorded wins", async function() {
 			storage.setItem("highScores", legacy);
 			storage.setItem("gameStats", JSON.stringify({ won: 99, lost: 88 }));

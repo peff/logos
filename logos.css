@@ -1980,8 +1980,13 @@ button.score-entry:focus-visible {
 	white-space: nowrap;
 }
 
-.history-table td:last-child {
+.history-table td:nth-child(4) {
 	font-family: monospace;
+}
+
+.history-difficulty {
+	font-family: Forum, Georgia, "Times New Roman", serif;
+	white-space: nowrap;
 }
 
 .history-table a {
@@ -2018,6 +2023,17 @@ button.score-entry:focus-visible {
 
 .scores-actions .modal-done {
 	margin: 0;
+}
+
+.scores-panel:has(.history-view:not([hidden])) {
+	min-width: min(22rem, calc(100vw - 1rem));
+}
+
+@media (max-width: 360px) {
+	.history-table th,
+	.history-table td {
+		padding-inline: 0.15rem;
+	}
 }
 
 .scores-panel:has(.history-view:not([hidden])) .scores-actions {
