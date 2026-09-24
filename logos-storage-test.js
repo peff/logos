@@ -201,6 +201,26 @@ var storageTestsDone = (async function() {
 				IDBIndex.prototype.openCursor = indexCursor;
 			}
 		});
+		await test("difficulty rankings find ten matching wins and earlier unrated candidates", async function() {
+			for (let i = 0; i < 12; i++) {
+				await accessRunHistory({outcome: "won", elapsed: 10000+i, date: i, seed: i,
+					difficulty: {score: 80, level: "hard"}});
+				await accessRunHistory({outcome: "won", elapsed: 10+i, date: i, seed: i,
+					difficulty: {score: 20, level: "easy"}});
+			}
+			await accessRunHistory({outcome: "lost", elapsed: 0, date: 1, seed: 1,
+				difficulty: {score: 80, level: "hard"}});
+			const candidate = {outcome: "won", elapsed: 1, date: 1, seed: 0xe2a689dd,
+				rows: 6, columns: 6, generatorVersion: 1};
+			await accessRunHistory(candidate);
+			const history = await accessRunHistory(null, false, "hard");
+			assert(history.highScores.length == 10 && history.highScores[0].elapsed == 10000 &&
+			       history.highScores[9].elapsed == 10009 &&
+			       history.highScores.every(run => run.outcome == "won" && run.difficulty.level == "hard"),
+			       "difficulty ranking included losses, other levels, or the wrong times");
+			assert(history.unratedRuns.some(run => run.id == candidate.id),
+			       "an earlier unclassified win was not offered for backfill");
+		});
 		await test("a new database creates the index", async function() {
 			await new Promise((resolve, reject) => {
 				const request = factory.deleteDatabase(database);

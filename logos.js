@@ -1170,8 +1170,40 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.timerText.textContent = formatTime(elapsed);
 	}
 
-	this.loadHistory = async function(run) {
-		var history = await accessRunHistory(run);
+	this.loadHistory = async function(run, level = "all") {
+		var request = this.pantheonRequest = {};
+		var gameIdentity = this.gameIdentity;
+		var current = () => this.pantheonRequest === request &&
+			this.gameIdentity === gameIdentity;
+		var history = await accessRunHistory(run, false, level);
+		if (history && run)
+			this.gameStats = history.gameStats;
+		if (history && level != "all") {
+			for (var candidate of history.unratedRuns || []) {
+				var last = history.highScores[9];
+				if (last && (candidate.elapsed > last.elapsed ||
+				    candidate.elapsed == last.elapsed && candidate.id > last.id))
+					break;
+				await new Promise(resolve => setTimeout(resolve, 0));
+				if (!current())
+					return !!history;
+				try {
+					candidate.difficulty = puzzleDifficulty(puzzleFromSeed(candidate.seed));
+					await saveRunDifficulty(candidate.id, candidate.difficulty);
+					if (candidate.difficulty.level == level) {
+						history.highScores.push(candidate);
+						history.highScores.sort((a, b) => a.elapsed - b.elapsed || a.id - b.id);
+						history.highScores = history.highScores.slice(0, 10);
+					}
+				} catch (e) {
+					/* An unrateable legacy run cannot enter a specific ranking. */
+				}
+			}
+		}
+		if (!current())
+			return !!history;
+		this.pantheonLevel = level;
+		this.pantheonLoading = false;
 		this.historyError = history ? "" : run ?
 			"Your result could not be saved." : "The Chronicle could not be loaded.";
 		if (history) {
@@ -1203,7 +1235,12 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		};
 		if (canRateRun(run))
 			run.difficulty = puzzleDifficulty(this);
-		var saved = await this.loadHistory(run);
+		var saving = this.loadHistory(run,
+			outcome == "won" && run.difficulty ? run.difficulty.level : "all");
+		var request = this.pantheonRequest;
+		var saved = await saving;
+		if (this.pantheonRequest !== request)
+			return saved;
 		var highScore = this.highScores.find(function(score) {
 			return run.id !== undefined && score.id === run.id;
 		});
@@ -1224,6 +1261,14 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 
 	this.renderHighScores = function() {
 		var status = this.scores.querySelector(".scores-status");
+		this.scores.querySelector(".pantheon-tablet").setAttribute(
+			"aria-busy", String(!!this.pantheonLoading));
+		for (var level of ["all", "easy", "medium", "hard"])
+			this.scores.querySelector(".pantheon-" + level).setAttribute(
+				"aria-pressed", String(level == this.pantheonLevel));
+		/* Keep the current tablet in place until its replacement is ready. */
+		if (this.pantheonLoading)
+			return;
 		status.hidden = !this.historyError;
 		status.textContent = this.historyError || "";
 		var list = this.scores.querySelector("ol");
@@ -1242,6 +1287,9 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			this.gameStats.won;
 		list.innerHTML = "";
 		empty.hidden = this.highScores.length != 0;
+		empty.textContent = this.pantheonLevel == "all" ?
+			"No victors have been enshrined." :
+			"No " + this.pantheonLevel + " victories have been enshrined.";
 		for (var i = 0; i < this.highScores.length; i++) {
 			var item = document.createElement("li");
 			if (this.highScores[i] == this.highlightedScore) {
@@ -1279,6 +1327,69 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		}
 	}
 
+	this.clearPantheonTransition = function() {
+		var transition = this.pantheonTransition;
+		if (!transition)
+			return;
+		for (var animation of transition.animations)
+			animation.cancel();
+		transition.old.remove();
+		transition.tablet.inert = false;
+		this.pantheonTransition = null;
+	}
+
+	this.selectPantheon = async function(level) {
+		var levels = ["all", "easy", "medium", "hard"];
+		if (!levels.includes(level) || level == this.pantheonLevel && !this.historyError)
+			return;
+		var direction = levels.indexOf(level) > levels.indexOf(this.pantheonLevel) ? 1 : -1;
+		this.clearPantheonTransition();
+		this.pantheonLevel = level;
+		this.pantheonLoading = true;
+		this.historyError = "";
+		this.renderHighScores();
+		var gameIdentity = this.gameIdentity;
+		var loading = this.loadHistory(undefined, level);
+		var request = this.pantheonRequest;
+		await loading;
+		if (this.pantheonRequest !== request || this.gameIdentity !== gameIdentity ||
+		    this.scores.hidden || this.scores.querySelector(".pantheon-view").hidden)
+			return;
+		var stage = this.scores.querySelector(".pantheon-tablets");
+		var tablet = this.scores.querySelector(".pantheon-tablet");
+		var animate = typeof tablet.animate == "function" &&
+			!matchMedia("(prefers-reduced-motion: reduce)").matches;
+		var old = animate ? tablet.cloneNode(true) : null;
+		/* Retain room for the fullest tablet visited, including empty rankings.
+		 * Using em keeps the reserved height in step with responsive font sizes.
+		 */
+		if (stage.getBoundingClientRect)
+			stage.style.minHeight = stage.getBoundingClientRect().height /
+				parseFloat(getComputedStyle(stage).fontSize) + "em";
+		this.renderHighScores();
+		if (!animate)
+			return;
+		old.classList.add("pantheon-tablet-old");
+		old.setAttribute("aria-hidden", "true");
+		old.inert = true;
+		tablet.inert = true;
+		stage.appendChild(old);
+		var timing = { duration: 260, easing: "cubic-bezier(0.22, 0.61, 0.36, 1)" };
+		var transition = this.pantheonTransition = { old: old, tablet: tablet, animations: [
+			old.animate([
+				{ transform: "translateX(0)", opacity: 1 },
+				{ transform: "translateX(" + (-direction * 100) + "%)", opacity: 0.2 },
+			], timing),
+			tablet.animate([
+				{ transform: "translateX(" + (direction * 100) + "%)", opacity: 0.2 },
+				{ transform: "translateX(0)", opacity: 1 },
+			], timing),
+		] };
+		await Promise.all(transition.animations.map(animation => animation.finished.catch(() => {})));
+		if (this.pantheonTransition === transition)
+			this.clearPantheonTransition();
+	}
+
 	this.showPantheon = function() {
 		this.scores.querySelector(".pantheon-view").hidden = false;
 		this.scores.querySelector(".history-view").hidden = true;
@@ -1294,6 +1405,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.showRunHistory = async function(id) {
+		this.clearPantheonTransition();
+		this.pantheonRequest = {};
 		var gameIdentity = this.gameIdentity;
 		var history = await accessRunHistory(null, true);
 		if (this.scores.hidden || this.gameIdentity !== gameIdentity)
@@ -1678,6 +1791,12 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 				this.stopTimer();
 			modal.hidden = false;
 		} else {
+			if (modal === this.scores)
+				this.clearPantheonTransition();
+			if (modal === this.scores && this.pantheonLoading) {
+				this.pantheonRequest = {};
+				this.pantheonLoading = false;
+			}
 			modal.hidden = true;
 			this.paused = false;
 			if (!this.gameOver && !this.practiceMode &&
@@ -1719,11 +1838,13 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 
 	this.toggleScores = async function() {
 		if (!this.scores.hidden) {
+			this.pantheonRequest = {};
 			this.toggleModal(this.scores, this.scoresButton,
 				"Rejoin the mortal realm");
 			this.highlightedScore = null;
 			return;
 		}
+		this.scores.querySelector(".pantheon-tablets").style.minHeight = "";
 		var gameIdentity = this.gameIdentity;
 		await this.loadHistory();
 		if (this.gameIdentity !== gameIdentity)
@@ -2247,6 +2368,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		/* Storage may be unavailable for local files. */
 	}
 	this.highScores = [];
+	this.pantheonLevel = "all";
+	this.pantheonLoading = false;
 	this.gameStats = { won: 0, lost: 0 };
 	/* Applying saved preferences must not write a stale snapshot back. */
 	this.loadingOptions = true;
@@ -2330,7 +2453,7 @@ function formatOlympiad(timestamp) {
 /* Import legacy scores and optionally append a run, then return a committed
  * Pantheon summary. Record keys are exposed as id, but remain out-of-line.
  */
-function accessRunHistory(run, includeRuns) {
+function accessRunHistory(run, includeRuns, level = "all") {
 	return new Promise(function(resolve) {
 		if (typeof indexedDB == "undefined") {
 			resolve(null);
@@ -2360,6 +2483,8 @@ function accessRunHistory(run, includeRuns) {
 					run || legacy !== null ? "readwrite" : "readonly");
 				var store = transaction.objectStore("runs");
 				var summary = { highScores: [], gameStats: { won: 0, lost: 0 } };
+				if (level != "all")
+					summary.unratedRuns = [];
 				var added = [];
 				transaction.oncomplete = function() {
 					db.close();
@@ -2411,8 +2536,12 @@ function accessRunHistory(run, includeRuns) {
 						var cursor = event.target.result;
 						if (!cursor)
 							return;
-						summary.highScores.push(Object.assign({}, cursor.value,
-							{ id: cursor.primaryKey }));
+						var entry = Object.assign({}, cursor.value, { id: cursor.primaryKey });
+						if (level == "all" || hasRunDifficulty(entry) &&
+						    entry.difficulty.level == level)
+							summary.highScores.push(entry);
+						else if (!hasRunDifficulty(entry) && canRateRun(entry))
+							summary.unratedRuns.push(entry);
 						if (summary.highScores.length < 10)
 							cursor.continue();
 					};

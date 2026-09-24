@@ -36,5 +36,3 @@
    - add difficulty selection to the Game section in Options; probably
      checkboxes so players can choose one level or a mix
    - show the current puzzle's difficulty
-   - pantheon should mark difficulty and/or keep separate pantheon
-     for various levels

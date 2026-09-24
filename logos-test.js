@@ -2179,16 +2179,19 @@ async function withRunHistory(callback, initial) {
 	for (const run of runs)
 		run.id = nextId++;
 	let reads = 0;
-	Logos.setHistoryStorage(async function(run) {
+	Logos.setHistoryStorage(async function(run, includeRuns, level = "all") {
 		reads++;
 		if (run) {
 			run.id = nextId++;
 			runs.push(structuredClone(run));
 		}
+		const wins = runs.filter(run => run.outcome == "won")
+			.sort((a, b) => a.elapsed - b.elapsed || a.id - b.id);
 		return {
 			runs: structuredClone(runs),
-			highScores: structuredClone(runs.filter(run => run.outcome == "won")
-				.sort((a, b) => a.elapsed - b.elapsed).slice(0, 10)),
+			unratedRuns: structuredClone(wins.filter(run => !run.difficulty)),
+			highScores: structuredClone(wins.filter(run => level == "all" ||
+				run.difficulty?.level == level).slice(0, 10)),
 			gameStats: {
 				won: runs.filter(run => run.outcome == "won").length,
 				lost: runs.filter(run => run.outcome == "lost").length,
@@ -3367,4 +3370,85 @@ Deno.test("changing difficulty filters cancels obsolete backfill", async () => {
 		assert(!puzzle.scores.querySelector(".history-table tbody").children.length);
 	}, [{ date: 1, seed: 1, elapsed: 1, outcome: "won", rows: 6,
 		columns: 6, generatorVersion: 1 }]);
+});
+
+Deno.test("Pantheon switches rankings without adding difficulty to entries", async () => {
+	await withRunHistory(async () => {
+		const puzzle = makePuzzle(1);
+		puzzle.scores.hidden = true;
+		await puzzle.toggleScores();
+		assert(puzzle.pantheonLevel == "all" && puzzle.highScores.length == 3);
+		await puzzle.selectPantheon("hard");
+		assert(puzzle.highScores.length == 1 && puzzle.highScores[0].seed == 3);
+		assert(puzzle.scores.querySelector(".pantheon-hard").attributes["aria-pressed"] == "true");
+		assert(puzzle.scores.querySelector(".games-won").textContent == 3,
+		       "difficulty selection changed overall statistics");
+		await puzzle.selectPantheon("medium");
+		assert(puzzle.highScores.length == 0 && !puzzle.scores.querySelector(".scores-empty").hidden);
+		assert(puzzle.scores.querySelector(".scores-empty").textContent.includes("medium"));
+		await puzzle.toggleScores();
+		await puzzle.toggleScores();
+		assert(puzzle.pantheonLevel == "all" && puzzle.highScores.length == 3);
+	}, [
+		{ seed: 1, date: 1, elapsed: 100, outcome: "won", difficulty: {score: 20, level: "easy"} },
+		{ seed: 2, date: 2, elapsed: 200, outcome: "won", difficulty: {score: 25, level: "easy"} },
+		{ seed: 3, date: 3, elapsed: 300, outcome: "won", difficulty: {score: 80, level: "hard"} },
+		{ seed: 4, date: 4, elapsed: 1, outcome: "lost", difficulty: {score: 90, level: "hard"} },
+	]);
+});
+
+Deno.test("a win can qualify for its difficulty without qualifying for All", async () => {
+	await withRunHistory(async () => {
+		const puzzle = makePuzzle(6);
+		puzzle.say = function() {};
+		puzzle.newGame(0xe2a689dd);
+		puzzle.stopTimer();
+		puzzle.gameOver = true;
+		puzzle.timerElapsed = 500000;
+		puzzle.scores.hidden = true;
+		await puzzle.recordOutcome("won");
+		assert(!puzzle.scores.hidden && puzzle.pantheonLevel == "hard");
+		assert(puzzle.highScores.length == 1 && puzzle.highlightedScore.seed == 0xe2a689dd);
+		assert(puzzle.scores.querySelector("ol").children.at(-1).className == "score-new");
+		await puzzle.selectPantheon("all");
+		assert(puzzle.highScores.length == 10 && !puzzle.highScores.some(run => run.seed == 0xe2a689dd));
+	}, Array.from({length: 12}, (_,i) => ({date:i,seed:i,elapsed:i+1,outcome:"won",
+		difficulty:{score:20,level:"easy"}})));
+});
+
+Deno.test("Pantheon only backfills legacy wins which can enter the selected top ten", async () => {
+	const initial = Array.from({length:10},(_,i)=>({date:i,seed:i,elapsed:100+i,outcome:"won",
+		difficulty:{score:80,level:"hard"}}));
+	initial.push({date:11, seed:0xe2a689dd, elapsed:50, outcome:"won",rows:6,columns:6,generatorVersion:1});
+	initial.push({date:12, seed:0x98079244, elapsed:200, outcome:"won",rows:6,columns:6,generatorVersion:1});
+	await withRunHistory(async () => {
+		const puzzle = makePuzzle(1);
+		puzzle.scores.hidden = true;
+		await puzzle.toggleScores();
+		await puzzle.selectPantheon("hard");
+		assert(puzzle.highScores.length == 10 && puzzle.highScores[0].seed == 0xe2a689dd);
+		assert(puzzle.highScores.at(-1).elapsed == 108);
+	}, initial);
+});
+
+Deno.test("a stale Pantheon lookup cannot replace a newer selection", async () => {
+	let release;
+	const gate = new Promise(resolve => { release = resolve; });
+	Logos.setHistoryStorage(async (run, includeRuns, level) => {
+		if (level == "easy") await gate;
+		return { highScores: [{id:1, date:1, seed:1, elapsed:100,
+			difficulty:{score:80,level}}], gameStats:{won:1,lost:0} };
+	});
+	try {
+		const puzzle = makePuzzle(1);
+		puzzle.scores.hidden = false;
+		puzzle.scores.querySelector(".pantheon-view").hidden = false;
+		const first = puzzle.selectPantheon("easy");
+		await puzzle.selectPantheon("hard");
+		release(); await first;
+		assert(puzzle.pantheonLevel == "hard" && puzzle.highScores[0].difficulty.level == "hard");
+	} finally {
+		release();
+		Logos.setHistoryStorage(Logos.accessRunHistory);
+	}
 });

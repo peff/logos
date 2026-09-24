@@ -1685,6 +1685,7 @@ input[type="text"] {
 }
 
 .scores-panel {
+	width: min(22rem, calc(100vw - 1rem));
 	display: grid;
 	grid-template-rows: auto minmax(0, 1fr) auto;
 	min-width: 16rem;
@@ -1781,6 +1782,53 @@ input[type="text"] {
 	margin: 0;
 	padding-left: 2.4rem;
 	font-variant-numeric: tabular-nums;
+}
+
+.pantheon-tablets {
+	position: relative;
+	box-sizing: border-box;
+	overflow: hidden;
+	padding: 0.1rem;
+}
+
+.pantheon-tablet-old {
+	position: absolute;
+	inset: 0.1rem;
+	pointer-events: none;
+}
+
+.pantheon-levels {
+	display: flex;
+	justify-content: center;
+	gap: 0.65em;
+	margin: 0.3rem 0 0.65rem;
+}
+
+.pantheon-levels button {
+	border: 0;
+	border-bottom: 1px solid transparent;
+	padding: 0.15em 0.25em;
+	background: none;
+	color: #777267;
+	font-family: Forum, Georgia, "Times New Roman", serif;
+	font-size: 0.9em;
+	font-variant: small-caps;
+	cursor: var(--action-cursor);
+}
+
+.pantheon-levels button[aria-pressed="true"] {
+	color: #71552f;
+	border-bottom-color: #a98c58;
+}
+
+.pantheon-levels button:hover {
+	color: #71552f;
+	background: rgb(128 99 58 / 6%);
+}
+
+.pantheon-levels button:focus-visible {
+	outline: 2px solid #80633a;
+	outline-offset: 0.1rem;
 }
 
 .game-stats {
