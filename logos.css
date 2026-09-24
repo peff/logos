@@ -2331,7 +2331,11 @@ button.score-entry:focus-visible {
 #status.lost {
 	color: hsl(325 48% 80%);
 	background-color: hsl(325 48% 80%);
-	background-image: none;
+	background-image: linear-gradient(to bottom,
+		#f5d7e9 0%,
+		#c47fa7 42%,
+		#edbdd8 58%,
+		#a45d83 100%);
 	text-shadow:
 		0 -0.025em 0 rgb(255 244 218 / 38%),
 		0 0.03em 0 rgb(24 18 17 / 85%);
