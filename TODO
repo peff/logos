@@ -27,14 +27,16 @@
    - is highlighting clues that refer to a symbol useful?
    - what UI should expose highlighting? Current experiments use
      shift-click on a clue and pressing a filled board slot.
- - difficulty levels
-   - puzzle size changes difficulty somewhat but creates lots of
-     rendering headaches
-   - probably difficulty could be categorized by solver effort:
-     - which types of deductions can be used
-     - total length of deduction chain
-   - maybe a nice property if a seeded puzzle is always the same
-     shuffle of tiles, but only the clue set changes?
+ - wire up difficulty levels
+   - puzzleDifficulty(puzzle) now returns a score and easy/medium/hard
+     label; see DIFFICULTY.md for the scoring model and play tests
+   - rate generated candidates and retry until one matches the requested
+     difficulty; keep seed meanings stable, and play explicitly requested
+     seeds regardless of the difficulty preference
+   - add difficulty selection to the Game section in Options; probably
+     checkboxes so players can choose one level or a mix
+   - show the current puzzle's difficulty
+   - record difficulty in run history and display it in the Chronicle
    - pantheon should mark difficulty and/or keep separate pantheon
      for various levels
  - run history

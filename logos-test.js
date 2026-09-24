@@ -120,7 +120,9 @@ Object.defineProperty(globalThis, "localStorage", { value: {
 const source = await Deno.readTextFile(
 	new URL("./logos.js", import.meta.url));
 const Logos = eval(source +
-	"\n;({ Puzzle: Puzzle, ExactClue: ExactClue, " +
+	"\n;({ puzzleDifficulty, difficultyRating, " +
+	"difficultyOpportunities, " +
+	"Puzzle: Puzzle, ExactClue: ExactClue, " +
 	"Adjacent2Clue: Adjacent2Clue, " +
 	"Adjacent3Clue: Adjacent3Clue, " +
 	"ColumnClue: ColumnClue, " +
@@ -3180,3 +3182,53 @@ Deno.test("a loss can continue as a Zen game", function() {
 });
 
 export { Logos, makePuzzle };
+
+Deno.test("puzzle difficulty rates generated puzzles without changing play state", () => {
+	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
+	puzzle.startTimer = function() {};
+	for (const [seed, level] of [[0x98079244, "easy"],
+		[0xc549b7c4, "medium"], [0xe2a689dd, "hard"]]) {
+		puzzle.newGame(seed);
+		const before = puzzleSignature(puzzle);
+		const rating = Logos.puzzleDifficulty(puzzle);
+		assert(rating.level == level);
+		assert(Number.isFinite(rating.score) && rating.score >= 0);
+		assert(puzzleSignature(puzzle) == before);
+		// Rating describes the puzzle, not the remaining work on the board.
+		const slot = puzzle.rows[0].slots[0];
+		slot.choose(slot.value);
+		const progressed = puzzleSignature(puzzle);
+		assert(JSON.stringify(Logos.puzzleDifficulty(puzzle)) == JSON.stringify(rating));
+		assert(puzzleSignature(puzzle) == progressed);
+	}
+});
+
+Deno.test("difficulty labels use raw-score boundaries", () => {
+	for (const [score, level] of [[0, "easy"], [44.99, "easy"],
+		[45, "medium"], [71.99, "medium"], [72, "hard"], [200, "hard"]]) {
+		const rating = Logos.difficultyRating({ supportSteps: score,
+			scarcity: 0, maxDiscardRun: 0 });
+		assert(rating.score == score && rating.level == level);
+	}
+});
+
+Deno.test("opportunities distinguish anchors from candidate-set deductions", () => {
+	const opportunities = Logos.difficultyOpportunities;
+	const puzzle = makePuzzle(2);
+	const clue = new Logos.ColumnClue(puzzle);
+	puzzle.clues = [clue];
+	const r = puzzle.rows.indexOf(clue.tRow);
+	const other = puzzle.rows.indexOf(clue.bRow);
+	const a = clue.tRow.slots[clue.col].value;
+	const b = clue.bRow.slots[clue.col].value;
+	const domains = [Array(6).fill(63), Array(6).fill(63)];
+	domains[r][a] = 3;
+	let moves = opportunities(puzzle, domains);
+	assert(moves.length == 1 && moves[0].tier == 2);
+	assert(moves[0].row == other && moves[0].symbol == b);
+	assert(moves[0].after == 3 && !moves[0].placement);
+	domains[r][a] = 1;
+	moves = opportunities(puzzle, domains);
+	assert(moves.length == 1 && moves[0].tier == 1 && moves[0].placement);
+	assert(moves[0].after == 1);
+});

@@ -3950,6 +3950,110 @@ function isClueExhausted(clue) {
 	return clueSlots(clue).every(function(slot) { return slot.single; });
 }
 
+/* Approximate the experimental percentile composite with a weighted raw
+ * score. Fit on 1,000 five-route puzzles and checked on 10,000 separate seeds;
+ * see DIFFICULTY.md. These units are not percentiles.
+ */
+function difficultyRating(metrics) {
+	var score = metrics.supportSteps + 2.65 * metrics.scarcity +
+		0.87 * metrics.maxDiscardRun;
+	return { score: score,
+		level: score < 45 ? "easy" : score < 72 ? "medium" : "hard" };
+}
+
+/* Rate the original puzzle, regardless of the player's current progress.
+ * This does not mutate the puzzle or consume the generator's random stream.
+ */
+function puzzleDifficulty(puzzle) {
+	return difficultyRating(measureDifficulty(puzzle));
+}
+
+function difficultyPlacements(domains) {
+	return domains.flat().filter(bits => countBits(bits) == 1).length;
+}
+
+/* Group all reductions to one target from one clue as one observation. */
+function difficultyOpportunities(puzzle, domains) {
+	var full = (1 << domains[0].length) - 1;
+	var anchored = domains.map(row => row.map(bits =>
+		countBits(bits) == 1 ? bits : full));
+	var result = [];
+	for (var clue of puzzle.clues) {
+		if (clue.applyInitialState)
+			continue;
+		var simple = copyDomains(anchored);
+		var complete = copyDomains(domains);
+		clue.constrain(simple, full);
+		clue.constrain(complete, full);
+		for (var row = 0; row < domains.length; row++) {
+			for (var symbol = 0; symbol < domains[row].length; symbol++) {
+				var before = domains[row][symbol];
+				var basic = before & simple[row][symbol];
+				var after = before & complete[row][symbol];
+				if (!after)
+					throw new Error("constraint contradicted generated solution");
+				if (after == before)
+					continue;
+				var tier = basic != before ? 1 : 2;
+				var next = tier == 1 ? basic : after;
+				result.push({ row, symbol, tier, after: next,
+					placement: countBits(next) == 1 });
+			}
+		}
+	}
+	return result;
+}
+
+function traceDifficulty(puzzle, orderSeed) {
+	var random = seedRandom(orderSeed);
+	var full = (1 << puzzle.rows[0].slots.length) - 1;
+	var domains = puzzle.rows.map(row => row.slots.map(() => full));
+	var placements = puzzle.rows.map(() => 0);
+	for (var clue of puzzle.clues)
+		if (clue.applyInitialState)
+			clue.constrain(domains, full);
+	drainForcedProofSteps(domains, placements);
+	var supportSteps = 0, scarcity = 0;
+	var gap = 0, maxDiscardRun = 0;
+	while (difficultyPlacements(domains) < domains.flat().length) {
+		var available = difficultyOpportunities(puzzle, domains);
+		if (!available.length)
+			throw new Error("difficulty solver stalled");
+		scarcity += 1 / available.length;
+		// Prefer anchored deductions, then immediate placements. Randomize ties.
+		var priority = move => 2 * move.tier + (move.placement ? 0 : 1);
+		var best = Math.min(...available.map(priority));
+		var choices = available.filter(move => priority(move) == best);
+		var move = choices[Math.floor(random() * choices.length)];
+		var beforePlacements = difficultyPlacements(domains);
+		domains[move.row][move.symbol] = move.after;
+		drainForcedProofSteps(domains, placements);
+		supportSteps += move.tier == 2;
+		if (!move.placement)
+			maxDiscardRun = Math.max(maxDiscardRun, ++gap);
+		if (difficultyPlacements(domains) > beforePlacements)
+			gap = 0;
+	}
+	return { supportSteps, scarcity, maxDiscardRun };
+}
+
+/* Measure an already-generated puzzle without changing its board or clues.
+ * Fixed route seeds keep the result independent of the game's random stream.
+ */
+function measureDifficulty(puzzle, routes = 5) {
+	if (!Number.isInteger(routes) || routes < 1)
+		throw new Error("difficulty analysis needs a positive route count");
+	var metrics = { supportSteps: 0, scarcity: 0, maxDiscardRun: 0 };
+	for (var i = 0; i < routes; i++) {
+		var run = traceDifficulty(puzzle, Math.imul(i + 1, 0x9e3779b9));
+		for (var key of Object.keys(metrics))
+			metrics[key] += run[key];
+	}
+	for (var key of Object.keys(metrics))
+		metrics[key] /= routes;
+	return metrics;
+}
+
 /* Try to solve the puzzle using only deductions from the given clues. */
 function cluesSolve(puzzle, clues) {
 	var numRows = puzzle.rows.length;
