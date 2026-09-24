@@ -43,7 +43,3 @@
      to feed difficulty analysis (e.g., seeing what is really "hard"
      based on completion times).
    - add filtering by difficulty, date range, and elapsed-time range
- - status bar is too small on mobile; we scroll the messages but it
-   looks kind of crappy (and is easy to miss the start), and covers the
-   final time field. We might need a drastically different messaging
-   solution for small screens.
