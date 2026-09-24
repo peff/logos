@@ -88,10 +88,6 @@ body #status-lane {
 	background: #293638;
 }
 
-body #message:has(#timer[hidden]) #status-lane {
-	right: 0;
-}
-
 body #timer {
 	z-index: 1;
 	display: flex;
