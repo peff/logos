@@ -1299,10 +1299,13 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		if (this.scores.hidden || this.gameIdentity !== gameIdentity)
 			return;
 		this.runHistory = history ? history.runs : null;
+		this.historyDifficultyFailures = new WeakSet();
 		this.selectedRun = id;
 		this.historySort = "newest";
 		this.scores.querySelector(".history-wins").checked = true;
 		this.scores.querySelector(".history-losses").checked = true;
+		for (var level of ["easy", "medium", "hard"])
+			this.scores.querySelector(".history-" + level).checked = true;
 		this.scores.querySelector(".pantheon-view").hidden = true;
 		this.scores.querySelector(".history-view").hidden = false;
 		this.scores.querySelector("#scores-title").textContent = "Chronicle of Trials";
@@ -1334,6 +1337,10 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		var request = this.historyDifficultyRequest = {};
 		var wins = this.scores.querySelector(".history-wins").checked;
 		var losses = this.scores.querySelector(".history-losses").checked;
+		var levels = ["easy", "medium", "hard"].filter(level =>
+			this.scores.querySelector(".history-" + level).checked);
+		var filteringDifficulty = levels.length > 0 && levels.length < 3;
+		var pendingDifficulty = [];
 		var sort = this.historySort;
 		this.scores.querySelector(".history-date-sort").setAttribute("aria-sort",
 			sort == "newest" ? "descending" : sort == "oldest" ? "ascending" : "none");
@@ -1341,6 +1348,13 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			sort == "fastest" ? "ascending" : sort == "slowest" ? "descending" : "none");
 		var runs = (this.runHistory || []).filter(function(run) {
 			return (wins && run.outcome == "won") || (losses && run.outcome == "lost");
+		}).filter(run => {
+			if (filteringDifficulty && !hasRunDifficulty(run) && canRateRun(run) &&
+			    !this.historyDifficultyFailures.has(run))
+				pendingDifficulty.push({ run: run });
+			/* Unknown difficulties remain visible when all levels are selected. */
+			return levels.length == 3 || hasRunDifficulty(run) &&
+				levels.includes(run.difficulty.level);
 		}).sort(function(a, b) {
 			if (sort == "fastest" || sort == "slowest")
 				return (sort == "fastest" ? a.elapsed - b.elapsed : b.elapsed - a.elapsed) || a.id - b.id;
@@ -1353,6 +1367,10 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		status.hidden = this.runHistory !== null && runs.length > 0;
 		status.textContent = this.runHistory === null ? "The Chronicle could not be loaded." :
 			this.runHistory.length ? "No runs match this filter." : "No runs recorded yet.";
+		if (pendingDifficulty.length) {
+			status.hidden = false;
+			status.textContent = "Checking difficulty…";
+		}
 		this.scores.querySelector(".history-table").hidden = !runs.length;
 		var body = this.scores.querySelector(".history-table tbody");
 		body.replaceChildren();
@@ -1419,10 +1437,12 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			"Leaf " + romanNumeral(this.historyPage + 1) + " of " + romanNumeral(pages);
 		this.scores.querySelector(".history-folio .help-page-previous").disabled = this.historyPage == 0;
 		this.scores.querySelector(".history-folio .help-page-next").disabled = this.historyPage == pages - 1;
-		this.historyDifficultyTask = this.fillRunDifficulties(difficultyEntries, request);
+		this.historyDifficultyTask = this.fillRunDifficulties(
+			filteringDifficulty ? pendingDifficulty : difficultyEntries, request,
+			filteringDifficulty ? { page: page } : null);
 	}
 
-	this.fillRunDifficulties = async function(entries, request) {
+	this.fillRunDifficulties = async function(entries, request, refresh) {
 		for (var entry of entries) {
 			var run = entry.run;
 			if (hasRunDifficulty(run) || !canRateRun(run))
@@ -1434,14 +1454,22 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 				return;
 			try {
 				run.difficulty = puzzleDifficulty(puzzleFromSeed(run.seed));
-				showRunDifficulty(entry.element, run);
+				if (entry.element)
+					showRunDifficulty(entry.element, run);
 				await saveRunDifficulty(run.id, run.difficulty);
 			} catch (e) {
-				entry.element.textContent = "—";
-				entry.element.title = "Difficulty unavailable";
-				entry.element.setAttribute("aria-label", entry.element.title);
+				this.historyDifficultyFailures.add(run);
+				if (entry.element) {
+					entry.element.textContent = "—";
+					entry.element.title = "Difficulty unavailable";
+					entry.element.setAttribute("aria-label", entry.element.title);
+				}
 			}
 		}
+		if (entries.length && refresh &&
+		    this.historyDifficultyRequest === request && !this.scores.hidden &&
+		    !this.scores.querySelector(".history-view").hidden)
+			this.renderRunHistory(refresh.page);
 	}
 
 	this.clearOutcome = function() {

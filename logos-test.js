@@ -3293,3 +3293,78 @@ Deno.test("new runs include difficulty in their saved record", async () => {
 		assert(runs[0].difficulty.score == Logos.puzzleDifficulty(puzzle).score);
 	});
 });
+
+Deno.test("Chronicle difficulty filters combine with results and reset on reopening", async () => {
+	const initial = [
+		{ seed: 1, outcome: "won", difficulty: { score: 20, level: "easy" } },
+		{ seed: 2, outcome: "lost", difficulty: { score: 55, level: "medium" } },
+		{ seed: 3, outcome: "won", difficulty: { score: 80, level: "hard" } },
+		{ outcome: "won" },
+	].map((run, i) => ({ date: i, elapsed: i, ...run }));
+	await withRunHistory(async () => {
+		const puzzle = makePuzzle(1);
+		puzzle.scores.hidden = false;
+		await puzzle.showRunHistory();
+		const body = puzzle.scores.querySelector(".history-table tbody");
+		const checkbox = level => puzzle.scores.querySelector(".history-" + level);
+		const seeds = () => body.children.map(row => row.children[3].textContent).join(",");
+		assert(body.children.length == 4, "all levels hid an unknown difficulty");
+		checkbox("easy").checked = false;
+		puzzle.renderRunHistory();
+		assert(seeds() == "00000003,00000002", "difficulty filter included unknown/easy runs");
+		checkbox("losses").checked = false;
+		puzzle.renderRunHistory();
+		assert(seeds() == "00000003", "result and difficulty filters were not combined");
+		checkbox("medium").checked = checkbox("hard").checked = false;
+		puzzle.renderRunHistory();
+		assert(!body.children.length &&
+		       puzzle.scores.querySelector(".history-status").textContent == "No runs match this filter.");
+		await puzzle.showRunHistory();
+		assert(["easy", "medium", "hard"].every(level => checkbox(level).checked));
+		assert(body.children.length == 4);
+	}, initial);
+});
+
+Deno.test("difficulty filtering discovers uncached matches outside the current page", async () => {
+	const initial = Array.from({ length: 10 }, (_, i) => ({
+		date: i, seed: i == 0 ? 0xe2a689dd : 0x98079244,
+		elapsed: i, outcome: "won", rows: 6, columns: 6, generatorVersion: 1,
+	}));
+	await withRunHistory(async () => {
+		const puzzle = makePuzzle(6);
+		puzzle.scores.hidden = false;
+		await puzzle.showRunHistory();
+		const firstTask = puzzle.historyDifficultyTask;
+		puzzle.scores.querySelector(".history-easy").checked = false;
+		puzzle.scores.querySelector(".history-medium").checked = false;
+		puzzle.renderRunHistory();
+		assert(puzzle.scores.querySelector(".history-status").textContent == "Checking difficulty…");
+		await firstTask;
+		await puzzle.historyDifficultyTask;
+		const body = puzzle.scores.querySelector(".history-table tbody");
+		assert(body.children.length == 1 && body.children[0].children[3].textContent == "e2a689dd",
+		       "filter missed an uncached run outside the original page");
+		assert(body.children[0].children[4].textContent == "Hard");
+		assert(puzzle.runHistory.every(run => run.difficulty), "filter did not finish checking candidates");
+		assert(puzzle.scores.querySelector(".history-status").hidden);
+	}, initial);
+});
+
+Deno.test("changing difficulty filters cancels obsolete backfill", async () => {
+	await withRunHistory(async () => {
+		const puzzle = makePuzzle(6);
+		puzzle.scores.hidden = false;
+		await puzzle.showRunHistory();
+		const initialTask = puzzle.historyDifficultyTask;
+		puzzle.scores.querySelector(".history-easy").checked = false;
+		puzzle.renderRunHistory();
+		const filterTask = puzzle.historyDifficultyTask;
+		puzzle.scores.querySelector(".history-medium").checked = false;
+		puzzle.scores.querySelector(".history-hard").checked = false;
+		puzzle.renderRunHistory();
+		await Promise.all([initialTask, filterTask, puzzle.historyDifficultyTask]);
+		assert(!puzzle.runHistory[0].difficulty, "obsolete task rated a run");
+		assert(!puzzle.scores.querySelector(".history-table tbody").children.length);
+	}, [{ date: 1, seed: 1, elapsed: 1, outcome: "won", rows: 6,
+		columns: 6, generatorVersion: 1 }]);
+});

@@ -43,4 +43,4 @@
    - run history should be exportable (maybe even just using dev tools)
      to feed difficulty analysis (e.g., seeing what is really "hard"
      based on completion times).
-   - add filtering by difficulty, date range, and elapsed-time range
+   - add filtering by date range and elapsed-time range
