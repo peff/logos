@@ -1160,19 +1160,19 @@ Deno.test("pressing a filled slot highlights its clues", function() {
 		clue.render();
 	slot.displaySingle();
 
-	slot.elem.listeners.pointerdown({ button: 0 });
+	slot.singleElem.listeners.pointerdown({ button: 0 });
 	assert(slot.singleElem.classList.contains("clue-highlight-source") &&
 	       related.display.classList.contains("clue-highlight-related") &&
 	       unrelated.display.classList.contains("clue-highlight-muted"),
 	       "filled slot did not highlight its related clues");
-	slot.elem.listeners.pointerup({});
+	slot.singleElem.listeners.pointerup({});
 	assert(!slot.singleElem.classList.contains("clue-highlight-source") &&
 	       !related.display.classList.contains("clue-highlight-related") &&
 	       !unrelated.display.classList.contains("clue-highlight-muted"),
 	       "filled-slot highlights survived pointer release");
 
 	slot.displayPossible();
-	slot.elem.listeners.pointerdown({ button: 0 });
+	slot.singleElem.listeners.pointerdown({ button: 0 });
 	assert(!related.display.classList.contains("clue-highlight-related"),
 	       "an unresolved slot highlighted clues");
 
@@ -1182,7 +1182,6 @@ Deno.test("pressing a filled slot highlights its clues", function() {
 	};
 	slot.possibilityElems[slot.value].listeners.pointerdown(event);
 	assert(slot.single, "the possibility press did not fill its slot");
-	slot.elem.listeners.pointerdown(event);
 	assert(!related.display.classList.contains("clue-highlight-related"),
 	       "a newly filled slot flashed its clue highlights");
 });

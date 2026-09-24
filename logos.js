@@ -4423,31 +4423,6 @@ function Slot(row, symbols, display) {
 	this.symbols = symbols;
 	this.elem = display;
 	this.elem.className = "slot " + row.familyClass;
-	this.elem.addEventListener("pointerdown", function(slot) {
-		return function(ev) {
-			if (slot.single && !ev.startedOnPossibility &&
-			    (ev.button === undefined || ev.button == 0) &&
-			    !slot.row.puzzle.proof) {
-				highlightCluesForSlots(slot.row.puzzle, [slot]);
-				slot.singleElem.classList.add(
-					"clue-highlight-source");
-				if (slot.elem.setPointerCapture)
-					slot.elem.setPointerCapture(ev.pointerId);
-			}
-		};
-	}(this));
-	this.elem.addEventListener("pointerup", function(slot) {
-		return function(ev) {
-			clearClueHighlights(slot.row.puzzle);
-			slot.singleElem.classList.remove("clue-highlight-source");
-		};
-	}(this));
-	this.elem.addEventListener("pointercancel", function(slot) {
-		return function(ev) {
-			clearClueHighlights(slot.row.puzzle);
-			slot.singleElem.classList.remove("clue-highlight-source");
-		};
-	}(this));
 	this.elem.addEventListener("click", function(slot) {
 		return function() {
 			var puzzle = slot.row.puzzle;
@@ -4657,6 +4632,20 @@ function Slot(row, symbols, display) {
 	this.singleElem = document.createElement("div");
 	this.singleElem.className = "single";
 	this.singleElem.hidden = true;
+	this.singleElem.addEventListener("pointerdown", ev => {
+		if (!this.single || (ev.button !== undefined && ev.button != 0) || this.row.puzzle.proof)
+			return;
+		highlightCluesForSlots(this.row.puzzle, [this]);
+		this.singleElem.classList.add("clue-highlight-source");
+		if (this.singleElem.setPointerCapture)
+			this.singleElem.setPointerCapture(ev.pointerId);
+	});
+	var clearHighlight = () => {
+		clearClueHighlights(this.row.puzzle);
+		this.singleElem.classList.remove("clue-highlight-source");
+	};
+	this.singleElem.addEventListener("pointerup", clearHighlight);
+	this.singleElem.addEventListener("pointercancel", clearHighlight);
 	this.possibleElem = document.createElement("table");
 	this.possibilityElems = [];
 
@@ -4679,7 +4668,6 @@ function Slot(row, symbols, display) {
 			cell.className = "possibility";
 			cell.addEventListener('pointerdown',
 				function(s, j) { return function(ev) {
-					ev.startedOnPossibility = true;
 					s.row.puzzle.pressTile(
 						ev.currentTarget, ev, s, j);
 				}}(this, j));
