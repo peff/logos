@@ -2332,23 +2332,12 @@ button.score-entry:focus-visible {
 
 #timer.lost #timer-text,
 #status.lost {
-	color: #d97865;
-	background-image: linear-gradient(to bottom,
-		#ff9b82 0%,
-		#c44135 34%,
-		#74191d 68%,
-		#d85443 100%);
+	color: hsl(325 48% 80%);
+	background-color: hsl(325 48% 80%);
+	background-image: none;
 	text-shadow:
-		0 -0.025em 0 rgb(255 190 170 / 28%),
-		0 0.03em 0 rgb(55 5 9 / 80%);
-}
-
-#status.lost {
-	background-image: linear-gradient(to bottom,
-		#ffc5a8 0%,
-		#f06b4d 36%,
-		#dc493d 68%,
-		#f17d5d 100%);
+		0 -0.025em 0 rgb(255 244 218 / 38%),
+		0 0.03em 0 rgb(24 18 17 / 85%);
 }
 #hclues {
 	grid-area: hclues;
