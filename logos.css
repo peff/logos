@@ -94,6 +94,9 @@ body #message:has(#timer[hidden]) #status-lane {
 
 body #timer {
 	z-index: 1;
+	display: flex;
+	align-items: center;
+	justify-content: center;
 	box-sizing: border-box;
 	top: 0;
 	right: 0;
@@ -101,7 +104,6 @@ body #timer {
 	width: var(--status-timer-lane);
 	height: 100%;
 	line-height: 1;
-	text-align: center;
 }
 
 body #timer::before {
