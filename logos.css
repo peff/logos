@@ -247,7 +247,7 @@ body #timer::after {
 		max-width: none;
 		font-size: max(1rem, 15px);
 		line-height: 1;
-		animation: status-marquee 8s ease-in-out infinite;
+		animation: status-marquee 8s ease-in-out 2 forwards;
 		white-space: nowrap;
 	}
 
