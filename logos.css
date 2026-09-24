@@ -84,7 +84,7 @@ body #status-lane {
 	align-items: center;
 	justify-content: center;
 	overflow: hidden;
-	border-radius: 5px;
+	border-radius: 0.2rem;
 	background: #293638;
 }
 
@@ -109,7 +109,7 @@ body #timer::before {
 	inset: 0;
 	box-sizing: border-box;
 	border: 1px solid #706b5e;
-	border-radius: 5px;
+	border-radius: 0.2rem;
 	box-shadow:
 		0 1px 1px rgb(0 0 0 / 35%),
 		inset 1px 1px rgb(230 224 198 / 24%),
@@ -2333,7 +2333,7 @@ button.score-entry:focus-visible {
 	grid-area: message;
 	position: relative;
 	box-sizing: border-box;
-	border-radius: 5px;
+	border-radius: 0.2rem;
 	background-color: #293638;
 	color: #f4f0e5;
 	width: 100%;
