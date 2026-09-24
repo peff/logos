@@ -2635,6 +2635,51 @@ Deno.test("Escape dismisses transient interfaces", function() {
 	       "Escape did not use the visible modal's close action");
 });
 
+Deno.test("timer pause survives dialogs and page visibility without charging paused time", function() {
+	const puzzle = makePuzzle(6);
+	puzzle.say = function() {};
+	const now = Date.now;
+	let time = 10000;
+	Date.now = () => time;
+	try {
+		puzzle.newGame(42);
+		time += 3000;
+		puzzle.togglePause();
+		assert(puzzle.manualPaused && puzzle.paused && puzzle.timerTimeout === null &&
+		       puzzle.timerElapsed == 3000 && puzzle.hClues.inert && puzzle.vClues.inert &&
+		       document.body.classList.contains("game-paused"), "pause did not freeze play");
+		puzzle.options.hidden = true;
+		puzzle.toggleOptions();
+		puzzle.toggleOptions();
+		puzzle.setPageHidden(true);
+		time += 60000;
+		puzzle.setPageHidden(false);
+		assert(puzzle.paused && puzzle.timerTimeout === null,
+		       "a dialog or visibility change resumed an explicit pause");
+		puzzle.togglePause();
+		assert(!puzzle.paused && !puzzle.hClues.inert && !puzzle.vClues.inert &&
+		       puzzle.timerTimeout !== null && !document.body.classList.contains("game-paused"),
+		       "resume did not restore play");
+		time += 2000;
+		puzzle.stopTimer();
+		assert(puzzle.timerElapsed == 5000, "paused time counted toward elapsed time");
+		puzzle.togglePause();
+		puzzle.newGame(43);
+		assert(!puzzle.manualPaused && !puzzle.paused && !puzzle.hClues.inert,
+		       "a new game retained the pause");
+		puzzle.setPracticeMode(true);
+		puzzle.togglePause();
+		assert(!puzzle.manualPaused && puzzle.timer.disabled, "Zen mode enabled timer pause");
+		puzzle.clear();
+		puzzle.togglePause();
+		assert(!puzzle.manualPaused && puzzle.timer.disabled, "an inactive game could be paused");
+	} finally {
+		puzzle.stopTimer();
+		Date.now = now;
+		localStorage.removeItem("practiceMode");
+	}
+});
+
 Deno.test("page visibility pauses and resumes active play", function() {
 	const puzzle = makePuzzle(1);
 	let stoppedSounds = 0;

@@ -238,6 +238,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.scoreEligible = true;
 	this.practiceMistake = null;
 	this.paused = false;
+	this.manualPaused = false;
 	this.resumeAfterModal = false;
 	this.pageHidden = false;
 	this.resumeAfterPageHidden = false;
@@ -283,6 +284,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.clear = function() {
+		this.manualPaused = false;
 		this.gameOver = true;
 		this.proof = null;
 		this.pendingProof = null;
@@ -336,6 +338,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.proofControls.hidden = true;
 		document.body.classList.remove("proof-active");
 		/* A seed may be started from the paused Options modal. */
+		this.manualPaused = false;
 		this.paused = false;
 		this.resumeAfterModal = false;
 		this.nextMilestone = 0;
@@ -1181,7 +1184,33 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.updateTimer = function(elapsed) {
-		this.timerText.textContent = formatTime(elapsed);
+		this.timerText.textContent = this.manualPaused ? "Paused" : formatTime(elapsed);
+	}
+
+	this.updatePauseControl = function() {
+		var paused = this.manualPaused;
+		document.body.classList[paused ? "add" : "remove"]("game-paused");
+		for (var element of [board, this.hClues, this.vClues, this.boardActions, this.proofControls])
+			element.inert = paused;
+		this.timer.disabled = this.gameOver || this.practiceMode;
+		this.timer.title = paused ? "Resume game" : "Pause game";
+		this.timer.setAttribute("aria-label", this.timer.title);
+		this.updateTimer(this.timerTimeout === null ? this.timerElapsed : Date.now() - this.timerStarted);
+	}
+
+	this.togglePause = function() {
+		if (this.gameOver || this.practiceMode || this.pageHidden ||
+		    this.paused && !this.manualPaused)
+			return;
+		this.manualPaused = !this.manualPaused;
+		this.paused = this.manualPaused;
+		if (this.manualPaused) {
+			this.closeSlotTray();
+			this.stopTimer();
+		} else {
+			this.startTimer();
+		}
+		this.updatePauseControl();
 	}
 
 	this.loadHistory = async function(run, level = "all") {
@@ -1812,8 +1841,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 				this.pantheonLoading = false;
 			}
 			modal.hidden = true;
-			this.paused = false;
-			if (!this.gameOver && !this.practiceMode &&
+			this.paused = this.manualPaused || this.pageHidden;
+			if (!this.gameOver && !this.practiceMode && !this.paused &&
 			    this.timerTimeout === null)
 				this.startTimer();
 			this.resumeAfterModal = false;
@@ -2062,6 +2091,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		}
 		this.practiceMode = enabled;
 		if (enabled) {
+			this.manualPaused = false;
 			if (!this.gameOver)
 				this.scoreEligible = false;
 			this.stopTimer();
@@ -2070,6 +2100,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			this.startTimer();
 		}
 		this.timer.hidden = enabled;
+		this.updatePauseControl();
 		return true;
 	}
 
@@ -2159,6 +2190,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.updateActionControls = function() {
+		this.updatePauseControl();
 		var show = this.showActionSelector && !this.gameOver;
 		if (this.seed === undefined)
 			document.body.classList.remove("game-started");

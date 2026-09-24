@@ -10,7 +10,16 @@
 	<body>
 		<div id="message" onClick="puzzle.restartMessage()">
 			<span id="status-lane"><span id="status"></span></span>
-			<span id="timer" hidden><span id="timer-text">0:00</span></span>
+			<button id="timer" type="button" hidden disabled aria-label="Pause game"
+			        onClick="event.stopPropagation(); puzzle.togglePause()"><span id="timer-text">0:00</span>
+				<svg class="pause-columns" viewBox="0 0 36 24" aria-hidden="true" focusable="false">
+					<g fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round">
+						<path d="M3 3h11v3H3z M5 6l1 14h5l1-14 M3 20h11v2H3z
+						         M22 3h11v3H22z M24 6l1 14h5l1-14 M22 20h11v2H22z"/>
+						<path d="M8.5 8v10 M27.5 8v10" stroke-width="0.8"/>
+					</g>
+				</svg>
+			</button>
 		</div>
 		<div id="board-container">
 			<table id="board" class="board"></table>

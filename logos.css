@@ -89,6 +89,11 @@ body #status-lane {
 }
 
 body #timer {
+	border: 0;
+	padding: 0;
+	background: transparent;
+	color: inherit;
+	font: inherit;
 	z-index: 1;
 	display: flex;
 	align-items: center;
@@ -100,6 +105,36 @@ body #timer {
 	width: var(--status-timer-lane);
 	height: 100%;
 	line-height: 1;
+}
+
+body #timer:enabled {
+	cursor: var(--action-cursor);
+}
+
+body #timer:focus-visible {
+	outline: 2px solid #b69a55;
+	outline-offset: 2px;
+}
+
+body.game-paused #timer-text {
+	display: none;
+}
+
+.pause-columns {
+	display: none;
+	width: 1.65rem;
+	height: 1rem;
+	color: #cfb779;
+}
+
+body.game-paused .pause-columns {
+	display: block;
+}
+
+body.game-paused :is(#board-container, #hclues, #vclues) {
+	filter: blur(0.12rem);
+	pointer-events: none;
+	user-select: none;
 }
 
 body #timer::before {
