@@ -1110,13 +1110,6 @@ body.proof-active #logo {
 	border-color: transparent;
 }
 
-.slot-tray-symbol.drag-target {
-	box-shadow:
-		inset 0 0 0.22rem rgb(0 0 0 / 52%),
-		inset 0 0.05rem 0.12rem rgb(255 255 255 / 7%),
-		0 0 0 3px rgb(240 232 211 / 90%);
-	transform: scale(1.04);
-}
 
 .tile-action-selector input {
 	position: absolute;
@@ -1399,9 +1392,6 @@ input[type="text"] {
 	outline-offset: 2px;
 }
 
-#options-menu .option-dependent {
-	margin-left: 1.08rem;
-}
 
 #options-menu label:has(input:disabled) {
 	opacity: 0.5;

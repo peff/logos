@@ -188,13 +188,10 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.expandTileChoices = this.coarsePointer &&
 		typeof innerWidth != "undefined" &&
 		Math.min(innerWidth * 0.0208, innerHeight * 0.0345) < 20;
-	this.dragTileChoices = false;
 	this.showActionSelector = this.coarsePointer;
 	this.controlHeld = false;
 	this.shiftHeld = false;
 	this.altHeld = false;
-	this.slotTrayDrag = null;
-	this.ignoreSlotClick = false;
 	this.timerTimeout = null;
 	this.timerStarted = null;
 	this.timerElapsed = 0;
@@ -938,75 +935,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		window.addEventListener("blur", function() {
 			previewPuzzle.clearTileActionPreview();
 		});
-	}
-
-	this.beginSlotTrayDrag = function(slot, ev) {
-		if (!this.expandTileChoices || !this.dragTileChoices ||
-		    (ev.button !== undefined && ev.button != 0))
-			return;
-		ev.preventDefault();
-		this.openSlotTray(slot);
-		if (this.expandedSlot != slot)
-			return;
-		this.ignoreSlotClick = true;
-		this.slotTrayDrag = {
-			pointerId: ev.pointerId,
-			startX: ev.clientX,
-			startY: ev.clientY,
-			target: null,
-		};
-		if (ev.currentTarget.setPointerCapture)
-			ev.currentTarget.setPointerCapture(ev.pointerId);
-	}
-
-	this.updateSlotTrayDrag = function(ev) {
-		var drag = this.slotTrayDrag;
-		if (!drag || drag.pointerId != ev.pointerId)
-			return;
-		ev.preventDefault();
-		var dx = ev.clientX - drag.startX;
-		var dy = ev.clientY - drag.startY;
-		var target = null;
-		if (dx * dx + dy * dy >= 64 && document.elementFromPoint) {
-			var elem = document.elementFromPoint(ev.clientX, ev.clientY);
-			for (var i = 0; i < this.slotTrayOptions.children.length; i++) {
-				var tile = this.slotTrayOptions.children[i];
-				if (elem == tile && !tile.disabled) {
-					target = tile;
-					break;
-				}
-			}
-		}
-		if (drag.target == target)
-			return;
-		if (drag.target)
-			drag.target.classList.remove("drag-target");
-		drag.target = target;
-		if (target)
-			target.classList.add("drag-target");
-	}
-
-	this.endSlotTrayDrag = function(ev, cancel) {
-		var drag = this.slotTrayDrag;
-		if (!drag || drag.pointerId != ev.pointerId)
-			return;
-		if (!cancel)
-			this.updateSlotTrayDrag(ev);
-		var target = drag.target;
-		if (target)
-			target.classList.remove("drag-target");
-		this.slotTrayDrag = null;
-		if (cancel) {
-			this.closeSlotTray();
-			return;
-		}
-		if (!target)
-			return;
-		for (var i = 0; i < this.slotTrayOptions.children.length; i++)
-			if (this.slotTrayOptions.children[i] == target) {
-				this.applySlotTrayAction(i);
-				break;
-			}
 	}
 
 	this.getTileAction = function() {
@@ -2208,24 +2136,11 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.setExpandTileChoices = function(enabled) {
 		this.expandTileChoices = enabled;
 		this.options.querySelector("#expand-tile-choices").checked = enabled;
-		this.options.querySelector("#drag-tile-choices").disabled = !enabled;
 		if (!enabled)
 			this.closeSlotTray();
 		try {
 			if (!this.loadingOptions)
 				localStorage.setItem("expandTileChoices", enabled);
-		} catch (e) {
-			/* The choice still applies for the current page. */
-		}
-	}
-
-	this.setDragTileChoices = function(enabled) {
-		this.dragTileChoices = enabled;
-		this.ignoreSlotClick = false;
-		this.options.querySelector("#drag-tile-choices").checked = enabled;
-		try {
-			if (!this.loadingOptions)
-				localStorage.setItem("dragTileChoices", enabled);
 		} catch (e) {
 			/* The choice still applies for the current page. */
 		}
@@ -2433,7 +2348,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	var soundEffects = true;
 	var soundVolume = 1;
 	var expandTileChoices = this.expandTileChoices;
-	var dragTileChoices = this.dragTileChoices;
 	var showActionSelector = this.showActionSelector;
 	try {
 		var storedCustomCursor = localStorage.getItem("customCursor");
@@ -2449,8 +2363,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		var storedSoundVolume = localStorage.getItem("soundVolume");
 		var storedExpandTileChoices = localStorage.getItem(
 			"expandTileChoices");
-		var storedDragTileChoices = localStorage.getItem(
-			"dragTileChoices");
 		var storedShowActionSelector = localStorage.getItem(
 			"showActionSelector");
 		var oldSelectionActionMenu = localStorage.getItem(
@@ -2475,8 +2387,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			expandTileChoices = storedExpandTileChoices == "true";
 		else if (oldSelectionActionMenu !== null)
 			expandTileChoices = oldSelectionActionMenu == "true";
-		if (storedDragTileChoices !== null)
-			dragTileChoices = storedDragTileChoices == "true";
 		if (storedShowActionSelector !== null)
 			showActionSelector = storedShowActionSelector == "true";
 	} catch (e) {
@@ -2498,7 +2408,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.setSoundEffects(soundEffects);
 	this.setSoundVolume(soundVolume);
 	this.setExpandTileChoices(expandTileChoices);
-	this.setDragTileChoices(dragTileChoices);
 	this.setShowActionSelector(showActionSelector);
 	this.loadingOptions = false;
 	this.updateFullscreenButton();
@@ -4586,26 +4495,18 @@ function Slot(row, symbols, display) {
 				if (slot.elem.setPointerCapture)
 					slot.elem.setPointerCapture(ev.pointerId);
 			}
-			slot.row.puzzle.beginSlotTrayDrag(slot, ev);
-		};
-	}(this));
-	this.elem.addEventListener("pointermove", function(slot) {
-		return function(ev) {
-			slot.row.puzzle.updateSlotTrayDrag(ev);
 		};
 	}(this));
 	this.elem.addEventListener("pointerup", function(slot) {
 		return function(ev) {
 			clearClueHighlights(slot.row.puzzle);
 			slot.singleElem.classList.remove("clue-highlight-source");
-			slot.row.puzzle.endSlotTrayDrag(ev, false);
 		};
 	}(this));
 	this.elem.addEventListener("pointercancel", function(slot) {
 		return function(ev) {
 			clearClueHighlights(slot.row.puzzle);
 			slot.singleElem.classList.remove("clue-highlight-source");
-			slot.row.puzzle.endSlotTrayDrag(ev, true);
 		};
 	}(this));
 	this.elem.addEventListener("click", function(slot) {
@@ -4613,10 +4514,6 @@ function Slot(row, symbols, display) {
 			var puzzle = slot.row.puzzle;
 			if (!puzzle.expandTileChoices)
 				return;
-			if (puzzle.ignoreSlotClick) {
-				puzzle.ignoreSlotClick = false;
-				return;
-			}
 			puzzle.openSlotTray(slot);
 		};
 	}(this));
