@@ -36,6 +36,36 @@
 		<div id="board-container">
 			<table id="board" class="board"></table>
 		</div>
+		<section id="game-invitation" hidden aria-labelledby="invitation-title">
+			<svg class="invitation-corner" viewBox="0 0 32 32" aria-hidden="true">
+				<path id="invitation-corner-detail"
+				      d="M2 30V2H30 M8 24V8H24 M8 16H16V8 M20 24l4-4 4 4-4 4Z"/>
+			</svg>
+			<svg class="invitation-corner" viewBox="0 0 32 32" aria-hidden="true">
+				<use href="#invitation-corner-detail"/>
+			</svg>
+			<svg class="invitation-corner" viewBox="0 0 32 32" aria-hidden="true">
+				<use href="#invitation-corner-detail"/>
+			</svg>
+			<svg class="invitation-corner" viewBox="0 0 32 32" aria-hidden="true">
+				<use href="#invitation-corner-detail"/>
+			</svg>
+			<div class="invitation-heading">Logos</div>
+			<svg class="invitation-ornament" viewBox="0 0 120 36" aria-hidden="true">
+				<path d="M4 18h30m52 0h30M60 3l15 15-15 15-15-15Z"/>
+				<circle cx="60" cy="18" r="5"/>
+			</svg>
+			<h2 id="invitation-title">A puzzle awaits</h2>
+			<p>The mystery is set.<br>Uncover the hidden order.</p>
+			<div class="invitation-actions">
+				<button class="option-action" type="button"
+				        onClick="puzzle.startGame(); puzzle.newGameButton.focus()">Start Game</button>
+				<span class="invitation-inscription">
+					<span class="invitation-numero" aria-label="Number">№</span>
+					<span class="invitation-seed"></span>
+				</span>
+			</div>
+		</section>
 		<table id="hclues"></table>
 		<div id="controls">
 			<div id="board-actions" class="tile-action-selector" hidden
@@ -505,7 +535,7 @@
 			<div id="application-footer">
 				<div class="control-buttons">
 					<input id="new-game-button" type="button"
-					       onClick="puzzle.startGame()" value="New Game">
+					       onClick="puzzle.newGame()" value="New Game">
 					<input id="help-button" type="button"
 					       onClick="puzzle.toggleHelp()" value="How to play"
 					       aria-expanded="false" aria-controls="help-menu">

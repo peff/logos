@@ -309,7 +309,7 @@ function leave() {
 	}
 	friendsBadgeCaption.textContent = "with Friends";
 	setGameControlsDisabled(false);
-	newGameButton.onclick = function() { window.puzzle.startGame(); };
+	newGameButton.onclick = function() { window.puzzle.newGame(); };
 	if (!friendsMenu.hidden)
 		toggleMenu();
 }

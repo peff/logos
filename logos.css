@@ -7,6 +7,14 @@
 }
 
 @font-face {
+	font-family: "EB Garamond";
+	src: url("EBGaramond-Italic-subset.woff2") format("woff2");
+	font-weight: 400;
+	font-style: italic;
+	font-display: swap;
+}
+
+@font-face {
 	font-family: "Logos Tiles";
 	src: url("logos-tiles.woff2") format("woff2");
 	font-weight: 400;
@@ -869,11 +877,6 @@ body.proof-active #logo {
 .control-buttons > input {
 	padding: 0.28rem 0.38rem;
 	font-size: 0.78rem;
-}
-
-#new-game-button {
-	box-sizing: content-box;
-	width: 4.5em;
 }
 
 #explain-button:disabled {
@@ -2342,6 +2345,166 @@ button.score-entry:focus-visible {
 
 .about-panel .modal-done {
 	margin-top: 0.25rem;
+}
+
+#game-invitation {
+	grid-row: board-start / hclues-end;
+	grid-column: 1 / -1;
+	position: relative;
+	z-index: 2;
+	align-self: center;
+	justify-self: center;
+	width: 20rem;
+	max-width: calc(100vw - 2rem);
+	min-height: 16rem;
+	margin: 0;
+	box-sizing: border-box;
+	border: 1px solid #9b8969;
+	border-radius: 0.25rem 0.4rem 0.3rem 0.35rem;
+	padding: 1.2rem;
+	background:
+		linear-gradient(145deg, rgb(246 239 222 / 85%), rgb(207 191 160 / 78%)),
+		url("stone-texture.png") center / 7rem 4rem;
+	box-shadow: inset 0.08rem 0.08rem 0 rgb(255 255 255 / 65%),
+		inset -0.08rem -0.08rem 0 rgb(93 74 42 / 25%),
+		0.12rem 0.18rem 0.3rem rgb(48 40 27 / 25%);
+	text-align: center;
+	font-family: Forum, Georgia, "Times New Roman", serif;
+	animation: invitation-arrive 450ms ease-out both;
+}
+
+#game-invitation:not([hidden]) {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+}
+
+#game-invitation::before {
+	content: "";
+	position: absolute;
+	inset: 0.3rem;
+	border: 1px solid rgb(135 110 62 / 40%);
+	border-radius: 0.15rem;
+	pointer-events: none;
+}
+
+.invitation-corner {
+	position: absolute;
+	top: 0.5rem;
+	left: 0.5rem;
+	width: 1.5rem;
+	height: 1.5rem;
+	fill: none;
+	stroke: #9a7d3d;
+	stroke-width: 1;
+	pointer-events: none;
+}
+
+.invitation-corner:nth-of-type(2) {
+	left: auto;
+	right: 0.5rem;
+	transform: rotate(90deg);
+}
+
+.invitation-corner:nth-of-type(3) {
+	top: auto;
+	bottom: 0.5rem;
+	left: auto;
+	right: 0.5rem;
+	transform: rotate(180deg);
+}
+
+.invitation-corner:nth-of-type(4) {
+	top: auto;
+	bottom: 0.5rem;
+	transform: rotate(270deg);
+}
+
+.invitation-heading {
+	color: #746748;
+	font-size: 0.55rem;
+	letter-spacing: 0.2em;
+	text-transform: uppercase;
+}
+
+.invitation-ornament {
+	width: 4rem;
+	height: 1.2rem;
+	margin-top: 0.8rem;
+	fill: none;
+	stroke: #9a7d3d;
+	stroke-width: 1.2;
+}
+
+#invitation-title {
+	margin: 0.65rem 0 0.5rem;
+	color: #70572a;
+	font-size: 1.8rem;
+	font-weight: normal;
+	line-height: 1.1;
+	text-shadow: 0 1px rgb(255 250 232 / 75%);
+}
+
+#game-invitation p {
+	margin: 0 0 1rem;
+	color: #665e50;
+	font: italic 0.65rem/1.6 Georgia, "Times New Roman", serif;
+}
+
+.invitation-actions {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 0.75rem;
+}
+
+.invitation-actions .option-action {
+	margin: 0;
+	padding: 0.35rem 1rem;
+	font-size: 0.85rem;
+}
+
+.invitation-inscription {
+	color: #746d60;
+	font-family: "EB Garamond", Georgia, "Times New Roman", serif;
+	font-style: italic;
+	font-size: 0.65rem;
+	letter-spacing: 0.04em;
+}
+
+.invitation-numero {
+	margin-right: 0.15em;
+}
+
+@media (orientation: portrait) {
+	#game-invitation {
+		zoom: 1.3;
+		padding: 0.65rem 1rem;
+	}
+
+	#game-invitation .invitation-ornament {
+		margin-top: 0.35rem;
+	}
+}
+
+@keyframes invitation-arrive {
+	from { opacity: 0; transform: translateY(0.3rem); }
+	to { opacity: 1; transform: translateY(0); }
+}
+
+#game-invitation.revealing > *,
+#game-invitation.revealing::before {
+	animation: invitation-inscription-fade 1000ms ease-in forwards;
+}
+
+@keyframes invitation-inscription-fade {
+	from { opacity: 1; }
+	to { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+	#game-invitation { animation: none; }
 }
 
 #logo {

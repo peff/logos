@@ -416,7 +416,7 @@ Deno.test("seed difficulty previews complete input and shorter seeds on blur", f
 	}
 });
 
-Deno.test("puzzle links wait for Start Game before starting their seed", function() {
+Deno.test("puzzle links prepare the board but wait for Start Game to begin play", function() {
 	const reference = makePuzzle(6);
 	reference.say = function() {};
 	reference.newGame(0x2a);
@@ -431,28 +431,109 @@ Deno.test("puzzle links wait for Start Game before starting their seed", functio
 		puzzle.clear();
 		puzzle.say = function() {};
 		assert(puzzle.loadURLSeed(url), "puzzle link was not accepted: " + url);
-		assert(puzzle.seed === undefined && puzzle.gameOver &&
-		       puzzle.timerTimeout === null && puzzle.timer.hidden &&
-		       !document.body.classList.contains("game-started") &&
-		       puzzle.newGameButton.value == "Start Game",
-		       "loading a link did not preserve the pre-game state");
+		const identity = puzzle.gameIdentity;
+		assert(puzzle.seed == 42 && !puzzle.gameOver && puzzle.paused &&
+		       puzzle.timerTimeout === null && puzzle.timerElapsed == 0 && puzzle.timer.disabled &&
+		       document.body.classList.contains("game-started"),
+		       "loading a link did not prepare a paused puzzle");
+		assert(!puzzle.invitation.hidden && puzzle.hClues.inert && puzzle.vClues.inert &&
+		       puzzle.invitation.querySelector(".invitation-seed").textContent == "0000002a",
+		       "loading a link did not show its invitation and lock the clues");
 		puzzle.options.hidden = true;
 		puzzle.toggleOptions();
 		assert(puzzle.options.querySelector("#game-seed").value == "0000002a" &&
 		       puzzle.options.querySelector("#start-game-button").value == "Start with seed",
 		       "Options did not expose the pending seed");
 		puzzle.toggleOptions();
+		puzzle.setPageHidden(true);
+		puzzle.setPageHidden(false);
+		puzzle.togglePause();
+		assert(puzzle.paused && puzzle.timerTimeout === null,
+		       "Options, visibility, or pause controls started the invited game early");
 		puzzle.startGame();
 		puzzle.stopTimer();
-		assert(puzzle.seed == 0x2a && puzzleSignature(puzzle) == expected &&
-		       puzzle.newGameButton.value == "New Game" &&
+		assert(puzzle.gameIdentity === identity && !puzzle.paused && puzzle.seed == 0x2a && puzzleSignature(puzzle) == expected &&
 		       puzzle.pendingSeed === undefined,
 		       "Start Game did not consume the linked seed");
-		let requested;
-		puzzle.newGame = function(...args) { requested = args; };
-		puzzle.startGame();
-		assert(requested.length == 0, "the next game reused the linked seed");
+		assert(puzzle.invitation.hidden,
+		       "starting the linked puzzle left the invitation visible");
+		assert(!puzzle.startGame() && puzzle.gameIdentity === identity,
+		       "accepting an already dismissed invitation replaced the game");
 	}
+});
+
+Deno.test("the invitation keeps play paused until its reveal finishes", async function() {
+	const puzzle = makePuzzle(6);
+	puzzle.say = function() {};
+	puzzle.loadURLSeed("https://example.com/#seed=21");
+	let reveal;
+	puzzle.invitation.animate = function() {
+		return { finished: new Promise(resolve => { reveal = resolve; }), cancel() {} };
+	};
+	assert(puzzle.startGame() && !puzzle.startGame(), "a second click started another reveal");
+	assert(puzzle.paused && puzzle.timerTimeout === null && !puzzle.invitation.hidden,
+	       "the clock started before the reveal completed");
+	puzzle.setPageHidden(true);
+	reveal();
+	await Promise.resolve();
+	assert(puzzle.invitation.hidden && puzzle.paused && puzzle.timerTimeout === null,
+	       "a reveal in a hidden tab started the clock");
+	puzzle.setPageHidden(false);
+	assert(!puzzle.paused && puzzle.timerTimeout !== null && !puzzle.hClues.inert,
+	       "returning to the revealed puzzle did not begin play");
+	puzzle.stopTimer();
+	delete puzzle.invitation.animate;
+});
+
+Deno.test("opening Options during the reveal keeps the timer stopped", async function() {
+	const puzzle = makePuzzle(6);
+	puzzle.say = function() {};
+	puzzle.loadURLSeed("https://example.com/#seed=21");
+	let reveal;
+	puzzle.invitation.animate = function() {
+		return { finished: new Promise(resolve => { reveal = resolve; }), cancel() {} };
+	};
+	const modals = document.modals;
+	document.modals = [puzzle.options];
+	try {
+		puzzle.options.hidden = true;
+		puzzle.startGame();
+		puzzle.toggleOptions();
+		reveal();
+		await Promise.resolve();
+		assert(puzzle.invitation.hidden && puzzle.paused && puzzle.timerTimeout === null,
+		       "the reveal started the timer behind Options");
+		puzzle.toggleOptions();
+		assert(!puzzle.paused && puzzle.timerTimeout !== null,
+		       "closing Options after the reveal did not begin play");
+	} finally {
+		puzzle.stopTimer();
+		delete puzzle.invitation.animate;
+		document.modals = modals;
+	}
+});
+
+Deno.test("an invitation reveal cannot restart a replacement game", async function() {
+	const puzzle = makePuzzle(6);
+	puzzle.say = function() {};
+	puzzle.loadURLSeed("https://example.com/#seed=21");
+	let reveal;
+	let cancelled = false;
+	puzzle.invitation.animate = function() {
+		return {
+			finished: new Promise(resolve => { reveal = resolve; }),
+			cancel() { cancelled = true; },
+		};
+	};
+	puzzle.startGame();
+	puzzle.newGame(7);
+	puzzle.stopTimer();
+	reveal();
+	await Promise.resolve();
+	assert(cancelled && puzzle.seed == 7 && puzzle.invitation.hidden &&
+	       puzzle.timerTimeout === null && puzzle.pendingSeed === undefined,
+	       "an obsolete reveal changed the replacement game");
+	delete puzzle.invitation.animate;
 });
 
 Deno.test("a linked zero seed can be started from Options", function() {
@@ -465,9 +546,10 @@ Deno.test("a linked zero seed can be started from Options", function() {
 	puzzle.toggleOptions();
 	puzzle.playSeed();
 	puzzle.stopTimer();
-	assert(puzzle.seed == 0 && puzzle.pendingSeed === undefined &&
-	       puzzle.newGameButton.value == "New Game",
+	assert(puzzle.seed == 0 && puzzle.pendingSeed === undefined,
 	       "starting from Options did not consume the linked zero seed");
+	assert(puzzle.invitation.hidden,
+	       "starting from Options left the invitation visible");
 });
 
 Deno.test("starting another puzzle discards the pending linked seed", function() {
@@ -478,25 +560,41 @@ Deno.test("starting another puzzle discards the pending linked seed", function()
 	       "an invalid seed discarded the pending puzzle");
 	puzzle.newGame(7);
 	puzzle.stopTimer();
-	assert(puzzle.seed == 7 && puzzle.pendingSeed === undefined &&
-	       puzzle.newGameButton.value == "New Game",
+	assert(puzzle.seed == 7 && puzzle.pendingSeed === undefined,
 	       "starting another puzzle retained the linked seed");
+	assert(puzzle.invitation.hidden,
+	       "starting another puzzle left the invitation visible");
 });
 
-Deno.test("missing or invalid URL seeds leave New Game unchanged", function() {
+Deno.test("New Game skips the invitation and requests a fresh puzzle", function() {
+	const puzzle = makePuzzle(6);
+	puzzle.say = function() {};
+	puzzle.loadURLSeed("https://example.com/#seed=2a");
+	let requested = false;
+	puzzle.randomPuzzleSeed = function() { requested = true; return 7; };
+	puzzle.newGame();
+	try {
+		assert(requested && puzzle.seed == 7 && puzzle.pendingSeed === undefined,
+		       "New Game reused the linked puzzle");
+		assert(puzzle.invitation.hidden && !puzzle.paused && !puzzle.hClues.inert &&
+		       puzzle.timerTimeout !== null,
+		       "New Game did not dismiss the invitation and begin play");
+	} finally {
+		puzzle.stopTimer();
+	}
+});
+
+Deno.test("missing or invalid URL seeds leave the puzzle unstarted", function() {
 	const puzzle = makePuzzle(6);
 	for (const fragment of ["", "#help", "#seed=", "#seed=xyz",
 	                       "#seed=100000000", "#seed=-1", "#seed=12.5"]) {
 		assert(!puzzle.loadURLSeed("https://example.com/" + fragment),
 		       "an absent or invalid URL seed was accepted: " + fragment);
-		assert(puzzle.seed === undefined && puzzle.pendingSeed === undefined &&
-		       puzzle.newGameButton.value == "New Game",
+		assert(puzzle.seed === undefined && puzzle.pendingSeed === undefined,
 		       "an invalid link changed the initial state");
 	}
-	let requested;
-	puzzle.newGame = function(...args) { requested = args; };
-	puzzle.startGame();
-	assert(requested.length == 0, "New Game requested a non-random seed");
+	assert(!puzzle.startGame() && puzzle.seed === undefined,
+	       "accepting a nonexistent invitation started a game");
 });
 
 Deno.test("copying a puzzle link preserves the game and has a manual fallback", async function() {

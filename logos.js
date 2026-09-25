@@ -156,7 +156,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.options = options;
 	this.optionsButton = optionsButton;
 	this.newGameButton = document.querySelector("#new-game-button");
-	this.newGameButton.value = "New Game";
+	this.invitation = document.querySelector("#game-invitation");
 	this.help = help;
 	this.helpButton = helpButton;
 	this.scores = scores;
@@ -281,6 +281,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.clear = function() {
+		this.clearInvitationTransition();
 		this.manualPaused = false;
 		this.gameOver = true;
 		this.proof = null;
@@ -308,8 +309,49 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.startGame = function() {
-		return this.pendingSeed !== undefined ?
-			this.newGame(this.pendingSeed) : this.newGame();
+		if (this.pendingSeed === undefined)
+			return false;
+		if (this.invitationAnimation)
+			return false;
+		var finish = () => {
+			this.pendingSeed = undefined;
+			var modalOpen = document.querySelectorAll(".modal:not([hidden])").length > 0;
+			this.paused = this.pageHidden || modalOpen;
+			this.pausedBeforePageHidden = modalOpen;
+			this.resumeAfterPageHidden = this.pageHidden && !this.practiceMode;
+			this.invitation.classList.remove("revealing");
+			this.updateSeedControls();
+			this.updateActionControls();
+			if (!this.paused && !this.practiceMode)
+				this.startTimer();
+			this.say(randomChoice(startMessages));
+		};
+		if (typeof this.invitation.animate != "function" ||
+		    typeof matchMedia != "undefined" &&
+		    matchMedia("(prefers-reduced-motion: reduce)").matches) {
+			finish();
+			return true;
+		}
+		this.invitation.classList.add("revealing");
+		var animation = this.invitationAnimation = this.invitation.animate(
+			[{ opacity: 1 }, { opacity: 1, offset: 900 / 2400, easing: "cubic-bezier(0.25, 0, 0.75, 0.8)" }, { opacity: 0 }],
+			{ duration: 2400, fill: "forwards" });
+		animation.finished.then(() => {
+			if (this.invitationAnimation !== animation)
+				return;
+			this.invitationAnimation = null;
+			finish();
+			animation.cancel();
+		}, function() {});
+		return true;
+	}
+
+	this.clearInvitationTransition = function() {
+		if (this.invitationAnimation) {
+			this.invitationAnimation.cancel();
+			this.invitationAnimation = null;
+		}
+		this.invitation.classList.remove("revealing");
 	}
 
 	this.randomPuzzleSeed = function() {
@@ -322,7 +364,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			for (var slot of [...this.hClueSlots, ...this.vClueSlots])
 				slot.replaceChildren();
 			this.options.querySelector("#game-seed").value = "";
-			this.newGameButton.value = "New Game";
 			this.updateSeedControls();
 			this.updateSeedDifficulty();
 			this.timer.hidden = false;
@@ -345,12 +386,12 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		}
 	}
 
-	this.newGame = function() {
-		var seed = arguments.length ? parseSeed(arguments[0]) : this.randomPuzzleSeed();
+	this.newGame = function(seed, awaitStart = false) {
+		seed = arguments.length ? parseSeed(seed) : this.randomPuzzleSeed();
 		if (seed === null)
 			return false;
-		this.pendingSeed = undefined;
-		this.newGameButton.value = "New Game";
+		this.clearInvitationTransition();
+		this.pendingSeed = awaitStart ? seed : undefined;
 		this.gameIdentity = {};
 		this.seed = seed;
 		this.options.querySelector("#game-seed").value = formatSeed(seed);
@@ -385,9 +426,10 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			puzzle.gameOver = false;
 			puzzle.generateClues();
 		});
-		if (!this.practiceMode)
+		this.paused = awaitStart;
+		if (!this.practiceMode && !awaitStart)
 			this.startTimer();
-		this.say(randomChoice(startMessages));
+		this.say(awaitStart ? "" : randomChoice(startMessages));
 		this.updateActionControls();
 		return true;
 	}
@@ -397,11 +439,9 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		var seed = parseSeed(params.get("seed"));
 		if (seed === null)
 			return false;
-		this.pendingSeed = seed;
-		this.newGameButton.value = "Start Game";
-		this.options.querySelector("#game-seed").value = formatSeed(seed);
-		this.updateSeedControls();
-		return true;
+		this.invitation.querySelector(".invitation-seed").textContent =
+			formatSeed(seed);
+		return this.newGame(seed, true);
 	}
 
 	this.updateSeedControls = function() {
@@ -409,7 +449,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		var seed = parseSeed(value);
 		this.options.querySelector("#start-game-button").value =
 			!value ? "Start with random seed" :
-			seed === this.seed ? "Restart" : "Start with seed";
+			seed === this.seed && this.pendingSeed === undefined ? "Restart" : "Start with seed";
 		var copy = this.options.querySelector("#copy-seed-link");
 		copy.disabled = seed === null;
 		copy.value = "Copy link";
@@ -448,6 +488,12 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.updateSeedDifficulty();
 		var input = this.options.querySelector("#game-seed");
 		var value = input.value.trim();
+		if (this.pendingSeed !== undefined && parseSeed(value) === this.pendingSeed) {
+			this.startGame();
+			input.setCustomValidity("");
+			this.toggleOptions();
+			return;
+		}
 		var started = value ? this.newGame(value) : this.newGame();
 		if (!started) {
 			if (!value) {
@@ -1112,8 +1158,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		var paused = this.manualPaused;
 		document.body.classList[paused ? "add" : "remove"]("game-paused");
 		for (var element of [board, this.hClues, this.vClues, this.boardActions, this.proofControls])
-			element.inert = paused;
-		this.timer.disabled = this.gameOver || this.practiceMode;
+			element.inert = paused || this.pendingSeed !== undefined;
+		this.timer.disabled = this.gameOver || this.practiceMode || this.pendingSeed !== undefined;
 		this.timer.title = paused ? "Resume game" : "Pause game";
 		this.timer.setAttribute("aria-label", this.timer.title);
 		this.updateTimer(this.timerTimeout === null ? this.timerElapsed : Date.now() - this.timerStarted);
@@ -1762,7 +1808,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 				this.pantheonLoading = false;
 			}
 			modal.hidden = true;
-			this.paused = this.manualPaused || this.pageHidden;
+			this.paused = this.manualPaused || this.pageHidden || this.pendingSeed !== undefined;
 			if (!this.gameOver && !this.practiceMode && !this.paused &&
 			    this.timerTimeout === null)
 				this.startTimer();
@@ -1772,10 +1818,9 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.toggleOptions = function() {
-		var seed = this.seed !== undefined ? this.seed : this.pendingSeed;
-		if (this.options.hidden && seed !== undefined)
+		if (this.options.hidden && this.seed !== undefined)
 			this.options.querySelector("#game-seed").value =
-				formatSeed(seed);
+				formatSeed(this.seed);
 		this.updateSeedControls();
 		this.toggleModal(this.options, this.optionsButton, "Close");
 		this.updateSeedDifficulty();
@@ -2112,6 +2157,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		else
 			document.body.classList.add("game-started");
 		this.boardActions.hidden = !show;
+		this.invitation.hidden = this.pendingSeed === undefined;
 		this.logoButton.hidden = show;
 	}
 
