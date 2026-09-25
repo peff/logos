@@ -242,11 +242,33 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.pausedBeforePageHidden = false;
 	this.nextMilestone = 0;
 	this.helpPage = 0;
-	this.helpPages = [
-		this.help.querySelector(".help-page-rules"),
-		this.help.querySelector(".help-page-clues"),
-		this.help.querySelector(".help-page-controls"),
-	];
+	this.helpPages = Array.from(this.help.querySelectorAll(".help-page"));
+	this.helpPages.forEach((page, index) => {
+		var folio = document.createElement("nav");
+		folio.className = "help-folio";
+		folio.setAttribute("aria-label", "Help pages");
+		var turn = direction => {
+			var neighbor = this.helpPages[index + direction];
+			if (!neighbor)
+				return document.createElement("span");
+			var button = document.createElement("button");
+			button.type = "button";
+			button.className = "help-page-turn " +
+				(direction < 0 ? "help-page-previous" : "help-page-next");
+			var title = neighbor.querySelector("h3").textContent;
+			button.textContent = direction < 0 ? "‹ " + title : title + " ›";
+			button.onclick = () => this.turnHelpPage(direction);
+			return button;
+		};
+		var number = document.createElement("span");
+		number.className = "help-page-number";
+		number.textContent = "Leaf " + romanNumeral(index + 1) +
+			" of " + romanNumeral(this.helpPages.length);
+		folio.appendChild(turn(-1));
+		folio.appendChild(number);
+		folio.appendChild(turn(1));
+		page.appendChild(folio);
+	});
 	this.showMilestones = true;
 	this.pencilMarks = [];
 	this.actionController = null;

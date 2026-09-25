@@ -57,9 +57,20 @@ class FakeElement {
 		if (match)
 			return this.children.find(child =>
 				child.name == match[1] && child.checked);
+		const child = this.querySelectorAll(selector)[0];
+		if (child)
+			return child;
 		if (!this.queries[selector])
 			this.queries[selector] = new FakeElement();
 		return this.queries[selector];
+	}
+	querySelectorAll(selector) {
+		return this.children.flatMap(child => [
+			...(selector.startsWith(".") &&
+			    (child.className || "").split(" ").includes(selector.slice(1)) ?
+				[child] : []),
+			...(child.querySelectorAll ? child.querySelectorAll(selector) : []),
+		]);
 	}
 	insertRow() {
 		return new FakeElement();
@@ -166,9 +177,17 @@ function selectTileAction(puzzle, action) {
 
 function makePuzzle(numRows, checkWin, puzzleSymbols) {
 	const elem = function() { return new FakeElement(); };
+	const help = elem();
+	for (const [name, title] of [["rules", "Objective"], ["clues", "Clues"],
+		["controls", "Controls"], ["hints", "Hints and Proofs"]]) {
+		const page = elem();
+		page.className = "help-page help-page-" + name;
+		page.querySelector("h3").textContent = title;
+		help.appendChild(page);
+	}
 	const puzzle = new Puzzle(elem(), elem(), elem(), elem(), elem(),
 		puzzleSymbols || Array(numRows).fill(symbols),
-		elem(), elem(), elem(), elem(),
+		elem(), elem(), help, elem(),
 		elem(), elem(), elem(), elem());
 	const lose = puzzle.lose;
 	puzzle.lose = function() {
@@ -1569,7 +1588,7 @@ Deno.test("committed moves remove only affected pencil marks", function() {
 	       "remaining pencil state was not recomputed");
 });
 
-Deno.test("help pages switch between rules, clues, and controls", function() {
+Deno.test("help pages generate folios and switch through hints", function() {
 	const puzzle = makePuzzle(1);
 	const rules = puzzle.help.querySelector(".help-page-rules");
 	const clues = puzzle.help.querySelector(".help-page-clues");
@@ -1592,6 +1611,14 @@ Deno.test("help pages switch between rules, clues, and controls", function() {
 	       "controls were not the only visible third page");
 	assert(controlsPrevious.focused,
 	       "second page turn did not preserve keyboard focus");
+	puzzle.turnHelpPage(1);
+	const hints = puzzle.help.querySelector(".help-page-hints");
+	assert(!hints.hidden && controls.hidden &&
+	       hints.querySelector(".help-page-number").textContent == "Leaf IV of IV" &&
+	       controls.querySelector(".help-page-next").textContent == "Hints and Proofs ›",
+	       "fourth leaf or generated navigation is wrong");
+	hints.querySelector(".help-page-previous").onclick();
+	assert(!controls.hidden && hints.hidden, "generated button did not turn the page");
 });
 
 Deno.test("a directly contradicting clue is highlighted", function() {
