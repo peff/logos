@@ -138,7 +138,7 @@ function withPuzzleRandom(seed, callback) {
 
 document.addEventListener('contextmenu', function(ev) {
 	if (ev.target && ev.target.closest &&
-	    ev.target.closest("input, textarea, [contenteditable=true]"))
+	    ev.target.closest(".modal, input, textarea, [contenteditable=true]"))
 		return;
 	ev.preventDefault();
 });
