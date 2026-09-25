@@ -1238,12 +1238,12 @@ Deno.test("shift-press highlights clues with shared symbols", async function() {
 	assert(prevented &&
 	       selected.display.classList.contains("clue-highlight-source") &&
 	       related.display.classList.contains("clue-highlight-related") &&
-	       unrelated.display.classList.contains("clue-highlight-muted"),
+	       !unrelated.display.classList.contains("clue-highlight-related"),
 	       "shift-press did not distinguish related clues");
 	selected.display.onpointerup({});
 	assert(!selected.display.classList.contains("clue-highlight-source") &&
 	       !related.display.classList.contains("clue-highlight-related") &&
-	       !unrelated.display.classList.contains("clue-highlight-muted"),
+	       !unrelated.display.classList.contains("clue-highlight-related"),
 	       "releasing the pointer did not clear clue highlights");
 
 	selected.display.onclick({ preventDefault() {} });
@@ -1277,12 +1277,12 @@ Deno.test("pressing a filled slot highlights its clues", function() {
 	slot.singleElem.listeners.pointerdown({ button: 0 });
 	assert(slot.singleElem.classList.contains("clue-highlight-source") &&
 	       related.display.classList.contains("clue-highlight-related") &&
-	       unrelated.display.classList.contains("clue-highlight-muted"),
+	       !unrelated.display.classList.contains("clue-highlight-related"),
 	       "filled slot did not highlight its related clues");
 	slot.singleElem.listeners.pointerup({});
 	assert(!slot.singleElem.classList.contains("clue-highlight-source") &&
 	       !related.display.classList.contains("clue-highlight-related") &&
-	       !unrelated.display.classList.contains("clue-highlight-muted"),
+	       !unrelated.display.classList.contains("clue-highlight-related"),
 	       "filled-slot highlights survived pointer release");
 
 	slot.displayPossible();

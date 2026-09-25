@@ -4773,15 +4773,13 @@ function highlightCluesForSlots(puzzle, slots, selected) {
 		if (!clue.display)
 			continue;
 		clue.display.classList.remove("clue-highlight-source",
-			"clue-highlight-related", "clue-highlight-muted");
+			"clue-highlight-related");
 		if (clue == selected)
 			clue.display.classList.add("clue-highlight-source");
 		else if (clueSlots(clue).some(function(slot) {
 			return slots.indexOf(slot) >= 0;
 		}))
 			clue.display.classList.add("clue-highlight-related");
-		else
-			clue.display.classList.add("clue-highlight-muted");
 	}
 }
 
@@ -4793,8 +4791,7 @@ function clearClueHighlights(puzzle) {
 	for (var i = 0; i < puzzle.clues.length; i++) {
 		if (puzzle.clues[i].display)
 			puzzle.clues[i].display.classList.remove(
-				"clue-highlight-source", "clue-highlight-related",
-				"clue-highlight-muted");
+				"clue-highlight-source", "clue-highlight-related");
 	}
 }
 
