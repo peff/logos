@@ -121,7 +121,7 @@ const source = await Deno.readTextFile(
 	new URL("./logos.js", import.meta.url));
 const Logos = eval(source +
 	"\n;({ puzzleDifficulty, difficultyRating, puzzleFromSeed, " +
-	"difficultyOpportunities, " +
+	"difficultyOpportunities, nextHintStep, " +
 	"Puzzle: Puzzle, ExactClue: ExactClue, " +
 	"Adjacent2Clue: Adjacent2Clue, " +
 	"Adjacent3Clue: Adjacent3Clue, " +
@@ -3539,5 +3539,139 @@ Deno.test("a stale Pantheon lookup cannot replace a newer selection", async () =
 	} finally {
 		release();
 		Logos.setHistoryStorage(Logos.accessRunHistory);
+	}
+});
+
+Deno.test("hints explain valid progress without changing their input", function() {
+	for (const seed of ["98079244", "5be42607", "be0e8074"]) {
+		const puzzle = Logos.puzzleFromSeed(parseInt(seed, 16));
+		let domains = puzzle.rows.map(row => row.slots.map(() => 63));
+		let placements = puzzle.rows.map(() => 0);
+		for (const clue of puzzle.clues)
+			if (clue.applyInitialState)
+				clue.constrain(domains, 63);
+		let count = 0;
+		while (true) {
+			const before = JSON.stringify({ domains, placements });
+			const step = Logos.nextHintStep(puzzle, domains, placements);
+			assert(JSON.stringify({ domains, placements }) == before,
+			       "hint mutated the input position");
+			if (!step)
+				break;
+			assert(step.message && ++count < 500, "hint did not make progress");
+			domains = step.domains;
+			placements = step.placements;
+			for (const [row, data] of puzzle.rows.entries())
+				for (const [col, slot] of data.slots.entries())
+					assert(domains[row][slot.value] & (1 << col),
+					       "hint excluded the solution");
+		}
+		assert(placements.every(bits => bits == 63), "hints stalled");
+	}
+});
+
+Deno.test("console hints capture the live board and continue in Zen", function() {
+	localStorage.removeItem("practiceMode");
+	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
+	puzzle.newGame("5be42607");
+	const before = puzzle.rows.map(row => row.slots.map(slot =>
+		({ single: slot.single, possible: slot.possible.slice() })));
+	const log = console.log;
+	const messages = [];
+	console.log = message => messages.push(message);
+	try {
+		puzzle.hint();
+	} finally {
+		console.log = log;
+	}
+	const snapshot = JSON.parse(messages[0]);
+	assert(snapshot.seed == "5be42607" && snapshot.generatorVersion == 1 &&
+	       snapshot.domains.length == 6 && snapshot.placements.length == 6,
+	       "hint did not log a reproducible snapshot");
+	assert(puzzle.practiceMode && !puzzle.scoreEligible &&
+	       !puzzle.practiceModePreference && puzzle.timerTimeout === null &&
+	       !puzzle.timer.hidden && puzzle.timer.classList.contains("zen") &&
+	       localStorage.getItem("practiceMode") === null,
+	       "hint did not enter Zen for this game only");
+	assert(puzzle.proof.hint && !puzzle.proofControls.hidden,
+	       "hint did not open its explanation");
+	assert(JSON.stringify(snapshot.domains) == JSON.stringify(puzzle.proof.base),
+	       "snapshot was not the pre-hint position");
+	puzzle.moveProof(-1);
+	assert(puzzle.proofControls.querySelector(".proof-position").textContent ==
+	       "Before the proof", "walkthrough did not use proof wording");
+	puzzle.moveProof(1);
+	puzzle.closeProof();
+	assert(!puzzle.proof && !puzzle.pendingProof && !puzzle.gameOver &&
+	       !puzzle.explainButton.disabled, "closing hint did not restore play");
+	const after = puzzle.rows.map(row => row.slots.map(slot =>
+		({ single: slot.single, possible: slot.possible.slice() })));
+	assert(JSON.stringify(before) == JSON.stringify(after),
+	       "hint applied the deduction to the live board");
+	puzzle.say("");
+});
+
+Deno.test("because reveals a hint progressively and resets after a move", function() {
+	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
+	puzzle.newGame("f2551f26");
+	const log = console.log;
+	const messages = [];
+	console.log = message => messages.push(message);
+	try {
+		assert(!puzzle.explainButton.disabled, "live hints are disabled");
+		puzzle.explainLoss();
+		const request = puzzle.hintRequest;
+		const announcement = puzzle.messages.innerHTML;
+		assert(request.stage == 1 && !puzzle.proof && puzzle.practiceMode,
+		       "first press did not enter Zen with a clue hint");
+		assert(request.step.clues.some(clue =>
+		       clue.display.classList.contains("hint-current")),
+		       "first press did not highlight the clue");
+		puzzle.explainLoss();
+		assert(request.stage == 2 && !puzzle.proof &&
+		       !puzzle.proofControls.hidden &&
+		       puzzle.proofControls.classList.contains("hint-explanation") &&
+		       puzzle.proofControls.querySelector(".proof-deduction").textContent ==
+		       Logos.proofMessageText(puzzle, request.step.message),
+		       "second press did not explain the same step");
+		assert(puzzle.proofControls.querySelector(".proof-previous").disabled &&
+		       puzzle.proofControls.querySelector(".proof-next").disabled,
+		       "text hint left navigation enabled");
+		assert(puzzle.messages.innerHTML == announcement &&
+		       puzzle.rows.every(row => row.slots.every(slot =>
+			       slot.possibleElem.className != "proof")),
+		       "text hint changed the status message or board display");
+		puzzle.explainLoss();
+		assert(puzzle.proof.hint && puzzle.proof.steps[0] === request.step &&
+		       puzzle.proof.steps.length > 1 && messages.length == 1,
+		       "third press did not expand the same hint with one snapshot");
+		const final = puzzle.proof.steps.at(-1);
+		assert(final.placements.every(bits => bits == 63),
+		       "walkthrough does not reach the solution");
+		puzzle.moveProof(puzzle.proof.steps.length - 1);
+		assert(puzzle.proofControls.querySelector(".proof-deduction").textContent.endsWith(
+		       " Q.E.D."), "completed walkthrough did not say Q.E.D.");
+		puzzle.moveProof(1 - puzzle.proof.position);
+		puzzle.moveProof(1);
+		assert(puzzle.proof.position == 2, "cannot advance through hints");
+		puzzle.explainLoss();
+		assert(!puzzle.proof && !puzzle.hintRequest && !puzzle.pendingProof,
+		       "closing walkthrough left stale hint state");
+		puzzle.explainLoss();
+		const slot = puzzle.rows[0].slots.find(slot => !slot.single);
+		slot.discard((slot.value + 1) % 6);
+		assert(!puzzle.hintRequest && puzzle.clues.every(clue =>
+		       !clue.display || !clue.display.classList.contains("hint-current")),
+		       "a move did not clear the hint");
+		assert(puzzle.proofControls.hidden && puzzle.messages.classList.contains("fading"),
+		       "move did not hide the hint panel and fade the status message");
+		puzzle.explainLoss();
+		puzzle.newGame("98079244");
+		assert(!puzzle.hintRequest && !puzzle.proof,
+		       "new game retained the hint");
+		puzzle.stopTimer();
+		puzzle.say("");
+	} finally {
+		console.log = log;
 	}
 });

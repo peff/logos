@@ -387,12 +387,12 @@ body #timer::after {
 			1.15rem max-content max-content 15rem 5.8rem max-content;
 	}
 
-	body.game-started.proof-active {
+	body.game-started:is(.proof-active, :has(#proof-controls.hint-explanation)) {
 		grid-template-rows:
 			1.15rem max-content max-content 14.25rem 5.51rem max-content;
 	}
 
-	body.proof-active :is(#hclues, #vclues) {
+	body:is(.proof-active, :has(#proof-controls.hint-explanation)) :is(#hclues, #vclues) {
 		justify-self: center;
 		transform: scale(0.95);
 		transform-origin: top center;
@@ -426,12 +426,12 @@ body #timer::after {
 /* Make room for the proof viewer on short portrait phones. */
 @media (orientation: portrait) and (min-aspect-ratio: 1 / 2) and
        (aspect-ratio < 3 / 5) {
-	body.game-started.proof-active {
+	body.game-started:is(.proof-active, :has(#proof-controls.hint-explanation)) {
 		grid-template-rows:
 			1.15rem max-content max-content 15.372rem 4.872rem max-content;
 	}
 
-	body.proof-active :is(#hclues, #vclues) {
+	body:is(.proof-active, :has(#proof-controls.hint-explanation)) :is(#hclues, #vclues) {
 		justify-self: center;
 		transform: scale(0.84);
 		transform-origin: top center;
@@ -762,7 +762,7 @@ body[data-chalk-cursor="true"][data-discard-cursor="true"]:not([data-custom-curs
 	font: 0.56rem/1 "Logos Tiles";
 }
 
-body.proof-active #logo {
+body:is(.proof-active, :has(#proof-controls.hint-explanation)) #logo {
 	display: none;
 }
 
@@ -2698,7 +2698,7 @@ button.score-entry:focus-visible {
 		0 0 0.35rem rgb(163 107 37 / 70%);
 }
 
-.clue-hidden:not(.proof-current) > * {
+.clue-hidden:not(.proof-current):not(.hint-current) > * {
 	opacity: 0.2;
 }
 
@@ -2709,7 +2709,7 @@ body:not(.proof-active) .board .single.clue-highlight-source {
 }
 
 /* Use the same gold treatment whenever we call attention to a clue. */
-body:not(.proof-active) .clue:is(.clue-highlight-source, .clue-highlight-related),
+body:not(.proof-active) .clue:is(.clue-highlight-source, .clue-highlight-related, .hint-current),
 body:not(.proof-active) :is(#hclues, #vclues) .clue.contradiction,
 body.proof-active :is(#hclues, #vclues) .clue.proof-current {
 	background-color: #f4dfb2;
@@ -2975,4 +2975,11 @@ body.proof-active :is(#hclues, #vclues) .clue.proof-current {
 
 .clue:hover:not(.clue-drop-target) {
 	background-color: #e6dfd2;
+}
+
+@media (orientation: portrait) {
+	/* Reserve the touch controls' space in both hint and proof views. */
+	body:has(#board-actions:not([hidden])) #proof-controls {
+		margin-top: 2rem;
+	}
 }

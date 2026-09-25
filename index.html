@@ -547,8 +547,8 @@
 					       aria-expanded="false" aria-controls="scores-menu">
 					<input id="explain-button" type="button"
 					       onClick="puzzle.explainLoss()" value="∵" disabled
-					       title="Explain a mistake"
-					       aria-label="Explain a mistake" aria-pressed="false">
+					       title="Hint / Explain"
+					       aria-label="Hint or explain a mistake" aria-pressed="false">
 				</div>
 				<button id="logo" type="button" onClick="puzzle.toggleAbout()"
 				        aria-label="About Logos" aria-expanded="false"
@@ -589,6 +589,7 @@
 				document.getElementById("about-menu"),
 				document.getElementById("logo"));
 		puzzle.loadURLSeed(window.location.href);
+		function hint() { return puzzle.hint(); }
 		</script>
 		<script src="logos-multiplayer.js"></script>
 		<script src="logos-webrtc.js"></script>

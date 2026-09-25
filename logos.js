@@ -281,6 +281,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.clear = function() {
+		this.clearHint();
 		this.clearInvitationTransition();
 		this.manualPaused = false;
 		this.gameOver = true;
@@ -387,6 +388,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.newGame = function(seed, awaitStart = false) {
+		this.clearHint();
 		seed = arguments.length ? parseSeed(seed) : this.randomPuzzleSeed();
 		if (seed === null)
 			return false;
@@ -426,6 +428,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			puzzle.gameOver = false;
 			puzzle.generateClues();
 		});
+		this.explainButton.disabled = false;
 		this.paused = awaitStart;
 		if (!this.practiceMode && !awaitStart)
 			this.startTimer();
@@ -517,6 +520,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			if (!this.rows[i].isComplete())
 				return;
 		this.gameOver = true;
+		this.explainButton.disabled = true;
 		this.updateActionControls();
 		this.playSound("win");
 		this.stopTimer();
@@ -600,6 +604,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			return;
 		}
 		this.gameOver = true;
+		this.explainButton.disabled = true;
 		this.updateActionControls();
 		this.playSound("mistake");
 		this.stopTimer();
@@ -646,6 +651,98 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		}
 	}
 
+	/* Preserve the position for analysis before revealing a hint. */
+	this.hint = function(stage = 3) {
+		if (this.gameOver || this.pendingSeed !== undefined || this.paused) {
+			console.log("Start or resume a game before requesting a hint.");
+			return;
+		}
+		if (this.hintRequest) {
+			this.showHint(stage);
+			return;
+		}
+		var base = domainsFromSlots(this);
+		var basePlacements = proofPlacementsFromSlots(this);
+		console.log(JSON.stringify({
+			seed: formatSeed(this.seed),
+			generatorVersion: puzzleGeneratorVersion,
+			// Indexed by row, then symbol; bits identify possible columns.
+			domains: base,
+			placements: basePlacements,
+			pencilMarks: this.pencilMarks.map(mark => ({
+				row: this.rows.indexOf(mark.slot.row),
+				column: mark.slot.row.slots.indexOf(mark.slot),
+				symbol: mark.value,
+				discard: mark.discard,
+			})),
+		}));
+		var step = nextHintStep(this, base, basePlacements);
+		if (!step) {
+			console.log("No further deduction is available.");
+			return;
+		}
+		if (this.proof)
+			this.closeProof();
+		this.clearPracticeMistake();
+		this.closeSlotTray();
+		this.practiceMode = true;
+		this.scoreEligible = false;
+		this.stopTimer();
+		this.timer.hidden = false;
+		this.updatePauseControl();
+		this.hintRequest = { base, basePlacements, step, stage: 0 };
+		this.say("A little enlightenment. Consider the highlighted clue.");
+		this.showHint(stage);
+	}
+
+	this.clearHint = function() {
+		if (!this.hintRequest)
+			return;
+		this.hintRequest = null;
+		this.proofControls.hidden = true;
+		this.proofControls.classList.remove("hint-explanation");
+		for (var clue of this.clues)
+			if (clue.display)
+				clue.display.classList.remove("hint-current");
+		this.fadeMessage();
+	}
+
+	this.showHint = function(stage) {
+		var request = this.hintRequest;
+		request.stage = stage;
+		var step = request.step;
+		if (stage < 3) {
+			for (var clue of step.clues)
+				clue.display.classList.add("hint-current");
+			if (stage == 2) {
+				this.proofControls.classList.add("hint-explanation");
+				this.proofControls.hidden = false;
+				this.proofControls.querySelector(".proof-previous").disabled = true;
+				this.proofControls.querySelector(".proof-next").disabled = true;
+				this.proofControls.querySelector(".proof-position").textContent = "Hint";
+				renderProofMessage(this,
+					this.proofControls.querySelector(".proof-deduction"),
+					step.message, false);
+			}
+			return;
+		}
+		var steps = [step];
+		var next = step;
+		while ((next = nextHintStep(this, next.domains, next.placements)))
+			steps.push(next);
+		steps[steps.length - 1].conclusion = true;
+		this.clearHint();
+		this.proof = {
+			hint: true,
+			steps: steps,
+			base: request.base,
+			basePlacements: request.basePlacements,
+			position: 1,
+			continueGame: true,
+		};
+		this.openProofDisplay();
+	}
+
 	this.startProof = function(failedSlot, failedValue, continueGame,
 			   emphasizeButton) {
 		var base = domainsFromSlots(this);
@@ -664,6 +761,10 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			continueGame: !!continueGame,
 			emphasizeButton: !!emphasizeButton,
 		};
+		this.openProofDisplay();
+	}
+
+	this.openProofDisplay = function() {
 		this.proofControls.hidden = false;
 		document.body.classList.add("proof-active");
 		this.explainButton.disabled = false;
@@ -678,8 +779,10 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			this.closeProof();
 			return;
 		}
-		if (!this.pendingProof)
+		if (!this.pendingProof) {
+			this.hint(this.hintRequest ? this.hintRequest.stage + 1 : 1);
 			return;
+		}
 		var request = this.pendingProof;
 		this.pendingProof = null;
 		this.startProof(request.failedSlot, request.failedValue,
@@ -693,7 +796,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		for (var i = 0; i < this.clues.length; i++)
 			if (this.clues[i].display)
 				this.clues[i].display.classList.remove("proof-current");
-		this.pendingProof = {
+		this.pendingProof = proof.hint ? null : {
 			continueGame: proof.continueGame,
 			emphasizeButton: proof.emphasizeButton,
 			failedSlot: proof.failedSlot,
@@ -708,8 +811,11 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			this.restorePlayDisplay();
 		else
 			this.revealSolution();
-		proof.failedSlot.possibilityElems[proof.failedValue].classList.add(
-			"failed-action");
+		if (proof.hint)
+			this.explainButton.disabled = false;
+		else
+			proof.failedSlot.possibilityElems[proof.failedValue].classList.add(
+				"failed-action");
 	}
 
 	this.restorePlayDisplay = function() {
@@ -748,7 +854,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			}
 		this.pendingProof = null;
 		this.practiceMistake = null;
-		this.explainButton.disabled = true;
+		this.explainButton.disabled = this.gameOver;
 		this.explainButton.classList.remove("proof-available");
 		this.messages.classList.remove("lost");
 		this.say("");
@@ -770,7 +876,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			this.renderProofDomains(this.proof.base,
 				this.proof.basePlacements);
 			positionElem.textContent = "Before the proof";
-			deductionElem.textContent =
+			deductionElem.textContent = this.proof.hint ?
+				"The board as it stood." :
 				"The board as it stood before the mistake.";
 		} else {
 			var step = this.proof.steps[position - 1];
@@ -1133,14 +1240,22 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		if (msg && this.timerTimeout !== null) {
 			var puzzle = this;
 			this.messageTimeout = setTimeout(function() {
-				puzzle.messages.classList.add("fading");
-				puzzle.messageTimeout = setTimeout(function() {
-					puzzle.messages.innerHTML = "";
-					puzzle.messages.classList.remove("fading");
-					puzzle.messageTimeout = null;
-				}, 1000);
+				puzzle.fadeMessage();
 			}, 9000);
 		}
+	}
+
+	this.fadeMessage = function() {
+		if (this.effectsSuppressed)
+			return;
+		if (this.messageTimeout !== null)
+			clearTimeout(this.messageTimeout);
+		this.messages.classList.add("fading");
+		this.messageTimeout = setTimeout(() => {
+			this.messages.innerHTML = "";
+			this.messages.classList.remove("fading");
+			this.messageTimeout = null;
+		}, 1000);
 	}
 
 	this.restartMessage = function() {
@@ -3719,6 +3834,48 @@ function clueProofStep(puzzle, clue, domains) {
 	return null;
 }
 
+/* Prefer a forced placement, then an anchored clue, then a candidate deduction.
+ * Explain one step only; applying it remains the player's choice.
+ */
+function nextHintStep(puzzle, base, basePlacements) {
+	var step = nextForcedProofStep(base, basePlacements);
+	if (!step) {
+		var full = (1 << base[0].length) - 1;
+		var anchored = base.map(row => row.map(bits =>
+			countBits(bits) == 1 ? bits : full));
+		var choices = [];
+		for (var clue of puzzle.clues) {
+			if (clue.applyInitialState)
+				continue;
+			var candidate = clueProofStep(puzzle, clue, base);
+			if (!candidate)
+				continue;
+			var simple = copyDomains(anchored);
+			clue.constrain(simple, full);
+			var anchoredStep = !(candidate.removed &
+				simple[candidate.row][candidate.symbol]);
+			choices.push({ step: candidate,
+				priority: (anchoredStep ? 0 : 2) +
+					(candidate.placement ? 0 : 1) });
+		}
+		choices.sort((a, b) => a.priority - b.priority);
+		if (!choices.length)
+			return null;
+		step = choices[0].step;
+	}
+	var domains = copyDomains(base);
+	var placements = basePlacements.slice();
+	var before = domains[step.row][step.symbol];
+	applyProofStep(domains, placements, step);
+	step.domain = domains[step.row][step.symbol];
+	step.domains = domains;
+	step.placements = placements;
+	step.message = step.rule == "clue" ?
+		proofDeductionMessage(puzzle, step, before, step.domain, domains) :
+		forcedProofMessage(puzzle, step);
+	return step;
+}
+
 function nextClueProofStep(puzzle, clues, domains) {
 	for (var i = 0; i < clues.length; i++) {
 		var step = clueProofStep(puzzle, clues[i], domains);
@@ -4612,6 +4769,7 @@ function Slot(row, symbols, display) {
 		if (this.row.puzzle.gameOver || this.row.puzzle.paused ||
 		    this.row.puzzle.proof)
 			return;
+		this.row.puzzle.clearHint();
 		this.row.puzzle.clearPracticeMistake();
 		if (this.value == value) {
 			if (playerAction || this.row.puzzle.placeSoundPending)
@@ -4636,6 +4794,7 @@ function Slot(row, symbols, display) {
 		if (this.single || this.row.puzzle.gameOver ||
 		    this.row.puzzle.paused || this.row.puzzle.proof)
 			return;
+		this.row.puzzle.clearHint();
 		this.row.puzzle.clearPracticeMistake();
 		if (this.value == value) {
 			var clues = this.row.puzzle.findContradictingClues(
@@ -4685,6 +4844,7 @@ function Slot(row, symbols, display) {
 	}
 
 	this.pencil = function(value, discard) {
+		this.row.puzzle.clearHint();
 		this.row.puzzle.togglePencilMark(this, value, discard);
 	}
 
