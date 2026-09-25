@@ -385,6 +385,22 @@ Deno.test("the seed action describes random, chosen, and restarted puzzles", fun
 	edit("0", "Restart");
 });
 
+Deno.test("pasting a seed replaces the field and refreshes its controls", function() {
+	const puzzle = makePuzzle(6);
+	puzzle.options.hidden = false;
+	const input = puzzle.options.querySelector("#game-seed");
+	input.value = "12345678";
+	let prevented = false;
+	input.listeners.paste.call(input, {
+		clipboardData: { getData() { return " 98079244\n"; } },
+		preventDefault() { prevented = true; },
+	});
+	assert(prevented && input.value == "98079244", "paste did not replace the existing seed");
+	assert(puzzle.options.querySelector("#seed-difficulty").textContent == "Difficulty: Easy" &&
+	       !puzzle.options.querySelector("#copy-seed-link").disabled,
+	       "paste did not refresh difficulty and seed controls");
+});
+
 Deno.test("seed difficulty previews complete input and shorter seeds on blur", function() {
 	const puzzle = makePuzzle(6);
 	puzzle.options.hidden = false;

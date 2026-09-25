@@ -1909,6 +1909,14 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	var puzzle = this;
+	this.options.querySelector("#game-seed").addEventListener("paste", function(ev) {
+		if (!ev.clipboardData)
+			return;
+		ev.preventDefault();
+		this.value = ev.clipboardData.getData("text/plain").trim();
+		puzzle.updateSeedControls();
+		puzzle.updateSeedDifficulty();
+	});
 	this.options.querySelector("#game-seed").addEventListener("input", function() {
 		puzzle.updateSeedControls();
 		puzzle.updateSeedDifficulty(true);
