@@ -3295,7 +3295,7 @@ Deno.test("puzzle difficulty rates generated puzzles without changing play state
 
 Deno.test("difficulty labels use raw-score boundaries", () => {
 	for (const [score, level] of [[0, "easy"], [44.99, "easy"],
-		[45, "medium"], [71.99, "medium"], [72, "hard"], [200, "hard"]]) {
+		[45, "medium"], [72, "medium"], [79.99, "medium"], [80, "hard"], [200, "hard"]]) {
 		const rating = Logos.difficultyRating({ supportSteps: score,
 			scarcity: 0, maxDiscardRun: 0 });
 		assert(rating.score == score && rating.level == level);

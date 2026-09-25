@@ -10,7 +10,7 @@ The score is:
 supportSteps + 2.65 * scarcity + 0.87 * maxDiscardRun
 ```
 
-Scores below 45 are easy, below 72 are medium, and the rest are hard. These
+Scores below 45 are easy, below 80 are medium, and the rest are hard. These
 are empirical units, not percentiles or predicted completion times.
 
 ## Measurements
@@ -80,23 +80,51 @@ rather than playing quickly.
 | `dcfeb188` | 61.54 | medium | 2:19 | Similar difficulty to the other medium; satisfying cascade. |
 | `93b24744` | 105.82 | hard | ~3:40 | Harder than the mediums, but not exceptional; noticed a helpful shortcut. Mis-click at 3:17 interrupted the run. |
 | `e2a689dd` | 129.82 | hard | 9:41 | Legitimately hard; satisfying final cascade. Proved a four-tile run, but inferred its orientation without fully checking it. |
-| `35adb143` | 75.61 | hard | 5:22 | Upper medium or lower hard; slow to notice a linchpin deduction midway through. |
+| `35adb143` | 75.61 | medium | 5:22 | Upper medium or lower hard; slow to notice a linchpin deduction midway through. |
 | `d49bc27a` | 42.59 | easy | 1:42 | Very easy. |
-| `be0e8074` | 75.49 | hard | 7:42 | Hard; combined many clues mentally, without chalk marks. An accidentally correct deduction preceded a justified route by a few moves. |
+| `be0e8074` | 75.49 | medium | 7:42 | Hard; combined many clues mentally, without chalk marks. An accidentally correct deduction preceded a justified route by a few moves. |
 | `e7e2214f` | 43.52 | easy | 2:14 | Medium, possibly lower medium; looked hard but unfolded nicely after a multi-clue insight. Combined time around a mis-click. |
 | `219558b4` | 174.85 | hard | ~5:30 | Initially daunting, then opened up through a structural deduction. Mis-click at 4:59. Less difficult than the extreme score suggested. |
 | `1adb6058` | 60.48 | medium | Not reported | Not difficult, but long-ish; easy side of medium felt accurate. |
 
 The four tests from `35adb143` through `e7e2214f` were blind. Their original
 predictions used 50-route percentile scores: medium, easy, hard, and medium,
-respectively. The current five-route labels differ for `35adb143` and
-`e7e2214f`; this is route sensitivity, not a change caused by the weighted
-approximation. Other initial candidates were also rechecked with 50 routes.
+respectively. With the original Hard cutoff of 72, the five-route labels differed for
+`35adb143` and `e7e2214f`; this was route sensitivity, not a change caused
+by the weighted approximation. Raising the cutoff to 80 restores Medium
+for `35adb143`. Other initial candidates were also rechecked with 50 routes.
 
 `1adb6058` was selected because its one-route percentile score labeled it
 easy, while averaging five routes labeled it medium. The player's assessment
 supported the latter. The extreme-tail example `219558b4` shows why these
 scores should remain broad guidance rather than precise predictions.
+
+## Boundary adjustment after further play
+
+On September 25, 2026, we raised the Medium/Hard boundary from 72 to 80,
+leaving the Easy boundary and score formula unchanged. Recent play suggested
+that the lower end of Hard more often felt Medium. This is a modest empirical
+adjustment, not evidence that a few score points reliably predict differences
+in human difficulty. The statistical validation above used the original 72
+cutoff. Previously cached Chronicle labels are not migrated.
+
+| Seed | Score | Current label | Time | Player assessment |
+| --- | ---: | --- | --- | --- |
+| `e581b64b` | 80.66 | hard | 1:59 | Felt Medium; probably assumed the correct orientation of die-4, 1, 3 at the start. Accepted as easy Hard, with the lucky opening making the time inconclusive. |
+| `12357692` | 89.27 | hard | Not reported | Felt Medium. |
+| `64467f3d` | 77.58 | medium | 2:47 | Solidly Medium. |
+| `644f7f3d` | 149.56 | hard | 6:11 | Hard; substantial chipping away and multi-clue deductions, without a major shortcut. |
+| `be0e8074` | 75.49 | medium | 7:11 replay | Consistent with the original 7:42. Easy Hard or hard Medium both seemed defensible; repeatedly overlooked a useful discard. Replay was not blind. |
+| `154a1aae` | 78.33 | medium | 3:07 | High Medium / low Hard; nontrivial but not especially hard. |
+| `6ffbd6db` | 74.18 | medium | 1:59 | Medium; early placements followed by a discard stretch. |
+| `d8574052` | 83.80 | hard | 4:29 | Felt harder than the previous two. |
+
+The last three were fresh seeds selected around the proposed boundary and
+presented in shuffled order with scores withheld. They were not fully blind:
+the Options seed preview exposed the existing label (explicitly noticed for
+`154a1aae`). Their score ordering matched the reported experience, but the
+sample is too small to infer fine-grained accuracy. The replay of `be0e8074`
+also illustrates the unavoidable overlap between the broad labels.
 
 ## Future calibration
 

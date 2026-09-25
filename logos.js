@@ -4244,7 +4244,7 @@ function difficultyRating(metrics) {
 	var score = metrics.supportSteps + 2.65 * metrics.scarcity +
 		0.87 * metrics.maxDiscardRun;
 	return { score: score,
-		level: score < 45 ? "easy" : score < 72 ? "medium" : "hard" };
+		level: score < 45 ? "easy" : score < 80 ? "medium" : "hard" };
 }
 
 /* Rate the original puzzle, regardless of the player's current progress.
