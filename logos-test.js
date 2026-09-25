@@ -1449,7 +1449,8 @@ Deno.test("practice mode is saved and suppresses timing and scores", function() 
 	puzzle.setPracticeMode(true);
 	puzzle.newGame(1);
 	assert(puzzle.practiceMode && !puzzle.scoreEligible &&
-	       puzzle.timer.hidden && puzzle.timerTimeout === null &&
+	       !puzzle.timer.hidden && puzzle.timer.classList.contains("zen") &&
+	       puzzle.timerTimeout === null &&
 	       localStorage.getItem("practiceMode") == "true",
 	       "practice mode did not suppress and save the timer");
 	for (const row of puzzle.rows)
@@ -1469,7 +1470,8 @@ Deno.test("practice mode is saved and suppresses timing and scores", function() 
 	assert(!puzzle.setPracticeMode(false) && puzzle.practiceMode &&
 	       !puzzle.practiceModePreference &&
 	       !puzzle.options.querySelector("#practice-mode").checked &&
-	       puzzle.timer.hidden && puzzle.timerTimeout === null &&
+	       !puzzle.timer.hidden && puzzle.timer.classList.contains("zen") &&
+	       puzzle.timerTimeout === null &&
 	       puzzle.messages.innerHTML ==
 		       "Accepting enlightenment is a one-way door. Your next " +
 		       "journey will not be so calm." &&
@@ -3247,6 +3249,7 @@ Deno.test("a loss can continue as a Zen game", function() {
 	assert(!puzzle.gameOver && puzzle.practiceMode &&
 	       !puzzle.practiceModePreference && !puzzle.scoreEligible &&
 	       !puzzle.timer.hidden && puzzle.timerTimeout === null &&
+	       !puzzle.timer.classList.contains("zen") &&
 	       puzzle.timer.classList.contains("lost") &&
 	       puzzle.pendingProof && puzzle.pendingProof.continueGame &&
 	       slot.possibleElem.className != "solution" &&

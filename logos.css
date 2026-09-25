@@ -145,12 +145,17 @@ body.game-paused .pause-columns {
 	height: 1rem;
 }
 
-body #timer.contemplating :is(#timer-text, .pause-columns) {
+body #timer:is(.contemplating, .zen) :is(#timer-text, .pause-columns) {
 	display: none;
 }
 
-body #timer.contemplating .contemplation-infinity {
+body #timer:is(.contemplating, .zen) .contemplation-infinity {
 	display: block;
+}
+
+/* Ordinary Zen uses the same shape without contemplation's gold finish. */
+body #timer.zen:not(.contemplating) .contemplation-infinity path {
+	stroke: currentColor;
 }
 
 body.game-paused :is(#board-container, #hclues, #vclues) {

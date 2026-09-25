@@ -398,7 +398,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.updateSeedControls();
 		this.gameOver = true;
 		this.practiceMode = this.practiceModePreference;
-		this.timer.hidden = this.practiceMode;
+		this.timer.hidden = false;
 		this.proof = null;
 		this.pendingProof = null;
 		this.practiceMistake = null;
@@ -556,6 +556,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			this.scoreEligible = false;
 			this.timer.classList.add("lost");
 			this.practiceMode = true;
+			this.updatePauseControl();
 		}
 		if (this.practiceMode) {
 			this.clearPracticeMistake();
@@ -1151,6 +1152,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.updateTimer = function(elapsed) {
+		var untimed = this.practiceMode && !this.timer.classList.contains("lost");
+		this.timer.classList[untimed ? "add" : "remove"]("zen");
 		this.timerText.textContent = this.manualPaused ? "Paused" : formatTime(elapsed);
 	}
 
@@ -1160,7 +1163,9 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		for (var element of [board, this.hClues, this.vClues, this.boardActions, this.proofControls])
 			element.inert = paused || this.pendingSeed !== undefined;
 		this.timer.disabled = this.gameOver || this.practiceMode || this.pendingSeed !== undefined;
-		this.timer.title = paused ? "Resume game" : "Pause game";
+		this.timer.title = this.practiceMode ?
+			(this.timer.classList.contains("lost") ? "Zen mode: time at loss" :
+			 "Zen mode: no time limit") : paused ? "Resume game" : "Pause game";
 		this.timer.setAttribute("aria-label", this.timer.title);
 		this.updateTimer(this.timerTimeout === null ? this.timerElapsed : Date.now() - this.timerStarted);
 	}
@@ -2080,7 +2085,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			   this.timerTimeout === null) {
 			this.startTimer();
 		}
-		this.timer.hidden = enabled;
+		this.timer.hidden = this.seed === undefined;
 		this.updatePauseControl();
 		return true;
 	}
