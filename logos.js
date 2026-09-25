@@ -279,6 +279,14 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.explainButton = document.querySelector("#explain-button");
 	this.explainButton.disabled = true;
 	this.proofControls = document.querySelector("#proof-controls");
+	this.hintNotice = document.querySelector("#hint-notice");
+	this.hintNotice.hidden = true;
+	this.hintAcknowledged = false;
+	try {
+		this.hintAcknowledged = localStorage.getItem("hintAcknowledged") == "true";
+	} catch (e) {
+		/* The notice can still be acknowledged for this page. */
+	}
 	this.rows = [];
 	this.clues = [];
 	this.hClueSlots = [];
@@ -683,6 +691,13 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			this.showHint(stage);
 			return;
 		}
+		if (!this.practiceMode && !this.hintAcknowledged) {
+			this.pendingHint = { stage, gameIdentity: this.gameIdentity };
+			this.closeSlotTray();
+			this.toggleModal(this.hintNotice, this.explainButton, "Keep solving");
+			this.hintNotice.querySelector(".modal-close").focus();
+			return;
+		}
 		var base = domainsFromSlots(this);
 		var basePlacements = proofPlacementsFromSlots(this);
 		console.log(JSON.stringify({
@@ -717,7 +732,27 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.showHint(stage);
 	}
 
+	this.finishHintNotice = function(accept) {
+		var request = this.pendingHint;
+		if (!request)
+			return;
+		this.pendingHint = null;
+		this.toggleModal(this.hintNotice, this.explainButton, "Keep solving");
+		this.explainButton.focus();
+		if (!accept || request.gameIdentity !== this.gameIdentity || this.gameOver)
+			return;
+		this.hintAcknowledged = true;
+		try {
+			localStorage.setItem("hintAcknowledged", "true");
+		} catch (e) {
+			/* Keep the acknowledgement for this page if storage is unavailable. */
+		}
+		this.hint(request.stage);
+	}
+
 	this.clearHint = function() {
+		if (this.pendingHint)
+			this.finishHintNotice(false);
 		if (!this.hintRequest)
 			return;
 		this.hintRequest = null;
@@ -2069,6 +2104,10 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.options.addEventListener("click", function(ev) {
 		if (ev.target == puzzle.options)
 			puzzle.toggleOptions();
+	});
+	this.hintNotice.addEventListener("click", function(ev) {
+		if (ev.target == puzzle.hintNotice)
+			puzzle.finishHintNotice(false);
 	});
 	this.help.addEventListener("click", function(ev) {
 		if (ev.target == puzzle.help)

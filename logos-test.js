@@ -3598,6 +3598,7 @@ Deno.test("hints explain valid progress without changing their input", function(
 });
 
 Deno.test("console hints capture the live board and continue in Zen", function() {
+	localStorage.setItem("hintAcknowledged", "true");
 	localStorage.removeItem("practiceMode");
 	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
 	puzzle.newGame("5be42607");
@@ -3639,6 +3640,7 @@ Deno.test("console hints capture the live board and continue in Zen", function()
 });
 
 Deno.test("because reveals a hint progressively and resets after a move", function() {
+	localStorage.setItem("hintAcknowledged", "true");
 	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
 	puzzle.newGame("f2551f26");
 	const log = console.log;
@@ -3700,5 +3702,50 @@ Deno.test("because reveals a hint progressively and resets after a move", functi
 		puzzle.say("");
 	} finally {
 		console.log = log;
+	}
+});
+
+Deno.test("first hint notice is remembered only after acceptance", function() {
+	localStorage.removeItem("hintAcknowledged");
+	localStorage.removeItem("practiceMode");
+	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
+	puzzle.newGame("f2551f26");
+	puzzle.explainLoss();
+	assert(!puzzle.hintNotice.hidden && puzzle.paused && !puzzle.practiceMode &&
+	       puzzle.scoreEligible && !puzzle.hintRequest, "notice revealed assistance");
+	puzzle.finishHintNotice(false);
+	assert(puzzle.hintNotice.hidden && !puzzle.paused && puzzle.scoreEligible &&
+	       !puzzle.hintAcknowledged && !localStorage.getItem("hintAcknowledged"),
+	       "cancelling acknowledged the notice or changed the game");
+	puzzle.explainLoss();
+	const log = console.log;
+	console.log = () => {};
+	try {
+		puzzle.finishHintNotice(true);
+		assert(puzzle.practiceMode && puzzle.hintRequest.stage == 1 &&
+		       !puzzle.scoreEligible && localStorage.getItem("hintAcknowledged") == "true",
+		       "acceptance did not remember the notice and show the hint");
+		const next = makePuzzle(6, false, Logos.defaultSymbols);
+		assert(next.hintAcknowledged, "acknowledgement was not loaded");
+		puzzle.newGame("98079244");
+		puzzle.explainLoss();
+		assert(puzzle.hintNotice.hidden && puzzle.hintRequest,
+		       "acknowledged notice appeared again");
+		puzzle.clearHint();
+		puzzle.say("");
+		localStorage.removeItem("hintAcknowledged");
+		const zen = makePuzzle(6, false, Logos.defaultSymbols);
+		zen.setPracticeMode(true);
+		zen.newGame("98079244");
+		zen.explainLoss();
+		assert(zen.hintNotice.hidden && zen.hintRequest && !zen.hintAcknowledged &&
+		       !localStorage.getItem("hintAcknowledged"),
+		       "Zen hint showed or acknowledged the warning");
+		zen.clearHint();
+		zen.say("");
+	} finally {
+		console.log = log;
+		localStorage.removeItem("hintAcknowledged");
+		localStorage.removeItem("practiceMode");
 	}
 });

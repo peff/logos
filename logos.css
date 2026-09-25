@@ -768,7 +768,8 @@ body:is(.proof-active, :has(#proof-controls.hint-explanation)) #logo {
 
 .control-buttons > input,
 .modal-done,
-.option-action {
+.option-action,
+.help-explain-button {
 	border: 1px solid #8f826e;
 	border-radius: 0.13rem 0.21rem 0.15rem 0.19rem;
 	background-color: #d7cbb5;
@@ -888,7 +889,8 @@ body:is(.proof-active, :has(#proof-controls.hint-explanation)) #logo {
 	opacity: 0.35;
 }
 
-#explain-button {
+#explain-button,
+.help-explain-button {
 	font-family: "Logos Tiles";
 	font-synthesis: none;
 	font-weight: 400;
@@ -2277,6 +2279,18 @@ button.score-entry:focus-visible {
 	font-style: italic;
 }
 
+.help-explain-button {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	box-sizing: border-box;
+	width: 1.15em;
+	height: 1.15em;
+	font-size: 0.95em;
+	line-height: 1;
+	vertical-align: 0;
+}
+
 .help-option {
 	font-weight: bold;
 	white-space: nowrap;
@@ -2982,4 +2996,50 @@ body.proof-active :is(#hclues, #vclues) .clue.proof-current {
 	body:has(#board-actions:not([hidden])) #proof-controls {
 		margin-top: 2rem;
 	}
+}
+
+.hint-notice-panel {
+	position: relative;
+	width: min(22rem, 90vw);
+	padding: 1rem 1.4rem 1.2rem;
+	text-align: center;
+}
+
+.hint-notice-panel::before {
+	content: "";
+	position: absolute;
+	inset: 0.3rem;
+	border: 1px solid rgb(143 117 68 / 40%);
+	pointer-events: none;
+}
+
+.hint-notice-mark {
+	margin: 0 auto 0.25rem;
+	color: #94733e;
+	font: 1.6rem/1 Forum, Georgia, serif;
+	text-shadow: 0 1px 0 rgb(255 255 255 / 80%);
+}
+
+#hint-notice-title {
+	margin: 0;
+	color: #65502f;
+	font: 1.5rem/1.15 Forum, Georgia, serif;
+}
+
+#hint-notice-text {
+	margin: 0.8rem auto 0;
+	padding-top: 0.75rem;
+	border-top: 1px solid #c8b994;
+	font: 0.78rem/1.5 Georgia, "Times New Roman", serif;
+}
+
+.hint-notice-actions button {
+	font: 0.95rem/1.2 Forum, Georgia, serif;
+}
+
+.hint-notice-actions {
+	display: flex;
+	justify-content: center;
+	gap: 0.7rem;
+	margin-top: 1rem;
 }

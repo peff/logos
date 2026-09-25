@@ -102,6 +102,23 @@
 				        onClick="puzzle.moveProof(1)"
 				        aria-label="Next deduction">→</button>
 			</div>
+			<div id="hint-notice" class="modal" hidden role="dialog"
+			     aria-modal="true" aria-labelledby="hint-notice-title"
+			     aria-describedby="hint-notice-text">
+				<div class="modal-panel hint-notice-panel">
+					<div class="hint-notice-mark" aria-hidden="true">∵</div>
+					<h2 id="hint-notice-title">A little enlightenment?</h2>
+					<p id="hint-notice-text">Hints reveal useful deductions and put
+						this game in Zen mode. You can keep solving, but your time
+						will not count toward the Pantheon.</p>
+					<div class="hint-notice-actions">
+						<button class="option-action" type="button"
+						        onClick="puzzle.finishHintNotice(true)">Show hint</button>
+						<button class="modal-done modal-close" type="button"
+						        onClick="puzzle.finishHintNotice(false)">Keep solving</button>
+					</div>
+				</div>
+			</div>
 			<div id="scores-menu" class="modal" hidden role="dialog"
 			     aria-modal="true" aria-labelledby="scores-title">
 				<div class="modal-panel scores-panel">
@@ -468,6 +485,33 @@
 							option makes it easier to select small tiles,
 							at the expense of requiring multiple taps.</li>
 						</ul>
+						</div>
+					</section>
+					<section class="help-page help-page-hints" hidden>
+						<div class="help-page-content">
+						<h3>Hints</h3>
+						<p>Press
+							<span class="help-explain-button" role="img" aria-label="Hint or explain">∵</span>
+							for a hint: once to highlight a useful clue, again to
+							explain the deduction, and a third time to explore a
+							step-by-step proof. You can keep playing while the
+							single explanation is visible; making a move clears
+							it.
+						<p>Hints put the current game into <strong>Zen mode</strong>:
+							the timer becomes ∞, mistakes will no longer end the
+							game, and your run will not be eligible for the
+							Pantheon.
+						<h3>Mistakes</h3>
+						<p>After a mistake, a clue that directly contradicts your move
+							is highlighted, if one exists. Press
+							<span class="help-explain-button" role="img" aria-label="Hint or explain">∵</span>
+							to enter a step-by-step proof explaining why the move
+							was wrong.
+						<h3>Proofs</h3>
+						<p>Proof mode shows how each step would affect the board,
+							but does not permanently apply its moves. Dismiss the
+							proof by pressing the Hint button again, restoring
+							the board state.
 						</div>
 					</section>
 					</div>
