@@ -2228,6 +2228,7 @@ button.score-entry:focus-visible {
 .help-clues {
 	width: 100%;
 	border-collapse: collapse;
+	border-bottom: 1px solid #d5cec0;
 }
 
 .help-clues th,
@@ -2273,10 +2274,6 @@ button.score-entry:focus-visible {
 
 .help-example-row {
 	margin: 0.55rem auto 0.25rem;
-}
-
-.help-note {
-	font-style: italic;
 }
 
 .help-explain-button {
