@@ -483,8 +483,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		var value = this.options.querySelector("#game-seed").value.trim();
 		var seed = parseSeed(value);
 		this.options.querySelector("#start-game-button").value =
-			!value ? "Start with random seed" :
-			seed === this.seed && this.pendingSeed === undefined ? "Restart" : "Start with seed";
+			!value ? "Random" :
+			seed === this.seed && this.pendingSeed === undefined ? "Restart" : "Start";
 		var copy = this.options.querySelector("#copy-seed-link");
 		copy.disabled = seed === null;
 		copy.value = "Copy link";

@@ -1357,7 +1357,17 @@ body:is(.proof-active, :has(#proof-controls.hint-explanation)) #logo {
 }
 
 .seed-controls .option-action {
+	box-sizing: border-box;
+	flex-shrink: 0;
 	margin: 0;
+}
+
+#start-game-button {
+	width: 5.8em;
+}
+
+#copy-seed-link {
+	width: 5.8em;
 }
 
 #seed-difficulty {

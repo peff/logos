@@ -382,23 +382,23 @@ Deno.test("the seed action describes random, chosen, and restarted puzzles", fun
 		assert(start.value == expected,
 		       "unexpected seed action for " + JSON.stringify(value));
 		assert(puzzle.options.querySelector("#copy-seed-link").disabled ==
-		       (expected == "Start with random seed" || value == "invalid"),
+		       (expected == "Random" || value == "invalid"),
 		       "copy link was not enabled only for a valid seed");
 	}
-	edit("", "Start with random seed");
-	edit("0", "Start with seed");
+	edit("", "Random");
+	edit("0", "Start");
 	puzzle.newGame(0x2a);
 	puzzle.stopTimer();
 	assert(start.value == "Restart", "a new game did not update the action");
-	edit("", "Start with random seed");
-	edit("   ", "Start with random seed");
-	edit("2b", "Start with seed");
-	edit("invalid", "Start with seed");
+	edit("", "Random");
+	edit("   ", "Random");
+	edit("2b", "Start");
+	edit("invalid", "Start");
 	edit(" 2A ", "Restart");
 	edit("0000002a", "Restart");
 	puzzle.gameOver = true;
 	edit("2a", "Restart");
-	edit("2b", "Start with seed");
+	edit("2b", "Start");
 	puzzle.newGame(0);
 	puzzle.stopTimer();
 	edit("0", "Restart");
@@ -490,7 +490,7 @@ Deno.test("puzzle links prepare the board but wait for Start Game to begin play"
 		puzzle.options.hidden = true;
 		puzzle.toggleOptions();
 		assert(puzzle.options.querySelector("#game-seed").value == "0000002a" &&
-		       puzzle.options.querySelector("#start-game-button").value == "Start with seed",
+		       puzzle.options.querySelector("#start-game-button").value == "Start",
 		       "Options did not expose the pending seed");
 		puzzle.toggleOptions();
 		puzzle.setPageHidden(true);
