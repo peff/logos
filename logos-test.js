@@ -1621,6 +1621,83 @@ Deno.test("help pages generate folios and switch through hints", function() {
 	assert(!controls.hidden && hints.hidden, "generated button did not turn the page");
 });
 
+Deno.test("arrow keys navigate help without escaping the visible dialog", function() {
+	const puzzle = makePuzzle(1);
+	puzzle.help.hidden = false;
+	puzzle.paused = true;
+	document.modals = [puzzle.help];
+	let prevented = 0;
+	const press = (key, extra = {}) => document.listeners.keydown({
+		key, preventDefault() { prevented++; }, ...extra,
+	});
+	try {
+		press("ArrowLeft");
+		assert(puzzle.helpPage == 0, "left arrow escaped the first leaf");
+		press("ArrowRight");
+		assert(puzzle.helpPage == 1 &&
+		       puzzle.helpPages[1].querySelector(".help-page-previous").focused,
+		       "right arrow did not turn the leaf and move focus");
+		press("ArrowLeft");
+		assert(puzzle.helpPage == 0, "left arrow did not turn back");
+		for (const modifier of ["shiftKey", "ctrlKey", "altKey", "metaKey"])
+			press("ArrowRight", { [modifier]: true });
+		for (const target of [
+			{ tagName: "INPUT", type: "text" },
+			{ tagName: "SELECT" }, { tagName: "TEXTAREA" },
+			{ isContentEditable: true },
+		])
+			press("ArrowRight", { target });
+		assert(puzzle.helpPage == 0 && prevented == 3,
+		       "navigation consumed a modified key or an editing key");
+		puzzle.showHelpPage(puzzle.helpPages.length - 1);
+		press("ArrowRight");
+		assert(puzzle.helpPage == puzzle.helpPages.length - 1,
+		       "right arrow escaped the last leaf");
+		puzzle.about.hidden = false;
+		document.modals.push(puzzle.about);
+		puzzle.proof = {};
+		puzzle.paused = false;
+		puzzle.moveProof = () => { throw new Error("moved a covered proof"); };
+		press("ArrowLeft");
+		assert(puzzle.helpPage == puzzle.helpPages.length - 1 && prevented == 4,
+		       "another dialog allowed navigation of the help behind it");
+	} finally {
+		document.modals = [];
+	}
+});
+
+Deno.test("arrow keys navigate Chronicle leaves but not the Pantheon", async function() {
+	await withRunHistory(async function() {
+		const puzzle = makePuzzle(1);
+		puzzle.scores.hidden = false;
+		await puzzle.showRunHistory();
+		document.modals = [puzzle.scores];
+		let prevented = 0;
+		const press = key => document.listeners.keydown({
+			key, preventDefault() { prevented++; },
+		});
+		try {
+			press("ArrowLeft");
+			assert(puzzle.historyPage == 0, "escaped the first Chronicle leaf");
+			press("ArrowRight");
+			assert(puzzle.historyPage == 1, "did not advance the Chronicle");
+			press("ArrowRight");
+			assert(puzzle.historyPage == 1, "escaped the last Chronicle leaf");
+			press("ArrowLeft");
+			assert(puzzle.historyPage == 0 && prevented == 4,
+			       "did not return to the first Chronicle leaf");
+			puzzle.showPantheon();
+			press("ArrowRight");
+			assert(puzzle.historyPage == 0 && prevented == 4,
+			       "Pantheon consumed a Chronicle navigation key");
+		} finally {
+			document.modals = [];
+		}
+	}, Array.from({ length: 9 }, (_, i) => ({
+		date: i, seed: i, elapsed: i, outcome: "won",
+	})));
+});
+
 Deno.test("a directly contradicting clue is highlighted", function() {
 	const puzzle = makePuzzle(2);
 	const left = puzzle.rows[0].slots[0];

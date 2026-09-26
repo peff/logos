@@ -2143,8 +2143,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			ev.preventDefault();
 			return;
 		}
-		if (!puzzle.proof || puzzle.paused || ev.altKey || ev.ctrlKey ||
-		    ev.metaKey || ev.shiftKey)
+		if (ev.altKey || ev.ctrlKey || ev.metaKey || ev.shiftKey)
 			return;
 		var direction;
 		if (ev.key == "ArrowLeft")
@@ -2152,6 +2151,29 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		else if (ev.key == "ArrowRight")
 			direction = 1;
 		else
+			return;
+		var modals = document.querySelectorAll(".modal:not([hidden])");
+		if (modals.length) {
+			var target = ev.target;
+			if (target && (target.isContentEditable ||
+			    target.tagName == "SELECT" || target.tagName == "TEXTAREA" ||
+			    (target.tagName == "INPUT" &&
+			     !["button", "submit", "reset", "checkbox"].includes(target.type))))
+				return;
+			var modal = modals[modals.length - 1];
+			if (modal == puzzle.help) {
+				ev.preventDefault();
+				var page = puzzle.helpPage + direction;
+				if (page >= 0 && page < puzzle.helpPages.length)
+					puzzle.turnHelpPage(direction);
+			} else if (modal == puzzle.scores &&
+			           !puzzle.scores.querySelector(".history-view").hidden) {
+				ev.preventDefault();
+				puzzle.renderRunHistory(puzzle.historyPage + direction);
+			}
+			return;
+		}
+		if (!puzzle.proof || puzzle.paused)
 			return;
 		ev.preventDefault();
 		puzzle.moveProof(direction);
