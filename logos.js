@@ -352,6 +352,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			this.resumeAfterPageHidden = this.pageHidden && !this.practiceMode;
 			this.invitation.classList.remove("revealing");
 			this.updateSeedControls();
+			this.updateSeedDifficulty();
 			this.updateActionControls();
 			if (!this.paused && !this.practiceMode)
 				this.startTimer();
@@ -463,6 +464,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		if (!this.practiceMode && !awaitStart)
 			this.startTimer();
 		this.say(awaitStart ? "" : randomChoice(startMessages));
+		this.updateSeedDifficulty();
 		this.updateActionControls();
 		return true;
 	}
@@ -488,12 +490,13 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		copy.value = "Copy link";
 	}
 
-	this.updateSeedDifficulty = function(typing = false) {
+	this.updateSeedDifficulty = function() {
 		var display = this.options.querySelector("#seed-difficulty");
 		display.textContent = "";
 		var value = this.options.querySelector("#game-seed").value.trim();
 		var seed = parseSeed(value);
-		if (this.options.hidden || seed === null || typing && value.length != 8)
+		if (this.options.hidden || seed === null || seed !== this.seed ||
+		    this.pendingSeed !== undefined)
 			return;
 		if (!this.seedDifficultyCache || this.seedDifficultyCache.seed !== seed)
 			this.seedDifficultyCache = { seed: seed, difficulty: puzzleDifficulty(puzzleFromSeed(seed)) };
@@ -2096,9 +2099,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	});
 	this.options.querySelector("#game-seed").addEventListener("input", function() {
 		puzzle.updateSeedControls();
-		puzzle.updateSeedDifficulty(true);
-	});
-	this.options.querySelector("#game-seed").addEventListener("blur", function() {
 		puzzle.updateSeedDifficulty();
 	});
 	this.options.addEventListener("click", function(ev) {

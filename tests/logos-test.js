@@ -415,40 +415,53 @@ Deno.test("pasting a seed replaces the field and refreshes its controls", functi
 		preventDefault() { prevented = true; },
 	});
 	assert(prevented && input.value == "98079244", "paste did not replace the existing seed");
-	assert(puzzle.options.querySelector("#seed-difficulty").textContent == "Difficulty: Easy" &&
+	assert(puzzle.options.querySelector("#seed-difficulty").textContent == "" &&
 	       !puzzle.options.querySelector("#copy-seed-link").disabled,
-	       "paste did not refresh difficulty and seed controls");
+	       "paste revealed difficulty or failed to refresh seed controls");
 });
 
-Deno.test("seed difficulty previews complete input and shorter seeds on blur", function() {
+Deno.test("seed difficulty is revealed only for the current started puzzle", function() {
 	const puzzle = makePuzzle(6);
+	puzzle.say = function() {};
 	puzzle.options.hidden = false;
 	const input = puzzle.options.querySelector("#game-seed");
 	const display = puzzle.options.querySelector("#seed-difficulty");
-	for (const value of ["9", "98", "9807924"]) {
+	for (const value of ["9", "98079244", "2a", "invalid!", ""]) {
 		input.value = value;
 		input.listeners.input();
 		assert(!puzzle.seedDifficultyCache && display.textContent == "",
-		       "typing an incomplete seed computed difficulty");
+		       "an unplayed seed revealed its difficulty");
+	}
+	puzzle.newGame("98079244", true);
+	puzzle.updateSeedDifficulty();
+	assert(display.textContent == "" && !puzzle.seedDifficultyCache,
+	       "the Start Game invitation revealed difficulty");
+	puzzle.startGame();
+	puzzle.stopTimer();
+	assert(display.textContent == "Difficulty: Easy", "starting did not reveal difficulty");
+	const cache = puzzle.seedDifficultyCache;
+	for (const value of ["2a", "98079245", "", "invalid!"]) {
+		input.value = value;
+		input.listeners.input();
+		assert(display.textContent == "" && puzzle.seedDifficultyCache === cache,
+		       "editing the seed computed or displayed another puzzle's difficulty");
 	}
 	input.value = "98079244";
 	input.listeners.input();
-	assert(display.textContent == "Difficulty: Easy", "complete seed was not rated immediately");
-	const cache = puzzle.seedDifficultyCache;
-	input.listeners.blur();
-	assert(puzzle.seedDifficultyCache === cache, "blur recomputed the same seed");
-	input.value = "2a";
+	assert(display.textContent == "Difficulty: Easy" && puzzle.seedDifficultyCache === cache,
+	       "returning to the current seed did not restore its rating");
+	// Both win and loss paths leave the seed intact and set gameOver.
+	puzzle.gameOver = true;
+	puzzle.updateSeedDifficulty();
+	assert(display.textContent == "Difficulty: Easy", "completed game lost its rating");
+	puzzle.newGame("2a");
+	puzzle.stopTimer();
+	input.value = " 2A ";
 	input.listeners.input();
-	assert(display.textContent == "", "editing left stale difficulty");
-	input.listeners.blur();
-	assert(puzzle.seedDifficultyCache.seed === 42 && display.textContent.startsWith("Difficulty: "),
-	       "blur did not rate a shorter valid seed");
-	for (const value of ["", "invalid!"]) {
-		input.value = value;
-		input.listeners.input();
-		input.listeners.blur();
-		assert(display.textContent == "", "invalid input displayed difficulty");
-	}
+	assert(display.textContent.startsWith("Difficulty: ") && puzzle.seedDifficultyCache.seed === 42,
+	       "equivalent short seed did not show the current rating");
+	puzzle.newGame("2a", true);
+	assert(display.textContent == "", "cached difficulty leaked before starting a replay");
 });
 
 Deno.test("puzzle links prepare the board but wait for Start Game to begin play", function() {
