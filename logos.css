@@ -2048,6 +2048,7 @@ button.score-entry:focus-visible {
 
 .history-table {
 	width: 100%;
+	table-layout: fixed;
 	border-collapse: collapse;
 	font-size: 0.85em;
 	font-variant-numeric: tabular-nums;
@@ -2061,8 +2062,16 @@ button.score-entry:focus-visible {
 }
 
 .history-table th {
+	box-sizing: border-box;
 	background: #ece9df;
 }
+
+/* Keep the headings still as dates and other values change between leaves. */
+.history-table th:nth-child(1) { width: 27%; }
+.history-table th:nth-child(2) { width: 14%; }
+.history-table th:nth-child(3) { width: 16%; }
+.history-table th:nth-child(4) { width: 23%; }
+.history-table th:nth-child(5) { width: 20%; }
 
 .history-table th button {
 	display: inline-flex;
