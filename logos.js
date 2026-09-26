@@ -4483,7 +4483,7 @@ function isClueExhausted(clue) {
 
 /* Approximate the experimental percentile composite with a weighted raw
  * score. Fit on 1,000 five-route puzzles and checked on 10,000 separate seeds;
- * see DIFFICULTY.md. These units are not percentiles.
+ * see analysis/DIFFICULTY.md. These units are not percentiles.
  */
 function difficultyRating(metrics) {
 	var score = metrics.supportSteps + 2.65 * metrics.scarcity +
