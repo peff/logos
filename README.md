@@ -34,11 +34,3 @@ Puzzle links
 
 Append `#seed=1234abcd` to the page URL to link to a particular puzzle
 (seeds are up to 8 hexadecimal digits). Click "Start Game" to begin it.
-
-Analysis
-========
-
-Use `./analysis/puzzle SEED` to inspect a puzzle's difficulty, or
-`./analysis/puzzle --position` to paste a position snapshot through stdin.
-See [analysis/README.md](analysis/README.md) for position analysis and
-optional solution walkthroughs.
