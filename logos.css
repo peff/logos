@@ -1,6 +1,6 @@
 @font-face {
 	font-family: Forum;
-	src: url("Forum-Regular.ttf") format("truetype");
+	src: url("fonts/Forum-Regular.ttf") format("truetype");
 	font-weight: 400;
 	font-style: normal;
 	font-display: swap;
@@ -8,7 +8,7 @@
 
 @font-face {
 	font-family: "EB Garamond";
-	src: url("EBGaramond-Italic-subset.woff2") format("woff2");
+	src: url("fonts/EBGaramond-Italic-subset.woff2") format("woff2");
 	font-weight: 400;
 	font-style: italic;
 	font-display: swap;
@@ -16,7 +16,7 @@
 
 @font-face {
 	font-family: "Logos Tiles";
-	src: url("logos-tiles.woff2") format("woff2");
+	src: url("fonts/logos-tiles.woff2") format("woff2");
 	font-weight: 400;
 	font-style: normal;
 	font-display: block;
@@ -34,10 +34,10 @@ html {
 body {
 	--big-tile-width: 2.65rem;
 	--big-tile-height: 2.65rem;
-	--default-cursor: url("cursor-stylus.svg") 1 1, default;
-	--action-cursor: url("cursor-stylus-active.svg") 1 1, pointer;
-	--discard-cursor: url("cursor-ostracon.svg") 2 2, crosshair;
-	--discard-action-cursor: url("cursor-ostracon-active.svg") 2 2, crosshair;
+	--default-cursor: url("images/cursor-stylus.svg") 1 1, default;
+	--action-cursor: url("images/cursor-stylus-active.svg") 1 1, pointer;
+	--discard-cursor: url("images/cursor-ostracon.svg") 2 2, crosshair;
+	--discard-action-cursor: url("images/cursor-ostracon-active.svg") 2 2, crosshair;
 	cursor: var(--default-cursor);
 	display: grid;
 	grid-template-columns: max-content 27.5rem;
@@ -179,7 +179,7 @@ body #timer::before {
 		inset 0 0 0 2px rgb(32 42 43 / 55%);
 	background:
 		linear-gradient(rgb(49 66 68 / 82%), rgb(35 48 50 / 92%)),
-		url("stone-texture.png") center / 8rem auto;
+		url("images/stone-texture.png") center / 8rem auto;
 }
 
 body #timer::after {
@@ -547,13 +547,13 @@ body[data-discard-cursor="true"] #board {
 }
 
 body[data-chalk-cursor="true"]:not([data-custom-cursor="false"]) #board {
-	--default-cursor: url("cursor-chalk.svg") 2 2, default;
-	--action-cursor: url("cursor-chalk-active.svg") 2 2, pointer;
+	--default-cursor: url("images/cursor-chalk.svg") 2 2, default;
+	--action-cursor: url("images/cursor-chalk-active.svg") 2 2, pointer;
 }
 
 body[data-chalk-cursor="true"][data-discard-cursor="true"]:not([data-custom-cursor="false"]) #board {
-	--default-cursor: url("cursor-chalk-discard.svg") 2 2, crosshair;
-	--action-cursor: url("cursor-chalk-discard-active.svg") 2 2, crosshair;
+	--default-cursor: url("images/cursor-chalk-discard.svg") 2 2, crosshair;
+	--action-cursor: url("images/cursor-chalk-discard-active.svg") 2 2, crosshair;
 }
 
 :is(#board tr, #slot-tray .slot-tray-panel).pencil-conflict {
@@ -673,7 +673,7 @@ body[data-chalk-cursor="true"][data-discard-cursor="true"]:not([data-custom-curs
 	background-image:
 		linear-gradient(145deg,
 			rgb(247 243 233 / 91%), rgb(224 214 195 / 88%)),
-		url("stone-texture.png");
+		url("images/stone-texture.png");
 	background-position: center;
 	background-size: auto, 6rem 3rem;
 	box-shadow:
@@ -689,7 +689,7 @@ body[data-chalk-cursor="true"][data-discard-cursor="true"]:not([data-custom-curs
 			rgb(126 87 46 / 72%),
 			rgb(184 145 87 / 68%) 48%,
 			rgb(121 82 43 / 72%)) 1x),
-		url("stone-texture.png");
+		url("images/stone-texture.png");
 	border-color: #624325;
 	background-color: #876038;
 	box-shadow:
@@ -776,7 +776,7 @@ body:is(.proof-active, :has(#proof-controls.hint-explanation)) #logo {
 	background-image:
 		image-set(linear-gradient(to bottom,
 			rgb(239 233 219 / 70%), rgb(190 176 151 / 64%)) 1x),
-		url("stone-texture.png");
+		url("images/stone-texture.png");
 	background-position: center, center;
 	background-size: auto, 4rem 2rem;
 	box-shadow:
@@ -810,7 +810,7 @@ body:is(.proof-active, :has(#proof-controls.hint-explanation)) #logo {
 	background-image:
 		image-set(linear-gradient(to bottom,
 			rgb(246 240 226 / 76%), rgb(201 187 162 / 59%)) 1x),
-		url("stone-texture.png");
+		url("images/stone-texture.png");
 }
 
 .control-buttons > input:active,
@@ -820,7 +820,7 @@ body:is(.proof-active, :has(#proof-controls.hint-explanation)) #logo {
 	background-image:
 		image-set(linear-gradient(to bottom,
 			rgb(165 149 124 / 67%), rgb(224 215 198 / 70%)) 1x),
-		url("stone-texture.png");
+		url("images/stone-texture.png");
 	box-shadow:
 		inset 0 0.05rem 0.12rem rgb(73 62 47 / 38%),
 		inset 0 -0.04rem 0 rgb(255 255 255 / 25%);
@@ -901,7 +901,7 @@ body:is(.proof-active, :has(#proof-controls.hint-explanation)) #logo {
 	background-image:
 		image-set(linear-gradient(to bottom,
 			rgb(165 149 124 / 67%), rgb(224 215 198 / 70%)) 1x),
-		url("stone-texture.png");
+		url("images/stone-texture.png");
 	box-shadow:
 		inset 0 0.05rem 0.12rem rgb(73 62 47 / 38%),
 		inset 0 -0.04rem 0 rgb(255 255 255 / 25%);
@@ -964,7 +964,7 @@ body:is(.proof-active, :has(#proof-controls.hint-explanation)) #logo {
 	background:
 		linear-gradient(145deg,
 			rgb(239 233 219 / 70%), rgb(190 176 151 / 64%)),
-		url("stone-texture.png");
+		url("images/stone-texture.png");
 	background-position: center;
 	background-size: auto, 4rem 2rem;
 	box-shadow:
@@ -1214,7 +1214,7 @@ body:is(.proof-active, :has(#proof-controls.hint-explanation)) #logo {
 	background-image:
 		linear-gradient(145deg,
 			rgb(247 243 233 / 91%), rgb(224 214 195 / 88%)),
-		url("stone-texture.png");
+		url("images/stone-texture.png");
 	background-position: center;
 	background-size: auto, 6rem 3rem;
 	box-shadow:
@@ -1297,7 +1297,7 @@ body:is(.proof-active, :has(#proof-controls.hint-explanation)) #logo {
 	height: 0.85rem;
 	border: 1px solid #8f826e;
 	border-radius: 0.1rem;
-	background: #d7cbb5 url("stone-texture.png") center / 4rem 2rem;
+	background: #d7cbb5 url("images/stone-texture.png") center / 4rem 2rem;
 	box-shadow: inset 0.04rem 0.04rem 0 rgb(255 255 255 / 55%),
 		0 0.04rem 0.08rem rgb(42 37 30 / 35%);
 }
@@ -1307,7 +1307,7 @@ body:is(.proof-active, :has(#proof-controls.hint-explanation)) #logo {
 	height: 0.85rem;
 	border: 1px solid #8f826e;
 	border-radius: 0.1rem;
-	background: #d7cbb5 url("stone-texture.png") center / 4rem 2rem;
+	background: #d7cbb5 url("images/stone-texture.png") center / 4rem 2rem;
 	box-shadow: inset 0.04rem 0.04rem 0 rgb(255 255 255 / 55%),
 		0 0.04rem 0.08rem rgb(42 37 30 / 35%);
 }
@@ -2389,7 +2389,7 @@ button.score-entry:focus-visible {
 	padding: 1.2rem;
 	background:
 		linear-gradient(145deg, rgb(246 239 222 / 85%), rgb(207 191 160 / 78%)),
-		url("stone-texture.png") center / 7rem 4rem;
+		url("images/stone-texture.png") center / 7rem 4rem;
 	box-shadow: inset 0.08rem 0.08rem 0 rgb(255 255 255 / 65%),
 		inset -0.08rem -0.08rem 0 rgb(93 74 42 / 25%),
 		0.12rem 0.18rem 0.3rem rgb(48 40 27 / 25%);
@@ -2854,7 +2854,7 @@ body.proof-active :is(#hclues, #vclues) .clue.proof-current {
 .help-tile,
 .slot-tray-symbol,
 .slot-tray-action-sample {
-	background-image: url("slate-texture.png");
+	background-image: url("images/slate-texture.png");
 	background-position:
 		calc(var(--slate-family-x, 0rem) +
 			var(--slate-slot-x, 0rem) + var(--slate-tile-x, 0rem))

@@ -4,7 +4,7 @@
 
 Source: https://github.com/google/fonts/tree/main/ofl/ebgaramond
 Requires fontTools and Brotli (pip install 'fonttools[woff]').
-Usage: python3 subset-inscription-font.py INPUT.ttf OUTPUT.woff2
+Usage: python3 fonts/subset-inscription-font.py INPUT.ttf OUTPUT.woff2
 Keep EBGaramond-OFL.txt alongside the generated font.
 """
 

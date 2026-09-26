@@ -1,6 +1,6 @@
 import { Logos, makePuzzle } from "./logos-test.js";
-import "./logos-multiplayer.js";
-import "./logos-webrtc.js";
+import "../friends/logos-multiplayer.js";
+import "../friends/logos-webrtc.js";
 
 const {
 	InMemoryMultiplayerNetwork,

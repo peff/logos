@@ -7,7 +7,7 @@ chat, email, or another existing channel. It uses Cloudflare's public STUN
 server to discover routes through typical NATs, but does not configure a TURN
 relay. Some restrictive networks may therefore still prevent a connection.
 
-Serve this directory over HTTP:
+Serve the repository root over HTTP:
 
     python3 -m http.server 8767
 

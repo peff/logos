@@ -129,7 +129,7 @@ Object.defineProperty(globalThis, "localStorage", { value: {
 } });
 
 const source = await Deno.readTextFile(
-	new URL("./logos.js", import.meta.url));
+	new URL("../logos.js", import.meta.url));
 const Logos = eval(source +
 	"\n;({ puzzleDifficulty, difficultyRating, puzzleFromSeed, " +
 	"difficultyOpportunities, nextHintStep, " +
