@@ -17,7 +17,8 @@ See [DIFFICULTY.md](DIFFICULTY.md) for the methodology.
 
 ## A position where you wanted help
 
-Press ∵ in the game and copy the JSON snapshot from the browser console. Run:
+In Options, click the difficulty readout three times to unlock Puzzle analysis
+(only one click is needed afterward). Choose **Copy position**, then run:
 
 ```sh
 ./analysis/puzzle --position

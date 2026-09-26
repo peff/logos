@@ -39,6 +39,6 @@ Analysis
 ========
 
 Use `./analysis/puzzle SEED` to inspect a puzzle's difficulty, or
-`./analysis/puzzle --position` to paste a hint snapshot through stdin.
+`./analysis/puzzle --position` to paste a position snapshot through stdin.
 See [analysis/README.md](analysis/README.md) for position analysis and
 optional solution walkthroughs.

@@ -2,7 +2,7 @@ const usage = `Usage: analysis/puzzle SEED_OR_URL [--trace]
        analysis/puzzle --position [--trace] < snapshot.json
 
 By default, seed queries show only the difficulty score and metrics.
---position reads a console snapshot from stdin and lists available deductions.
+--position reads a position snapshot from stdin and lists available deductions.
 --trace shows a full hint walkthrough (spoilers), not a difficulty-scoring route.
 
 Paste a snapshot after running --position, then press Ctrl-D to finish input.`;
@@ -160,7 +160,7 @@ async function main(args) {
 		try {
 			snapshot = JSON.parse(await new Response(Deno.stdin.readable).text());
 		} catch (_) {
-			throw new Error("stdin must contain one JSON snapshot from the hint console log");
+			throw new Error("stdin must contain one JSON snapshot from Copy position");
 		}
 		if (!snapshot || typeof snapshot !== "object")
 			throw new Error("expected a JSON snapshot object");

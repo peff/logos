@@ -3687,7 +3687,7 @@ Deno.test("hints explain valid progress without changing their input", function(
 	}
 });
 
-Deno.test("console hints capture the live board and continue in Zen", function() {
+Deno.test("hints preserve the live board and continue in Zen", function() {
 	localStorage.setItem("hintAcknowledged", "true");
 	localStorage.removeItem("practiceMode");
 	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
@@ -3702,10 +3702,11 @@ Deno.test("console hints capture the live board and continue in Zen", function()
 	} finally {
 		console.log = log;
 	}
-	const snapshot = JSON.parse(messages[0]);
+	const snapshot = puzzle.positionSnapshot();
+	assert(messages.length == 0, "hint still logged its position");
 	assert(snapshot.seed == "5be42607" && snapshot.generatorVersion == 1 &&
 	       snapshot.domains.length == 6 && snapshot.placements.length == 6,
-	       "hint did not log a reproducible snapshot");
+	       "position snapshot is incomplete");
 	assert(puzzle.practiceMode && !puzzle.scoreEligible &&
 	       !puzzle.practiceModePreference && puzzle.timerTimeout === null &&
 	       !puzzle.timer.hidden && puzzle.timer.classList.contains("zen") &&
@@ -3762,8 +3763,8 @@ Deno.test("because reveals a hint progressively and resets after a move", functi
 		       "text hint changed the status message or board display");
 		puzzle.explainLoss();
 		assert(puzzle.proof.hint && puzzle.proof.steps[0] === request.step &&
-		       puzzle.proof.steps.length > 1 && messages.length == 1,
-		       "third press did not expand the same hint with one snapshot");
+		       puzzle.proof.steps.length > 1 && messages.length == 0,
+		       "third press did not expand the same hint without console output");
 		const final = puzzle.proof.steps.at(-1);
 		assert(final.placements.every(bits => bits == 63),
 		       "walkthrough does not reach the solution");
@@ -3837,5 +3838,83 @@ Deno.test("first hint notice is remembered only after acceptance", function() {
 		console.log = log;
 		localStorage.removeItem("hintAcknowledged");
 		localStorage.removeItem("practiceMode");
+	}
+});
+
+Deno.test("analysis unlocks within one Options visit and refreshes the current position", function() {
+	localStorage.removeItem("analysisUnlocked");
+	localStorage.removeItem("practiceMode");
+	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
+	puzzle.say = function() {};
+	puzzle.newGame("1566fa35");
+	puzzle.options.hidden = true;
+	puzzle.toggleOptions();
+	puzzle.openAnalysis();
+	puzzle.openAnalysis();
+	assert(puzzle.analysis.hidden && !puzzle.analysisUnlocked, "analysis unlocked too early");
+	puzzle.toggleOptions();
+	puzzle.toggleOptions();
+	puzzle.openAnalysis();
+	assert(puzzle.analysis.hidden && puzzle.analysisClicks == 1,
+	       "partial unlock survived closing Options");
+	const input = puzzle.options.querySelector("#game-seed");
+	input.value = "bad seed";
+	puzzle.openAnalysis();
+	assert(puzzle.analysisClicks == 1, "invalid seed counted toward unlock");
+	input.value = "98079244";
+	puzzle.openAnalysis();
+	assert(puzzle.analysisClicks == 1, "different seed counted toward unlock");
+	input.value = "1566fa35";
+	const before = JSON.stringify(puzzle.positionSnapshot());
+	puzzle.openAnalysis();
+	puzzle.openAnalysis();
+	assert(!puzzle.analysis.hidden && puzzle.options.hidden && puzzle.paused &&
+	       puzzle.analysisUnlocked && localStorage.getItem("analysisUnlocked") == "true",
+	       "third click did not open and remember analysis");
+	assert(!puzzle.practiceMode && puzzle.scoreEligible &&
+	       puzzle.analysisSnapshot == before && JSON.stringify(puzzle.positionSnapshot()) == before,
+	       "analysis changed the board or scoring eligibility");
+	assert(puzzle.analysis.querySelector(".analysis-deductions").children.length <= 3 &&
+	       puzzle.analysis.querySelector(".analysis-summary").textContent.includes("28.06"),
+	       "analysis is missing its rating or has unbounded deductions");
+	puzzle.closeAnalysis();
+	assert(!puzzle.options.hidden && puzzle.paused, "closing analysis resumed the game");
+	puzzle.toggleOptions();
+	const slot = puzzle.rows[0].slots.find(slot => !slot.single);
+	slot.discard((slot.value + 1) % 6);
+	puzzle.toggleOptions();
+	puzzle.openAnalysis();
+	assert(!puzzle.analysis.hidden && puzzle.analysisSnapshot != before &&
+	       puzzle.analysisSnapshot == JSON.stringify(puzzle.positionSnapshot()),
+	       "unlocked analysis did not open immediately with fresh state");
+	puzzle.closeAnalysis();
+	const next = makePuzzle(6);
+	assert(next.analysisUnlocked, "analysis unlock was not restored");
+	puzzle.newGame("1566fa35", true);
+	puzzle.openAnalysis();
+	assert(puzzle.analysis.hidden, "analysis opened before Start Game");
+	localStorage.removeItem("analysisUnlocked");
+});
+
+Deno.test("analysis copies the displayed snapshot", async function() {
+	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
+	puzzle.say = function() {};
+	puzzle.newGame("1566fa35");
+	puzzle.stopTimer();
+	puzzle.options.hidden = false;
+	puzzle.analysisUnlocked = true;
+	puzzle.openAnalysis();
+	const clipboard = Object.getOwnPropertyDescriptor(navigator, "clipboard");
+	let copied;
+	Object.defineProperty(navigator, "clipboard", {configurable:true,
+		value:{writeText: async text => { copied = text; }}});
+	try {
+		await puzzle.copyAnalysisPosition();
+		assert(copied == puzzle.analysisSnapshot && JSON.parse(copied).seed == "1566fa35" &&
+		       puzzle.analysis.querySelector(".analysis-copy").textContent == "Copied",
+		       "copy did not preserve the displayed snapshot");
+	} finally {
+		if (clipboard) Object.defineProperty(navigator, "clipboard", clipboard);
+		else delete navigator.clipboard;
 	}
 });

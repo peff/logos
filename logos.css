@@ -1371,6 +1371,12 @@ body:is(.proof-active, :has(#proof-controls.hint-explanation)) #logo {
 }
 
 #seed-difficulty {
+	display: block;
+	border: 0;
+	padding: 0;
+	background: transparent;
+	font-size: inherit;
+	text-align: left;
 	min-height: 1.2em;
 	margin-top: 0.25em;
 	color: #68685f;
@@ -3058,4 +3064,23 @@ body.proof-active :is(#hclues, #vclues) .clue.proof-current {
 	justify-content: center;
 	gap: 0.7rem;
 	margin-top: 1rem;
+}
+
+.analysis-panel {
+	width: min(32rem, calc(100vw - 2rem));
+	max-height: calc(100dvh - 2rem);
+	overflow: auto;
+}
+
+.analysis-summary {
+	white-space: pre-wrap;
+	font-size: 0.75em;
+}
+
+.analysis-deductions {
+	padding-left: 1.4em;
+}
+
+.analysis-deductions li + li {
+	margin-top: 0.5em;
 }

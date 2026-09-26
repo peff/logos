@@ -102,6 +102,20 @@
 				        onClick="puzzle.moveProof(1)"
 				        aria-label="Next deduction">→</button>
 			</div>
+			<div id="analysis-menu" class="modal" hidden role="dialog"
+			     aria-modal="true" aria-labelledby="analysis-title">
+				<div class="modal-panel analysis-panel">
+					<h2 id="analysis-title">Puzzle analysis</h2>
+					<pre class="analysis-summary"></pre>
+					<h3>Deductions from the current position (up to three)</h3>
+					<ol class="analysis-deductions"></ol>
+					<p class="analysis-empty" hidden>No clue deductions available.</p>
+					<button class="option-action analysis-copy" type="button"
+					        onClick="puzzle.copyAnalysisPosition()">Copy position</button>
+					<button class="modal-done modal-close" type="button"
+					        onClick="puzzle.closeAnalysis()">Back to Options</button>
+				</div>
+			</div>
 			<div id="hint-notice" class="modal" hidden role="dialog"
 			     aria-modal="true" aria-labelledby="hint-notice-title"
 			     aria-describedby="hint-notice-text">
@@ -323,7 +337,8 @@
 								<input id="copy-seed-link" class="option-action" type="button" disabled
 								       onClick="puzzle.copySeedLink()" value="Copy link">
 							</div>
-							<div id="seed-difficulty" role="status"></div>
+							<button id="seed-difficulty" type="button" disabled
+							        onClick="puzzle.openAnalysis()"></button>
 						</div>
 					</fieldset>
 					<input class="modal-done modal-close" type="button"

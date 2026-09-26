@@ -279,6 +279,15 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.explainButton = document.querySelector("#explain-button");
 	this.explainButton.disabled = true;
 	this.proofControls = document.querySelector("#proof-controls");
+	this.analysis = document.querySelector("#analysis-menu");
+	this.analysis.hidden = true;
+	this.analysisClicks = 0;
+	this.analysisUnlocked = false;
+	try {
+		this.analysisUnlocked = localStorage.getItem("analysisUnlocked") == "true";
+	} catch (e) {
+		/* Unlocking can still last for this page without storage. */
+	}
 	this.hintNotice = document.querySelector("#hint-notice");
 	this.hintNotice.hidden = true;
 	this.hintAcknowledged = false;
@@ -493,6 +502,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.updateSeedDifficulty = function() {
 		var display = this.options.querySelector("#seed-difficulty");
 		display.textContent = "";
+		display.disabled = true;
 		var value = this.options.querySelector("#game-seed").value.trim();
 		var seed = parseSeed(value);
 		if (this.options.hidden || seed === null || seed !== this.seed ||
@@ -502,6 +512,96 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			this.seedDifficultyCache = { seed: seed, difficulty: puzzleDifficulty(puzzleFromSeed(seed)) };
 		var level = this.seedDifficultyCache.difficulty.level;
 		display.textContent = "Difficulty: " + level[0].toUpperCase() + level.slice(1);
+		display.disabled = false;
+		display.title = this.analysisUnlocked ? "Puzzle analysis" : "";
+	}
+
+	this.positionSnapshot = function() {
+		return {
+			seed: formatSeed(this.seed),
+			generatorVersion: puzzleGeneratorVersion,
+			// Indexed by row, then symbol; bits identify possible columns.
+			domains: domainsFromSlots(this),
+			placements: proofPlacementsFromSlots(this),
+			pencilMarks: this.pencilMarks.map(mark => ({
+				row: this.rows.indexOf(mark.slot.row),
+				column: mark.slot.row.slots.indexOf(mark.slot),
+				symbol: mark.value,
+				discard: mark.discard,
+			})),
+		};
+	}
+
+	this.openAnalysis = function() {
+		var input = this.options.querySelector("#game-seed");
+		if (this.options.hidden || this.seed === undefined ||
+		    parseSeed(input.value.trim()) !== this.seed || this.pendingSeed !== undefined)
+			return;
+		if (!this.analysisUnlocked) {
+			if (++this.analysisClicks < 3)
+				return;
+			this.analysisUnlocked = true;
+			try {
+				localStorage.setItem("analysisUnlocked", "true");
+			} catch (e) {
+				/* The unlock still applies for this page. */
+			}
+		}
+		var snapshot = this.positionSnapshot();
+		var metrics = measureDifficulty(this);
+		var rating = difficultyRating(metrics);
+		var available = difficultyOpportunities(this, snapshot.domains);
+		var anchored = available.filter(move => move.tier == 1).length;
+		this.analysisSnapshot = JSON.stringify(snapshot);
+		this.analysis.querySelector(".analysis-summary").textContent =
+			"Seed: " + snapshot.seed + "\n" +
+			"Difficulty: " + rating.level + " — " + rating.score.toFixed(2) + "\n" +
+			"Cutoffs: Easy < 45; Medium < 80; otherwise Hard\n\n" +
+			"Five-route averages:\n" +
+			"Candidate-based observations: " + metrics.supportSteps.toFixed(2) + "\n" +
+			"Total scarcity: " + metrics.scarcity.toFixed(2) + "\n" +
+			"Longest discard stretch: " + metrics.maxDiscardRun.toFixed(2) + "\n\n" +
+			"Available clue observations: " + available.length + "\n" +
+			"Anchored: " + anchored + "; candidate-based: " + (available.length - anchored);
+		var list = this.analysis.querySelector(".analysis-deductions");
+		list.replaceChildren();
+		var count = 0;
+		for (var clue of this.clues) {
+			var step = clueProofStep(this, clue, snapshot.domains);
+			if (!step)
+				continue;
+			var before = snapshot.domains[step.row][step.symbol];
+			var after = before & ~step.removed;
+			var item = document.createElement("li");
+			renderProofMessage(this, item,
+				proofDeductionMessage(this, step, before, after, snapshot.domains), false);
+			list.appendChild(item);
+			if (++count == 3)
+				break;
+		}
+		this.analysis.querySelector(".analysis-empty").hidden = count != 0;
+		this.analysis.querySelector(".analysis-copy").textContent = "Copy position";
+		this.options.hidden = true;
+		this.analysis.hidden = false;
+		this.analysis.querySelector(".modal-close").focus();
+	}
+
+	this.closeAnalysis = function() {
+		this.analysis.hidden = true;
+		this.options.hidden = false;
+		this.updateSeedDifficulty();
+		this.options.querySelector("#seed-difficulty").focus();
+	}
+
+	this.copyAnalysisPosition = async function() {
+		var snapshot = this.analysisSnapshot;
+		try {
+			await navigator.clipboard.writeText(snapshot);
+			if (!this.analysis.hidden && snapshot === this.analysisSnapshot)
+				this.analysis.querySelector(".analysis-copy").textContent = "Copied";
+		} catch (e) {
+			window.prompt("Copy this position:", snapshot);
+		}
 	}
 
 	this.copySeedLink = async function() {
@@ -684,7 +784,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		}
 	}
 
-	/* Preserve the position for analysis before revealing a hint. */
+	/* Reveal assistance in stages without applying moves to the board. */
 	this.hint = function(stage = 3) {
 		if (this.gameOver || this.pendingSeed !== undefined || this.paused) {
 			console.log("Start or resume a game before requesting a hint.");
@@ -703,19 +803,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		}
 		var base = domainsFromSlots(this);
 		var basePlacements = proofPlacementsFromSlots(this);
-		console.log(JSON.stringify({
-			seed: formatSeed(this.seed),
-			generatorVersion: puzzleGeneratorVersion,
-			// Indexed by row, then symbol; bits identify possible columns.
-			domains: base,
-			placements: basePlacements,
-			pencilMarks: this.pencilMarks.map(mark => ({
-				row: this.rows.indexOf(mark.slot.row),
-				column: mark.slot.row.slots.indexOf(mark.slot),
-				symbol: mark.value,
-				discard: mark.discard,
-			})),
-		}));
+
 		var step = nextHintStep(this, base, basePlacements);
 		if (!step) {
 			console.log("No further deduction is available.");
@@ -1998,6 +2086,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.toggleOptions = function() {
+		this.analysisClicks = 0;
 		if (this.options.hidden && this.seed !== undefined)
 			this.options.querySelector("#game-seed").value =
 				formatSeed(this.seed);
@@ -2100,6 +2189,10 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.options.querySelector("#game-seed").addEventListener("input", function() {
 		puzzle.updateSeedControls();
 		puzzle.updateSeedDifficulty();
+	});
+	this.analysis.addEventListener("click", function(ev) {
+		if (ev.target == puzzle.analysis)
+			puzzle.closeAnalysis();
 	});
 	this.options.addEventListener("click", function(ev) {
 		if (ev.target == puzzle.options)
