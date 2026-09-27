@@ -3931,3 +3931,183 @@ Deno.test("analysis copies the displayed snapshot", async function() {
 		else delete navigator.clipboard;
 	}
 });
+
+function feedbackPuzzle(seed = "02b839f1") {
+	localStorage.removeItem("difficultyFeedbackDisabled");
+	const puzzle = makePuzzle(6, true, Logos.defaultSymbols);
+	puzzle.say = function() {};
+	puzzle.newGame(seed);
+	puzzle.stopTimer();
+	puzzle.feedbackEndpoint = "https://feedback.example.test/api/feedback";
+	puzzle.scores.hidden = true;
+	document.modals = [puzzle.scores, puzzle.feedback];
+	return puzzle;
+}
+
+Deno.test("feedback waits for the Pantheon after a scored win", async () => {
+	await withRunHistory(async () => {
+		const puzzle = feedbackPuzzle();
+		try {
+			for (const row of puzzle.rows)
+				for (const slot of row.slots) slot.single = true;
+			await puzzle.checkWin();
+			assert(!puzzle.scores.hidden && puzzle.feedback.hidden);
+			assert(puzzle.feedbackRequest.data.oldLevel == "medium" &&
+			       puzzle.feedbackRequest.data.newLevel == "hard");
+			await puzzle.toggleScores();
+			assert(!puzzle.feedback.hidden && puzzle.paused);
+			puzzle.dismissDifficultyFeedback();
+			assert(puzzle.feedback.hidden && !puzzle.paused);
+		} finally { document.modals = []; }
+	});
+});
+
+Deno.test("feedback skips disabled endpoints, opt-out, and stale games", async () => {
+	const puzzle = feedbackPuzzle();
+	try {
+		puzzle.feedbackEndpoint = "";
+		await puzzle.finishDifficultyFeedback("won", null);
+		assert(!puzzle.feedbackRequest);
+		puzzle.feedbackEndpoint = "https://feedback.example.test/api/feedback";
+		puzzle.feedbackDisabled = true;
+		await puzzle.finishDifficultyFeedback("won", null);
+		assert(!puzzle.feedbackRequest);
+		puzzle.feedbackDisabled = false;
+		let release;
+		const waiting = puzzle.finishDifficultyFeedback("won", new Promise(r => release = r));
+		puzzle.maybeShowDifficultyFeedback();
+		assert(puzzle.feedback.hidden, "feedback interrupted a pending score save");
+		puzzle.newGame("98079244"); puzzle.stopTimer();
+		release(); await waiting;
+		assert(!puzzle.feedbackRequest && puzzle.feedback.hidden);
+	} finally { document.modals = []; }
+});
+
+Deno.test("feedback covers losses and defers continuing games until completion", async () => {
+	const puzzle = feedbackPuzzle();
+	puzzle.recordOutcome = async function() {};
+	try {
+		puzzle.lose("A mistake");
+		await Promise.resolve();
+		assert(!puzzle.feedback.hidden && puzzle.feedbackRequest.data.outcome == "lost");
+		puzzle.dismissDifficultyFeedback();
+		puzzle.newGame("02b839f1"); puzzle.stopTimer();
+		puzzle.feedbackCooldown = 0; // Test the continuing path independently.
+		puzzle.continueAfterLoss = true;
+		puzzle.lose("A mistake");
+		await Promise.resolve();
+		assert(!puzzle.feedbackRequest && puzzle.feedback.hidden);
+		assert(puzzle.continuedFromLoss && puzzle.practiceMode);
+		puzzle.usedHints = true;
+		for (const row of puzzle.rows)
+			for (const slot of row.slots) slot.single = true;
+		await puzzle.checkWin();
+		assert(!puzzle.feedback.hidden);
+		const data = puzzle.feedbackRequest.data;
+		assert(data.outcome == "won" && data.continuedAfterLoss && data.hintsUsed && data.zenMode);
+		puzzle.dismissDifficultyFeedback();
+		puzzle.newGame("02b839f1"); puzzle.stopTimer();
+		assert(!puzzle.usedHints && !puzzle.continuedFromLoss);
+	} finally { document.modals = []; }
+});
+
+Deno.test("feedback retries one report, remembers identity and name, and thanks the player", async () => {
+	const receiver = (await import("../server/worker.js")).default;
+	const puzzle = feedbackPuzzle();
+	const originalFetch = globalThis.fetch;
+	const reports = [];
+	puzzle.feedbackDismissals = 2;
+	globalThis.fetch = async (url, options) => {
+		assert(url == puzzle.feedbackEndpoint && options.credentials == "omit");
+		reports.push(JSON.parse(options.body));
+		if (reports.length == 1)
+			return new Response("", {status: 503});
+		return receiver.fetch(new Request(url, {method: "POST", headers: options.headers,
+			body: options.body}), {DB: {prepare() { return {bind() {
+			return {async run() {}};
+		}}; }}});
+	};
+	try {
+		await puzzle.finishDifficultyFeedback("won", null);
+		puzzle.feedback.querySelector(".feedback-name").value = "  Peff  ";
+		await puzzle.sendDifficultyFeedback("about-right");
+		assert(puzzle.feedback.querySelector(".feedback-status").textContent.includes("couldn’t"));
+		assert(!puzzle.feedback.querySelector(".feedback-retry").hidden);
+		await puzzle.sendDifficultyFeedback();
+		assert(reports.length == 2 && JSON.stringify(reports[0]) == JSON.stringify(reports[1]));
+		assert(reports[0].playerName == "Peff" && reports[0].senderId != reports[0].id);
+		assert(puzzle.feedback.querySelector(".feedback-status").textContent.includes("Thank you"));
+		assert(puzzle.feedback.querySelector("form").hidden);
+		assert(puzzle.feedbackDismissals == 0 && puzzle.feedbackCooldown == 2,
+		       "successful submission did not reset backoff");
+		await puzzle.sendDifficultyFeedback();
+		assert(reports.length == 2);
+		puzzle.dismissDifficultyFeedback(true);
+		assert(puzzle.feedbackDismissals == 0 && puzzle.feedbackCooldown == 2,
+		       "closing thanks was treated as a dismissal");
+		const next = makePuzzle(6);
+		assert(next.feedbackDisabled && next.feedbackName == "Peff" &&
+		       next.feedbackSenderId == reports[0].senderId);
+	} finally {
+		globalThis.fetch = originalFetch;
+		document.modals = [];
+		for (const key of ["Disabled", "Name", "SenderId"])
+			localStorage.removeItem("difficultyFeedback" + key);
+	}
+});
+
+Deno.test("dismissing an in-flight report prevents a late response changing the UI", async () => {
+	const puzzle = feedbackPuzzle();
+	const originalFetch = globalThis.fetch;
+	let release;
+	globalThis.fetch = () => new Promise(r => release = r);
+	try {
+		await puzzle.finishDifficultyFeedback("lost", null);
+		const sending = puzzle.sendDifficultyFeedback("unsure");
+		puzzle.dismissDifficultyFeedback();
+		release(new Response('{"ok":true}')); await sending;
+		assert(puzzle.feedback.hidden && !puzzle.feedbackRequest);
+	} finally {
+		globalThis.fetch = originalFetch;
+		document.modals = [];
+		for (const key of ["Disabled", "Name", "SenderId"])
+			localStorage.removeItem("difficultyFeedback" + key);
+	}
+});
+
+Deno.test("feedback samples agreements and backs off after dismissals", async () => {
+	const puzzle = feedbackPuzzle("98079244");
+	const random = Math.random;
+	try {
+		Math.random = () => 0.1;
+		await puzzle.finishDifficultyFeedback("won", null);
+		assert(!puzzle.feedbackRequest, "agreement outside the sample prompted");
+		Math.random = () => 0.099;
+		await puzzle.finishDifficultyFeedback("won", null);
+		assert(!puzzle.feedback.hidden, "sampled agreement did not prompt");
+		Math.random = random;
+		for (const gap of [5, 10, 20, 20]) {
+			puzzle.dismissDifficultyFeedback();
+			assert(puzzle.feedbackCooldown == gap, "dismissal did not increase the gap");
+			puzzle.dismissDifficultyFeedback();
+			assert(puzzle.feedbackCooldown == gap, "duplicate dismissal increased the gap");
+			for (let i = 0; i < gap; i++) {
+				puzzle.newGame("02b839f1"); puzzle.stopTimer();
+				await puzzle.finishDifficultyFeedback(i % 2 ? "won" : "lost", null);
+				assert(!puzzle.feedbackRequest && puzzle.feedback.hidden,
+				       "disagreement ignored the cooldown");
+			}
+			puzzle.newGame("02b839f1"); puzzle.stopTimer();
+			Math.random = () => 0.99;
+			await puzzle.finishDifficultyFeedback("won", null);
+			assert(!puzzle.feedback.hidden, "disagreement was sampled or cooldown lasted too long");
+			Math.random = random;
+		}
+		const next = feedbackPuzzle();
+		assert(next.feedbackCooldown == 0 && next.feedbackDismissals == 0,
+		       "backoff survived a new page instance");
+	} finally {
+		Math.random = random;
+		document.modals = [];
+	}
+});

@@ -1,9 +1,10 @@
 # Optional Logos server
 
 This is a small Cloudflare Worker prototype for collecting difficulty feedback
-in D1. Nothing in the standalone game loads this directory or contacts this
-service. The client prompt and endpoint configuration are not implemented yet.
-Deploying this server does not host the game or change its current location.
+in D1. The beta game opts in through the `logos-feedback-endpoint` meta tag in
+`index.html`, currently pointing to `https://logos.peff.workers.dev/api/feedback`.
+Clear that value to disable feedback entirely in a standalone copy. Deploying
+this server does not host the game or change its current location.
 
 The Worker has one public operation: `POST /api/feedback`. Database reads and
 exports use your authenticated Cloudflare tooling. There is no player account
@@ -64,23 +65,21 @@ Send JSON with `Content-Type: application/json`:
 }
 ```
 
-The future client should create `id` once with `crypto.randomUUID()` when the
-player answers and reuse it for retries. The first accepted report for an ID
-wins; subsequent submissions with that ID return success without changing it.
+The client creates `id` once with `crypto.randomUUID()` when the player sends
+an answer and reuses it for retries. The first accepted report for an ID wins; subsequent submissions with that ID return success without changing it.
 `senderId` is a separate UUID generated once per browser profile and stored in
 localStorage, so reports can be grouped across games. It is not an account or
 authenticated identity. A new origin, another device, or clearing browser storage
-will produce a new ID. If storage is unavailable, the client should retain the
+will produce a new ID. If storage is unavailable, the client retains the
 ID in memory for the page's lifetime.
 
 `playerName` is optional: a name or nickname, at most 80 characters, without
 control characters. The server trims surrounding whitespace and stores empty
-or omitted names as null. The future feedback dialog should offer this field,
-remember it locally, and allow the player to clear it. Names are recorded per
+or omitted names as null. The feedback dialog offers this field, remembers it
+locally when sending, and allows the player to clear it. Names are recorded per
 submission, so editing a name does not rewrite previous reports. Even without a
 name, the persistent sender ID makes the reports pseudonymous, not anonymous.
-The dialog should explain that answers are grouped by browser and names are
-optional.
+The dialog explains that answers are grouped by browser and names are optional.
 
 The seed is eight lowercase hexadecimal digits. `ratingVersion` identifies the
 13/10 rule compared against the composite with cutoffs 45/80. Both reported
@@ -96,8 +95,8 @@ assisted completions as well as scored wins and losses.
 `outcome` is `won` for a completed puzzle (including assisted play), or `lost`
 for a loss. Completion after continuing from a loss is `won` with
 `continuedAfterLoss: true`; it does not imply a scored victory in the Chronicle.
-The future client should defer the feedback prompt when the player continues
-after a loss, then ask on completion. Closing the browser is not reported as
+The client defers the feedback prompt when the player continues
+after a loss, then asks on completion. Closing the browser is not reported as
 a loss or abandonment.
 
 Success is HTTP 200 with `{"ok":true}`, including retries. Invalid input is 400,
@@ -130,10 +129,9 @@ npx wrangler d1 migrations apply DB --remote
 npx wrangler deploy
 ```
 
-Wrangler prints the HTTPS `workers.dev` address. A future client deployment can
-opt in by configuring that address; the default standalone game should have
-no endpoint and should not prompt for feedback it cannot send. Cloudflare
-credentials belong in Wrangler's authentication or deployment environment,
+Wrangler prints the HTTPS `workers.dev` address. Set the
+`logos-feedback-endpoint` meta tag to its `/api/feedback` URL to opt in, or leave
+it blank to disable prompting and submission. Cloudflare credentials belong in Wrangler's authentication or deployment environment,
 never in the game or committed configuration.
 
 ## Read the reports
@@ -159,3 +157,23 @@ Keep downloaded player reports outside the public repository.
 Cloudflare references: [D1 setup](https://developers.cloudflare.com/d1/get-started/),
 [prepared statements](https://developers.cloudflare.com/d1/worker-api/prepared-statements/),
 [Wrangler D1 commands](https://developers.cloudflare.com/d1/wrangler-commands/).
+
+## Player controls
+
+The beta prompts when the two difficulty labels disagree, or for a random 10%
+of games where they agree. After showing a prompt, it skips the next two
+completed attempts. Dismissing increases the gap to five attempts, then ten,
+then twenty on subsequent dismissals. A successful submission resets the gap
+to two. This backoff lasts only until the page is reloaded. A qualifying
+Pantheon entry is shown first; feedback waits until it is dismissed. The old
+label is not shown in the question. Nothing is sent unless the player submits.
+
+Each response button submits immediately, using the optional name above it.
+Players can dismiss with Dismiss, Escape, or a click outside the dialog. They
+can also choose Never ask again. That preference is stored as
+`difficultyFeedbackDisabled`; deleting that localStorage entry and reloading
+re-enables prompts. The browser ID and optional name use
+`difficultyFeedbackSenderId` and `difficultyFeedbackName`.
+
+Failed submissions can be retried with the same report ID, or dismissed.
+There is no background upload queue. Successful submission shows a thank-you.

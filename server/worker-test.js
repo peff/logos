@@ -64,7 +64,7 @@ Deno.test("invalid reports never reach the database", async () => {
 	for (const data of [null, [], {}, { ...report, seed: "oops" },
 		{ ...report, outcome: "draw" }, { ...report, outcome: undefined },
 		{ ...report, id: "oops" }, { ...report, answer: "yes" },
-		{ ...report, oldLevel: "hard" }, { ...report, generatorVersion: 2 },
+		{ ...report, oldLevel: "expert" }, { ...report, generatorVersion: 2 },
 		{ ...report, ratingVersion: "future" }, { ...report, elapsedMs: -1 },
 		{ ...report, elapsedMs: 1.5 }, { ...report, hintsUsed: "false" },
 		{ ...report, senderId: undefined }, { ...report, senderId: "bad" },
@@ -134,4 +134,11 @@ Deno.test("feedback preserves losses and completions after a loss", async () => 
 		assert(DB.calls[0].values[10] === Number(continuedAfterLoss));
 		assert(DB.calls[0].values[14] === outcome);
 	}
+});
+
+Deno.test("feedback accepts unchanged difficulty labels", async () => {
+	const DB = database();
+	const response = await worker.fetch(request({ ...report, oldLevel: "hard" }), { DB });
+	assert(response.status === 200);
+	assert(DB.calls[0].values[5] === "hard" && DB.calls[0].values[6] === "hard");
 });

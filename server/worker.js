@@ -17,7 +17,7 @@ function validFeedback(data) {
 		data.generatorVersion === 1 &&
 		data.ratingVersion === "stretch-scarcity-1" &&
 		levels.includes(data.oldLevel) && levels.includes(data.newLevel) &&
-		data.oldLevel !== data.newLevel && answers.includes(data.answer) &&
+		answers.includes(data.answer) &&
 		["won", "lost"].includes(data.outcome) &&
 		(data.elapsedMs === null ||
 		 Number.isSafeInteger(data.elapsedMs) && data.elapsedMs >= 0) &&
