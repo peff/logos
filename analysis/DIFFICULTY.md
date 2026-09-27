@@ -1,17 +1,26 @@
 # Difficulty calibration
 
 The game entry point is `puzzleDifficulty(puzzle)` in `logos.js`. It rates an
-already-generated puzzle and returns `{ score, level }`, independent of player
+already-generated puzzle and returns `{ level }`, independent of player
 progress. Generation and seed identity are unchanged.
 
-The score is:
+The current rule uses five-route averages:
+
+- Longest discard stretch below 13: Easy.
+- Otherwise, total scarcity below 10: Medium.
+- Otherwise: Hard.
+
+The original weighted score is retained in `compositeDifficultyRating()` for
+comparison, returning `{ score, level }`:
 
 ```
 supportSteps + 2.65 * scarcity + 0.87 * maxDiscardRun
 ```
 
-Scores below 45 are easy, below 80 are medium, and the rest are hard. These
-are empirical units, not percentiles or predicted completion times.
+Its cutoffs remain 45 and 80. The analysis dialog and command-line inspector
+show both ratings. There is no single numeric score for the new rule.
+Existing cached Chronicle labels are not migrated; new and backfilled ratings
+use the new rule.
 
 ## Measurements
 
@@ -32,12 +41,12 @@ random stream. It records:
   placement. A discard that triggers automatic row placement ends the run.
 
 Five routes are measured, with seeds `Math.imul(i + 1, 0x9e3779b9)` for
-`i = 0..4`. Each metric is averaged before applying the formula. We average
+`i = 0..4`. Each metric is averaged before applying the rating rule. We average
 routes rather than take the easiest one. This models the solver's typical
 work, not an optimal human solution. Multi-clue insights can bypass much of
 that work, so especially high scores need not mean exceptionally hard play.
 
-## Where the constants came from
+## Where the original composite constants came from
 
 The initial experiment measured 1,000 version-1 puzzles. Each of the three
 metrics was converted to its empirical percentile in that sample (averaging
@@ -67,12 +76,12 @@ validation of human difficulty. No player times were used to fit the weights.
 
 ## Manual play tests
 
-These are five-route raw scores from the current formula, for generator
+These are five-route raw scores from the original composite, for generator
 version 1. Times and impressions are one experienced player's reports, not
 controlled speed trials. The player sometimes focused on evaluating difficulty
 rather than playing quickly.
 
-| Seed | Score | Current label | Time | Player assessment |
+| Seed | Score | Composite label | Time | Player assessment |
 | --- | ---: | --- | --- | --- |
 | `98079244` | 20.81 | easy | 1:18 | Easy, smooth progress. |
 | `d7f8091b` | 27.90 | easy | 1:40 | Very easy; attention divided. Replay after a mistake about 12 seconds in. |
@@ -108,7 +117,7 @@ adjustment, not evidence that a few score points reliably predict differences
 in human difficulty. The statistical validation above used the original 72
 cutoff. Previously cached Chronicle labels are not migrated.
 
-| Seed | Score | Current label | Time | Player assessment |
+| Seed | Score | Composite label | Time | Player assessment |
 | --- | ---: | --- | --- | --- |
 | `e581b64b` | 80.66 | hard | 1:59 | Felt Medium; probably assumed the correct orientation of die-4, 1, 3 at the start. Accepted as easy Hard, with the lucky opening making the time inconclusive. |
 | `12357692` | 89.27 | hard | Not reported | Felt Medium. |
@@ -125,6 +134,58 @@ the Options seed preview exposed the existing label (explicitly noticed for
 `154a1aae`). Their score ordering matched the reported experience, but the
 sample is too small to infer fine-grained accuracy. The replay of `be0e8074`
 also illustrates the unavoidable overlap between the broad labels.
+
+## Discard-stretch and scarcity rule
+
+On September 27, 2026, we replaced the composite level with the 13/10 rule.
+The motivation was to distinguish sustained discarding from difficulty finding
+progress: short stretches indicate Easy, while scarcity separates Medium and
+Hard once the puzzle requires more discarding. Scarcity is still the total
+reciprocal opportunity count per route, averaged over five routes, not a
+per-observation mean. An experiment using the latter did not fit the earlier
+manual examples better.
+
+Two shuffled play sets tested the rule. The first used a provisional stretch
+cutoff of 12; we raised it to 13 before the second set. Predictions were withheld
+until each set was complete, though the existing in-game label was visible if
+the player opened Options (explicitly seen for `82890831`). These small,
+deliberately selected samples support plausibility, not measured accuracy.
+
+The table uses the final 13/10 rule throughout:
+
+| Seed | Time | Composite | New rule | Stretch | Scarcity | Player assessment |
+| --- | ---: | --- | --- | ---: | ---: | --- |
+| `50e8c8d9` | 3:28 | medium | hard | 26.6 | 10.56 | Huge opening discard chain; never really stuck. Lower Hard later considered defensible. |
+| `403c07ef` | 2:13 | easy | easy | 12.4 | 6.02 | Pretty easy; overlooked a useful connection. A boundary case. |
+| `82890831` | 6:58 | hard | hard | 41.6 | 21.07 | Clearly Hard; tight opening bottleneck, then a cascade. |
+| `2068ddf1` | 1:13 | easy | easy | 11.2 | 6.01 | Super easy. |
+| `dccd2c9b` | 3:19 | medium | medium | 30.0 | 7.65 | Upper Medium or lower Hard; some opening bottleneck and work after the cascade. |
+| `67d6cd2b` | 0:56 | easy | easy | 5.0 | 4.04 | Emphatically Easy; almost no discards. |
+| `0a649ccc` | 3:35 | medium | medium | 27.0 | 9.32 | Opening bottleneck; possibly missed connections around square. |
+| `02b839f1` | 7:46 | medium | hard | 19.8 | 12.54 | Definitively Hard; struggled to find useful discards. |
+| `0e9f4c26` | 3:08 | medium | easy | 12.4 | 7.39 | Harder than expected; replay suggested Easy was defensible after spotting an overlooked clue. |
+| `4e233909` | 3:50 | medium | hard | 24.2 | 13.25 | Tough opening bottleneck; Hard felt defensible. |
+| `0a568040` | 3:48 | easy | medium | 15.8 | 6.88 | Easy opening, substantial mid-puzzle bottleneck; Medium felt plausible. |
+| `b91f28c7` | 2:59 | hard | medium | 36.6 | 9.66 | Moderate bottleneck; Medium felt plausible. |
+
+After these sets, `3772d85c` also felt Medium. Its stretch is exactly 13.0
+and scarcity is 6.55, making it Medium under the new rule; the composite
+called it Easy (42.66). No completion time was reported.
+
+A fresh sample of 10,000 distinct seeds (sample RNG seed `260927c3`, five
+routes each) yielded:
+
+| Level | Composite | New rule |
+| --- | ---: | ---: |
+| Easy | 31.65% | 23.76% |
+| Medium | 45.45% | 43.06% |
+| Hard | 22.90% | 33.18% |
+
+26.05% changed labels, all between adjacent levels. No changes were made to
+measurements or route selection. The old composite remains available for
+continued comparison; the new rule does not model how noticeable a deduction
+is, and narrow opportunities can still feel easy when the player sees them
+immediately.
 
 ## Future calibration
 
@@ -159,7 +220,7 @@ times without closing Options to unlock Puzzle analysis. This is remembered
 in the browser; subsequent visits need just one click. The seed field must
 still match the current game.
 
-The dialog shows the score components, the number of available clue
+The dialog shows both ratings and their metrics, the number of available clue
 observations, and up to three alternative deductions. It refreshes each time
 it opens and does not enter Zen or change the board. Use **Copy position**
 to preserve the position for later discussion or the command-line tools.

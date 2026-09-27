@@ -13,7 +13,7 @@ async function loadGame() {
 	const source = await Deno.readTextFile(new URL("../logos.js", import.meta.url));
 	return new Function("document", source + `\nreturn {
 		puzzleGeneratorVersion, parseSeed, formatSeed, defaultSymbols,
-		puzzleFromSeed, measureDifficulty, difficultyRating,
+		puzzleFromSeed, measureDifficulty, difficultyRating, compositeDifficultyRating,
 		difficultyOpportunities, nextHintStep, clueSlots, proofMessageText,
 		drainForcedProofSteps
 	};`)({ addEventListener() {} });
@@ -175,13 +175,16 @@ async function main(args) {
 		validatePosition(game, puzzle, snapshot);
 	const metrics = game.measureDifficulty(puzzle);
 	const rating = game.difficultyRating(metrics);
-	console.log(`Seed ${game.formatSeed(seed)} — ${rating.level} (${rating.score.toFixed(2)})`);
+	const composite = game.compositeDifficultyRating(metrics);
+	console.log(`Seed ${game.formatSeed(seed)} — ${rating.level}`);
+	console.log("Rule: stretch < 13 → Easy; otherwise scarcity < 10 → Medium; otherwise Hard");
+	console.log(`Old composite: ${composite.level} (${composite.score.toFixed(2)})`);
 	console.log("Five-route averages:");
 	console.log(`  Candidate-based observations: ${metrics.supportSteps.toFixed(2)}`);
 	console.log(`  Total scarcity:               ${metrics.scarcity.toFixed(2)}`);
 	console.log(`  Longest discard stretch:      ${metrics.maxDiscardRun.toFixed(2)}`);
-	console.log("Score = observations + 2.65 × scarcity + 0.87 × longest stretch");
-	console.log("Cutoffs: Easy < 45; Medium < 80; otherwise Hard");
+	console.log("Old score = observations + 2.65 × scarcity + 0.87 × longest stretch");
+	console.log("Old cutoffs: Easy < 45; Medium < 80; otherwise Hard");
 	if (!position && !trace)
 		return;
 	let domains, placements;

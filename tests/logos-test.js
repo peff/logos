@@ -131,7 +131,7 @@ Object.defineProperty(globalThis, "localStorage", { value: {
 const source = await Deno.readTextFile(
 	new URL("../logos.js", import.meta.url));
 const Logos = eval(source +
-	"\n;({ puzzleDifficulty, difficultyRating, puzzleFromSeed, " +
+	"\n;({ puzzleDifficulty, difficultyRating, compositeDifficultyRating, puzzleFromSeed, " +
 	"difficultyOpportunities, nextHintStep, " +
 	"Puzzle: Puzzle, ExactClue: ExactClue, " +
 	"Adjacent2Clue: Adjacent2Clue, " +
@@ -3397,12 +3397,13 @@ Deno.test("puzzle difficulty rates generated puzzles without changing play state
 	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
 	puzzle.startTimer = function() {};
 	for (const [seed, level] of [[0x98079244, "easy"],
-		[0xc549b7c4, "medium"], [0xe2a689dd, "hard"]]) {
+		[0xc549b7c4, "medium"], [0xe2a689dd, "hard"],
+		[0x0e9f4c26, "easy"], [0x4e233909, "hard"],
+		[0x0a568040, "medium"], [0xb91f28c7, "medium"]]) {
 		puzzle.newGame(seed);
 		const before = puzzleSignature(puzzle);
 		const rating = Logos.puzzleDifficulty(puzzle);
 		assert(rating.level == level);
-		assert(Number.isFinite(rating.score) && rating.score >= 0);
 		assert(puzzleSignature(puzzle) == before);
 		// Rating describes the puzzle, not the remaining work on the board.
 		const slot = puzzle.rows[0].slots[0];
@@ -3413,10 +3414,21 @@ Deno.test("puzzle difficulty rates generated puzzles without changing play state
 	}
 });
 
-Deno.test("difficulty labels use raw-score boundaries", () => {
+Deno.test("difficulty levels use discard stretch before scarcity", () => {
+	for (const [stretch, scarcity, level] of [
+		[0, 0, "easy"], [12.99, 30, "easy"],
+		[13, 0, "medium"], [50, 9.99, "medium"],
+		[13, 10, "hard"], [50, 30, "hard"],
+	]) {
+		assert(Logos.difficultyRating({maxDiscardRun: stretch,
+			scarcity, supportSteps: 100}).level == level);
+	}
+});
+
+Deno.test("old composite difficulty labels use raw-score boundaries", () => {
 	for (const [score, level] of [[0, "easy"], [44.99, "easy"],
 		[45, "medium"], [72, "medium"], [79.99, "medium"], [80, "hard"], [200, "hard"]]) {
-		const rating = Logos.difficultyRating({ supportSteps: score,
+		const rating = Logos.compositeDifficultyRating({ supportSteps: score,
 			scarcity: 0, maxDiscardRun: 0 });
 		assert(rating.score == score && rating.level == level);
 	}
@@ -3499,7 +3511,7 @@ Deno.test("new runs include difficulty in their saved record", async () => {
 		puzzle.stopTimer();
 		await puzzle.recordOutcome("lost");
 		assert(runs.length == 1 && runs[0].difficulty.level == "easy");
-		assert(runs[0].difficulty.score == Logos.puzzleDifficulty(puzzle).score);
+		assert(JSON.stringify(runs[0].difficulty) == JSON.stringify(Logos.puzzleDifficulty(puzzle)));
 	});
 });
 
@@ -3875,7 +3887,8 @@ Deno.test("analysis unlocks within one Options visit and refreshes the current p
 	       puzzle.analysisSnapshot == before && JSON.stringify(puzzle.positionSnapshot()) == before,
 	       "analysis changed the board or scoring eligibility");
 	assert(puzzle.analysis.querySelector(".analysis-deductions").children.length <= 3 &&
-	       puzzle.analysis.querySelector(".analysis-summary").textContent.includes("28.06"),
+	       puzzle.analysis.querySelector(".analysis-summary").textContent.includes("Difficulty: easy") &&
+	       puzzle.analysis.querySelector(".analysis-summary").textContent.includes("Old composite: easy — 28.06"),
 	       "analysis is missing its rating or has unbounded deductions");
 	puzzle.closeAnalysis();
 	assert(!puzzle.options.hidden && puzzle.paused, "closing analysis resumed the game");

@@ -550,13 +550,16 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		var snapshot = this.positionSnapshot();
 		var metrics = measureDifficulty(this);
 		var rating = difficultyRating(metrics);
+		var composite = compositeDifficultyRating(metrics);
 		var available = difficultyOpportunities(this, snapshot.domains);
 		var anchored = available.filter(move => move.tier == 1).length;
 		this.analysisSnapshot = JSON.stringify(snapshot);
 		this.analysis.querySelector(".analysis-summary").textContent =
 			"Seed: " + snapshot.seed + "\n" +
-			"Difficulty: " + rating.level + " — " + rating.score.toFixed(2) + "\n" +
-			"Cutoffs: Easy < 45; Medium < 80; otherwise Hard\n\n" +
+			"Difficulty: " + rating.level + "\n" +
+			"Rule: stretch < 13 → Easy; otherwise scarcity < 10 → Medium; otherwise Hard\n\n" +
+			"Old composite: " + composite.level + " — " + composite.score.toFixed(2) + "\n" +
+			"Old cutoffs: Easy < 45; Medium < 80; otherwise Hard\n\n" +
 			"Five-route averages:\n" +
 			"Candidate-based observations: " + metrics.supportSteps.toFixed(2) + "\n" +
 			"Total scarcity: " + metrics.scarcity.toFixed(2) + "\n" +
@@ -3020,8 +3023,7 @@ function canRateRun(run) {
 }
 
 function hasRunDifficulty(run) {
-	return run.difficulty && Number.isFinite(run.difficulty.score) &&
-		run.difficulty.score >= 0 &&
+	return run.difficulty &&
 		["easy", "medium", "hard"].includes(run.difficulty.level);
 }
 
@@ -4578,11 +4580,19 @@ function isClueExhausted(clue) {
  * score. Fit on 1,000 five-route puzzles and checked on 10,000 separate seeds;
  * see analysis/DIFFICULTY.md. These units are not percentiles.
  */
-function difficultyRating(metrics) {
+function compositeDifficultyRating(metrics) {
 	var score = metrics.supportSteps + 2.65 * metrics.scarcity +
 		0.87 * metrics.maxDiscardRun;
 	return { score: score,
 		level: score < 45 ? "easy" : score < 80 ? "medium" : "hard" };
+}
+
+/* Short discard stretches are easy; otherwise scarcity separates Medium
+ * from Hard. Both measurements are averaged across five solving routes.
+ */
+function difficultyRating(metrics) {
+	return { level: metrics.maxDiscardRun < 13 ? "easy" :
+		metrics.scarcity < 10 ? "medium" : "hard" };
 }
 
 /* Rate the original puzzle, regardless of the player's current progress.
