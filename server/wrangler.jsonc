@@ -1,0 +1,14 @@
+{
+	"name": "logos",
+	"main": "worker.js",
+	"compatibility_date": "2026-09-27",
+	"workers_dev": true,
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "logos",
+			"database_id": "f84e4c71-4c77-493e-8da6-ee5ffcd75dad",
+			"migrations_dir": "migrations"
+		}
+	]
+}
