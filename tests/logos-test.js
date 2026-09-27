@@ -3892,8 +3892,8 @@ Deno.test("analysis unlocks within one Options visit and refreshes the current p
 	       puzzle.analysis.querySelector(".analysis-summary").textContent.includes("Old composite: easy — 28.06"),
 	       "analysis is missing its rating or has unbounded deductions");
 	puzzle.closeAnalysis();
-	assert(!puzzle.options.hidden && puzzle.paused, "closing analysis resumed the game");
-	puzzle.toggleOptions();
+	assert(puzzle.analysis.hidden && puzzle.options.hidden && !puzzle.paused &&
+	       puzzle.timerTimeout !== null, "closing analysis did not return to the running game");
 	const slot = puzzle.rows[0].slots.find(slot => !slot.single);
 	slot.discard((slot.value + 1) % 6);
 	puzzle.toggleOptions();

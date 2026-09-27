@@ -609,10 +609,10 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.closeAnalysis = function() {
-		this.analysis.hidden = true;
-		this.options.hidden = false;
-		this.updateSeedDifficulty();
-		this.options.querySelector("#seed-difficulty").focus();
+		if (this.analysis.hidden)
+			return;
+		this.toggleModal(this.analysis, this.optionsButton, "Close");
+		this.optionsButton.focus();
 	}
 
 	this.copyAnalysisPosition = async function() {
