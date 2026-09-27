@@ -180,4 +180,4 @@ re-enables prompts. The browser ID and optional name use
 `difficultyFeedbackSenderId` and `difficultyFeedbackName`.
 
 Failed submissions can be retried with the same report ID, or dismissed.
-There is no background upload queue. Successful submission shows a thank-you.
+There is no background upload queue. Successful submission closes the dialog and shows a thank-you in the status bar.

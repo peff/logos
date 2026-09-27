@@ -1568,12 +1568,9 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.feedback.querySelector(".feedback-level").textContent =
 			level[0].toUpperCase() + level.slice(1);
 		this.feedback.querySelector(".feedback-name").value = this.feedbackName;
-		this.feedback.querySelector(".feedback-never").hidden = false;
 		this.feedback.querySelector("fieldset").disabled = false;
-		this.feedback.querySelector("form").hidden = false;
 		this.feedback.querySelector(".feedback-status").textContent = "";
 		this.feedback.querySelector(".feedback-retry").hidden = true;
-		this.feedback.querySelector(".modal-close").textContent = "Dismiss";
 		this.feedback.hidden = false;
 		this.paused = true;
 		this.feedback.querySelector(".modal-close").focus();
@@ -1642,11 +1639,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			request.sent = true;
 			this.feedbackDismissals = 0;
 			this.feedbackCooldown = 2;
-			this.feedback.querySelector("form").hidden = true;
-			this.feedback.querySelector(".feedback-never").hidden = true;
-			status.textContent = "Thank you! Your experience will help us improve the difficulty ratings.";
-			this.feedback.querySelector(".modal-close").textContent = "Return to the puzzle";
-			this.feedback.querySelector(".modal-close").focus();
+			this.dismissDifficultyFeedback();
+			this.say("Thank you for helping refine our difficulty ratings!");
 		} catch (_) {
 			if (this.feedbackRequest !== request)
 				return;

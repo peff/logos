@@ -4018,6 +4018,8 @@ Deno.test("feedback retries one report, remembers identity and name, and thanks 
 	const originalFetch = globalThis.fetch;
 	const reports = [];
 	puzzle.feedbackDismissals = 2;
+	let message;
+	puzzle.say = text => message = text;
 	globalThis.fetch = async (url, options) => {
 		assert(url == puzzle.feedbackEndpoint && options.credentials == "omit");
 		reports.push(JSON.parse(options.body));
@@ -4037,15 +4039,16 @@ Deno.test("feedback retries one report, remembers identity and name, and thanks 
 		await puzzle.sendDifficultyFeedback();
 		assert(reports.length == 2 && JSON.stringify(reports[0]) == JSON.stringify(reports[1]));
 		assert(reports[0].playerName == "Peff" && reports[0].senderId != reports[0].id);
-		assert(puzzle.feedback.querySelector(".feedback-status").textContent.includes("Thank you"));
-		assert(puzzle.feedback.querySelector("form").hidden);
+		assert(message.includes("Thank you"));
+		assert(puzzle.feedback.hidden && !puzzle.feedbackRequest && !puzzle.paused,
+		       "successful submission did not dismiss feedback");
 		assert(puzzle.feedbackDismissals == 0 && puzzle.feedbackCooldown == 2,
 		       "successful submission did not reset backoff");
 		await puzzle.sendDifficultyFeedback();
 		assert(reports.length == 2);
 		puzzle.dismissDifficultyFeedback(true);
 		assert(puzzle.feedbackDismissals == 0 && puzzle.feedbackCooldown == 2,
-		       "closing thanks was treated as a dismissal");
+		       "closing completed feedback was treated as a dismissal");
 		const next = makePuzzle(6);
 		assert(next.feedbackDisabled && next.feedbackName == "Peff" &&
 		       next.feedbackSenderId == reports[0].senderId);
