@@ -142,3 +142,12 @@ Deno.test("feedback accepts unchanged difficulty labels", async () => {
 	assert(response.status === 200);
 	assert(DB.calls[0].values[5] === "hard" && DB.calls[0].values[6] === "hard");
 });
+
+Deno.test("feedback accepts and preserves both scarcity rule versions", async () => {
+	for (const ratingVersion of ["stretch-scarcity-1", "stretch-scarcity-2"]) {
+		const DB = database();
+		const response = await worker.fetch(request({ ...report, ratingVersion }), { DB });
+		assert(response.status === 200);
+		assert(DB.calls[0].values[4] === ratingVersion);
+	}
+});

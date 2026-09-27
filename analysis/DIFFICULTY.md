@@ -6,9 +6,12 @@ progress. Generation and seed identity are unchanged.
 
 The current rule uses five-route averages:
 
-- Longest discard stretch below 13: Easy.
-- Otherwise, total scarcity below 10: Medium.
-- Otherwise: Hard.
+| | Scarcity <10 | Scarcity ≥10 |
+| --- | --- | --- |
+| Longest discard stretch <13 | Easy | Medium |
+| Longest discard stretch ≥13 | Medium | Hard |
+
+Both low means Easy, both high means Hard, and mixed means Medium.
 
 The original weighted score is retained in `compositeDifficultyRating()` for
 comparison, returning `{ score, level }`:
@@ -151,7 +154,8 @@ until each set was complete, though the existing in-game label was visible if
 the player opened Options (explicitly seen for `82890831`). These small,
 deliberately selected samples support plausibility, not measured accuracy.
 
-The table uses the final 13/10 rule throughout:
+The table uses cutoffs 13/10 throughout; the later short-but-scarce adjustment
+does not change any of these examples:
 
 | Seed | Time | Composite | New rule | Stretch | Scarcity | Player assessment |
 | --- | ---: | --- | --- | ---: | ---: | --- |
@@ -186,6 +190,32 @@ measurements or route selection. The old composite remains available for
 continued comparison; the new rule does not model how noticeable a deduction
 is, and narrow opportunities can still feel easy when the player sees them
 immediately.
+
+### Short stretches with high scarcity
+
+Two further playtests exposed the weakness of assigning Easy to all short
+stretches. Both had enough bottlenecks to feel harder than Easy, but opened
+up quickly enough after each bottleneck to make Medium a good description:
+
+| Seed | Composite | Stretch | Scarcity | Player assessment |
+| --- | ---: | ---: | ---: | --- |
+| `8f859a04` | 57.47 (medium) | 8.60 | 13.05 | Easy undersold it; finding the right sequence through a bottleneck took time. |
+| `8da4603e` | 55.12 (medium) | 8.20 | 13.35 | Definitely not Easy; many bottlenecks, but smooth progress once the right move was found. Medium felt reasonable. |
+
+We therefore changed Easy to require both stretch <13 and scarcity <10.
+Hard still requires both measurements at or above their thresholds; mixed
+cases are Medium. Feedback identifies this revision as `stretch-scarcity-2`,
+retaining `stretch-scarcity-1` for the original short-stretch-first rule.
+
+In the same 10,000-seed sample, only 51 puzzles (0.51% of all puzzles, 2.15%
+of the original rule's Easy group) moved from Easy to Medium. Fifty were
+Medium under the composite; one was Easy. The revised proportions are
+23.25% Easy, 43.57% Medium, and 33.18% Hard. These targeted playtests support
+the exception but do not establish accuracy for every puzzle in that group.
+
+Another observed bottleneck, `fbcf6d77`, remained Hard: stretch 23.80,
+scarcity 10.53, composite 68.41 (Medium). The recorded mid-game position had
+just two available clue observations, and the player felt Hard was justified.
 
 ## Future calibration
 

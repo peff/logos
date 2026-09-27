@@ -3414,9 +3414,10 @@ Deno.test("puzzle difficulty rates generated puzzles without changing play state
 	}
 });
 
-Deno.test("difficulty levels use discard stretch before scarcity", () => {
+Deno.test("difficulty levels combine discard stretch and scarcity", () => {
 	for (const [stretch, scarcity, level] of [
-		[0, 0, "easy"], [12.99, 30, "easy"],
+		[0, 0, "easy"], [12.99, 9.99, "easy"],
+		[12.99, 10, "medium"], [0, 30, "medium"],
 		[13, 0, "medium"], [50, 9.99, "medium"],
 		[13, 10, "hard"], [50, 30, "hard"],
 	]) {

@@ -576,7 +576,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.analysis.querySelector(".analysis-summary").textContent =
 			"Seed: " + snapshot.seed + "\n" +
 			"Difficulty: " + rating.level + "\n" +
-			"Rule: stretch < 13 → Easy; otherwise scarcity < 10 → Medium; otherwise Hard\n\n" +
+			"Rule: stretch < 13 and scarcity < 10 → Easy; both at or above → Hard; mixed → Medium\n\n" +
 			"Old composite: " + composite.level + " — " + composite.score.toFixed(2) + "\n" +
 			"Old cutoffs: Easy < 45; Medium < 80; otherwise Hard\n\n" +
 			"Five-route averages:\n" +
@@ -1542,7 +1542,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			if (oldLevel != newLevel || Math.random() < 0.1)
 				this.feedbackRequest = { identity, data: {
 					seed: formatSeed(this.seed), generatorVersion: puzzleGeneratorVersion,
-					ratingVersion: "stretch-scarcity-1", oldLevel, newLevel, outcome,
+					ratingVersion: "stretch-scarcity-2", oldLevel, newLevel, outcome,
 					elapsedMs: this.timerElapsed, hintsUsed: this.usedHints,
 					continuedAfterLoss: this.continuedFromLoss, zenMode: this.practiceMode,
 				} };
@@ -4753,12 +4753,14 @@ function compositeDifficultyRating(metrics) {
 		level: score < 45 ? "easy" : score < 80 ? "medium" : "hard" };
 }
 
-/* Short discard stretches are easy; otherwise scarcity separates Medium
- * from Hard. Both measurements are averaged across five solving routes.
+/* Both measurements low means Easy, both high means Hard, and mixed means
+ * Medium. Measurements are averaged across five solving routes.
  */
 function difficultyRating(metrics) {
-	return { level: metrics.maxDiscardRun < 13 ? "easy" :
-		metrics.scarcity < 10 ? "medium" : "hard" };
+	var shortStretch = metrics.maxDiscardRun < 13;
+	var lowScarcity = metrics.scarcity < 10;
+	return { level: shortStretch && lowScarcity ? "easy" :
+		!shortStretch && !lowScarcity ? "hard" : "medium" };
 }
 
 /* Rate the original puzzle, regardless of the player's current progress.

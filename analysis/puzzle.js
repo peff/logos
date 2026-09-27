@@ -177,7 +177,7 @@ async function main(args) {
 	const rating = game.difficultyRating(metrics);
 	const composite = game.compositeDifficultyRating(metrics);
 	console.log(`Seed ${game.formatSeed(seed)} — ${rating.level}`);
-	console.log("Rule: stretch < 13 → Easy; otherwise scarcity < 10 → Medium; otherwise Hard");
+	console.log("Rule: stretch < 13 and scarcity < 10 → Easy; both at or above → Hard; mixed → Medium");
 	console.log(`Old composite: ${composite.level} (${composite.score.toFixed(2)})`);
 	console.log("Five-route averages:");
 	console.log(`  Candidate-based observations: ${metrics.supportSteps.toFixed(2)}`);

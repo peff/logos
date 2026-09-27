@@ -53,7 +53,7 @@ Send JSON with `Content-Type: application/json`:
   "playerName": "Peff",
   "seed": "02b839f1",
   "generatorVersion": 1,
-  "ratingVersion": "stretch-scarcity-1",
+  "ratingVersion": "stretch-scarcity-2",
   "oldLevel": "medium",
   "newLevel": "hard",
   "answer": "about-right",
@@ -82,8 +82,12 @@ name, the persistent sender ID makes the reports pseudonymous, not anonymous.
 The dialog explains that answers are grouped by browser and names are optional.
 
 The seed is eight lowercase hexadecimal digits. `ratingVersion` identifies the
-13/10 rule compared against the composite with cutoffs 45/80. Both reported
-labels must be valid and differ. They are client reports, not independently
+13/10 rule compared against the composite with cutoffs 45/80. Version
+`stretch-scarcity-1` gave short stretches unconditional priority as Easy;
+`stretch-scarcity-2` requires both measurements below their cutoffs for Easy,
+both at or above for Hard, and assigns mixed cases to Medium. The server
+accepts both versions for older clients. Both reported labels must be valid,
+but may match. They are client reports, not independently
 verified measurements; the seed lets us recompute them later.
 
 `answer` is one of `about-right`, `felt-easier`, `felt-harder`, or `unsure`, relative
