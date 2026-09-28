@@ -12,7 +12,7 @@ scorer, and deduction functions from the game's `logos.js`.
 ```
 
 The output includes the label, numeric score, and five-route averages of the
-three scoring metrics. This default output does not reveal clues or moves.
+scoring metrics. This default output does not reveal clues or moves.
 See [DIFFICULTY.md](DIFFICULTY.md) for the methodology.
 
 ## A position where you wanted help

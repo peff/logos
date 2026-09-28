@@ -576,13 +576,14 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.analysis.querySelector(".analysis-summary").textContent =
 			"Seed: " + snapshot.seed + "\n" +
 			"Difficulty: " + rating.level + "\n" +
-			"Rule: stretch < 13 and scarcity < 10 → Easy; both at or above → Hard; mixed → Medium\n\n" +
+			"Rule: excess discards < 13.1 and scarcity < 10 → Easy; both at or above → Hard; mixed → Medium\n\n" +
 			"Old composite: " + composite.level + " — " + composite.score.toFixed(2) + "\n" +
 			"Old cutoffs: Easy < 45; Medium < 80; otherwise Hard\n\n" +
 			"Five-route averages:\n" +
 			"Candidate-based observations: " + metrics.supportSteps.toFixed(2) + "\n" +
 			"Total scarcity: " + metrics.scarcity.toFixed(2) + "\n" +
-			"Longest discard stretch: " + metrics.maxDiscardRun.toFixed(2) + "\n\n" +
+			"Longest discard stretch: " + metrics.maxDiscardRun.toFixed(2) + "\n" +
+			"Excess discards (3 free per stretch): " + metrics.excessDiscards.toFixed(2) + "\n\n" +
 			"Available clue observations: " + available.length + "\n" +
 			"Anchored: " + anchored + "; candidate-based: " + (available.length - anchored);
 		var list = this.analysis.querySelector(".analysis-deductions");
@@ -1542,7 +1543,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			if (oldLevel != newLevel || Math.random() < 0.1)
 				this.feedbackRequest = { identity, data: {
 					seed: formatSeed(this.seed), generatorVersion: puzzleGeneratorVersion,
-					ratingVersion: "stretch-scarcity-2", oldLevel, newLevel, outcome,
+					ratingVersion: "allowance3-scarcity-1", oldLevel, newLevel, outcome,
 					elapsedMs: this.timerElapsed, hintsUsed: this.usedHints,
 					continuedAfterLoss: this.continuedFromLoss, zenMode: this.practiceMode,
 				} };
@@ -4757,10 +4758,10 @@ function compositeDifficultyRating(metrics) {
  * Medium. Measurements are averaged across five solving routes.
  */
 function difficultyRating(metrics) {
-	var shortStretch = metrics.maxDiscardRun < 13;
+	var lowEffort = metrics.excessDiscards < 13.1;
 	var lowScarcity = metrics.scarcity < 10;
-	return { level: shortStretch && lowScarcity ? "easy" :
-		!shortStretch && !lowScarcity ? "hard" : "medium" };
+	return { level: lowEffort && lowScarcity ? "easy" :
+		!lowEffort && !lowScarcity ? "hard" : "medium" };
 }
 
 /* Rate the original puzzle, regardless of the player's current progress.
@@ -4816,7 +4817,7 @@ function traceDifficulty(puzzle, orderSeed) {
 			clue.constrain(domains, full);
 	drainForcedProofSteps(domains, placements);
 	var supportSteps = 0, scarcity = 0;
-	var gap = 0, maxDiscardRun = 0;
+	var gap = 0, maxDiscardRun = 0, excessDiscards = 0;
 	while (difficultyPlacements(domains) < domains.flat().length) {
 		var available = difficultyOpportunities(puzzle, domains);
 		if (!available.length)
@@ -4831,12 +4832,16 @@ function traceDifficulty(puzzle, orderSeed) {
 		domains[move.row][move.symbol] = move.after;
 		drainForcedProofSteps(domains, placements);
 		supportSteps += move.tier == 2;
-		if (!move.placement)
+		if (!move.placement) {
 			maxDiscardRun = Math.max(maxDiscardRun, ++gap);
+			// The first three discards of each stretch are routine work.
+			if (gap > 3)
+				excessDiscards++;
+		}
 		if (difficultyPlacements(domains) > beforePlacements)
 			gap = 0;
 	}
-	return { supportSteps, scarcity, maxDiscardRun };
+	return { supportSteps, scarcity, maxDiscardRun, excessDiscards };
 }
 
 /* Measure an already-generated puzzle without changing its board or clues.
@@ -4845,7 +4850,7 @@ function traceDifficulty(puzzle, orderSeed) {
 function measureDifficulty(puzzle, routes = 5) {
 	if (!Number.isInteger(routes) || routes < 1)
 		throw new Error("difficulty analysis needs a positive route count");
-	var metrics = { supportSteps: 0, scarcity: 0, maxDiscardRun: 0 };
+	var metrics = { supportSteps: 0, scarcity: 0, maxDiscardRun: 0, excessDiscards: 0 };
 	for (var i = 0; i < routes; i++) {
 		var run = traceDifficulty(puzzle, Math.imul(i + 1, 0x9e3779b9));
 		for (var key of Object.keys(metrics))

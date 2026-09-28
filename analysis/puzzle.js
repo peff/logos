@@ -177,12 +177,13 @@ async function main(args) {
 	const rating = game.difficultyRating(metrics);
 	const composite = game.compositeDifficultyRating(metrics);
 	console.log(`Seed ${game.formatSeed(seed)} — ${rating.level}`);
-	console.log("Rule: stretch < 13 and scarcity < 10 → Easy; both at or above → Hard; mixed → Medium");
+	console.log("Rule: excess discards < 13.1 and scarcity < 10 → Easy; both at or above → Hard; mixed → Medium");
 	console.log(`Old composite: ${composite.level} (${composite.score.toFixed(2)})`);
 	console.log("Five-route averages:");
 	console.log(`  Candidate-based observations: ${metrics.supportSteps.toFixed(2)}`);
 	console.log(`  Total scarcity:               ${metrics.scarcity.toFixed(2)}`);
 	console.log(`  Longest discard stretch:      ${metrics.maxDiscardRun.toFixed(2)}`);
+	console.log(`  Excess discards (3 free):     ${metrics.excessDiscards.toFixed(2)}`);
 	console.log("Old score = observations + 2.65 × scarcity + 0.87 × longest stretch");
 	console.log("Old cutoffs: Easy < 45; Medium < 80; otherwise Hard");
 	if (!position && !trace)

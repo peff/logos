@@ -132,7 +132,7 @@ const source = await Deno.readTextFile(
 	new URL("../logos.js", import.meta.url));
 const Logos = eval(source +
 	"\n;({ puzzleDifficulty, difficultyRating, compositeDifficultyRating, puzzleFromSeed, " +
-	"difficultyOpportunities, nextHintStep, " +
+	"difficultyOpportunities, nextHintStep, measureDifficulty, " +
 	"Puzzle: Puzzle, ExactClue: ExactClue, " +
 	"Adjacent2Clue: Adjacent2Clue, " +
 	"Adjacent3Clue: Adjacent3Clue, " +
@@ -3399,8 +3399,8 @@ Deno.test("puzzle difficulty rates generated puzzles without changing play state
 	puzzle.startTimer = function() {};
 	for (const [seed, level] of [[0x98079244, "easy"],
 		[0xc549b7c4, "medium"], [0xe2a689dd, "hard"],
-		[0x0e9f4c26, "easy"], [0x4e233909, "hard"],
-		[0x0a568040, "medium"], [0xb91f28c7, "medium"]]) {
+		[0x0e9f4c26, "medium"], [0x4e233909, "hard"],
+		[0x0a568040, "easy"], [0xb91f28c7, "medium"]]) {
 		puzzle.newGame(seed);
 		const before = puzzleSignature(puzzle);
 		const rating = Logos.puzzleDifficulty(puzzle);
@@ -3415,14 +3415,14 @@ Deno.test("puzzle difficulty rates generated puzzles without changing play state
 	}
 });
 
-Deno.test("difficulty levels combine discard stretch and scarcity", () => {
-	for (const [stretch, scarcity, level] of [
-		[0, 0, "easy"], [12.99, 9.99, "easy"],
-		[12.99, 10, "medium"], [0, 30, "medium"],
-		[13, 0, "medium"], [50, 9.99, "medium"],
-		[13, 10, "hard"], [50, 30, "hard"],
+Deno.test("difficulty levels combine excess discards and scarcity", () => {
+	for (const [excessDiscards, scarcity, level] of [
+		[0, 0, "easy"], [13.09, 9.99, "easy"],
+		[13.09, 10, "medium"], [0, 30, "medium"],
+		[13.1, 0, "medium"], [50, 9.99, "medium"],
+		[13.1, 10, "hard"], [50, 30, "hard"],
 	]) {
-		assert(Logos.difficultyRating({maxDiscardRun: stretch,
+		assert(Logos.difficultyRating({excessDiscards,
 			scarcity, supportSteps: 100}).level == level);
 	}
 });
@@ -4141,4 +4141,18 @@ Deno.test("adjacency hints place a target whose other neighbor was eliminated", 
 		placements = step.placements;
 	}
 	throw new Error("dice placement not reached");
+});
+
+Deno.test("excess discards accumulate across stretches after each allowance", () => {
+	for (const [seed, stretch, excess, level] of [
+		["e36efbeb", 22.8, 21.6, "medium"],
+		["eeaf9adc", 11.6, 16.2, "medium"],
+		["18530f24", 14.6, 11.8, "easy"],
+		["67d6cd2b", 5, 2, "easy"],
+	]) {
+		const metrics = Logos.measureDifficulty(Logos.puzzleFromSeed(parseInt(seed, 16)));
+		assert(metrics.maxDiscardRun == stretch && metrics.excessDiscards == excess,
+		       "discard metrics differ from independently recorded route stretches");
+		assert(Logos.difficultyRating(metrics).level == level);
+	}
 });

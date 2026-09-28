@@ -8,10 +8,12 @@ The current rule uses five-route averages:
 
 | | Scarcity <10 | Scarcity ≥10 |
 | --- | --- | --- |
-| Longest discard stretch <13 | Easy | Medium |
-| Longest discard stretch ≥13 | Medium | Hard |
+| Excess discards <13.1 | Easy | Medium |
+| Excess discards ≥13.1 | Medium | Hard |
 
-Both low means Easy, both high means Hard, and mixed means Medium.
+Both low means Easy, both high means Hard, and mixed means Medium. Excess
+discards is `sum(max(0, stretch_length - 3))` within each route, averaged
+over five routes. Each stretch gets three free discards.
 
 The original weighted score is retained in `compositeDifficultyRating()` for
 comparison, returning `{ score, level }`:
@@ -41,7 +43,10 @@ random stream. It records:
 - `supportSteps`: number of selected candidate-based observations.
 - `scarcity`: sum of 1 / available observations at each selected move.
 - `maxDiscardRun`: longest consecutive run of discard observations without a
-  placement. A discard that triggers automatic row placement ends the run.
+  placement. A discard that triggers automatic row placement ends the run
+  and is included in its length.
+- `excessDiscards`: sum of discards beyond the first three of each stretch.
+  Unlike longest stretch, this accumulates effort over repeated stretches.
 
 Five routes are measured, with seeds `Math.imul(i + 1, 0x9e3779b9)` for
 `i = 0..4`. Each metric is averaged before applying the rating rule. We average
@@ -216,6 +221,63 @@ the exception but do not establish accuracy for every puzzle in that group.
 Another observed bottleneck, `fbcf6d77`, remained Hard: stretch 23.80,
 scarcity 10.53, composite 68.41 (Medium). The recorded mid-game position had
 just two available clue observations, and the player felt Hard was justified.
+
+## Accumulated discard effort
+
+On September 28, 2026, we replaced longest stretch in the level rule with
+`excessDiscards`, retaining longest stretch for the old composite and analysis.
+One long stretch and several substantial stretches should both count as work;
+a placement between stretches should not erase the earlier effort.
+
+We measured 1,000 fresh distinct seeds (sample RNG seed `20260928`, excluding
+41 previously discussed seeds), keeping the same five routes and scarcity.
+For allowances of 2, 3, and 5, each route sums `max(0, stretch - allowance)`.
+Cutoffs were selected to approximate the 32% of this sample with longest
+stretch below 13, without using player times. Ties prevent exact matching.
+
+| Metric | Cutoff | Easy | Medium | Hard | Changes from longest-stretch rule |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Longest stretch | 13 | 319 | 415 | 266 | — |
+| Allowance 2 | 15.3 | 315 | 420 | 265 | 95 |
+| Allowance 3 | 13.1 | 321 | 412 | 267 | 83 |
+| Allowance 5 | 9.7 | 321 | 412 | 267 | 57 |
+
+Allowance 3 was tested with four shuffled disagreement puzzles. Predictions
+were withheld until all four were played, though the current in-game label
+remained accessible. A replacement was then chosen in the same direction as
+the inconclusive first example; its direction was disclosed before play.
+
+| Seed | Time | Previous rule → Allowance 3 | Longest stretch | Excess discards | Player assessment |
+| --- | ---: | --- | ---: | ---: | --- |
+| `ae48a08e` | 3:41 | medium → easy | 15.2 | 12.8 | Felt like obvious placements were overlooked; set aside as inconclusive. |
+| `f8167b9b` | 1:45 | medium → easy | 13.4 | 11.8 | Fairly easy; opening discards then smooth progress. |
+| `830cb2fb` | 2:21 | easy → medium | 11.2 | 13.4 | Opening discards then opened up; a little harder than the preceding Easy example. |
+| `eeaf9adc` | 2:32 | easy → medium | 11.6 | 16.2 | Smooth start, then several discard patches; a little harder than the Easy example. |
+| `18530f24` | 1:11 | medium → easy | 14.6 | 11.8 | Replacement for the first example; felt quite easy. |
+
+We adopted allowance 3 provisionally with cutoff 13.1, keeping scarcity at 10.
+Feedback identifies it as `allowance3-scarcity-1`. Existing Chronicle labels
+are not migrated. This is a small, selected set of subjective observations,
+not an independent accuracy estimate; setting aside an unfavorable example
+also limits the strength of the evidence.
+
+The earlier manual examples remain mixed: `d49bc27a` moves to Easy and
+`e7e2214f` to Medium, consistent with their assessments, but `0a568040` moves
+to Easy despite feeling Medium and `0e9f4c26` moves to Medium despite Easy
+being defensible on replay. Both short-but-scarce examples remain Medium;
+total discard count without an allowance would have made them Hard.
+
+`e36efbeb`, which prompted the experiment, remains Medium (scarcity 7.96,
+longest stretch 22.8, excess discards 21.6). Its routes mostly contain one
+dominant stretch, so this change does not explain why it felt fairly easy.
+
+Subsequent reports provided a useful mixed pair. `ec29e0c8` had been Easy;
+an unnamed player reported that it felt harder (17:17), and Peff found it
+harder than expected (4:35). Allowance 3 makes it Medium (excess 16.4,
+scarcity 8.66). But `b73aa28a` also becomes Medium (excess 17.2, scarcity
+8.25), despite both the reporting player (2:51) and Peff (1:36) endorsing
+Easy. This is a known regression, not just a boundary case. Times across
+players are not directly comparable, and the change remains provisional.
 
 ## Future calibration
 
