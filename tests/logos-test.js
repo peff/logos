@@ -3255,14 +3255,15 @@ Deno.test("a conflicting placement contrasts the attempted tile", function() {
 	puzzle.rows[0].slots[1].choose(1);
 	puzzle.explainLoss();
 	const step = puzzle.proof.steps[puzzle.proof.steps.length - 1];
-	assert(step.conclusion && step.deduction == "clue.placement" &&
+	assert(step.conclusion && step.deduction == "adjacent2.placement" &&
 	       step.row == 0 && step.symbol == 0 && step.domain == 1 << 1 &&
 	       Logos.proofMessageText(puzzle, step.contradicts) == "2",
 	       "the final placement did not record the attempted tile");
 	puzzle.proof.position = puzzle.proof.steps.length;
 	puzzle.showProofPosition();
 	assert(puzzle.proofControls.querySelector(".proof-deduction").textContent ==
-	       "1, not 2, must be in the second column. Q.E.D.",
+	       "1, not 2, must be in the second column because that is the only remaining position adjacent to " +
+	       Logos.proofMessageText(puzzle, step.deductionValues.other) + ". Q.E.D.",
 	       "the rendered placement did not contrast the attempted tile");
 	puzzle.stopTimer();
 });
@@ -4114,4 +4115,30 @@ Deno.test("feedback samples agreements and backs off after dismissals", async ()
 		Math.random = random;
 		document.modals = [];
 	}
+});
+
+Deno.test("adjacency hints place a target whose other neighbor was eliminated", () => {
+	const puzzle = Logos.puzzleFromSeed(0xe36efbeb);
+	for (let row = 0; row < 6; row++)
+		puzzle.rows[row].slots[0].symbols = Logos.defaultSymbols[row];
+	let domains = puzzle.rows.map(row => row.slots.map(() => 63));
+	let placements = Array(6).fill(0);
+	for (const clue of puzzle.clues)
+		if (clue.applyInitialState) clue.constrain(domains, 63);
+	for (let i = 0; i < 100; i++) {
+		const step = Logos.nextHintStep(puzzle, domains, placements);
+		assert(step, "hint trace ended before the dice placement");
+		if (step.row == 3 && step.symbol == 2) {
+			assert(step.placement && step.domain == 2 &&
+			       step.deduction == "adjacent2.placement",
+			       "adjacency was presented as discards followed by row elimination");
+			assert(Logos.proofMessageText(puzzle, step.message) ==
+			       "⚂ must be in the second column because that is the only remaining position adjacent to 5.");
+			assert(step.placements[3] & 4, "hint did not apply the placement");
+			return;
+		}
+		domains = step.domains;
+		placements = step.placements;
+	}
+	throw new Error("dice placement not reached");
 });

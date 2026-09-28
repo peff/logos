@@ -3484,6 +3484,8 @@ function renderProofMessage(puzzle, elem, message, qed, contradicts) {
  * steps be recognized without comparing their rendered text.
  */
 var proofDeductionCatalog = [
+	{ id: "adjacent2.placement",
+	  message: "{subject} must be in the {position} column because that is the only remaining position adjacent to {other}." },
 	{ id: "adjacent2.not-adjacent",
 	  message: "{subject} cannot be in {positions} because {other} is not adjacent." },
 	{ id: "adjacent3.middle.outer-not-adjacent",
@@ -3851,8 +3853,6 @@ function adjacent3DeductionMessage(puzzle, step, before, after, domains) {
 function adjacent2DeductionMessage(puzzle, step, before, after) {
 	var clue = step.clue;
 	var removed = before & ~after;
-	if (step.placement && countBits(after) == 1)
-		return deductionMessage(puzzle, step, before, after);
 	var leftRow = puzzle.rows.indexOf(clue.lRow);
 	var leftSymbol = clue.lRow.slots[clue.lCol].value;
 	var rightRow = puzzle.rows.indexOf(clue.rRow);
@@ -3861,6 +3861,12 @@ function adjacent2DeductionMessage(puzzle, step, before, after) {
 		rightRow : leftRow;
 	var otherSymbol = step.row == leftRow && step.symbol == leftSymbol ?
 		rightSymbol : leftSymbol;
+	if (step.placement && countBits(after) == 1)
+		return identifiedDeduction(step, "adjacent2.placement", {
+			subject: proofSymbolReference(puzzle, step.row, step.symbol),
+			position: ordinalName(Math.log2(after)),
+			other: proofSymbolReference(puzzle, otherRow, otherSymbol),
+		});
 	return identifiedDeduction(step, "adjacent2.not-adjacent", {
 		subject: proofSymbolReference(puzzle, step.row, step.symbol),
 		positions: positionList(removed),
@@ -4107,8 +4113,8 @@ function nextForcedProofStep(domains, placements) {
 }
 
 function clueDirectlyPlaces(clue, domains, row, symbol, fullDomain) {
-	/* Adjacent-three placements describe the whole sequence constraint. */
-	if (clue.constructor == Adjacent3Clue)
+	/* Adjacency placements can use the target's remaining candidates. */
+	if (clue.constructor == Adjacent2Clue || clue.constructor == Adjacent3Clue)
 		return true;
 	var expanded = copyDomains(domains);
 	expanded[row][symbol] = fullDomain;
