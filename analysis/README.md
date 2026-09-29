@@ -8,8 +8,13 @@ scorer, and deduction functions from the game's `logos.js`.
 
 ```sh
 ./analysis/puzzle 3f1ad099
+./analysis/puzzle b73aa28a ec29e0c8
 ./analysis/puzzle 'file:///home/peff/work/logos/index.html#seed=3f1ad099'
 ```
+
+Multiple seeds or URLs produce separate reports in command-line order;
+`--trace` applies to each puzzle. The stdin `--position` mode still accepts
+one snapshot and cannot be combined with seed arguments.
 
 The output includes the label, numeric score, and five-route averages of the
 scoring metrics. This default output does not reveal clues or moves.

@@ -1,6 +1,7 @@
-const usage = `Usage: analysis/puzzle SEED_OR_URL [--trace]
+const usage = `Usage: analysis/puzzle SEED_OR_URL... [--trace]
        analysis/puzzle --position [--trace] < snapshot.json
 
+Each seed or URL gets a separate report, in command-line order.
 By default, seed queries show only the difficulty score and metrics.
 --position reads a position snapshot from stdin and lists available deductions.
 --trace shows a full hint walkthrough (spoilers), not a difficulty-scoring route.
@@ -150,7 +151,7 @@ async function main(args) {
 	const position = args.includes("--position");
 	const trace = args.includes("--trace");
 	const inputs = args.filter(arg => arg !== "--position" && arg !== "--trace");
-	if (inputs.some(arg => arg.startsWith("-")) || inputs.length !== (position ? 0 : 1))
+	if (inputs.some(arg => arg.startsWith("-")) || (position ? inputs.length !== 0 : inputs.length === 0))
 		throw new Error(usage);
 	const game = await loadGame();
 	let snapshot;
@@ -165,7 +166,16 @@ async function main(args) {
 		if (!snapshot || typeof snapshot !== "object")
 			throw new Error("expected a JSON snapshot object");
 	}
-	const seed = seedFromInput(game, position ? snapshot.seed : inputs[0]);
+	const seeds = (position ? [snapshot.seed] : inputs).map(input => seedFromInput(game, input));
+	for (const [index, seed] of seeds.entries()) {
+		if (index)
+			console.log();
+		analyzePuzzle(game, seed, snapshot, trace);
+	}
+}
+
+function analyzePuzzle(game, seed, snapshot, trace) {
+	const position = snapshot !== undefined;
 	const puzzle = game.puzzleFromSeed(seed);
 	// The DOM-free generator omits display names, which proof messages use.
 	puzzle.rows.forEach((row, index) => row.slots.forEach(slot => {
