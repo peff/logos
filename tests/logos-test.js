@@ -132,7 +132,7 @@ const source = await Deno.readTextFile(
 	new URL("../logos.js", import.meta.url));
 const Logos = eval(source +
 	"\n;({ puzzleDifficulty, difficultyRating, compositeDifficultyRating, puzzleFromSeed, " +
-	"difficultyOpportunities, nextHintStep, measureDifficulty, " +
+	"difficultyOpportunities, placementDifficultyChoices, nextHintStep, measureDifficulty, " +
 	"Puzzle: Puzzle, ExactClue: ExactClue, " +
 	"Adjacent2Clue: Adjacent2Clue, " +
 	"Adjacent3Clue: Adjacent3Clue, " +
@@ -3399,7 +3399,7 @@ Deno.test("puzzle difficulty rates generated puzzles without changing play state
 	puzzle.startTimer = function() {};
 	for (const [seed, level] of [[0x98079244, "easy"],
 		[0xc549b7c4, "medium"], [0xe2a689dd, "hard"],
-		[0x0e9f4c26, "medium"], [0x4e233909, "hard"],
+		[0x0e9f4c26, "easy"], [0x4e233909, "hard"],
 		[0x0a568040, "easy"], [0xb91f28c7, "medium"]]) {
 		puzzle.newGame(seed);
 		const before = puzzleSignature(puzzle);
@@ -3415,15 +3415,15 @@ Deno.test("puzzle difficulty rates generated puzzles without changing play state
 	}
 });
 
-Deno.test("difficulty levels combine excess discards and scarcity", () => {
-	for (const [excessDiscards, scarcity, level] of [
-		[0, 0, "easy"], [13.09, 9.99, "easy"],
-		[13.09, 10, "medium"], [0, 30, "medium"],
-		[13.1, 0, "medium"], [50, 9.99, "medium"],
-		[13.1, 10, "hard"], [50, 30, "hard"],
+Deno.test("placement-first composite uses score boundaries without rounding", () => {
+	for (const [excessDiscards, scarcity, score, level] of [
+		[0, 0, 0, "easy"], [46.99, 0, 46.99, "easy"],
+		[12, 7, 47, "medium"], [0, 10, 50, "medium"],
+		[69.99, 0, 69.99, "medium"], [20, 10, 70, "hard"],
+		[50, 30, 200, "hard"],
 	]) {
-		assert(Logos.difficultyRating({excessDiscards,
-			scarcity, supportSteps: 100}).level == level);
+		const rating = Logos.difficultyRating({excessDiscards, scarcity, supportSteps: 100});
+		assert(rating.score == score && rating.level == level);
 	}
 });
 
@@ -3955,7 +3955,8 @@ Deno.test("feedback waits for the Pantheon after a scored win", async () => {
 			await puzzle.checkWin();
 			assert(!puzzle.scores.hidden && puzzle.feedback.hidden);
 			assert(puzzle.feedbackRequest.data.oldLevel == "medium" &&
-			       puzzle.feedbackRequest.data.newLevel == "hard");
+			       puzzle.feedbackRequest.data.newLevel == "hard" &&
+			       puzzle.feedbackRequest.data.ratingVersion == "placement-composite-1");
 			await puzzle.toggleScores();
 			assert(!puzzle.feedback.hidden && puzzle.paused);
 			puzzle.dismissDifficultyFeedback();
@@ -4145,14 +4146,42 @@ Deno.test("adjacency hints place a target whose other neighbor was eliminated", 
 
 Deno.test("excess discards accumulate across stretches after each allowance", () => {
 	for (const [seed, stretch, excess, level] of [
-		["e36efbeb", 22.8, 21.6, "medium"],
-		["eeaf9adc", 11.6, 16.2, "medium"],
-		["18530f24", 14.6, 11.8, "easy"],
-		["67d6cd2b", 5, 2, "easy"],
+		["e36efbeb", 14.8, 18.4, "medium"],
+		["eeaf9adc", 10.2, 14.2, "medium"],
+		["18530f24", 1.4, 0, "easy"],
+		["67d6cd2b", 1.6, 0, "easy"],
 	]) {
 		const metrics = Logos.measureDifficulty(Logos.puzzleFromSeed(parseInt(seed, 16)));
 		assert(metrics.maxDiscardRun == stretch && metrics.excessDiscards == excess,
 		       "discard metrics differ from independently recorded route stretches");
 		assert(Logos.difficultyRating(metrics).level == level);
 	}
+});
+
+Deno.test("difficulty prioritizes placements and row cascades without tier bias", () => {
+	const domains = [[15, 3, 6, 12], [15, 15, 15, 15]];
+	const placements = [0, 0];
+	const before = JSON.stringify({domains, placements});
+	const discard = {row: 1, symbol: 1, after: 7, tier: 1, placement: false};
+	const place = {row: 1, symbol: 0, after: 1, tier: 2, placement: true};
+	const cascade = {row: 0, symbol: 0, after: 12, tier: 2, placement: false};
+	assert(Logos.placementDifficultyChoices(domains, placements, [discard, place])[0] === place);
+	assert(Logos.placementDifficultyChoices(domains, placements, [place, cascade])[0] === cascade);
+	const candidateDiscard = {...discard, symbol: 2, tier: 2};
+	assert(Logos.placementDifficultyChoices(domains, placements, [discard, candidateDiscard]).length === 2);
+	assert(JSON.stringify({domains, placements}) === before, "lookahead mutated the board");
+});
+
+Deno.test("full difficulty observations do not truncate candidate reductions to anchored ones", () => {
+	const puzzle = {clues: [{constrain(d) { d[0][0] &= d[0][1] === 3 ? 1 : 3; }}]};
+	const domains = [[15, 3, 15, 15]];
+	assert(Logos.difficultyOpportunities(puzzle, domains, false)[0].after === 3);
+	assert(Logos.difficultyOpportunities(puzzle, domains, true)[0].after === 1);
+});
+
+Deno.test("historical composite keeps its original routes", () => {
+	const metrics = Logos.measureDifficulty(Logos.puzzleFromSeed(0x02b839f1), 5, false);
+	const rating = Logos.compositeDifficultyRating(metrics);
+	assert(metrics.excessDiscards === 29.6 && metrics.maxDiscardRun === 19.8);
+	assert(Math.abs(rating.score - 70.27) < 0.01 && rating.level === "medium");
 });

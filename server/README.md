@@ -53,7 +53,7 @@ Send JSON with `Content-Type: application/json`:
   "playerName": "Peff",
   "seed": "02b839f1",
   "generatorVersion": 1,
-  "ratingVersion": "allowance3-scarcity-1",
+  "ratingVersion": "placement-composite-1",
   "oldLevel": "medium",
   "newLevel": "hard",
   "answer": "about-right",
@@ -87,8 +87,12 @@ current rule compared against the composite with cutoffs 45/80. Version
 `stretch-scarcity-2` requires both measurements below their cutoffs for Easy,
 both at or above for Hard, and assigns mixed cases to Medium.
 `allowance3-scarcity-1` replaces longest stretch with summed discards beyond
-three per stretch, using cutoff 13.1 and retaining scarcity cutoff 10. The
-server accepts all three versions for older clients. Both reported labels
+three per stretch, using cutoff 13.1 and retaining scarcity cutoff 10.
+`placement-composite-1` uses full deductions and prioritizes placements and
+immediate automatic row cascades. Its score is excess discards + 5 × scarcity,
+with cutoffs 47/70. The original-composite comparison still uses the original
+anchored-first routes and cutoffs 45/80. The server accepts all four versions
+for older clients. Both reported labels
 must be valid, but may match. They are client reports, not independently
 verified measurements; the seed lets us recompute them later.
 
@@ -183,3 +187,6 @@ re-enables prompts. The browser ID and optional name use
 
 Failed submissions can be retried with the same report ID, or dismissed.
 There is no background upload queue. Successful submission closes the dialog and shows a thank-you in the status bar.
+
+When publishing a client with a new rating version, deploy the Worker first
+so it accepts that version before clients begin submitting reports.
