@@ -4124,7 +4124,7 @@ function clueDirectlyPlaces(clue, domains, row, symbol, fullDomain) {
 	return countBits(expanded[row][symbol]) == 1;
 }
 
-function clueProofStep(puzzle, clue, domains) {
+function* clueProofSteps(puzzle, clue, domains) {
 	var fullDomain = (1 << domains[0].length) - 1;
 	var trial = copyDomains(domains);
 	clue.constrain(trial, fullDomain);
@@ -4165,7 +4165,7 @@ function clueProofStep(puzzle, clue, domains) {
 		else
 			after = proofStepDomain(before, after,
 				domains[row].length);
-		return {
+		yield {
 			clues: clue.display ? [clue] : [],
 			clue: clue,
 			rule: "clue",
@@ -4177,37 +4177,50 @@ function clueProofStep(puzzle, clue, domains) {
 			removed: domains[row][symbol] & ~after,
 		};
 	}
-	return null;
 }
 
-/* Prefer a forced placement, then an anchored clue, then a candidate deduction.
- * Explain one step only; applying it remains the player's choice.
+/* Mistake proofs retain their first-deduction ordering. */
+function clueProofStep(puzzle, clue, domains) {
+	return clueProofSteps(puzzle, clue, domains).next().value || null;
+}
+
+/* Prefer the explainable step which opens the largest automatic row cascade.
+ * Break ties with the original anchored/placement priorities, then clue and
+ * symbol order. Show only the chosen step: row consequences will be explained
+ * on subsequent calls, not silently applied.
  */
 function nextHintStep(puzzle, base, basePlacements) {
 	var step = nextForcedProofStep(base, basePlacements);
 	if (!step) {
+		var before = difficultyPlacements(base);
+		var best = -1, bestPriority = Infinity;
 		var full = (1 << base[0].length) - 1;
 		var anchored = base.map(row => row.map(bits =>
 			countBits(bits) == 1 ? bits : full));
-		var choices = [];
 		for (var clue of puzzle.clues) {
 			if (clue.applyInitialState)
 				continue;
-			var candidate = clueProofStep(puzzle, clue, base);
-			if (!candidate)
-				continue;
 			var simple = copyDomains(anchored);
 			clue.constrain(simple, full);
-			var anchoredStep = !(candidate.removed &
-				simple[candidate.row][candidate.symbol]);
-			choices.push({ step: candidate,
-				priority: (anchoredStep ? 0 : 2) +
-					(candidate.placement ? 0 : 1) });
+			for (var candidate of clueProofSteps(puzzle, clue, base)) {
+				var trial = copyDomains(base);
+				var trialPlacements = basePlacements.slice();
+				applyProofStep(trial, trialPlacements, candidate);
+				drainForcedProofSteps(trial, trialPlacements);
+				var gain = difficultyPlacements(trial) - before;
+				var anchoredStep = !(candidate.removed &
+					simple[candidate.row][candidate.symbol]);
+				var priority = (anchoredStep ? 0 : 2) +
+					(candidate.placement ? 0 : 1);
+				if (gain > best || gain == best && priority < bestPriority) {
+					best = gain;
+					bestPriority = priority;
+					step = candidate;
+				}
+			}
 		}
-		choices.sort((a, b) => a.priority - b.priority);
-		if (!choices.length)
+		if (!step)
 			return null;
-		step = choices[0].step;
 	}
 	var domains = copyDomains(base);
 	var placements = basePlacements.slice();

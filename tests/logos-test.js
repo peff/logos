@@ -3673,8 +3673,96 @@ Deno.test("a stale Pantheon lookup cannot replace a newer selection", async () =
 	}
 });
 
+Deno.test("hints find a placement beyond a clue's first target", () => {
+	const puzzle = makePuzzle(2);
+	const clue = new Adjacent2Clue(puzzle);
+	clue.lRow = puzzle.rows[0];
+	clue.rRow = puzzle.rows[1];
+	clue.lCol = 0;
+	clue.rCol = 1;
+	puzzle.clues = [clue];
+	const domains = puzzle.rows.map(row => row.slots.map(() => 63));
+	const left = clue.lRow.slots[0].value;
+	const right = clue.rRow.slots[1].value;
+	domains[0][left] = 37; // columns 1, 3, 6
+	domains[1][right] = 34; // columns 2, 6
+	const placements = [0, 0];
+	const before = JSON.stringify({domains, placements});
+	const first = Logos.clueProofStep(puzzle, clue, domains);
+	assert(first.row === 0 && !first.placement,
+	       "fixture must offer an earlier discard in the same clue");
+	const step = Logos.nextHintStep(puzzle, domains, placements);
+	assert(step.row === 1 && step.symbol === right && step.placement && step.domain === 2,
+	       "hint overlooked the second target's candidate-based placement");
+	assert(step.deduction === "adjacent2.placement", "placement lost its explanation");
+	assert(step.domains[0][left] === 37, "hint silently applied another deduction");
+	const again = Logos.nextHintStep(puzzle, domains, placements);
+	assert(again.row === step.row && again.symbol === step.symbol && again.domain === step.domain,
+	       "hint selection is not repeatable");
+	assert(JSON.stringify({domains, placements}) === before, "lookahead mutated its input");
+});
+
+Deno.test("hints favor a discard cascade over a single direct placement", () => {
+	const puzzle = makePuzzle(4);
+	const direct = new Adjacent2Clue(puzzle);
+	direct.lRow = puzzle.rows[2];
+	direct.rRow = puzzle.rows[3];
+	direct.lCol = 0;
+	direct.rCol = 1;
+	const cascade = new ColumnClue(puzzle);
+	cascade.tRow = puzzle.rows[0];
+	cascade.bRow = puzzle.rows[1];
+	cascade.col = 0;
+	puzzle.clues = [direct, cascade];
+	const domains = puzzle.rows.map(row => row.slots.map(() => 63));
+	[13, 3, 6, 24, 48, 48].forEach((bits, col) => {
+		domains[0][puzzle.rows[0].slots[col].value] = bits;
+	});
+	domains[1][puzzle.rows[1].slots[0].value] = 12;
+	domains[2][puzzle.rows[2].slots[0].value] = 37;
+	domains[3][puzzle.rows[3].slots[1].value] = 34;
+	const placements = [0, 0, 0, 0];
+	const before = JSON.stringify({domains, placements});
+	const step = Logos.nextHintStep(puzzle, domains, placements);
+	assert(step.clue === cascade && step.row === 0 && !step.placement && step.removed === 1,
+	       "hint chose one placement instead of the larger row cascade");
+	assert(step.placements.every(bits => bits === 0), "lookahead silently placed tiles");
+	const forced = Logos.nextHintStep(puzzle, step.domains, step.placements);
+	assert(forced.rule === "only-candidate" && forced.row === 0 && forced.column === 0,
+	       "the cascade's first placement was not explained separately");
+	assert(JSON.stringify({domains, placements}) === before, "lookahead mutated its input");
+});
+
+Deno.test("hint cascade ties retain anchored deduction priority", () => {
+	const puzzle = makePuzzle(2);
+	const candidate = new Logos.OrderClue(puzzle);
+	candidate.lRow = puzzle.rows[0];
+	candidate.rRow = puzzle.rows[1];
+	candidate.lCol = 0;
+	candidate.rCol = 4;
+	const anchored = new Logos.OrderClue(puzzle);
+	anchored.lRow = puzzle.rows[0];
+	anchored.rRow = puzzle.rows[1];
+	anchored.lCol = 1;
+	anchored.rCol = 3;
+	const domains = puzzle.rows.map(row => row.slots.map(() => 63));
+	domains[0][candidate.lRow.slots[0].value] = 31;
+	domains[1][candidate.rRow.slots[4].value] = 24;
+	const placements = [0, 0];
+	puzzle.clues = [candidate];
+	const first = Logos.nextHintStep(puzzle, domains, placements);
+	assert(first.clue === candidate && first.removed === 16 && !first.placement);
+	puzzle.clues = [candidate, anchored];
+	const step = Logos.nextHintStep(puzzle, domains, placements);
+	assert(step.clue === anchored && step.row === 0 && step.removed === 32,
+	       "equally productive candidate deduction displaced an anchored one");
+	assert(!Logos.nextForcedProofStep(first.domains, first.placements) &&
+	       !Logos.nextForcedProofStep(step.domains, step.placements),
+	       "fixture deductions must tie without producing placements");
+});
+
 Deno.test("hints explain valid progress without changing their input", function() {
-	for (const seed of ["98079244", "5be42607", "be0e8074"]) {
+	for (const seed of ["98079244", "5be42607", "be0e8074", "7f50dd46"]) {
 		const puzzle = Logos.puzzleFromSeed(parseInt(seed, 16));
 		let domains = puzzle.rows.map(row => row.slots.map(() => 63));
 		let placements = puzzle.rows.map(() => 0);
