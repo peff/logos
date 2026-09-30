@@ -16,7 +16,7 @@ Multiple seeds or URLs produce separate reports in command-line order;
 `--trace` applies to each puzzle. The stdin `--position` mode still accepts
 one snapshot and cannot be combined with seed arguments.
 
-The output includes the label, numeric score, and five-route averages of the
+The output includes the label, numeric score, and ten-route averages of the
 placement-first scoring metrics. The score is excess discards + 5 × scarcity,
 with Easy below 47 and Medium below 70. This default output does not reveal
 clues or moves.

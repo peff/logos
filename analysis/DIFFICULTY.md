@@ -45,9 +45,9 @@ Each route records:
 - **Scarcity:** sum of `1 / availableObservations` before every selected move,
   including placements. Narrow choices accumulate more scarcity.
 
-`measureDifficulty(puzzle, routes = 5)` averages each metric over deterministic
+`measureDifficulty(puzzle, routes = 10)` averages each metric over deterministic
 routes seeded with `Math.imul(i + 1, 0x9e3779b9)`, for `i = 0..routes-1`.
-Game ratings always use five routes. They are averages, not the best route or
+Game ratings always use ten routes. They are averages, not the best route or
 an optimal solution, and do not consume the generator's random stream.
 
 ## Calibration and observations
@@ -55,9 +55,11 @@ an optimal solution, and do not consume the generator's random stream.
 The weight approximately balances the two terms' sampled interquartile
 spreads. We chose 5 for simplicity after checking nearby weights. Empirical
 thirds provided starting cutoffs; manual play informed the final 47/70 pair.
-In the 1,000-seed calibration sample these give 343 Easy, 346 Medium, and
-311 Hard. Equal thirds are a starting convention, not a claim that human
-solve difficulty naturally splits that way.
+The original five-route calibration sample gave 343 Easy, 346 Medium, and
+311 Hard. Ten routes reduce sensitivity to move order; on seeds 1–1,000,
+labels changed for 5.5% of puzzles and the groups were 290/354/356. Equal
+thirds are a starting convention, not a claim that human solve difficulty
+naturally splits that way.
 
 [assessments.csv](assessments.csv) preserves manually reported times and
 impressions, including replays, uncertain assessments, and the latest blind
@@ -88,7 +90,7 @@ one of the difficulty metrics. Mistake proofs keep their own ordering:
 finding a short explanation of a particular error differs from solving the
 whole board.
 
-Feedback uses rating version `placement-composite-1` and samples 20% of
+Feedback uses rating version `placement-composite-2` and samples 20% of
 eligible completions, subject to cooldowns and player preferences. Historical
 comparison fields remain readable on the server, but new reports contain
 only the current label.

@@ -185,7 +185,7 @@ function analyzePuzzle(game, seed, snapshot, trace) {
 	console.log(`Seed ${game.formatSeed(seed)} — ${rating.level}`);
 	console.log(`Score: ${rating.score.toFixed(2)} = excess discards + 5 × scarcity`);
 	console.log("Cutoffs: Easy < 47; Medium < 70; otherwise Hard");
-	console.log("Five-route averages (placement-first):");
+	console.log("Ten-route averages (placement-first):");
 	console.log(`  Total scarcity:               ${metrics.scarcity.toFixed(2)}`);
 	console.log(`  Excess discards (3 free):     ${metrics.excessDiscards.toFixed(2)}`);
 	if (!position && !trace)

@@ -15,7 +15,7 @@ function validFeedback(data) {
 		 data.playerName.length <= 80 && !/[\u0000-\u001f\u007f]/.test(data.playerName)) &&
 		typeof data.seed == "string" && /^[0-9a-f]{8}$/.test(data.seed) &&
 		data.generatorVersion === 1 &&
-		["stretch-scarcity-1", "stretch-scarcity-2", "allowance3-scarcity-1", "placement-composite-1"].includes(data.ratingVersion) &&
+		["stretch-scarcity-1", "stretch-scarcity-2", "allowance3-scarcity-1", "placement-composite-1", "placement-composite-2"].includes(data.ratingVersion) &&
 		(data.oldLevel === undefined || levels.includes(data.oldLevel)) && levels.includes(data.newLevel) &&
 		answers.includes(data.answer) &&
 		["won", "lost"].includes(data.outcome) &&

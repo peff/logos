@@ -576,7 +576,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			"Difficulty: " + rating.level + "\n" +
 			"Score: " + rating.score.toFixed(2) + " = excess discards + 5 × scarcity\n" +
 			"Cutoffs: Easy < 47; Medium < 70; otherwise Hard\n\n" +
-			"Five-route averages (placement-first):\n" +
+			"Ten-route averages (placement-first):\n" +
 			"Total scarcity: " + metrics.scarcity.toFixed(2) + "\n" +
 			"Excess discards (3 free per stretch): " + metrics.excessDiscards.toFixed(2) + "\n\n" +
 			"Available clue observations: " + available.length;
@@ -1534,7 +1534,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			if (Math.random() < 0.2)
 				this.feedbackRequest = { identity, data: {
 					seed: formatSeed(this.seed), generatorVersion: puzzleGeneratorVersion,
-					ratingVersion: "placement-composite-1",
+					ratingVersion: "placement-composite-2",
 					newLevel: puzzleDifficulty(this).level, outcome,
 					elapsedMs: this.timerElapsed, hintsUsed: this.usedHints,
 					continuedAfterLoss: this.continuedFromLoss, zenMode: this.practiceMode,
@@ -4748,7 +4748,7 @@ function isClueExhausted(clue) {
 	return clueSlots(clue).every(function(slot) { return slot.single; });
 }
 
-/* Placement-first route effort and scarcity, averaged over five routes.
+/* Placement-first route effort and scarcity, averaged over ten routes.
  * The integer weight balances their sampled spreads; see analysis/DIFFICULTY.md.
  */
 function difficultyRating(metrics) {
@@ -4849,7 +4849,7 @@ function traceDifficulty(puzzle, orderSeed) {
 /* Measure an already-generated puzzle without changing its board or clues.
  * Fixed route seeds keep the result independent of the game's random stream.
  */
-function measureDifficulty(puzzle, routes = 5) {
+function measureDifficulty(puzzle, routes = 10) {
 	if (!Number.isInteger(routes) || routes < 1)
 		throw new Error("difficulty analysis needs a positive route count");
 	var metrics = { scarcity: 0, excessDiscards: 0 };

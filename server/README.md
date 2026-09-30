@@ -53,7 +53,7 @@ Send JSON with `Content-Type: application/json`:
   "playerName": "Peff",
   "seed": "02b839f1",
   "generatorVersion": 1,
-  "ratingVersion": "placement-composite-1",
+  "ratingVersion": "placement-composite-2",
   "newLevel": "hard",
   "answer": "about-right",
   "outcome": "won",
@@ -81,16 +81,18 @@ name, the persistent sender ID makes the reports pseudonymous, not anonymous.
 The dialog explains that answers are grouped by browser and names are optional.
 
 The seed is eight lowercase hexadecimal digits. `ratingVersion` identifies the
-scoring method; current clients use `placement-composite-1` (excess discards +
-5 × scarcity, with cutoffs 47/70). `newLevel` is the reported difficulty.
+scoring method; current clients use `placement-composite-2` (excess discards +
+5 × scarcity averaged over ten routes, with cutoffs 47/70). `newLevel` is the
+reported difficulty.
 The names remain compatible with earlier clients; `oldLevel` is optional
 and stores a historical comparison when provided. Otherwise `old_level`
 is NULL. Reports are not independently verified; the seed lets us recompute
 the difficulty later.
 
 The server also accepts the historical versions `stretch-scarcity-1`,
-`stretch-scarcity-2`, and `allowance3-scarcity-1` from older clients. Their
-formulas and experiments are recorded in Git history.
+`stretch-scarcity-2`, `allowance3-scarcity-1`, and the five-route
+`placement-composite-1` from older clients. Their formulas and experiments
+are recorded in Git history.
 
 `answer` is one of `about-right`, `felt-easier`, `felt-harder`, or `unsure`, relative
 to `newLevel`. `elapsedMs` is the displayed game timer in milliseconds, or null

@@ -4045,7 +4045,7 @@ Deno.test("feedback waits for the Pantheon after a scored win", async () => {
 			assert(!puzzle.scores.hidden && puzzle.feedback.hidden);
 			assert(!Object.hasOwn(puzzle.feedbackRequest.data, "oldLevel") &&
 			       puzzle.feedbackRequest.data.newLevel == "hard" &&
-			       puzzle.feedbackRequest.data.ratingVersion == "placement-composite-1");
+			       puzzle.feedbackRequest.data.ratingVersion == "placement-composite-2");
 			await puzzle.toggleScores();
 			assert(!puzzle.feedback.hidden && puzzle.paused);
 			puzzle.dismissDifficultyFeedback();
@@ -4233,9 +4233,9 @@ Deno.test("adjacency hints place a target whose other neighbor was eliminated", 
 
 Deno.test("excess discards accumulate across stretches after each allowance", () => {
 	for (const [seed, excess, level] of [
-		["e36efbeb", 18.4, "medium"],
-		["eeaf9adc", 14.2, "medium"],
-		["18530f24", 0, "easy"],
+		["e36efbeb", 17.7, "medium"],
+		["eeaf9adc", 13.5, "medium"],
+		["18530f24", 0.1, "easy"],
 		["67d6cd2b", 0, "easy"],
 	]) {
 		const metrics = Logos.measureDifficulty(Logos.puzzleFromSeed(parseInt(seed, 16)));
