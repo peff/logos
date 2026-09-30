@@ -88,7 +88,7 @@ one of the difficulty metrics. Mistake proofs keep their own ordering:
 finding a short explanation of a particular error differs from solving the
 whole board.
 
-Feedback uses rating version `placement-composite-1` and samples 10% of
+Feedback uses rating version `placement-composite-1` and samples 20% of
 eligible completions, subject to cooldowns and player preferences. Historical
 comparison fields remain readable on the server, but new reports contain
 only the current label.

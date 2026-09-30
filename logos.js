@@ -1531,7 +1531,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		else if (this.feedbackEndpoint && !this.feedbackDisabled && !this.effectsSuppressed &&
 		    this.seed !== undefined &&
 		    this.rows.length == 6 && this.rows.every(row => row.slots.length == 6)) {
-			if (Math.random() < 0.1)
+			if (Math.random() < 0.2)
 				this.feedbackRequest = { identity, data: {
 					seed: formatSeed(this.seed), generatorVersion: puzzleGeneratorVersion,
 					ratingVersion: "placement-composite-1",

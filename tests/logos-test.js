@@ -4174,10 +4174,10 @@ Deno.test("feedback samples all games and backs off after dismissals", async () 
 	const puzzle = feedbackPuzzle(undefined, false);
 	const random = Math.random;
 	try {
-		Math.random = () => 0.1;
+		Math.random = () => 0.2;
 		await puzzle.finishDifficultyFeedback("won", null);
 		assert(!puzzle.feedbackRequest, "game outside the sample prompted");
-		Math.random = () => 0.099;
+		Math.random = () => 0.199;
 		await puzzle.finishDifficultyFeedback("won", null);
 		assert(!puzzle.feedback.hidden, "sampled game did not prompt");
 		Math.random = () => 0;

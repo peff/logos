@@ -166,7 +166,7 @@ Cloudflare references: [D1 setup](https://developers.cloudflare.com/d1/get-start
 
 ## Player controls
 
-The beta samples 10% of eligible completed games for feedback. After showing
+The beta samples 20% of eligible completed games for feedback. After showing
 a prompt, it skips the next two completed attempts. Dismissing increases the
 gap to five attempts, then ten,
 then twenty on subsequent dismissals. A successful submission resets the gap
