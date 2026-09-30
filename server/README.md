@@ -54,7 +54,6 @@ Send JSON with `Content-Type: application/json`:
   "seed": "02b839f1",
   "generatorVersion": 1,
   "ratingVersion": "placement-composite-1",
-  "oldLevel": "medium",
   "newLevel": "hard",
   "answer": "about-right",
   "outcome": "won",
@@ -82,19 +81,16 @@ name, the persistent sender ID makes the reports pseudonymous, not anonymous.
 The dialog explains that answers are grouped by browser and names are optional.
 
 The seed is eight lowercase hexadecimal digits. `ratingVersion` identifies the
-current rule compared against the composite with cutoffs 45/80. Version
-`stretch-scarcity-1` gave short stretches unconditional priority as Easy;
-`stretch-scarcity-2` requires both measurements below their cutoffs for Easy,
-both at or above for Hard, and assigns mixed cases to Medium.
-`allowance3-scarcity-1` replaces longest stretch with summed discards beyond
-three per stretch, using cutoff 13.1 and retaining scarcity cutoff 10.
-`placement-composite-1` uses full deductions and prioritizes placements and
-immediate automatic row cascades. Its score is excess discards + 5 × scarcity,
-with cutoffs 47/70. The original-composite comparison still uses the original
-anchored-first routes and cutoffs 45/80. The server accepts all four versions
-for older clients. Both reported labels
-must be valid, but may match. They are client reports, not independently
-verified measurements; the seed lets us recompute them later.
+scoring method; current clients use `placement-composite-1` (excess discards +
+5 × scarcity, with cutoffs 47/70). `newLevel` is the reported difficulty.
+The names remain compatible with earlier clients; `oldLevel` is optional
+and stores a historical comparison when provided. Otherwise `old_level`
+is NULL. Reports are not independently verified; the seed lets us recompute
+the difficulty later.
+
+The server also accepts the historical versions `stretch-scarcity-1`,
+`stretch-scarcity-2`, and `allowance3-scarcity-1` from older clients. Their
+formulas and experiments are recorded in Git history.
 
 `answer` is one of `about-right`, `felt-easier`, `felt-harder`, or `unsure`, relative
 to `newLevel`. `elapsedMs` is the displayed game timer in milliseconds, or null
@@ -170,13 +166,13 @@ Cloudflare references: [D1 setup](https://developers.cloudflare.com/d1/get-start
 
 ## Player controls
 
-The beta prompts when the two difficulty labels disagree, or for a random 10%
-of games where they agree. After showing a prompt, it skips the next two
-completed attempts. Dismissing increases the gap to five attempts, then ten,
+The beta samples 10% of eligible completed games for feedback. After showing
+a prompt, it skips the next two completed attempts. Dismissing increases the
+gap to five attempts, then ten,
 then twenty on subsequent dismissals. A successful submission resets the gap
 to two. This backoff lasts only until the page is reloaded. A qualifying
-Pantheon entry is shown first; feedback waits until it is dismissed. The old
-label is not shown in the question. Nothing is sent unless the player submits.
+Pantheon entry is shown first; feedback waits until it is dismissed. Nothing
+is sent unless the player submits.
 
 Each response button submits immediately, using the optional name above it.
 Players can dismiss with Dismiss, Escape, or a click outside the dialog. They
@@ -190,3 +186,13 @@ There is no background upload queue. Successful submission closes the dialog and
 
 When publishing a client with a new rating version, deploy the Worker first
 so it accepts that version before clients begin submitting reports.
+
+Before publishing clients that omit `oldLevel`, apply migration 0002 to the
+local and remote databases, then deploy the Worker. It keeps existing reports
+and accepts both old and new clients:
+
+```sh
+npx wrangler d1 migrations apply logos --local
+npx wrangler d1 migrations apply logos --remote
+npx wrangler deploy
+```

@@ -569,24 +569,17 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		var snapshot = this.positionSnapshot();
 		var metrics = measureDifficulty(this);
 		var rating = difficultyRating(metrics);
-		var composite = compositeDifficultyRating(measureDifficulty(this, 5, false));
-		var available = difficultyOpportunities(this, snapshot.domains, true);
-		var anchored = available.filter(move => move.tier == 1).length;
+		var available = difficultyOpportunities(this, snapshot.domains);
 		this.analysisSnapshot = JSON.stringify(snapshot);
 		this.analysis.querySelector(".analysis-summary").textContent =
 			"Seed: " + snapshot.seed + "\n" +
 			"Difficulty: " + rating.level + "\n" +
 			"Score: " + rating.score.toFixed(2) + " = excess discards + 5 × scarcity\n" +
 			"Cutoffs: Easy < 47; Medium < 70; otherwise Hard\n\n" +
-			"Old composite: " + composite.level + " — " + composite.score.toFixed(2) + "\n" +
-			"Old cutoffs: Easy < 45; Medium < 80; otherwise Hard (original routes)\n\n" +
 			"Five-route averages (placement-first):\n" +
-			"Candidate-based observations: " + metrics.supportSteps.toFixed(2) + "\n" +
 			"Total scarcity: " + metrics.scarcity.toFixed(2) + "\n" +
-			"Longest discard stretch: " + metrics.maxDiscardRun.toFixed(2) + "\n" +
 			"Excess discards (3 free per stretch): " + metrics.excessDiscards.toFixed(2) + "\n\n" +
-			"Available clue observations: " + available.length + "\n" +
-			"Anchored: " + anchored + "; candidate-based: " + (available.length - anchored);
+			"Available clue observations: " + available.length;
 		var list = this.analysis.querySelector(".analysis-deductions");
 		list.replaceChildren();
 		var count = 0;
@@ -1538,13 +1531,11 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		else if (this.feedbackEndpoint && !this.feedbackDisabled && !this.effectsSuppressed &&
 		    this.seed !== undefined &&
 		    this.rows.length == 6 && this.rows.every(row => row.slots.length == 6)) {
-			var metrics = measureDifficulty(this);
-			var oldLevel = compositeDifficultyRating(measureDifficulty(this, 5, false)).level;
-			var newLevel = difficultyRating(metrics).level;
-			if (oldLevel != newLevel || Math.random() < 0.1)
+			if (Math.random() < 0.1)
 				this.feedbackRequest = { identity, data: {
 					seed: formatSeed(this.seed), generatorVersion: puzzleGeneratorVersion,
-					ratingVersion: "placement-composite-1", oldLevel, newLevel, outcome,
+					ratingVersion: "placement-composite-1",
+					newLevel: puzzleDifficulty(this).level, outcome,
 					elapsedMs: this.timerElapsed, hintsUsed: this.usedHints,
 					continuedAfterLoss: this.continuedFromLoss, zenMode: this.practiceMode,
 				} };
@@ -4757,17 +4748,6 @@ function isClueExhausted(clue) {
 	return clueSlots(clue).every(function(slot) { return slot.single; });
 }
 
-/* Approximate the experimental percentile composite with a weighted raw
- * score. Fit on 1,000 five-route puzzles and checked on 10,000 separate seeds;
- * see analysis/DIFFICULTY.md. These units are not percentiles.
- */
-function compositeDifficultyRating(metrics) {
-	var score = metrics.supportSteps + 2.65 * metrics.scarcity +
-		0.87 * metrics.maxDiscardRun;
-	return { score: score,
-		level: score < 45 ? "easy" : score < 80 ? "medium" : "hard" };
-}
-
 /* Placement-first route effort and scarcity, averaged over five routes.
  * The integer weight balances their sampled spreads; see analysis/DIFFICULTY.md.
  */
@@ -4788,31 +4768,24 @@ function difficultyPlacements(domains) {
 }
 
 /* Group all reductions to one target from one clue as one observation. */
-function difficultyOpportunities(puzzle, domains, fullReductions = false) {
+function difficultyOpportunities(puzzle, domains) {
 	var full = (1 << domains[0].length) - 1;
-	var anchored = domains.map(row => row.map(bits =>
-		countBits(bits) == 1 ? bits : full));
 	var result = [];
 	for (var clue of puzzle.clues) {
 		if (clue.applyInitialState)
 			continue;
-		var simple = copyDomains(anchored);
 		var complete = copyDomains(domains);
-		clue.constrain(simple, full);
 		clue.constrain(complete, full);
 		for (var row = 0; row < domains.length; row++) {
 			for (var symbol = 0; symbol < domains[row].length; symbol++) {
 				var before = domains[row][symbol];
-				var basic = before & simple[row][symbol];
 				var after = before & complete[row][symbol];
 				if (!after)
 					throw new Error("constraint contradicted generated solution");
 				if (after == before)
 					continue;
-				var tier = basic != before ? 1 : 2;
-				var next = fullReductions || tier == 2 ? after : basic;
-				result.push({ row, symbol, tier, after: next,
-					placement: countBits(next) == 1 });
+				result.push({ row, symbol, after,
+					placement: countBits(after) == 1 });
 			}
 		}
 	}
@@ -4840,7 +4813,7 @@ function placementDifficultyChoices(domains, placements, available) {
 	return choices;
 }
 
-function traceDifficulty(puzzle, orderSeed, placementFirst) {
+function traceDifficulty(puzzle, orderSeed) {
 	var random = seedRandom(orderSeed);
 	var full = (1 << puzzle.rows[0].slots.length) - 1;
 	var domains = puzzle.rows.map(row => row.slots.map(() => full));
@@ -4849,29 +4822,20 @@ function traceDifficulty(puzzle, orderSeed, placementFirst) {
 		if (clue.applyInitialState)
 			clue.constrain(domains, full);
 	drainForcedProofSteps(domains, placements);
-	var supportSteps = 0, scarcity = 0;
-	var gap = 0, maxDiscardRun = 0, excessDiscards = 0;
+	var scarcity = 0;
+	var gap = 0, excessDiscards = 0;
 	while (difficultyPlacements(domains) < domains.flat().length) {
-		var available = difficultyOpportunities(puzzle, domains, placementFirst);
+		var available = difficultyOpportunities(puzzle, domains);
 		if (!available.length)
 			throw new Error("difficulty solver stalled");
 		scarcity += 1 / available.length;
-		var choices;
-		if (placementFirst) {
-			choices = placementDifficultyChoices(domains, placements, available);
-		} else {
-			// Preserve the original routes for old-composite comparisons.
-			var priority = move => 2 * move.tier + (move.placement ? 0 : 1);
-			var best = Math.min(...available.map(priority));
-			choices = available.filter(move => priority(move) == best);
-		}
+		var choices = placementDifficultyChoices(domains, placements, available);
 		var move = choices[Math.floor(random() * choices.length)];
 		var beforePlacements = difficultyPlacements(domains);
 		domains[move.row][move.symbol] = move.after;
 		drainForcedProofSteps(domains, placements);
-		supportSteps += move.tier == 2;
 		if (!move.placement) {
-			maxDiscardRun = Math.max(maxDiscardRun, ++gap);
+			gap++;
 			// The first three discards of each stretch are routine work.
 			if (gap > 3)
 				excessDiscards++;
@@ -4879,19 +4843,18 @@ function traceDifficulty(puzzle, orderSeed, placementFirst) {
 		if (difficultyPlacements(domains) > beforePlacements)
 			gap = 0;
 	}
-	return { supportSteps, scarcity, maxDiscardRun, excessDiscards };
+	return { scarcity, excessDiscards };
 }
 
 /* Measure an already-generated puzzle without changing its board or clues.
  * Fixed route seeds keep the result independent of the game's random stream.
- * placementFirst=false retains the original routes for historical comparisons.
  */
-function measureDifficulty(puzzle, routes = 5, placementFirst = true) {
+function measureDifficulty(puzzle, routes = 5) {
 	if (!Number.isInteger(routes) || routes < 1)
 		throw new Error("difficulty analysis needs a positive route count");
-	var metrics = { supportSteps: 0, scarcity: 0, maxDiscardRun: 0, excessDiscards: 0 };
+	var metrics = { scarcity: 0, excessDiscards: 0 };
 	for (var i = 0; i < routes; i++) {
-		var run = traceDifficulty(puzzle, Math.imul(i + 1, 0x9e3779b9), placementFirst);
+		var run = traceDifficulty(puzzle, Math.imul(i + 1, 0x9e3779b9));
 		for (var key of Object.keys(metrics))
 			metrics[key] += run[key];
 	}

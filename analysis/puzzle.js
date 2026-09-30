@@ -1,14 +1,9 @@
-import { searchPuzzle } from "./search.js";
-import { measureRounds, roundScarcityWeight, roundDifficultyCutoffs } from "./rounds.js";
-
-const usage = `Usage: analysis/puzzle SEED_OR_URL... [--trace] [--rounds] [--search=N]
-       analysis/puzzle --position [--trace] [--rounds] [--search=N] < snapshot.json
+const usage = `Usage: analysis/puzzle SEED_OR_URL... [--trace]
+       analysis/puzzle --position [--trace] < snapshot.json
 
 Each seed or URL gets a separate report, in command-line order.
 By default, seed queries show only the difficulty score and metrics.
 --position reads a position snapshot from stdin and lists available deductions.
---rounds reports experimental simultaneous deduction rounds and placement timing.
---search=N searches at most N states for a shortest observation path.
 --trace shows a full hint walkthrough (spoilers), not a difficulty-scoring route.
 
 Paste a snapshot after running --position, then press Ctrl-D to finish input.`;
@@ -18,8 +13,8 @@ Paste a snapshot after running --position, then press Ctrl-D to finish input.`;
 async function loadGame() {
 	const source = await Deno.readTextFile(new URL("../logos.js", import.meta.url));
 	return new Function("document", source + `\nreturn {
-		seedRandom, puzzleGeneratorVersion, parseSeed, formatSeed, defaultSymbols,
-		puzzleFromSeed, measureDifficulty, difficultyRating, compositeDifficultyRating,
+		puzzleGeneratorVersion, parseSeed, formatSeed, defaultSymbols,
+		puzzleFromSeed, measureDifficulty, difficultyRating,
 		difficultyOpportunities, nextHintStep, clueSlots, proofMessageText,
 		drainForcedProofSteps
 	};`)({ addEventListener() {} });
@@ -110,21 +105,18 @@ function describePosition(game, puzzle, domains, placements) {
 			printRow("", cells.map(cell => cell[1]));
 	}
 	console.log("[Brackets] mark placed tiles; other symbols are candidates for that slot.");
-	const available = game.difficultyOpportunities(puzzle, domains, true);
-	const anchored = available.filter(move => move.tier === 1).length;
-	console.log(`\n${available.length} clue observations available: ` +
-		`${anchored} anchored, ${available.length - anchored} candidate-based.`);
+	const available = game.difficultyOpportunities(puzzle, domains);
+	console.log(`\n${available.length} clue observations available.`);
 	console.log("(One observation groups reductions to one symbol from one clue.)");
 	for (const [index, clue] of puzzle.clues.entries()) {
-		const moves = game.difficultyOpportunities({ ...puzzle, clues: [clue] }, domains, true);
+		const moves = game.difficultyOpportunities({ ...puzzle, clues: [clue] }, domains);
 		if (!moves.length)
 			continue;
 		console.log(`\nClue ${index + 1}: ${clueText(game, puzzle, clue)}`);
 		for (const move of moves) {
 			const removed = domains[move.row][move.symbol] & ~move.after;
 			console.log(`  Exclude ${game.defaultSymbols[move.row][move.symbol]}` +
-				` from columns ${columns(removed)}` +
-				` [${move.tier === 1 ? "anchored" : "candidate-based"}]`);
+				` from columns ${columns(removed)}`);
 		}
 	}
 	const step = game.nextHintStep(puzzle, domains, placements);
@@ -148,29 +140,6 @@ function walkthrough(game, puzzle, domains, placements) {
 	}
 }
 
-function describeRounds(game, puzzle, domains) {
-	const result = measureRounds(puzzle, domains);
-	console.log("\nParallel deduction rounds (" + (domains ? "from this position" : "from the initial board") + "):");
-	console.log(`Round composite: ${result.score.toFixed(2)} — ${result.level} (rounds + ${roundScarcityWeight} × round scarcity; provisional)`);
-	console.log(`Round cutoffs (unrounded scores): Easy < ${roundDifficultyCutoffs.medium}; Medium < ${roundDifficultyCutoffs.hard}; otherwise Hard`);
-	console.log(`Rounds to solve: ${result.rounds.length}`);
-	console.log(`Rounds without a new placement: ${result.roundsWithoutPlacement}`);
-	console.log(`Round scarcity: ${result.roundScarcity.toFixed(3)} (sum of 1 / observations in placement-free rounds)`);
-	console.log(`Automatic-only rounds: ${result.automaticOnlyRounds} (excluded from scarcity)`);
-	console.log(`Longest run of rounds without a new placement: ${result.maxRoundsWithoutPlacement}`);
-	console.log("Placements are counted when a symbol first has one possible column.");
-	const initially = result.placementRounds.flat().filter(round => round === 0).length;
-	console.log(`Round 0: ${initially} tiles already determined.`);
-	for (const round of result.rounds) {
-		const tiles = round.placements.map(({row, symbol, column}) =>
-			`${game.defaultSymbols[row][symbol]} → ${column + 1}`).join(", ");
-		const breadth = round.observations ?
-			`${round.observations} distinct clue observation${round.observations === 1 ? "" : "s"}` : "automatic row deductions only";
-		console.log(`Round ${round.number}: ${breadth}; ${round.removed} candidate${round.removed === 1 ? "" : "s"} removed; ` +
-			(tiles || "no new placements"));
-	}
-}
-
 async function main(args) {
 	if (args.includes("--help") || args.includes("-h")) {
 		console.log(usage);
@@ -178,12 +147,7 @@ async function main(args) {
 	}
 	const position = args.includes("--position");
 	const trace = args.includes("--trace");
-	const rounds = args.includes("--rounds");
-	const searches = args.filter(arg => arg.startsWith("--search="));
-	const budget = searches.length ? Number(searches[0].slice(9)) : undefined;
-	if (searches.length > 1 || (budget !== undefined && (!Number.isSafeInteger(budget) || budget < 1)))
-		throw new Error("--search=N needs a positive safe integer state budget");
-	const inputs = args.filter(arg => arg !== "--position" && arg !== "--trace" && arg !== "--rounds" && !arg.startsWith("--search="));
+	const inputs = args.filter(arg => arg !== "--position" && arg !== "--trace");
 	if (inputs.some(arg => arg.startsWith("-")) || (position ? inputs.length !== 0 : inputs.length === 0))
 		throw new Error(usage);
 	const game = await loadGame();
@@ -203,11 +167,11 @@ async function main(args) {
 	for (const [index, seed] of seeds.entries()) {
 		if (index)
 			console.log();
-		analyzePuzzle(game, seed, snapshot, trace, rounds, budget);
+		analyzePuzzle(game, seed, snapshot, trace);
 	}
 }
 
-function analyzePuzzle(game, seed, snapshot, trace, rounds, budget) {
+function analyzePuzzle(game, seed, snapshot, trace) {
 	const position = snapshot !== undefined;
 	const puzzle = game.puzzleFromSeed(seed);
 	// The DOM-free generator omits display names, which proof messages use.
@@ -218,29 +182,12 @@ function analyzePuzzle(game, seed, snapshot, trace, rounds, budget) {
 		validatePosition(game, puzzle, snapshot);
 	const metrics = game.measureDifficulty(puzzle);
 	const rating = game.difficultyRating(metrics);
-	const composite = game.compositeDifficultyRating(game.measureDifficulty(puzzle, 5, false));
 	console.log(`Seed ${game.formatSeed(seed)} — ${rating.level}`);
 	console.log(`Score: ${rating.score.toFixed(2)} = excess discards + 5 × scarcity`);
 	console.log("Cutoffs: Easy < 47; Medium < 70; otherwise Hard");
-	console.log(`Old composite: ${composite.level} (${composite.score.toFixed(2)})`);
 	console.log("Five-route averages (placement-first):");
-	console.log(`  Candidate-based observations: ${metrics.supportSteps.toFixed(2)}`);
 	console.log(`  Total scarcity:               ${metrics.scarcity.toFixed(2)}`);
-	console.log(`  Longest discard stretch:      ${metrics.maxDiscardRun.toFixed(2)}`);
 	console.log(`  Excess discards (3 free):     ${metrics.excessDiscards.toFixed(2)}`);
-	console.log("Old score uses original anchored-first routes: observations + 2.65 × scarcity + 0.87 × longest stretch");
-	console.log("Old cutoffs: Easy < 45; Medium < 80; otherwise Hard");
-	if (budget !== undefined) {
-		const result = searchPuzzle(game, puzzle, {budget, domains: snapshot?.domains});
-		console.log("\nBounded observation search (" + (position ? "from this position" : "from the initial board") + "):");
-		console.log(`Best completed path: ${result.steps} observations (${result.baseline} before search)`);
-		console.log(result.optimal ? "Shortest path proven within the scorer's move model." :
-			"State budget reached; this path is not proven shortest.");
-		console.log(`${result.expanded} expanded states; ${result.states} distinct stored states; ${result.duplicates} duplicate visits skipped.`);
-		console.log(`Search including five baseline routes: ${result.elapsedMs.toFixed(1)} ms`);
-	}
-	if (rounds)
-		describeRounds(game, puzzle, snapshot?.domains);
 	if (!position && !trace)
 		return;
 	let domains, placements;

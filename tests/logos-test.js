@@ -131,7 +131,7 @@ Object.defineProperty(globalThis, "localStorage", { value: {
 const source = await Deno.readTextFile(
 	new URL("../logos.js", import.meta.url));
 const Logos = eval(source +
-	"\n;({ puzzleDifficulty, difficultyRating, compositeDifficultyRating, puzzleFromSeed, " +
+	"\n;({ puzzleDifficulty, difficultyRating, puzzleFromSeed, " +
 	"difficultyOpportunities, placementDifficultyChoices, nextHintStep, measureDifficulty, " +
 	"Puzzle: Puzzle, ExactClue: ExactClue, " +
 	"Adjacent2Clue: Adjacent2Clue, " +
@@ -3422,21 +3422,12 @@ Deno.test("placement-first composite uses score boundaries without rounding", ()
 		[69.99, 0, 69.99, "medium"], [20, 10, 70, "hard"],
 		[50, 30, 200, "hard"],
 	]) {
-		const rating = Logos.difficultyRating({excessDiscards, scarcity, supportSteps: 100});
+		const rating = Logos.difficultyRating({excessDiscards, scarcity});
 		assert(rating.score == score && rating.level == level);
 	}
 });
 
-Deno.test("old composite difficulty labels use raw-score boundaries", () => {
-	for (const [score, level] of [[0, "easy"], [44.99, "easy"],
-		[45, "medium"], [72, "medium"], [79.99, "medium"], [80, "hard"], [200, "hard"]]) {
-		const rating = Logos.compositeDifficultyRating({ supportSteps: score,
-			scarcity: 0, maxDiscardRun: 0 });
-		assert(rating.score == score && rating.level == level);
-	}
-});
-
-Deno.test("opportunities distinguish anchors from candidate-set deductions", () => {
+Deno.test("opportunities include full candidate reductions and placements", () => {
 	const opportunities = Logos.difficultyOpportunities;
 	const puzzle = makePuzzle(2);
 	const clue = new Logos.ColumnClue(puzzle);
@@ -3448,12 +3439,12 @@ Deno.test("opportunities distinguish anchors from candidate-set deductions", () 
 	const domains = [Array(6).fill(63), Array(6).fill(63)];
 	domains[r][a] = 3;
 	let moves = opportunities(puzzle, domains);
-	assert(moves.length == 1 && moves[0].tier == 2);
+	assert(moves.length == 1);
 	assert(moves[0].row == other && moves[0].symbol == b);
 	assert(moves[0].after == 3 && !moves[0].placement);
 	domains[r][a] = 1;
 	moves = opportunities(puzzle, domains);
-	assert(moves.length == 1 && moves[0].tier == 1 && moves[0].placement);
+	assert(moves.length == 1 && moves[0].placement);
 	assert(moves[0].after == 1);
 });
 
@@ -3978,7 +3969,7 @@ Deno.test("analysis unlocks within one Options visit and refreshes the current p
 	       "analysis changed the board or scoring eligibility");
 	assert(puzzle.analysis.querySelector(".analysis-deductions").children.length <= 3 &&
 	       puzzle.analysis.querySelector(".analysis-summary").textContent.includes("Difficulty: easy") &&
-	       puzzle.analysis.querySelector(".analysis-summary").textContent.includes("Old composite: easy — 28.06"),
+	       puzzle.analysis.querySelector(".analysis-summary").textContent.includes("Cutoffs: Easy < 47; Medium < 70;"),
 	       "analysis is missing its rating or has unbounded deductions");
 	puzzle.closeAnalysis();
 	assert(puzzle.analysis.hidden && puzzle.options.hidden && !puzzle.paused &&
@@ -4022,13 +4013,23 @@ Deno.test("analysis copies the displayed snapshot", async function() {
 	}
 });
 
-function feedbackPuzzle(seed = "02b839f1") {
+function feedbackPuzzle(seed = "02b839f1", sample = true) {
 	localStorage.removeItem("difficultyFeedbackDisabled");
 	const puzzle = makePuzzle(6, true, Logos.defaultSymbols);
 	puzzle.say = function() {};
 	puzzle.newGame(seed);
 	puzzle.stopTimer();
 	puzzle.feedbackEndpoint = "https://feedback.example.test/api/feedback";
+	if (sample) {
+		const finish = puzzle.finishDifficultyFeedback;
+		puzzle.finishDifficultyFeedback = function(...args) {
+			// Sampling happens before the first await; restore the global immediately.
+			const random = Math.random;
+			Math.random = () => 0;
+			try { return finish.apply(this, args); }
+			finally { Math.random = random; }
+		};
+	}
 	puzzle.scores.hidden = true;
 	document.modals = [puzzle.scores, puzzle.feedback];
 	return puzzle;
@@ -4042,7 +4043,7 @@ Deno.test("feedback waits for the Pantheon after a scored win", async () => {
 				for (const slot of row.slots) slot.single = true;
 			await puzzle.checkWin();
 			assert(!puzzle.scores.hidden && puzzle.feedback.hidden);
-			assert(puzzle.feedbackRequest.data.oldLevel == "medium" &&
+			assert(!Object.hasOwn(puzzle.feedbackRequest.data, "oldLevel") &&
 			       puzzle.feedbackRequest.data.newLevel == "hard" &&
 			       puzzle.feedbackRequest.data.ratingVersion == "placement-composite-1");
 			await puzzle.toggleScores();
@@ -4169,17 +4170,17 @@ Deno.test("dismissing an in-flight report prevents a late response changing the 
 	}
 });
 
-Deno.test("feedback samples agreements and backs off after dismissals", async () => {
-	const puzzle = feedbackPuzzle("98079244");
+Deno.test("feedback samples all games and backs off after dismissals", async () => {
+	const puzzle = feedbackPuzzle(undefined, false);
 	const random = Math.random;
 	try {
 		Math.random = () => 0.1;
 		await puzzle.finishDifficultyFeedback("won", null);
-		assert(!puzzle.feedbackRequest, "agreement outside the sample prompted");
+		assert(!puzzle.feedbackRequest, "game outside the sample prompted");
 		Math.random = () => 0.099;
 		await puzzle.finishDifficultyFeedback("won", null);
-		assert(!puzzle.feedback.hidden, "sampled agreement did not prompt");
-		Math.random = random;
+		assert(!puzzle.feedback.hidden, "sampled game did not prompt");
+		Math.random = () => 0;
 		for (const gap of [5, 10, 20, 20]) {
 			puzzle.dismissDifficultyFeedback();
 			assert(puzzle.feedbackCooldown == gap, "dismissal did not increase the gap");
@@ -4189,13 +4190,11 @@ Deno.test("feedback samples agreements and backs off after dismissals", async ()
 				puzzle.newGame("02b839f1"); puzzle.stopTimer();
 				await puzzle.finishDifficultyFeedback(i % 2 ? "won" : "lost", null);
 				assert(!puzzle.feedbackRequest && puzzle.feedback.hidden,
-				       "disagreement ignored the cooldown");
+				       "sampled game ignored the cooldown");
 			}
 			puzzle.newGame("02b839f1"); puzzle.stopTimer();
-			Math.random = () => 0.99;
 			await puzzle.finishDifficultyFeedback("won", null);
-			assert(!puzzle.feedback.hidden, "disagreement was sampled or cooldown lasted too long");
-			Math.random = random;
+			assert(!puzzle.feedback.hidden, "cooldown lasted too long");
 		}
 		const next = feedbackPuzzle();
 		assert(next.feedbackCooldown == 0 && next.feedbackDismissals == 0,
@@ -4233,43 +4232,35 @@ Deno.test("adjacency hints place a target whose other neighbor was eliminated", 
 });
 
 Deno.test("excess discards accumulate across stretches after each allowance", () => {
-	for (const [seed, stretch, excess, level] of [
-		["e36efbeb", 14.8, 18.4, "medium"],
-		["eeaf9adc", 10.2, 14.2, "medium"],
-		["18530f24", 1.4, 0, "easy"],
-		["67d6cd2b", 1.6, 0, "easy"],
+	for (const [seed, excess, level] of [
+		["e36efbeb", 18.4, "medium"],
+		["eeaf9adc", 14.2, "medium"],
+		["18530f24", 0, "easy"],
+		["67d6cd2b", 0, "easy"],
 	]) {
 		const metrics = Logos.measureDifficulty(Logos.puzzleFromSeed(parseInt(seed, 16)));
-		assert(metrics.maxDiscardRun == stretch && metrics.excessDiscards == excess,
-		       "discard metrics differ from independently recorded route stretches");
+		assert(metrics.excessDiscards == excess,
+		       "excess discards differ from independently recorded route stretches");
 		assert(Logos.difficultyRating(metrics).level == level);
 	}
 });
 
-Deno.test("difficulty prioritizes placements and row cascades without tier bias", () => {
+Deno.test("difficulty prioritizes placements and row cascades", () => {
 	const domains = [[15, 3, 6, 12], [15, 15, 15, 15]];
 	const placements = [0, 0];
 	const before = JSON.stringify({domains, placements});
-	const discard = {row: 1, symbol: 1, after: 7, tier: 1, placement: false};
-	const place = {row: 1, symbol: 0, after: 1, tier: 2, placement: true};
-	const cascade = {row: 0, symbol: 0, after: 12, tier: 2, placement: false};
+	const discard = {row: 1, symbol: 1, after: 7, placement: false};
+	const place = {row: 1, symbol: 0, after: 1, placement: true};
+	const cascade = {row: 0, symbol: 0, after: 12, placement: false};
 	assert(Logos.placementDifficultyChoices(domains, placements, [discard, place])[0] === place);
 	assert(Logos.placementDifficultyChoices(domains, placements, [place, cascade])[0] === cascade);
-	const candidateDiscard = {...discard, symbol: 2, tier: 2};
-	assert(Logos.placementDifficultyChoices(domains, placements, [discard, candidateDiscard]).length === 2);
+	const otherDiscard = {...discard, symbol: 2};
+	assert(Logos.placementDifficultyChoices(domains, placements, [discard, otherDiscard]).length === 2);
 	assert(JSON.stringify({domains, placements}) === before, "lookahead mutated the board");
 });
 
 Deno.test("full difficulty observations do not truncate candidate reductions to anchored ones", () => {
 	const puzzle = {clues: [{constrain(d) { d[0][0] &= d[0][1] === 3 ? 1 : 3; }}]};
 	const domains = [[15, 3, 15, 15]];
-	assert(Logos.difficultyOpportunities(puzzle, domains, false)[0].after === 3);
-	assert(Logos.difficultyOpportunities(puzzle, domains, true)[0].after === 1);
-});
-
-Deno.test("historical composite keeps its original routes", () => {
-	const metrics = Logos.measureDifficulty(Logos.puzzleFromSeed(0x02b839f1), 5, false);
-	const rating = Logos.compositeDifficultyRating(metrics);
-	assert(metrics.excessDiscards === 29.6 && metrics.maxDiscardRun === 19.8);
-	assert(Math.abs(rating.score - 70.27) < 0.01 && rating.level === "medium");
+	assert(Logos.difficultyOpportunities(puzzle, domains)[0].after === 1);
 });

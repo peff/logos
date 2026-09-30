@@ -1,6 +1,6 @@
 const levels = ["easy", "medium", "hard"];
 const answers = ["about-right", "felt-easier", "felt-harder", "unsure"];
-const fields = ["id", "senderId", "seed", "generatorVersion", "ratingVersion", "oldLevel",
+const fields = ["id", "senderId", "seed", "generatorVersion", "ratingVersion",
 	"newLevel", "answer", "outcome", "elapsedMs", "hintsUsed", "continuedAfterLoss", "zenMode"];
 const maxBodyBytes = 4096;
 const uuid = /^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/;
@@ -8,7 +8,7 @@ const uuid = /^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/;
 function validFeedback(data) {
 	return data && typeof data == "object" && !Array.isArray(data) &&
 		fields.every(key => Object.hasOwn(data, key)) &&
-		Object.keys(data).every(key => fields.includes(key) || key == "playerName") &&
+		Object.keys(data).every(key => fields.includes(key) || key == "playerName" || key == "oldLevel") &&
 		typeof data.id == "string" && uuid.test(data.id) &&
 		typeof data.senderId == "string" && uuid.test(data.senderId) &&
 		(data.playerName === undefined || typeof data.playerName == "string" &&
@@ -16,7 +16,7 @@ function validFeedback(data) {
 		typeof data.seed == "string" && /^[0-9a-f]{8}$/.test(data.seed) &&
 		data.generatorVersion === 1 &&
 		["stretch-scarcity-1", "stretch-scarcity-2", "allowance3-scarcity-1", "placement-composite-1"].includes(data.ratingVersion) &&
-		levels.includes(data.oldLevel) && levels.includes(data.newLevel) &&
+		(data.oldLevel === undefined || levels.includes(data.oldLevel)) && levels.includes(data.newLevel) &&
 		answers.includes(data.answer) &&
 		["won", "lost"].includes(data.outcome) &&
 		(data.elapsedMs === null ||
@@ -104,7 +104,7 @@ export default {
 				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 				ON CONFLICT(id) DO NOTHING
 			`).bind(data.id, Date.now(), data.seed, data.generatorVersion,
-				data.ratingVersion, data.oldLevel, data.newLevel, data.answer,
+				data.ratingVersion, data.oldLevel ?? null, data.newLevel, data.answer,
 				data.elapsedMs, Number(data.hintsUsed), Number(data.continuedAfterLoss),
 				Number(data.zenMode), data.senderId, data.playerName?.trim() || null, data.outcome).run();
 		} catch (_) {

@@ -151,3 +151,11 @@ Deno.test("feedback accepts and preserves all supported difficulty rule versions
 		assert(DB.calls[0].values[4] === ratingVersion);
 	}
 });
+
+Deno.test("feedback accepts the current rating without a historical comparison", async () => {
+	const DB = database();
+	const {oldLevel, ...current} = report;
+	const response = await worker.fetch(request({...current, ratingVersion: "placement-composite-1"}), {DB});
+	assert(response.status === 200);
+	assert(DB.calls[0].values[5] === null && DB.calls[0].values[6] === "hard");
+});
