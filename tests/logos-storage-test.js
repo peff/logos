@@ -67,11 +67,12 @@ var storageTestsDone = (async function() {
 		});
 		await test("difficulty backfill preserves the run and survives another read", async function() {
 			const before = (await accessRunHistory(null, true)).runs;
-			const difficulty = { score: 60.5, level: "medium" };
+			const difficulty = { version: 1, score: 60.5, level: "medium" };
 			assert(await saveRunDifficulty(win.id, difficulty), "cache write failed");
 			const after = (await accessRunHistory(null, true)).runs;
 			const saved = after.find(run => run.id == win.id);
-			assert(saved.difficulty.score == 60.5 && saved.difficulty.level == "medium",
+			assert(saved.difficulty.score == 60.5 && saved.difficulty.level == "medium" &&
+			       saved.difficulty.version === 1,
 			       "difficulty did not persist");
 			delete saved.difficulty;
 			assert(JSON.stringify(before) == JSON.stringify(after),
@@ -204,12 +205,12 @@ var storageTestsDone = (async function() {
 		await test("difficulty rankings find ten matching wins and earlier unrated candidates", async function() {
 			for (let i = 0; i < 12; i++) {
 				await accessRunHistory({outcome: "won", elapsed: 10000+i, date: i, seed: i,
-					difficulty: {score: 80, level: "hard"}});
+					difficulty: { version: 1, score: 80, level: "hard"}});
 				await accessRunHistory({outcome: "won", elapsed: 10+i, date: i, seed: i,
-					difficulty: {score: 20, level: "easy"}});
+					difficulty: { version: 1, score: 20, level: "easy"}});
 			}
 			await accessRunHistory({outcome: "lost", elapsed: 0, date: 1, seed: 1,
-				difficulty: {score: 80, level: "hard"}});
+				difficulty: { version: 1, score: 80, level: "hard"}});
 			const candidate = {outcome: "won", elapsed: 1, date: 1, seed: 0xe2a689dd,
 				rows: 6, columns: 6, generatorVersion: 1};
 			await accessRunHistory(candidate);
@@ -220,6 +221,36 @@ var storageTestsDone = (async function() {
 			       "difficulty ranking included losses, other levels, or the wrong times");
 			assert(history.unratedRuns.some(run => run.id == candidate.id),
 			       "an earlier unclassified win was not offered for backfill");
+		});
+		await test("stale ratings are queued for refresh and replaced persistently", async function() {
+			const stale = [
+				{seed: 0x98079244, difficulty: {score: 100, level: "hard"}},
+				{seed: 0xe2a689dd, difficulty: {version: 0, score: 20, level: "easy"}},
+			];
+			for (const [i, run] of stale.entries()) {
+				Object.assign(run, {outcome: "won", elapsed: 2 + i, date: 123,
+					rows: 6, columns: 6, generatorVersion: 1});
+				await accessRunHistory(run);
+			}
+			const before = await accessRunHistory(null, false, "hard");
+			assert(stale.every(run => before.unratedRuns.some(entry => entry.id === run.id)),
+			       "stale labels were treated as current by the IndexedDB query");
+			assert(before.highScores.every(run => !stale.some(old => old.id === run.id)),
+			       "stale Hard rating entered the current ranking");
+			for (const run of stale)
+				assert(await saveRunDifficulty(run.id, puzzleDifficulty(puzzleFromSeed(run.seed))));
+			const after = await accessRunHistory(null, true, "hard");
+			assert(after.highScores.some(run => run.id === stale[1].id) &&
+			       !after.highScores.some(run => run.id === stale[0].id),
+			       "refreshed labels did not change ranking membership");
+			for (const run of stale) {
+				const saved = after.runs.find(entry => entry.id === run.id);
+				assert(saved.difficulty.version === 1 && hasRunDifficulty(saved),
+				       "refreshed version was not persisted");
+				const {difficulty, ...fields} = saved;
+				const {difficulty: previous, ...original} = run;
+				assert(JSON.stringify(fields) === JSON.stringify(original), "refresh changed run fields");
+			}
 		});
 		await test("a new database creates the index", async function() {
 			await new Promise((resolve, reject) => {

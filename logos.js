@@ -1,6 +1,9 @@
 /* Increment when changes to puzzle generation alter the meaning of a seed. */
 var puzzleGeneratorVersion = 1;
 
+/* Increment when the difficulty formula, route policy/count, or cutoffs change. */
+var puzzleDifficultyVersion = 1;
+
 var defaultSymbols = [
 	["1", "2", "3", "4", "5", "6"],
 	["A", "B", "C", "D", "E", "F"],
@@ -3176,7 +3179,7 @@ function canRateRun(run) {
 }
 
 function hasRunDifficulty(run) {
-	return run.difficulty &&
+	return run.difficulty && run.difficulty.version === puzzleDifficultyVersion &&
 		["easy", "medium", "hard"].includes(run.difficulty.level);
 }
 
@@ -4760,7 +4763,7 @@ function difficultyRating(metrics) {
  * This does not mutate the puzzle or consume the generator's random stream.
  */
 function puzzleDifficulty(puzzle) {
-	return difficultyRating(measureDifficulty(puzzle));
+	return { ...difficultyRating(measureDifficulty(puzzle)), version: puzzleDifficultyVersion };
 }
 
 function difficultyPlacements(domains) {

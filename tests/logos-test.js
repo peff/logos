@@ -132,7 +132,7 @@ const source = await Deno.readTextFile(
 	new URL("../logos.js", import.meta.url));
 const Logos = eval(source +
 	"\n;({ puzzleDifficulty, difficultyRating, puzzleFromSeed, " +
-	"difficultyOpportunities, placementDifficultyChoices, nextHintStep, measureDifficulty, " +
+	"difficultyOpportunities, placementDifficultyChoices, nextHintStep, measureDifficulty, hasRunDifficulty, " +
 	"Puzzle: Puzzle, ExactClue: ExactClue, " +
 	"Adjacent2Clue: Adjacent2Clue, " +
 	"Adjacent3Clue: Adjacent3Clue, " +
@@ -2349,9 +2349,9 @@ async function withRunHistory(callback, initial) {
 			.sort((a, b) => a.elapsed - b.elapsed || a.id - b.id);
 		return {
 			runs: structuredClone(runs),
-			unratedRuns: structuredClone(wins.filter(run => !run.difficulty)),
+			unratedRuns: structuredClone(wins.filter(run => !Logos.hasRunDifficulty(run))),
 			highScores: structuredClone(wins.filter(run => level == "all" ||
-				run.difficulty?.level == level).slice(0, 10)),
+				Logos.hasRunDifficulty(run) && run.difficulty.level == level).slice(0, 10)),
 			gameStats: {
 				won: runs.filter(run => run.outcome == "won").length,
 				lost: runs.filter(run => run.outcome == "lost").length,
@@ -3472,7 +3472,7 @@ Deno.test("Chronicle backfills only visible supported runs and reuses their rati
 		date: i, seed: 0x98079244, elapsed: i, outcome: "won",
 		rows: 6, columns: 6, generatorVersion: 1,
 	}));
-	initial[9].difficulty = { score: 75, level: "hard" };
+	initial[9].difficulty = { version: 1, score: 75, level: "hard" };
 	initial[8].generatorVersion = 99;
 	await withRunHistory(async () => {
 		const puzzle = makePuzzle(6);
@@ -3496,6 +3496,32 @@ Deno.test("Chronicle backfills only visible supported runs and reuses their rati
 	}, initial);
 });
 
+Deno.test("Chronicle refreshes stale difficulty versions but keeps current ratings", async () => {
+	const initial = [undefined, 0, 2, 1, undefined].map((version, i) => ({
+		date: i, seed: 0x98079244, elapsed: i, outcome: "won",
+		rows: 6, columns: 6, generatorVersion: i === 4 ? 99 : 1,
+		difficulty: {score: 100, level: "hard", ...(version === undefined ? {} : {version})},
+	}));
+	await withRunHistory(async () => {
+		const puzzle = makePuzzle(6);
+		puzzle.scores.hidden = false;
+		await puzzle.showRunHistory();
+		const body = puzzle.scores.querySelector(".history-table tbody");
+		assert(body.children[0].children[4].textContent === "—",
+		       "unsupported generation displayed a stale rating");
+		assert(body.children[1].children[4].textContent === "Hard");
+		assert(body.children[2].children[4].textContent === "…");
+		const current = puzzle.runHistory[3].difficulty;
+		await puzzle.historyDifficultyTask;
+		assert(puzzle.runHistory.slice(0, 3).every(run =>
+		       run.difficulty.version === 1 && run.difficulty.level === "easy"),
+		       "stale cached ratings were not replaced");
+		assert(puzzle.runHistory[3].difficulty === current, "recomputed a current rating");
+		assert(puzzle.runHistory[4].difficulty.version === undefined,
+		       "tried to rate an unsupported generator");
+	}, initial);
+});
+
 Deno.test("new runs include difficulty in their saved record", async () => {
 	await withRunHistory(async runs => {
 		const puzzle = makePuzzle(6);
@@ -3503,16 +3529,17 @@ Deno.test("new runs include difficulty in their saved record", async () => {
 		puzzle.newGame(0x98079244);
 		puzzle.stopTimer();
 		await puzzle.recordOutcome("lost");
-		assert(runs.length == 1 && runs[0].difficulty.level == "easy");
+		assert(runs.length == 1 && runs[0].difficulty.level == "easy" &&
+		       runs[0].difficulty.version === 1);
 		assert(JSON.stringify(runs[0].difficulty) == JSON.stringify(Logos.puzzleDifficulty(puzzle)));
 	});
 });
 
 Deno.test("Chronicle difficulty filters combine with results and reset on reopening", async () => {
 	const initial = [
-		{ seed: 1, outcome: "won", difficulty: { score: 20, level: "easy" } },
-		{ seed: 2, outcome: "lost", difficulty: { score: 55, level: "medium" } },
-		{ seed: 3, outcome: "won", difficulty: { score: 80, level: "hard" } },
+		{ seed: 1, outcome: "won", difficulty: { version: 1, score: 20, level: "easy" } },
+		{ seed: 2, outcome: "lost", difficulty: { version: 1, score: 55, level: "medium" } },
+		{ seed: 3, outcome: "won", difficulty: { version: 1, score: 80, level: "hard" } },
 		{ outcome: "won" },
 	].map((run, i) => ({ date: i, elapsed: i, ...run }));
 	await withRunHistory(async () => {
@@ -3543,6 +3570,7 @@ Deno.test("difficulty filtering discovers uncached matches outside the current p
 	const initial = Array.from({ length: 10 }, (_, i) => ({
 		date: i, seed: i == 0 ? 0xe2a689dd : 0x98079244,
 		elapsed: i, outcome: "won", rows: 6, columns: 6, generatorVersion: 1,
+		difficulty: {score: 1, level: "easy", version: 0},
 	}));
 	await withRunHistory(async () => {
 		const puzzle = makePuzzle(6);
@@ -3559,7 +3587,7 @@ Deno.test("difficulty filtering discovers uncached matches outside the current p
 		assert(body.children.length == 1 && body.children[0].children[3].textContent == "e2a689dd",
 		       "filter missed an uncached run outside the original page");
 		assert(body.children[0].children[4].textContent == "Hard");
-		assert(puzzle.runHistory.every(run => run.difficulty), "filter did not finish checking candidates");
+		assert(puzzle.runHistory.every(run => run.difficulty.version === 1), "filter did not finish checking candidates");
 		assert(puzzle.scores.querySelector(".history-status").hidden);
 	}, initial);
 });
@@ -3601,10 +3629,10 @@ Deno.test("Pantheon switches rankings without adding difficulty to entries", asy
 		await puzzle.toggleScores();
 		assert(puzzle.pantheonLevel == "all" && puzzle.highScores.length == 3);
 	}, [
-		{ seed: 1, date: 1, elapsed: 100, outcome: "won", difficulty: {score: 20, level: "easy"} },
-		{ seed: 2, date: 2, elapsed: 200, outcome: "won", difficulty: {score: 25, level: "easy"} },
-		{ seed: 3, date: 3, elapsed: 300, outcome: "won", difficulty: {score: 80, level: "hard"} },
-		{ seed: 4, date: 4, elapsed: 1, outcome: "lost", difficulty: {score: 90, level: "hard"} },
+		{ seed: 1, date: 1, elapsed: 100, outcome: "won", difficulty: { version: 1, score: 20, level: "easy"} },
+		{ seed: 2, date: 2, elapsed: 200, outcome: "won", difficulty: { version: 1, score: 25, level: "easy"} },
+		{ seed: 3, date: 3, elapsed: 300, outcome: "won", difficulty: { version: 1, score: 80, level: "hard"} },
+		{ seed: 4, date: 4, elapsed: 1, outcome: "lost", difficulty: { version: 1, score: 90, level: "hard"} },
 	]);
 });
 
@@ -3624,12 +3652,12 @@ Deno.test("a win can qualify for its difficulty without qualifying for All", asy
 		await puzzle.selectPantheon("all");
 		assert(puzzle.highScores.length == 10 && !puzzle.highScores.some(run => run.seed == 0xe2a689dd));
 	}, Array.from({length: 12}, (_,i) => ({date:i,seed:i,elapsed:i+1,outcome:"won",
-		difficulty:{score:20,level:"easy"}})));
+		difficulty:{ version: 1, score:20,level:"easy"}})));
 });
 
 Deno.test("Pantheon only backfills legacy wins which can enter the selected top ten", async () => {
 	const initial = Array.from({length:10},(_,i)=>({date:i,seed:i,elapsed:100+i,outcome:"won",
-		difficulty:{score:80,level:"hard"}}));
+		difficulty:{ version: 1, score:80,level:"hard"}}));
 	initial.push({date:11, seed:0xe2a689dd, elapsed:50, outcome:"won",rows:6,columns:6,generatorVersion:1});
 	initial.push({date:12, seed:0x98079244, elapsed:200, outcome:"won",rows:6,columns:6,generatorVersion:1});
 	await withRunHistory(async () => {
@@ -3642,13 +3670,32 @@ Deno.test("Pantheon only backfills legacy wins which can enter the selected top 
 	}, initial);
 });
 
+Deno.test("Pantheon rerates stale labels before admitting or excluding wins", async () => {
+	const initial = Array.from({length: 10}, (_, i) => ({
+		date: i, seed: i, elapsed: 100 + i, outcome: "won",
+		difficulty: {version: 1, score: 80, level: "hard"},
+	}));
+	initial.push({date: 20, seed: 0x98079244, elapsed: 10, outcome: "won",
+		rows: 6, columns: 6, generatorVersion: 1, difficulty: {score: 90, level: "hard"}});
+	initial.push({date: 21, seed: 0xe2a689dd, elapsed: 20, outcome: "won",
+		rows: 6, columns: 6, generatorVersion: 1, difficulty: {version: 0, score: 20, level: "easy"}});
+	await withRunHistory(async () => {
+		const puzzle = makePuzzle(6);
+		await puzzle.loadHistory(null, "hard");
+		assert(puzzle.highScores.length === 10 && puzzle.highScores[0].seed === 0xe2a689dd,
+		       "stale Easy label kept a Hard win out of the ranking");
+		assert(puzzle.highScores.every(run => run.seed !== 0x98079244 && run.difficulty.version === 1),
+		       "stale Hard label admitted an Easy win");
+	}, initial);
+});
+
 Deno.test("a stale Pantheon lookup cannot replace a newer selection", async () => {
 	let release;
 	const gate = new Promise(resolve => { release = resolve; });
 	Logos.setHistoryStorage(async (run, includeRuns, level) => {
 		if (level == "easy") await gate;
 		return { highScores: [{id:1, date:1, seed:1, elapsed:100,
-			difficulty:{score:80,level}}], gameStats:{won:1,lost:0} };
+			difficulty:{ version: 1, score:80,level}}], gameStats:{won:1,lost:0} };
 	});
 	try {
 		const puzzle = makePuzzle(1);

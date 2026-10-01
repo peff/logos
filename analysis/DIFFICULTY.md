@@ -1,6 +1,6 @@
 # Puzzle difficulty
 
-`puzzleDifficulty(puzzle)` in `logos.js` returns `{ score, level }` for an
+`puzzleDifficulty(puzzle)` in `logos.js` returns `{ score, level, version }` for an
 already-generated puzzle. It measures the original clues, independent of the
 player's progress. Generation, seed identity, and generator version 1 are
 unchanged.
@@ -73,7 +73,11 @@ The file stores observations rather than computed scores: use
 Earlier scorers, rounds, search experiments, and detailed comparisons remain
 in Git history. A fresh statistical sample can be generated whenever needed;
 the manually recorded impressions are the part that cannot be regenerated.
-Existing cached Chronicle labels are not migrated by this cleanup.
+Cached run ratings carry `difficulty.version`, currently 1, separate from the
+puzzle-generation version. Missing or different versions are lazily recomputed
+by the Chronicle and difficulty-specific Pantheons and saved back to IndexedDB.
+Bump `puzzleDifficultyVersion` when the formula, route count/policy, or cutoffs
+change. Runs with unsupported generation versions cannot be recomputed.
 
 ## Analysis and hints
 
