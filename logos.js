@@ -244,6 +244,25 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.resumeAfterPageHidden = false;
 	this.pausedBeforePageHidden = false;
 	this.nextMilestone = 0;
+	this.pantheonViewport = this.scores.querySelector(".pantheon-tablets");
+	this.pantheonTablets = {};
+	for (var level of ["all", "easy", "medium", "hard"]) {
+		var tablet = document.createElement("div");
+		tablet.className = "pantheon-tablet";
+		tablet.setAttribute("aria-label", level == "all" ? "All victories" : level + " victories");
+		var status = document.createElement("p");
+		status.className = "scores-status";
+		status.setAttribute("role", "status");
+		status.textContent = "Loading victories…";
+		tablet.appendChild(status);
+		var empty = document.createElement("p");
+		empty.className = "scores-empty";
+		empty.hidden = true;
+		tablet.appendChild(empty);
+		tablet.appendChild(document.createElement("ol"));
+		this.pantheonTablets[level] = tablet;
+		this.pantheonViewport.appendChild(tablet);
+	}
 	this.helpPage = 0;
 	this.helpViewport = this.help.querySelector(".help-pages");
 	this.helpPages = Array.from(this.help.querySelectorAll(".help-page"));
@@ -1691,8 +1710,13 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.renderHighScores = function() {
-		var status = this.scores.querySelector(".scores-status");
-		this.scores.querySelector(".pantheon-tablet").setAttribute(
+		var tablet = this.pantheonTablets[this.pantheonLevel];
+		for (var level of ["all", "easy", "medium", "hard"]) {
+			this.pantheonTablets[level].inert = level != this.pantheonLevel;
+			this.pantheonTablets[level].setAttribute("aria-hidden", level != this.pantheonLevel);
+		}
+		var status = tablet.querySelector(".scores-status");
+		tablet.setAttribute(
 			"aria-busy", String(!!this.pantheonLoading));
 		for (var level of ["all", "easy", "medium", "hard"])
 			this.scores.querySelector(".pantheon-" + level).setAttribute(
@@ -1702,8 +1726,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			return;
 		status.hidden = !this.historyError;
 		status.textContent = this.historyError || "";
-		var list = this.scores.querySelector("ol");
-		var empty = this.scores.querySelector(".scores-empty");
+		var list = tablet.querySelector("ol");
+		var empty = tablet.querySelector(".scores-empty");
 		this.scores.querySelector(".game-stats").hidden = !!this.historyError;
 		list.hidden = !!this.historyError;
 		if (this.historyError) {
@@ -1758,23 +1782,15 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		}
 	}
 
-	this.clearPantheonTransition = function() {
-		var transition = this.pantheonTransition;
-		if (!transition)
-			return;
-		for (var animation of transition.animations)
-			animation.cancel();
-		transition.old.remove();
-		transition.tablet.inert = false;
-		this.pantheonTransition = null;
-	}
-
-	this.selectPantheon = async function(level) {
+	this.selectPantheon = async function(level, fromScroll = false) {
 		var levels = ["all", "easy", "medium", "hard"];
-		if (!levels.includes(level) || level == this.pantheonLevel && !this.historyError)
+		if (!levels.includes(level))
 			return;
-		var direction = levels.indexOf(level) > levels.indexOf(this.pantheonLevel) ? 1 : -1;
-		this.clearPantheonTransition();
+		if (!fromScroll)
+			this.pantheonViewport.scrollLeft = levels.indexOf(level) *
+				this.pantheonViewport.clientWidth;
+		if (level == this.pantheonLevel && !this.historyError)
+			return;
 		this.pantheonLevel = level;
 		this.pantheonLoading = true;
 		this.historyError = "";
@@ -1786,39 +1802,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		if (this.pantheonRequest !== request || this.gameIdentity !== gameIdentity ||
 		    this.scores.hidden || this.scores.querySelector(".pantheon-view").hidden)
 			return;
-		var stage = this.scores.querySelector(".pantheon-tablets");
-		var tablet = this.scores.querySelector(".pantheon-tablet");
-		var animate = typeof tablet.animate == "function" &&
-			!matchMedia("(prefers-reduced-motion: reduce)").matches;
-		var old = animate ? tablet.cloneNode(true) : null;
-		/* Retain room for the fullest tablet visited, including empty rankings.
-		 * Using em keeps the reserved height in step with responsive font sizes.
-		 */
-		if (stage.getBoundingClientRect)
-			stage.style.minHeight = stage.getBoundingClientRect().height /
-				parseFloat(getComputedStyle(stage).fontSize) + "em";
 		this.renderHighScores();
-		if (!animate)
-			return;
-		old.classList.add("pantheon-tablet-old");
-		old.setAttribute("aria-hidden", "true");
-		old.inert = true;
-		tablet.inert = true;
-		stage.appendChild(old);
-		var timing = { duration: 260, easing: "cubic-bezier(0.22, 0.61, 0.36, 1)" };
-		var transition = this.pantheonTransition = { old: old, tablet: tablet, animations: [
-			old.animate([
-				{ transform: "translateX(0)", opacity: 1 },
-				{ transform: "translateX(" + (-direction * 100) + "%)", opacity: 0.2 },
-			], timing),
-			tablet.animate([
-				{ transform: "translateX(" + (direction * 100) + "%)", opacity: 0.2 },
-				{ transform: "translateX(0)", opacity: 1 },
-			], timing),
-		] };
-		await Promise.all(transition.animations.map(animation => animation.finished.catch(() => {})));
-		if (this.pantheonTransition === transition)
-			this.clearPantheonTransition();
 	}
 
 	this.showPantheon = function() {
@@ -1832,11 +1816,12 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		close.title = close.value;
 		close.setAttribute("aria-label", close.value);
 		this.scores.querySelector(".scores-actions").appendChild(close);
+		this.pantheonViewport.scrollLeft = ["all", "easy", "medium", "hard"].indexOf(
+			this.pantheonLevel) * this.pantheonViewport.clientWidth;
 		this.scores.querySelector(".history-open").focus();
 	}
 
 	this.showRunHistory = async function(id) {
-		this.clearPantheonTransition();
 		this.pantheonRequest = {};
 		var gameIdentity = this.gameIdentity;
 		var history = await accessRunHistory(null, true);
@@ -2222,8 +2207,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 				this.stopTimer();
 			modal.hidden = false;
 		} else {
-			if (modal === this.scores)
-				this.clearPantheonTransition();
 			if (modal === this.scores && this.pantheonLoading) {
 				this.pantheonRequest = {};
 				this.pantheonLoading = false;
@@ -2288,7 +2271,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			this.highlightedScore = null;
 			return;
 		}
-		this.scores.querySelector(".pantheon-tablets").style.minHeight = "";
 		var gameIdentity = this.gameIdentity;
 		await this.loadHistory();
 		if (this.gameIdentity !== gameIdentity)
@@ -2375,6 +2357,16 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.help.addEventListener("click", function(ev) {
 		if (ev.target == puzzle.help)
 			puzzle.toggleHelp();
+	});
+	this.pantheonViewport.addEventListener("scroll", function() {
+		if (puzzle.scores.hidden || puzzle.scores.querySelector(".pantheon-view").hidden ||
+		    !puzzle.pantheonViewport.clientWidth)
+			return;
+		var index = Math.round(puzzle.pantheonViewport.scrollLeft /
+			puzzle.pantheonViewport.clientWidth);
+		var level = ["all", "easy", "medium", "hard"][index];
+		if (level && level != puzzle.pantheonLevel)
+			return puzzle.selectPantheon(level, true);
 	});
 	this.helpViewport.addEventListener("scroll", function() {
 		if (!puzzle.help.hidden && puzzle.helpViewport.clientWidth)
@@ -2465,6 +2457,9 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			puzzle.positionSlotTray();
 			if (!puzzle.help.hidden)
 				puzzle.showHelpPage(puzzle.helpPage);
+			if (!puzzle.scores.hidden && !puzzle.scores.querySelector(".pantheon-view").hidden)
+				puzzle.pantheonViewport.scrollLeft = ["all", "easy", "medium", "hard"].indexOf(
+					puzzle.pantheonLevel) * puzzle.pantheonViewport.clientWidth;
 			if (!puzzle.scores.hidden && !puzzle.scores.querySelector(".history-view").hidden)
 				puzzle.renderRunHistory(puzzle.historyPage);
 		});

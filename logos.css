@@ -1883,16 +1883,21 @@ input[type="text"] {
 }
 
 .pantheon-tablets {
-	position: relative;
+	display: grid;
+	grid-auto-flow: column;
+	grid-auto-columns: 100%;
 	box-sizing: border-box;
-	overflow: hidden;
-	padding: 0.1rem;
+	overflow-x: auto;
+	scroll-snap-type: x mandatory;
+	overscroll-behavior-x: contain;
+	scrollbar-width: none;
 }
 
-.pantheon-tablet-old {
-	position: absolute;
-	inset: 0.1rem;
-	pointer-events: none;
+.pantheon-tablet {
+	min-width: 0;
+	padding: 0.1rem;
+	scroll-snap-align: start;
+	scroll-snap-stop: always;
 }
 
 .pantheon-levels {

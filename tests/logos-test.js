@@ -2403,7 +2403,7 @@ Deno.test("a winning score opens the Pantheon after saving", async function() {
 		assert(!puzzle.scores.hidden && runs.length == 1 &&
 		       puzzle.highlightedScore === puzzle.highScores[0],
 		       "win was duplicated or did not open the Pantheon");
-		const item = puzzle.scores.querySelector("ol").children[0];
+		const item = puzzle.pantheonTablets[puzzle.pantheonLevel].querySelector("ol").children[0];
 		const button = item.children[0];
 		assert(item.className == "score-new", "new score lacked its highlight");
 		await button.listeners.click.call(button);
@@ -2557,6 +2557,31 @@ Deno.test("run history sorts and filters without hiding unknown dates", async fu
 	]);
 });
 
+Deno.test("Pantheon swipes select levels without interrupting native scrolling", async function() {
+	await withRunHistory(async function() {
+		const puzzle = makePuzzle(1);
+		puzzle.scores.hidden = true;
+		await puzzle.toggleScores();
+		const viewport = puzzle.pantheonViewport;
+		viewport.clientWidth = 400;
+		viewport.scrollLeft = 790;
+		await viewport.listeners.scroll();
+		assert(puzzle.pantheonLevel == "medium" && viewport.scrollLeft == 790 &&
+		       puzzle.highScores.length == 1,
+		       "swipe did not select Medium without repositioning the viewport");
+		assert(puzzle.pantheonTablets.all.inert && !puzzle.pantheonTablets.medium.inert,
+		       "offscreen rankings remained interactive");
+		await puzzle.selectPantheon("hard");
+		assert(viewport.scrollLeft == 1200 && puzzle.highScores.length == 0,
+		       "level button did not position the empty ranking");
+		await puzzle.toggleScores();
+		viewport.scrollLeft = 0;
+		await viewport.listeners.scroll();
+		assert(puzzle.pantheonLevel == "hard", "a closed Pantheon handled a late scroll");
+	}, [{ date: 1, elapsed: 100, outcome: "won",
+	      difficulty: { version: 1, level: "medium", score: 50 } }]);
+});
+
 Deno.test("Roman leaf numbers use subtractive notation", function() {
 	for (const [number, expected] of [
 		[1, "I"], [3, "III"], [4, "IV"], [9, "IX"], [14, "XIV"],
@@ -2620,11 +2645,11 @@ Deno.test("history failures display errors instead of an empty Pantheon", async 
 		       "failed save did not report an error");
 		puzzle.scores.hidden = true;
 		await puzzle.toggleScores();
-		const status = puzzle.scores.querySelector(".scores-status");
+		const status = puzzle.pantheonTablets[puzzle.pantheonLevel].querySelector(".scores-status");
 		assert(!puzzle.scores.hidden && !status.hidden &&
 		       status.textContent == "The Chronicle could not be loaded." &&
 		       puzzle.scores.querySelector(".game-stats").hidden &&
-		       puzzle.scores.querySelector(".scores-empty").hidden,
+		       puzzle.pantheonTablets[puzzle.pantheonLevel].querySelector(".scores-empty").hidden,
 		       "failed read displayed an empty Pantheon instead of an error");
 		await puzzle.showRunHistory();
 		assert(puzzle.scores.querySelector(".history-status").textContent ==
@@ -3646,8 +3671,8 @@ Deno.test("Pantheon switches rankings without adding difficulty to entries", asy
 		assert(puzzle.scores.querySelector(".games-won").textContent == 3,
 		       "difficulty selection changed overall statistics");
 		await puzzle.selectPantheon("medium");
-		assert(puzzle.highScores.length == 0 && !puzzle.scores.querySelector(".scores-empty").hidden);
-		assert(puzzle.scores.querySelector(".scores-empty").textContent.includes("medium"));
+		assert(puzzle.highScores.length == 0 && !puzzle.pantheonTablets[puzzle.pantheonLevel].querySelector(".scores-empty").hidden);
+		assert(puzzle.pantheonTablets[puzzle.pantheonLevel].querySelector(".scores-empty").textContent.includes("medium"));
 		await puzzle.toggleScores();
 		await puzzle.toggleScores();
 		assert(puzzle.pantheonLevel == "all" && puzzle.highScores.length == 3);
@@ -3671,7 +3696,7 @@ Deno.test("a win can qualify for its difficulty without qualifying for All", asy
 		await puzzle.recordOutcome("won");
 		assert(!puzzle.scores.hidden && puzzle.pantheonLevel == "hard");
 		assert(puzzle.highScores.length == 1 && puzzle.highlightedScore.seed == 0xe2a689dd);
-		assert(puzzle.scores.querySelector("ol").children.at(-1).className == "score-new");
+		assert(puzzle.pantheonTablets[puzzle.pantheonLevel].querySelector("ol").children.at(-1).className == "score-new");
 		await puzzle.selectPantheon("all");
 		assert(puzzle.highScores.length == 10 && !puzzle.highScores.some(run => run.seed == 0xe2a689dd));
 	}, Array.from({length: 12}, (_,i) => ({date:i,seed:i,elapsed:i+1,outcome:"won",
