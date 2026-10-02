@@ -146,6 +146,38 @@ document.addEventListener('contextmenu', function(ev) {
 	ev.preventDefault();
 });
 
+/* Track programmatic scrolling without selecting pages passed on the way.
+ * Rendering and page selection remain the responsibility of each view.
+ */
+function NativeScroll(viewport) {
+	this.target = null;
+	this.cancel = function() {
+		this.target = null;
+	};
+	this.canAnimate = function() {
+		return !!viewport.scrollTo && !matchMedia("(prefers-reduced-motion: reduce)").matches;
+	};
+	this.to = function(left) {
+		if (this.canAnimate()) {
+			this.target = Math.abs(viewport.scrollLeft - left) > 2 ? left : null;
+			viewport.scrollTo({ left: left, behavior: "smooth" });
+		} else {
+			this.cancel();
+			viewport.scrollLeft = left;
+		}
+	};
+	this.settled = function() {
+		/* clientWidth rounds fractional page widths to whole pixels. */
+		if (this.target != null && Math.abs(viewport.scrollLeft - this.target) > 2)
+			return false;
+		this.cancel();
+		return true;
+	};
+	/* Direct manipulation takes over from a pending button-driven scroll. */
+	for (var event of ["pointerdown", "wheel"])
+		viewport.addEventListener(event, () => this.cancel(), { passive: true });
+}
+
 function initializeHistoryTable(table) {
 	var columns = document.createElement("colgroup");
 	var heading = document.createElement("thead");
@@ -263,6 +295,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.pausedBeforePageHidden = false;
 	this.nextMilestone = 0;
 	this.pantheonViewport = this.scores.querySelector(".pantheon-tablets");
+	this.pantheonScroll = new NativeScroll(this.pantheonViewport);
 	this.pantheonTablets = {};
 	for (var level of ["all", "easy", "medium", "hard"]) {
 		var tablet = document.createElement("div");
@@ -282,6 +315,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.pantheonViewport.appendChild(tablet);
 	}
 	this.historyViewport = this.scores.querySelector(".history-pages");
+	this.historyScroll = new NativeScroll(this.historyViewport);
 	/* Recycling leaves requires knowing that the native gesture has ended.
 	 * Older browsers can still use the page buttons and arrow keys.
 	 */
@@ -292,6 +326,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.historyBody = this.historyTable.querySelector("tbody");
 	this.helpPage = 0;
 	this.helpViewport = this.help.querySelector(".help-pages");
+	this.helpScroll = new NativeScroll(this.helpViewport);
 	this.helpPages = Array.from(this.help.querySelectorAll(".help-page"));
 	this.helpFolios = this.helpPages.map((page, index) => {
 		var folio = document.createElement("nav");
@@ -1817,15 +1852,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			return;
 		if (!fromScroll) {
 			var left = levels.indexOf(level) * this.pantheonViewport.clientWidth;
-			/* Passing other tablets during a button-driven scroll must not
-			 * select them or replace the destination of another key press.
-			 */
-			this.pantheonScrollTarget = Math.abs(this.pantheonViewport.scrollLeft - left) > 2 ? left : null;
-			if (this.pantheonViewport.scrollTo)
-				this.pantheonViewport.scrollTo({ left: left, behavior:
-					matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" });
-			else
-				this.pantheonViewport.scrollLeft = left;
+			this.pantheonScroll.to(left);
 		}
 		if (level == this.pantheonLevel && !this.historyError)
 			return;
@@ -1844,7 +1871,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.showPantheon = function() {
-		this.pantheonScrollTarget = null;
+		this.pantheonScroll.cancel();
 		this.scores.querySelector(".pantheon-view").hidden = false;
 		this.scores.querySelector(".history-view").hidden = true;
 		this.scores.querySelector("#scores-title").textContent = "The Pantheon of the Wise";
@@ -1861,7 +1888,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.showRunHistory = async function(id) {
-		this.pantheonScrollTarget = null;
+		this.pantheonScroll.cancel();
 		this.pantheonRequest = {};
 		var gameIdentity = this.gameIdentity;
 		var history = await accessRunHistory(null, true);
@@ -1914,9 +1941,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		var page = this.historyPage + direction;
 		if (page < 0 || page >= this.historyPageCount)
 			return;
-		if (!this.historyViewport.scrollTo ||
-		    !("onscrollend" in this.historyViewport) ||
-		    matchMedia("(prefers-reduced-motion: reduce)").matches) {
+		if (!("onscrollend" in this.historyViewport) || !this.historyScroll.canAnimate()) {
 			this.renderRunHistory(page);
 			return;
 		}
@@ -1936,12 +1961,11 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			this.historyWindowExpanded = true;
 		}
 		this.selectHistoryPage(page);
-		this.historyScrollTarget = (page - this.historyWindowStart) * this.historyViewport.clientWidth;
-		this.historyViewport.scrollTo({ left: this.historyScrollTarget, behavior: "smooth" });
+		this.historyScroll.to((page - this.historyWindowStart) * this.historyViewport.clientWidth);
 	}
 
 	this.renderRunHistory = function(page) {
-		this.historyScrollTarget = null;
+		this.historyScroll.cancel();
 		this.historyWindowExpanded = false;
 		var request = this.historyDifficultyRequest = {};
 		var wins = this.scores.querySelector(".history-wins").checked;
@@ -2356,7 +2380,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.showHelpPage = function(page) {
-		this.helpScrollTarget = null;
+		this.helpScroll.cancel();
 		this.selectHelpPage(page);
 		this.helpViewport.scrollLeft = this.helpPage * this.helpViewport.clientWidth;
 	}
@@ -2366,14 +2390,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		    this.helpPage + direction >= this.helpPages.length)
 			return;
 		var page = this.helpPage + direction;
-		if (!this.helpViewport.scrollTo ||
-		    matchMedia("(prefers-reduced-motion: reduce)").matches) {
-			this.showHelpPage(page);
-		} else {
-			this.selectHelpPage(page);
-			this.helpScrollTarget = page * this.helpViewport.clientWidth;
-			this.helpViewport.scrollTo({ left: this.helpScrollTarget, behavior: "smooth" });
-		}
+		this.selectHelpPage(page);
+		this.helpScroll.to(page * this.helpViewport.clientWidth);
 		if (fromKeyboard)
 			return;
 		var selector = direction > 0 ?
@@ -2480,32 +2498,20 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		if (puzzle.scores.hidden || puzzle.scores.querySelector(".pantheon-view").hidden ||
 		    !puzzle.pantheonViewport.clientWidth)
 			return;
-		if (puzzle.pantheonScrollTarget != null) {
-			/* clientWidth rounds fractional page widths to whole pixels. */
-			if (Math.abs(puzzle.pantheonViewport.scrollLeft - puzzle.pantheonScrollTarget) > 2)
-				return;
-			puzzle.pantheonScrollTarget = null;
-		}
+		if (!puzzle.pantheonScroll.settled())
+			return;
 		var index = Math.round(puzzle.pantheonViewport.scrollLeft /
 			puzzle.pantheonViewport.clientWidth);
 		var level = ["all", "easy", "medium", "hard"][index];
 		if (level && level != puzzle.pantheonLevel)
 			return puzzle.selectPantheon(level, true);
 	});
-	/* Direct manipulation takes over from a pending button-driven scroll. */
-	for (var event of ["pointerdown", "wheel"])
-		this.pantheonViewport.addEventListener(event, function() {
-			puzzle.pantheonScrollTarget = null;
-		}, { passive: true });
 	var syncHistoryScroll = function() {
 		if (puzzle.scores.hidden || puzzle.scores.querySelector(".history-view").hidden ||
 		    !puzzle.historyViewport.clientWidth)
 			return false;
-		if (puzzle.historyScrollTarget != null) {
-			if (Math.abs(puzzle.historyViewport.scrollLeft - puzzle.historyScrollTarget) > 2)
-				return false;
-			puzzle.historyScrollTarget = null;
-		}
+		if (!puzzle.historyScroll.settled())
+			return false;
 		var page = puzzle.historyWindowStart + Math.round(
 			puzzle.historyViewport.scrollLeft / puzzle.historyViewport.clientWidth);
 		if (page != puzzle.historyPage)
@@ -2521,22 +2527,11 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.helpViewport.addEventListener("scroll", function() {
 		if (puzzle.help.hidden || !puzzle.helpViewport.clientWidth)
 			return;
-		if (puzzle.helpScrollTarget != null) {
-			if (Math.abs(puzzle.helpViewport.scrollLeft - puzzle.helpScrollTarget) > 2)
-				return;
-			puzzle.helpScrollTarget = null;
-		}
+		if (!puzzle.helpScroll.settled())
+			return;
 		puzzle.selectHelpPage(Math.round(puzzle.helpViewport.scrollLeft /
 			puzzle.helpViewport.clientWidth));
 	});
-	for (var event of ["pointerdown", "wheel"]) {
-		this.helpViewport.addEventListener(event, function() {
-			puzzle.helpScrollTarget = null;
-		}, { passive: true });
-		this.historyViewport.addEventListener(event, function() {
-			puzzle.historyScrollTarget = null;
-		}, { passive: true });
-	}
 	this.scores.addEventListener("click", function(ev) {
 		if (ev.target == puzzle.scores)
 			puzzle.toggleScores();
@@ -2632,7 +2627,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			if (!puzzle.help.hidden)
 				puzzle.showHelpPage(puzzle.helpPage);
 			if (!puzzle.scores.hidden && !puzzle.scores.querySelector(".pantheon-view").hidden) {
-				puzzle.pantheonScrollTarget = null;
+				puzzle.pantheonScroll.cancel();
 				puzzle.pantheonViewport.scrollLeft = ["all", "easy", "medium", "hard"].indexOf(
 					puzzle.pantheonLevel) * puzzle.pantheonViewport.clientWidth;
 			}

@@ -2694,15 +2694,17 @@ Deno.test("Pantheon keys retarget smooth scrolling without selecting intermediat
 			       "reverse key did not use the selected destination");
 			viewport.scrollLeft = 801.5;
 			await viewport.listeners.scroll();
-			assert(puzzle.pantheonScrollTarget === null, "arrival retained the pending scroll");
+			assert(puzzle.pantheonScroll.target === null, "arrival retained the pending scroll");
 			await puzzle.selectPantheon("all");
 			viewport.listeners.wheel();
 			viewport.scrollLeft = 400;
 			await viewport.listeners.scroll();
 			assert(puzzle.pantheonLevel == "easy", "direct scrolling did not take over");
 			globalThis.matchMedia = () => ({ matches: true });
+			const count = scrolls.length;
 			await puzzle.selectPantheon("hard");
-			assert(scrolls.at(-1).behavior == "instant", "reduced motion used smooth scrolling");
+			assert(viewport.scrollLeft == 1200 && scrolls.length == count,
+			       "reduced motion did not jump to the selected tablet");
 		} finally {
 			document.modals = [];
 			delete globalThis.matchMedia;
@@ -2728,7 +2730,7 @@ Deno.test("Help page turns retarget an ongoing smooth scroll", function() {
 		assert(puzzle.helpPage == 1, "animation replaced the intended help page");
 		puzzle.turnHelpPage(1);
 		assert(puzzle.helpPage == 2 && viewport.scrollLeft == 100 &&
-		       puzzle.helpScrollTarget == 800 && scrolls.length == 2 &&
+		       puzzle.helpScroll.target == 800 && scrolls.length == 2 &&
 		       scrolls[1].left == 800 && scrolls[1].behavior == "smooth",
 		       "second help turn did not retarget the animation");
 		viewport.listeners.scroll();
@@ -2738,11 +2740,18 @@ Deno.test("Help page turns retarget an ongoing smooth scroll", function() {
 		       scrolls[2].behavior == "smooth", "reverse turn did not retarget smoothly");
 		viewport.scrollLeft = 400;
 		viewport.listeners.scroll();
-		assert(puzzle.helpScrollTarget === null, "arrival retained the pending destination");
+		assert(puzzle.helpScroll.target === null, "arrival retained the pending destination");
 		globalThis.matchMedia = () => ({ matches: true });
 		puzzle.turnHelpPage(-1);
 		assert(viewport.scrollLeft == 0 && scrolls.length == 3,
 		       "reduced motion animated a help turn");
+		globalThis.matchMedia = () => ({ matches: false });
+		puzzle.turnHelpPage(1);
+		viewport.listeners.pointerdown();
+		viewport.scrollLeft = 800;
+		viewport.listeners.scroll();
+		assert(puzzle.helpPage == 2 && puzzle.helpScroll.target === null,
+		       "direct manipulation did not take over from the pending turn");
 	} finally {
 		delete globalThis.matchMedia;
 	}
