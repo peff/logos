@@ -2443,8 +2443,8 @@ Deno.test("opening the Pantheon refreshes runs and retains highlights by key", a
 		runs.splice(0, 1);
 		puzzle.scores.hidden = true;
 		await puzzle.toggleScores();
-		assert(puzzle.highlightedScore === null,
-		       "a removed score retained its highlight");
+		assert(!puzzle.highScores.includes(puzzle.highlightedScore),
+		       "a removed score remained in the highlighted ranking");
 	}, [{ date: 1, seed: 123, elapsed: 1000, outcome: "won" }]);
 });
 
@@ -3932,12 +3932,24 @@ Deno.test("a win can qualify for its difficulty without qualifying for All", asy
 		puzzle.gameOver = true;
 		puzzle.timerElapsed = 500000;
 		puzzle.scores.hidden = true;
+		/* Hidden dialogs have no measurable scrolling width in the browser. */
+		Object.defineProperty(puzzle.pantheonViewport, "clientWidth", {
+			get: () => puzzle.scores.hidden ? 0 : 400,
+		});
 		await puzzle.recordOutcome("won");
 		assert(!puzzle.scores.hidden && puzzle.pantheonLevel == "hard");
+		assert(puzzle.pantheonViewport.scrollLeft == 1200,
+		       "auto-open did not position the winning difficulty after showing the dialog");
 		assert(puzzle.highScores.length == 1 && puzzle.highlightedScore.seed == 0xe2a689dd);
 		assert(puzzle.pantheonTablets[puzzle.pantheonLevel].querySelector("ol").children.at(-1).className == "score-new");
 		await puzzle.selectPantheon("all");
 		assert(puzzle.highScores.length == 10 && !puzzle.highScores.some(run => run.seed == 0xe2a689dd));
+		await puzzle.selectPantheon("easy");
+		await puzzle.selectPantheon("hard");
+		assert(puzzle.highlightedScore === puzzle.highScores[0],
+		       "visiting rankings without the winning score lost its highlight");
+		await puzzle.toggleScores();
+		assert(puzzle.highlightedScore === null, "closing retained the session highlight");
 	}, Array.from({length: 12}, (_,i) => ({date:i,seed:i,elapsed:i+1,outcome:"won",
 		difficulty:{ version: 1, score:20,level:"easy"}})));
 });

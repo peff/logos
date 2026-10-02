@@ -1599,11 +1599,14 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		if (history) {
 			this.highScores = history.highScores;
 			this.gameStats = history.gameStats;
+			/* A different ranking may omit the new score. Remember it so
+			 * returning to its ranking restores the highlight.
+			 */
 			var highlighted = this.highlightedScore;
 			this.highlightedScore = highlighted ?
 				this.highScores.find(function(score) {
 					return score.id === highlighted.id;
-				}) || null : null;
+				}) || highlighted : null;
 		}
 		return !!history;
 	}
@@ -1766,11 +1769,12 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		});
 		/* A completed save must not interrupt a newer game. */
 		if (highScore && this.gameIdentity === gameIdentity) {
-			this.showPantheon();
 			this.highlightedScore = highScore;
 			if (this.scores.hidden)
 				this.toggleModal(this.scores, this.scoresButton,
 					"Rejoin the mortal realm");
+			/* Position the selected tablet only once the viewport has a width. */
+			this.showPantheon();
 		}
 		if (!saved && this.gameIdentity === gameIdentity)
 			this.say("Your result could not be saved.");
