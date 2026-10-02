@@ -146,6 +146,24 @@ document.addEventListener('contextmenu', function(ev) {
 	ev.preventDefault();
 });
 
+function initializeHistoryTable(table) {
+	var columns = document.createElement("colgroup");
+	var heading = document.createElement("thead");
+	heading.className = "history-column-labels";
+	var row = document.createElement("tr");
+	for (var label of ["Date", "Result", "Time", "Seed", "Difficulty"]) {
+		columns.appendChild(document.createElement("col"));
+		var cell = document.createElement("th");
+		cell.setAttribute("scope", "col");
+		cell.textContent = label;
+		row.appendChild(cell);
+	}
+	heading.appendChild(row);
+	table.appendChild(columns);
+	table.appendChild(heading);
+	table.appendChild(document.createElement("tbody"));
+}
+
 function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		options, optionsButton, help, helpButton, scores, scoresButton,
 		about, logoButton) {
@@ -263,6 +281,15 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.pantheonTablets[level] = tablet;
 		this.pantheonViewport.appendChild(tablet);
 	}
+	this.historyViewport = this.scores.querySelector(".history-pages");
+	/* Recycling leaves requires knowing that the native gesture has ended.
+	 * Older browsers can still use the page buttons and arrow keys.
+	 */
+	if (!("onscrollend" in this.historyViewport))
+		this.historyViewport.style.overflowX = "hidden";
+	this.historyTable = this.scores.querySelector(".history-current");
+	initializeHistoryTable(this.historyTable);
+	this.historyBody = this.historyTable.querySelector("tbody");
 	this.helpPage = 0;
 	this.helpViewport = this.help.querySelector(".help-pages");
 	this.helpPages = Array.from(this.help.querySelectorAll(".help-page"));
@@ -1846,7 +1873,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		close.setAttribute("aria-label", "Close the Chronicle");
 		this.scores.querySelector(".history-folio").appendChild(close);
 		this.renderRunHistory();
-		var selected = this.scores.querySelector(".history-selected");
+		var selected = this.historyTable.querySelector(".history-selected");
 		if (id !== undefined && selected) {
 			selected.focus({ preventScroll: true });
 		} else {
@@ -1860,6 +1887,14 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		else
 			this.historySort = this.historySort == "fastest" ? "slowest" : "fastest";
 		this.renderRunHistory();
+	}
+
+	this.selectHistoryPage = function(page) {
+		this.historyPage = Math.max(0, Math.min(page, this.historyPageCount - 1));
+		this.scores.querySelector(".history-folio .help-page-number").textContent =
+			"Leaf " + romanNumeral(this.historyPage + 1) + " of " + romanNumeral(this.historyPageCount);
+		this.scores.querySelector(".history-folio .help-page-previous").disabled = this.historyPage == 0;
+		this.scores.querySelector(".history-folio .help-page-next").disabled = this.historyPage == this.historyPageCount - 1;
 	}
 
 	this.renderRunHistory = function(page) {
@@ -1900,8 +1935,9 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			status.hidden = false;
 			status.textContent = "Checking difficulty…";
 		}
-		this.scores.querySelector(".history-table").hidden = !runs.length;
-		var body = this.scores.querySelector(".history-table tbody");
+		this.scores.querySelector(".history-heading").hidden = !runs.length;
+		this.historyTable.hidden = !runs.length;
+		var body = this.historyBody;
 		body.replaceChildren();
 		var selectedRun = this.selectedRun;
 		var difficultyEntries = [];
@@ -1946,7 +1982,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			var sample = makeRow(runs[0]);
 			body.appendChild(sample);
 			var available = this.scores.querySelector(".history-page-content").clientHeight;
-			var heading = this.scores.querySelector(".history-table thead").offsetHeight;
+			var heading = this.scores.querySelector(".history-heading").offsetHeight;
 			if (sample.offsetHeight)
 				pageSize = Math.max(1, Math.floor((available - heading - 1) / sample.offsetHeight));
 			body.replaceChildren();
@@ -1958,16 +1994,38 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			var index = runs.findIndex(function(run) { return run.id === selectedRun; });
 			page = index < 0 ? 0 : Math.floor(index / pageSize);
 		}
-		this.historyPage = Math.max(0, Math.min(page, pages - 1));
+		this.historyPageCount = pages;
+		this.selectHistoryPage(page);
+		this.historyRenderedPage = this.historyPage;
 		var start = this.historyPage * pageSize;
 		for (var run of runs.slice(start, start + pageSize))
 			body.appendChild(makeRow(run));
-		this.scores.querySelector(".history-folio .help-page-number").textContent =
-			"Leaf " + romanNumeral(this.historyPage + 1) + " of " + romanNumeral(pages);
-		this.scores.querySelector(".history-folio .help-page-previous").disabled = this.historyPage == 0;
-		this.scores.querySelector(".history-folio .help-page-next").disabled = this.historyPage == pages - 1;
+		/* Only the current leaf and its neighbors need rows in the DOM.
+		 * Recenter after native scrolling has settled, never during a drag.
+		 */
+		this.historyWindowStart = Math.max(0, this.historyPage - 1);
+		var visibleDifficultyEntries = difficultyEntries;
+		difficultyEntries = [];
+		var leaves = [];
+		for (var leaf = this.historyWindowStart; leaf <= Math.min(pages - 1, this.historyPage + 1); leaf++) {
+			var table = this.historyTable;
+			if (leaf != this.historyPage) {
+				table = document.createElement("table");
+				table.className = "history-table";
+				initializeHistoryTable(table);
+				for (var run of runs.slice(leaf * pageSize, (leaf + 1) * pageSize))
+					table.querySelector("tbody").appendChild(makeRow(run));
+				table.inert = true;
+				table.setAttribute("aria-hidden", "true");
+			}
+			table.setAttribute("aria-label", "Chronicle leaf " + (leaf + 1));
+			leaves.push(table);
+		}
+		this.historyViewport.replaceChildren(...leaves);
+		this.historyViewport.scrollLeft = (this.historyPage - this.historyWindowStart) *
+			this.historyViewport.clientWidth;
 		this.historyDifficultyTask = this.fillRunDifficulties(
-			filteringDifficulty ? pendingDifficulty : difficultyEntries, request,
+			filteringDifficulty ? pendingDifficulty : visibleDifficultyEntries, request,
 			filteringDifficulty ? { page: page } : null);
 	}
 
@@ -2367,6 +2425,21 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		var level = ["all", "easy", "medium", "hard"][index];
 		if (level && level != puzzle.pantheonLevel)
 			return puzzle.selectPantheon(level, true);
+	});
+	var syncHistoryScroll = function() {
+		if (puzzle.scores.hidden || puzzle.scores.querySelector(".history-view").hidden ||
+		    !puzzle.historyViewport.clientWidth)
+			return false;
+		var page = puzzle.historyWindowStart + Math.round(
+			puzzle.historyViewport.scrollLeft / puzzle.historyViewport.clientWidth);
+		if (page != puzzle.historyPage)
+			puzzle.selectHistoryPage(page);
+		return true;
+	};
+	this.historyViewport.addEventListener("scroll", syncHistoryScroll);
+	this.historyViewport.addEventListener("scrollend", function() {
+		if (syncHistoryScroll() && puzzle.historyPage != puzzle.historyRenderedPage)
+			puzzle.renderRunHistory(puzzle.historyPage);
 	});
 	this.helpViewport.addEventListener("scroll", function() {
 		if (!puzzle.help.hidden && puzzle.helpViewport.clientWidth)

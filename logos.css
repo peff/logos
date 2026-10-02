@@ -2034,9 +2034,43 @@ button.score-entry:focus-visible {
 }
 
 .history-page-content {
+	display: flex;
+	flex-direction: column;
 	flex: 1;
 	min-height: 0;
 	overflow: hidden;
+}
+
+.history-heading {
+	flex: 0 0 auto;
+}
+
+.history-pages {
+	display: grid;
+	grid-auto-flow: column;
+	grid-auto-columns: 100%;
+	align-items: start;
+	flex: 1;
+	min-height: 0;
+	overflow-x: auto;
+	overflow-y: hidden;
+	scroll-snap-type: x mandatory;
+	overscroll-behavior-x: contain;
+	scrollbar-width: none;
+}
+
+.history-pages > table {
+	scroll-snap-align: start;
+	scroll-snap-stop: always;
+}
+
+/* Each leaf retains column labels for assistive technology. */
+.history-column-labels {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	clip-path: inset(50%);
 }
 
 .history-folio {
@@ -2092,11 +2126,11 @@ button.score-entry:focus-visible {
 }
 
 /* Keep the headings still as dates and other values change between leaves. */
-.history-table th:nth-child(1) { width: 27%; }
-.history-table th:nth-child(2) { width: 14%; }
-.history-table th:nth-child(3) { width: 16%; }
-.history-table th:nth-child(4) { width: 23%; }
-.history-table th:nth-child(5) { width: 20%; }
+.history-table :is(th, col):nth-child(1) { width: 27%; }
+.history-table :is(th, col):nth-child(2) { width: 14%; }
+.history-table :is(th, col):nth-child(3) { width: 16%; }
+.history-table :is(th, col):nth-child(4) { width: 23%; }
+.history-table :is(th, col):nth-child(5) { width: 20%; }
 
 .history-table th button {
 	display: inline-flex;

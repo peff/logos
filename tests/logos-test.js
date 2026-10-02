@@ -2407,7 +2407,7 @@ Deno.test("a winning score opens the Pantheon after saving", async function() {
 		const button = item.children[0];
 		assert(item.className == "score-new", "new score lacked its highlight");
 		await button.listeners.click.call(button);
-		const body = puzzle.scores.querySelector(".history-table tbody");
+		const body = puzzle.historyBody;
 		assert(!puzzle.scores.querySelector(".history-view").hidden &&
 		       body.children[0].className == "history-selected" &&
 		       body.children[0].children[3].textContent == "1234abcd",
@@ -2509,7 +2509,7 @@ Deno.test("run history sorts and filters without hiding unknown dates", async fu
 		puzzle.scores.hidden = false;
 		puzzle.gameOver = true;
 		await puzzle.showRunHistory();
-		const body = puzzle.scores.querySelector(".history-table tbody");
+		const body = puzzle.historyBody;
 		const seeds = () => body.children.map(row => row.children[3].textContent).join(",");
 		assert(seeds() == "00000002,00000001,—", "history was not newest first");
 		for (const [column, direction, expected] of [
@@ -2557,6 +2557,74 @@ Deno.test("run history sorts and filters without hiding unknown dates", async fu
 	]);
 });
 
+Deno.test("Chronicle swipes recycle only neighboring leaves", async function() {
+	await withRunHistory(async function() {
+		const puzzle = makePuzzle(1);
+		puzzle.scores.hidden = false;
+		const viewport = puzzle.historyViewport;
+		viewport.clientWidth = 400;
+		await puzzle.showRunHistory();
+		assert(viewport.children.length == 2 && puzzle.historyPage == 0,
+		       "first leaf did not have just one neighbor");
+		const previous = puzzle.scores.querySelector(".history-folio .help-page-previous");
+		const next = puzzle.scores.querySelector(".history-folio .help-page-next");
+		const number = puzzle.scores.querySelector(".history-folio .help-page-number");
+		viewport.scrollLeft = 250;
+		viewport.listeners.scroll();
+		assert(puzzle.historyPage == 1 && number.textContent == "Leaf II of V" &&
+		       !previous.disabled && !next.disabled && puzzle.historyRenderedPage == 0 &&
+		       viewport.children.length == 2 && viewport.scrollLeft == 250,
+		       "scrolling did not update the footer without recycling leaves");
+		viewport.scrollLeft = 100;
+		viewport.listeners.scroll();
+		assert(puzzle.historyPage == 0 && previous.disabled && number.textContent == "Leaf I of V",
+		       "reversing a drag did not restore the footer");
+		viewport.scrollLeft = 400;
+		viewport.listeners.scrollend();
+		assert(puzzle.historyPage == 1 && viewport.children.length == 3 &&
+		       viewport.children[1] == puzzle.historyTable,
+		       "first swipe did not expose both neighbors");
+		viewport.scrollLeft = 800;
+		viewport.listeners.scrollend();
+		assert(puzzle.historyPage == 2 && puzzle.historyWindowStart == 1 &&
+		       viewport.scrollLeft == 400 && viewport.children.length == 3,
+		       "second swipe did not recenter the three-leaf window");
+		assert(viewport.children[0].inert && viewport.children[2].inert,
+		       "neighboring leaves remained interactive");
+		viewport.listeners.scrollend();
+		assert(puzzle.historyPage == 2, "recentering triggered an extra turn");
+		viewport.scrollLeft = 0;
+		viewport.listeners.scrollend();
+		assert(puzzle.historyPage == 1 && viewport.scrollLeft == 400,
+		       "reverse swipe lost its place");
+		puzzle.renderRunHistory(99);
+		assert(puzzle.historyPage == 4 && viewport.children.length == 2,
+		       "last leaf had an extra neighbor");
+		viewport.scrollLeft = 100;
+		viewport.listeners.scroll();
+		assert(puzzle.historyPage == 3 && !next.disabled,
+		       "dragging away from the last leaf did not enable Next");
+		viewport.scrollLeft = 300;
+		viewport.listeners.scroll();
+		assert(puzzle.historyPage == 4 && next.disabled && number.textContent == "Leaf V of V",
+		       "dragging to the last leaf did not disable Next promptly");
+		puzzle.renderRunHistory(puzzle.historyPage - 1);
+		assert(puzzle.historyPage == 3,
+		       "button navigation did not follow the leaf shown during scrolling");
+		puzzle.sortRunHistory("time");
+		viewport.listeners.scrollend();
+		assert(puzzle.historyPage == 0 && viewport.scrollLeft == 0,
+		       "sorting retained the old scroll position");
+		puzzle.scores.hidden = true;
+		viewport.scrollLeft = 400;
+		viewport.listeners.scrollend();
+		assert(puzzle.historyPage == 0, "a closed Chronicle handled a late scroll");
+	}, Array.from({ length: 33 }, (_, i) => ({
+		date: i, elapsed: i, outcome: "won",
+		difficulty: { version: 1, level: "easy", score: 20 },
+	})));
+});
+
 Deno.test("Pantheon swipes select levels without interrupting native scrolling", async function() {
 	await withRunHistory(async function() {
 		const puzzle = makePuzzle(1);
@@ -2596,7 +2664,7 @@ Deno.test("Chronicle follows the highlighted run when sorting and filtering", as
 		const puzzle = makePuzzle(1);
 		puzzle.scores.hidden = false;
 		await puzzle.showRunHistory(2);
-		const body = puzzle.scores.querySelector(".history-table tbody");
+		const body = puzzle.historyBody;
 		const highlighted = () => body.children.some(row => row.className == "history-selected");
 		assert(puzzle.historyPage == 2 && highlighted(),
 		       "link did not open the selected run's leaf");
@@ -2654,7 +2722,7 @@ Deno.test("history failures display errors instead of an empty Pantheon", async 
 		await puzzle.showRunHistory();
 		assert(puzzle.scores.querySelector(".history-status").textContent ==
 		       "The Chronicle could not be loaded." &&
-		       puzzle.scores.querySelector(".history-table").hidden,
+		       puzzle.historyTable.hidden,
 		       "history browser concealed a storage failure");
 	} finally {
 		Logos.setHistoryStorage(Logos.accessRunHistory);
@@ -3526,7 +3594,7 @@ Deno.test("Chronicle backfills only visible supported runs and reuses their rati
 		const puzzle = makePuzzle(6);
 		puzzle.scores.hidden = false;
 		await puzzle.showRunHistory();
-		const body = puzzle.scores.querySelector(".history-table tbody");
+		const body = puzzle.historyBody;
 		const text = i => body.children[i].children[4].textContent;
 		assert(text(0) == "Hard" && text(1) == "—" && text(2) == "…");
 		await puzzle.historyDifficultyTask;
@@ -3554,7 +3622,7 @@ Deno.test("Chronicle refreshes stale difficulty versions but keeps current ratin
 		const puzzle = makePuzzle(6);
 		puzzle.scores.hidden = false;
 		await puzzle.showRunHistory();
-		const body = puzzle.scores.querySelector(".history-table tbody");
+		const body = puzzle.historyBody;
 		assert(body.children[0].children[4].textContent === "—",
 		       "unsupported generation displayed a stale rating");
 		assert(body.children[1].children[4].textContent === "Hard");
@@ -3594,7 +3662,7 @@ Deno.test("Chronicle difficulty filters combine with results and reset on reopen
 		const puzzle = makePuzzle(1);
 		puzzle.scores.hidden = false;
 		await puzzle.showRunHistory();
-		const body = puzzle.scores.querySelector(".history-table tbody");
+		const body = puzzle.historyBody;
 		const checkbox = level => puzzle.scores.querySelector(".history-" + level);
 		const seeds = () => body.children.map(row => row.children[3].textContent).join(",");
 		assert(body.children.length == 4, "all levels hid an unknown difficulty");
@@ -3631,7 +3699,7 @@ Deno.test("difficulty filtering discovers uncached matches outside the current p
 		assert(puzzle.scores.querySelector(".history-status").textContent == "Checking difficulty…");
 		await firstTask;
 		await puzzle.historyDifficultyTask;
-		const body = puzzle.scores.querySelector(".history-table tbody");
+		const body = puzzle.historyBody;
 		assert(body.children.length == 1 && body.children[0].children[3].textContent == "e2a689dd",
 		       "filter missed an uncached run outside the original page");
 		assert(body.children[0].children[4].textContent == "Hard");
@@ -3654,7 +3722,7 @@ Deno.test("changing difficulty filters cancels obsolete backfill", async () => {
 		puzzle.renderRunHistory();
 		await Promise.all([initialTask, filterTask, puzzle.historyDifficultyTask]);
 		assert(!puzzle.runHistory[0].difficulty, "obsolete task rated a run");
-		assert(!puzzle.scores.querySelector(".history-table tbody").children.length);
+		assert(!puzzle.historyBody.children.length);
 	}, [{ date: 1, seed: 1, elapsed: 1, outcome: "won", rows: 6,
 		columns: 6, generatorVersion: 1 }]);
 });
