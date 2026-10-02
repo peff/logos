@@ -2724,7 +2724,6 @@ button.score-entry:focus-visible {
 	-webkit-text-fill-color: transparent;
 }
 
-.logo-greek,
 #timer.won #timer-text,
 #status.won {
 	color: #f1d47a;
@@ -2736,6 +2735,8 @@ button.score-entry:focus-visible {
 }
 
 .logo-greek {
+	color: #f1d47a;
+	background-color: #f1d47a;
 	text-shadow:
 		0 -1px 0 rgb(255 247 190 / 35%),
 		0 1px 0 rgb(75 49 8 / 70%);
