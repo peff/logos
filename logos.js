@@ -2321,15 +2321,26 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.showHelpPage = function(page) {
+		this.helpScrollTarget = null;
 		this.selectHelpPage(page);
 		this.helpViewport.scrollLeft = this.helpPage * this.helpViewport.clientWidth;
 	}
 
-	this.turnHelpPage = function(direction) {
+	this.turnHelpPage = function(direction, fromKeyboard = false) {
 		if (this.helpPage + direction < 0 ||
 		    this.helpPage + direction >= this.helpPages.length)
 			return;
-		this.showHelpPage(this.helpPage + direction);
+		var page = this.helpPage + direction;
+		if (!this.helpViewport.scrollTo ||
+		    matchMedia("(prefers-reduced-motion: reduce)").matches) {
+			this.showHelpPage(page);
+		} else {
+			this.selectHelpPage(page);
+			this.helpScrollTarget = page * this.helpViewport.clientWidth;
+			this.helpViewport.scrollTo({ left: this.helpScrollTarget, behavior: "smooth" });
+		}
+		if (fromKeyboard)
+			return;
 		var selector = direction > 0 ?
 			".help-page-previous" : ".help-page-next";
 		this.helpFolios[this.helpPage].querySelector(selector).focus({ preventScroll: true });
@@ -2467,10 +2478,21 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			puzzle.renderRunHistory(puzzle.historyPage);
 	});
 	this.helpViewport.addEventListener("scroll", function() {
-		if (!puzzle.help.hidden && puzzle.helpViewport.clientWidth)
-			puzzle.selectHelpPage(Math.round(puzzle.helpViewport.scrollLeft /
-				puzzle.helpViewport.clientWidth));
+		if (puzzle.help.hidden || !puzzle.helpViewport.clientWidth)
+			return;
+		if (puzzle.helpScrollTarget != null) {
+			if (Math.abs(puzzle.helpViewport.scrollLeft - puzzle.helpScrollTarget) > 2)
+				return;
+			puzzle.helpScrollTarget = null;
+		}
+		puzzle.selectHelpPage(Math.round(puzzle.helpViewport.scrollLeft /
+			puzzle.helpViewport.clientWidth));
 	});
+	for (var event of ["pointerdown", "wheel"]) {
+		this.helpViewport.addEventListener(event, function() {
+			puzzle.helpScrollTarget = null;
+		}, { passive: true });
+	}
 	this.scores.addEventListener("click", function(ev) {
 		if (ev.target == puzzle.scores)
 			puzzle.toggleScores();
@@ -2524,7 +2546,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 				puzzle.helpViewport.focus({ preventScroll: true });
 				var page = puzzle.helpPage + direction;
 				if (page >= 0 && page < puzzle.helpPages.length)
-					puzzle.showHelpPage(page);
+					puzzle.turnHelpPage(direction, true);
 			} else if (modal == puzzle.scores &&
 			           !puzzle.scores.querySelector(".history-view").hidden) {
 				ev.preventDefault();

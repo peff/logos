@@ -2707,6 +2707,44 @@ Deno.test("Pantheon keys retarget smooth scrolling without selecting intermediat
 	}, []);
 });
 
+Deno.test("Help page turns retarget an ongoing smooth scroll", function() {
+	const puzzle = makePuzzle(1);
+	puzzle.help.hidden = false;
+	const viewport = puzzle.helpViewport;
+	viewport.clientWidth = 400;
+	const scrolls = [];
+	viewport.scrollTo = options => scrolls.push(options);
+	globalThis.matchMedia = () => ({ matches: false });
+	try {
+		puzzle.showHelpPage(0);
+		puzzle.turnHelpPage(1);
+		assert(puzzle.helpPage == 1 && scrolls[0].behavior == "smooth",
+		       "single help turn did not animate");
+		viewport.scrollLeft = 100;
+		viewport.listeners.scroll();
+		assert(puzzle.helpPage == 1, "animation replaced the intended help page");
+		puzzle.turnHelpPage(1);
+		assert(puzzle.helpPage == 2 && viewport.scrollLeft == 100 &&
+		       puzzle.helpScrollTarget == 800 && scrolls.length == 2 &&
+		       scrolls[1].left == 800 && scrolls[1].behavior == "smooth",
+		       "second help turn did not retarget the animation");
+		viewport.listeners.scroll();
+		assert(puzzle.helpPage == 2, "intermediate scrolling replaced the destination");
+		puzzle.turnHelpPage(-1);
+		assert(puzzle.helpPage == 1 && scrolls[2].left == 400 &&
+		       scrolls[2].behavior == "smooth", "reverse turn did not retarget smoothly");
+		viewport.scrollLeft = 400;
+		viewport.listeners.scroll();
+		assert(puzzle.helpScrollTarget === null, "arrival retained the pending destination");
+		globalThis.matchMedia = () => ({ matches: true });
+		puzzle.turnHelpPage(-1);
+		assert(viewport.scrollLeft == 0 && scrolls.length == 3,
+		       "reduced motion animated a help turn");
+	} finally {
+		delete globalThis.matchMedia;
+	}
+});
+
 Deno.test("Roman leaf numbers use subtractive notation", function() {
 	for (const [number, expected] of [
 		[1, "I"], [3, "III"], [4, "IV"], [9, "IX"], [14, "XIV"],
