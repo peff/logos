@@ -293,7 +293,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.helpPage = 0;
 	this.helpViewport = this.help.querySelector(".help-pages");
 	this.helpPages = Array.from(this.help.querySelectorAll(".help-page"));
-	this.helpPages.forEach((page, index) => {
+	this.helpFolios = this.helpPages.map((page, index) => {
 		var folio = document.createElement("nav");
 		folio.className = "help-folio";
 		folio.setAttribute("aria-label", "Help pages");
@@ -317,7 +317,9 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		folio.appendChild(turn(-1));
 		folio.appendChild(number);
 		folio.appendChild(turn(1));
-		page.appendChild(folio);
+		this.help.querySelector(".help-navigation").appendChild(folio);
+		folio.hidden = index != this.helpPage;
+		return folio;
 	});
 	this.showMilestones = true;
 	this.pencilMarks = [];
@@ -2314,6 +2316,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		for (var i = 0; i < this.helpPages.length; i++) {
 			this.helpPages[i].inert = this.helpPage != i;
 			this.helpPages[i].setAttribute("aria-hidden", this.helpPage != i);
+			this.helpFolios[i].hidden = this.helpPage != i;
 		}
 	}
 
@@ -2329,7 +2332,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.showHelpPage(this.helpPage + direction);
 		var selector = direction > 0 ?
 			".help-page-previous" : ".help-page-next";
-		this.helpPages[this.helpPage].querySelector(selector).focus({ preventScroll: true });
+		this.helpFolios[this.helpPage].querySelector(selector).focus({ preventScroll: true });
 	}
 
 	this.toggleScores = async function() {

@@ -1601,13 +1601,16 @@ Deno.test("committed moves remove only affected pencil marks", function() {
 	       "remaining pencil state was not recomputed");
 });
 
-Deno.test("help pages generate folios and switch through hints", function() {
+Deno.test("help pages use stationary folios and switch through hints", function() {
 	const puzzle = makePuzzle(1);
 	const rules = puzzle.help.querySelector(".help-page-rules");
 	const clues = puzzle.help.querySelector(".help-page-clues");
 	const controls = puzzle.help.querySelector(".help-page-controls");
-	const cluesPrevious = clues.querySelector(".help-page-previous");
-	const controlsPrevious = controls.querySelector(".help-page-previous");
+	const cluesPrevious = puzzle.helpFolios[1].querySelector(".help-page-previous");
+	const controlsPrevious = puzzle.helpFolios[2].querySelector(".help-page-previous");
+	assert(puzzle.help.querySelector(".help-navigation").children.length == 4 &&
+	       puzzle.helpPages.every(page => !page.querySelectorAll(".help-folio").length),
+	       "folios were not kept outside the scrolling pages");
 
 	puzzle.showHelpPage(0);
 	assert(!rules.inert && clues.inert && controls.inert,
@@ -1627,10 +1630,11 @@ Deno.test("help pages generate folios and switch through hints", function() {
 	puzzle.turnHelpPage(1);
 	const hints = puzzle.help.querySelector(".help-page-hints");
 	assert(!hints.inert && controls.inert &&
-	       hints.querySelector(".help-page-number").textContent == "Leaf IV of IV" &&
-	       controls.querySelector(".help-page-next").textContent == "Hints and Proofs ›",
+	       !puzzle.helpFolios[3].hidden && puzzle.helpFolios[2].hidden &&
+	       puzzle.helpFolios[3].querySelector(".help-page-number").textContent == "Leaf IV of IV" &&
+	       puzzle.helpFolios[2].querySelector(".help-page-next").textContent == "Hints and Proofs ›",
 	       "fourth leaf or generated navigation is wrong");
-	hints.querySelector(".help-page-previous").onclick();
+	puzzle.helpFolios[3].querySelector(".help-page-previous").onclick();
 	assert(!controls.inert && hints.inert, "generated button did not turn the page");
 });
 

@@ -1734,6 +1734,22 @@ input[type="text"] {
 	overflow-y: auto;
 }
 
+.help-navigation {
+	display: grid;
+	flex: 0 0 auto;
+}
+
+.help-navigation > .help-folio {
+	grid-area: 1 / 1;
+	margin-top: 0;
+}
+
+/* Reserve the tallest footer so changing labels cannot resize the pages. */
+.help-navigation > .help-folio[hidden] {
+	display: grid;
+	visibility: hidden;
+}
+
 .help-folio {
 	display: grid;
 	grid-template-columns: 1fr auto 1fr;
