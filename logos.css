@@ -1781,7 +1781,7 @@ input[type="text"] {
 	background: transparent;
 }
 
-.help-navigation .help-page-turn:disabled {
+.help-folio .help-page-turn:disabled {
 	font-size: max(0.78rem, 13px);
 	font-style: italic;
 	font-weight: normal;

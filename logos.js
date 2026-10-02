@@ -1914,7 +1914,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		var close = this.scores.querySelector(".modal-close");
 		close.classList.remove("modal-done");
 		close.classList.add("help-page-turn");
-		close.value = "Exitus";
+		close.value = "Claude librum";
 		close.title = "Close the Chronicle";
 		close.setAttribute("aria-label", "Close the Chronicle");
 		this.scores.querySelector(".history-folio").appendChild(close);
@@ -1939,8 +1939,18 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.historyPage = Math.max(0, Math.min(page, this.historyPageCount - 1));
 		this.scores.querySelector(".history-folio .help-page-number").textContent =
 			"Leaf " + romanNumeral(this.historyPage + 1) + " of " + romanNumeral(this.historyPageCount);
-		this.scores.querySelector(".history-folio .help-page-previous").disabled = this.historyPage == 0;
-		this.scores.querySelector(".history-folio .help-page-next").disabled = this.historyPage == this.historyPageCount - 1;
+		for (var direction of [-1, 1]) {
+			var previous = direction < 0;
+			var button = this.scores.querySelector(".history-folio .help-page-" +
+				(previous ? "previous" : "next"));
+			button.disabled = previous ? this.historyPage == 0 :
+				this.historyPage == this.historyPageCount - 1;
+			button.querySelector("span").textContent = button.disabled ?
+				(previous ? "Incipit" : "Explicit") : (previous ? "‹ Retr" : "Prox ›");
+			button.title = button.disabled ? (previous ? "Beginning" : "End") :
+				(previous ? "Previous leaf" : "Next leaf");
+			button.setAttribute("aria-label", button.title);
+		}
 	}
 
 	this.turnHistoryPage = function(direction) {
