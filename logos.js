@@ -334,15 +334,21 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		folio.setAttribute("aria-label", "Help pages");
 		var turn = direction => {
 			var neighbor = this.helpPages[index + direction];
-			if (!neighbor)
-				return document.createElement("span");
 			var button = document.createElement("button");
 			button.type = "button";
 			button.className = "help-page-turn " +
 				(direction < 0 ? "help-page-previous" : "help-page-next");
-			var title = neighbor.querySelector("h3").textContent;
-			button.textContent = direction < 0 ? "‹ " + title : title + " ›";
-			button.onclick = () => this.turnHelpPage(direction);
+			if (neighbor) {
+				var title = neighbor.querySelector("h3").textContent;
+				button.textContent = direction < 0 ? "‹ " + title : title + " ›";
+				button.onclick = () => this.turnHelpPage(direction);
+			} else {
+				button.textContent = direction < 0 ? "Incipit" : "Explicit";
+				button.lang = "la";
+				button.title = direction < 0 ? "Beginning" : "End";
+				button.setAttribute("aria-label", button.title);
+				button.disabled = true;
+			}
 			return button;
 		};
 		var number = document.createElement("span");

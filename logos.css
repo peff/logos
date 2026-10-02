@@ -1775,6 +1775,18 @@ input[type="text"] {
 	background-color: rgb(128 99 58 / 10%);
 }
 
+.help-page-turn:disabled {
+	color: #99958c;
+	cursor: var(--default-cursor);
+	background: transparent;
+}
+
+.help-navigation .help-page-turn:disabled {
+	font-size: max(0.78rem, 13px);
+	font-style: italic;
+	font-weight: normal;
+}
+
 .help-page-turn:focus-visible {
 	outline: 2px solid #80633a;
 	outline-offset: -2px;
@@ -2120,12 +2132,6 @@ button.score-entry:focus-visible {
 .history-folio .modal-close {
 	grid-area: 2 / 1 / 3 / 4;
 	justify-self: center;
-}
-
-.history-folio button:disabled {
-	color: #99958c;
-	cursor: var(--default-cursor);
-	background: transparent;
 }
 
 .history-table {
