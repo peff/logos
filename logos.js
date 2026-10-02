@@ -1910,7 +1910,39 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.scores.querySelector(".history-folio .help-page-next").disabled = this.historyPage == this.historyPageCount - 1;
 	}
 
+	this.turnHistoryPage = function(direction) {
+		var page = this.historyPage + direction;
+		if (page < 0 || page >= this.historyPageCount)
+			return;
+		if (!this.historyViewport.scrollTo ||
+		    !("onscrollend" in this.historyViewport) ||
+		    matchMedia("(prefers-reduced-motion: reduce)").matches) {
+			this.renderRunHistory(page);
+			return;
+		}
+		/* Extend the strip without replacing the leaves already in motion. */
+		while (page < this.historyWindowStart) {
+			var left = this.historyViewport.scrollLeft;
+			this.historyWindowStart--;
+			this.historyViewport.insertBefore(this.makeHistoryLeaf(this.historyWindowStart),
+				this.historyViewport.children[0]);
+			/* Prepending shifts the coordinate system, not the visible content. */
+			this.historyViewport.scrollLeft = left + this.historyViewport.clientWidth;
+			this.historyWindowExpanded = true;
+		}
+		while (page >= this.historyWindowStart + this.historyViewport.children.length) {
+			this.historyViewport.appendChild(this.makeHistoryLeaf(
+				this.historyWindowStart + this.historyViewport.children.length));
+			this.historyWindowExpanded = true;
+		}
+		this.selectHistoryPage(page);
+		this.historyScrollTarget = (page - this.historyWindowStart) * this.historyViewport.clientWidth;
+		this.historyViewport.scrollTo({ left: this.historyScrollTarget, behavior: "smooth" });
+	}
+
 	this.renderRunHistory = function(page) {
+		this.historyScrollTarget = null;
+		this.historyWindowExpanded = false;
 		var request = this.historyDifficultyRequest = {};
 		var wins = this.scores.querySelector(".history-wins").checked;
 		var losses = this.scores.querySelector(".history-losses").checked;
@@ -1954,7 +1986,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		body.replaceChildren();
 		var selectedRun = this.selectedRun;
 		var difficultyEntries = [];
-		function makeRow(run) {
+		function makeRow(run, rate = true) {
 			var row = document.createElement("tr");
 			if (run.id === selectedRun) {
 				row.className = "history-selected";
@@ -1982,7 +2014,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			difficulty.className = "history-difficulty";
 			showRunDifficulty(difficulty, run);
 			row.appendChild(difficulty);
-			difficultyEntries.push({ run: run, element: difficulty });
+			if (rate)
+				difficultyEntries.push({ run: run, element: difficulty });
 			if (run.date !== null)
 				row.children[0].title = new Date(run.date).toLocaleString(undefined, {
 					dateStyle: "full", timeStyle: "long", hourCycle: "h23",
@@ -2013,24 +2046,26 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		var start = this.historyPage * pageSize;
 		for (var run of runs.slice(start, start + pageSize))
 			body.appendChild(makeRow(run));
-		/* Only the current leaf and its neighbors need rows in the DOM.
-		 * Recenter after native scrolling has settled, never during a drag.
+		/* Retain just the current leaf and its neighbors once scrolling settles.
+		 * Button-driven scrolling can extend this strip while it is moving.
 		 */
 		this.historyWindowStart = Math.max(0, this.historyPage - 1);
-		var visibleDifficultyEntries = difficultyEntries;
-		difficultyEntries = [];
+		this.makeHistoryLeaf = function(leaf) {
+			var table = document.createElement("table");
+			table.className = "history-table";
+			initializeHistoryTable(table);
+			for (var run of runs.slice(leaf * pageSize, (leaf + 1) * pageSize))
+				table.querySelector("tbody").appendChild(makeRow(run, false));
+			table.inert = true;
+			table.setAttribute("aria-hidden", "true");
+			table.setAttribute("aria-label", "Chronicle leaf " + (leaf + 1));
+			return table;
+		};
 		var leaves = [];
 		for (var leaf = this.historyWindowStart; leaf <= Math.min(pages - 1, this.historyPage + 1); leaf++) {
 			var table = this.historyTable;
-			if (leaf != this.historyPage) {
-				table = document.createElement("table");
-				table.className = "history-table";
-				initializeHistoryTable(table);
-				for (var run of runs.slice(leaf * pageSize, (leaf + 1) * pageSize))
-					table.querySelector("tbody").appendChild(makeRow(run));
-				table.inert = true;
-				table.setAttribute("aria-hidden", "true");
-			}
+			if (leaf != this.historyPage)
+				table = this.makeHistoryLeaf(leaf);
 			table.setAttribute("aria-label", "Chronicle leaf " + (leaf + 1));
 			leaves.push(table);
 		}
@@ -2038,7 +2073,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.historyViewport.scrollLeft = (this.historyPage - this.historyWindowStart) *
 			this.historyViewport.clientWidth;
 		this.historyDifficultyTask = this.fillRunDifficulties(
-			filteringDifficulty ? pendingDifficulty : visibleDifficultyEntries, request,
+			filteringDifficulty ? pendingDifficulty : difficultyEntries, request,
 			filteringDifficulty ? { page: page } : null);
 	}
 
@@ -2466,6 +2501,11 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		if (puzzle.scores.hidden || puzzle.scores.querySelector(".history-view").hidden ||
 		    !puzzle.historyViewport.clientWidth)
 			return false;
+		if (puzzle.historyScrollTarget != null) {
+			if (Math.abs(puzzle.historyViewport.scrollLeft - puzzle.historyScrollTarget) > 2)
+				return false;
+			puzzle.historyScrollTarget = null;
+		}
 		var page = puzzle.historyWindowStart + Math.round(
 			puzzle.historyViewport.scrollLeft / puzzle.historyViewport.clientWidth);
 		if (page != puzzle.historyPage)
@@ -2474,7 +2514,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	};
 	this.historyViewport.addEventListener("scroll", syncHistoryScroll);
 	this.historyViewport.addEventListener("scrollend", function() {
-		if (syncHistoryScroll() && puzzle.historyPage != puzzle.historyRenderedPage)
+		if (syncHistoryScroll() && (puzzle.historyPage != puzzle.historyRenderedPage ||
+		    puzzle.historyWindowExpanded))
 			puzzle.renderRunHistory(puzzle.historyPage);
 	});
 	this.helpViewport.addEventListener("scroll", function() {
@@ -2491,6 +2532,9 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	for (var event of ["pointerdown", "wheel"]) {
 		this.helpViewport.addEventListener(event, function() {
 			puzzle.helpScrollTarget = null;
+		}, { passive: true });
+		this.historyViewport.addEventListener(event, function() {
+			puzzle.historyScrollTarget = null;
 		}, { passive: true });
 	}
 	this.scores.addEventListener("click", function(ev) {
@@ -2551,7 +2595,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			           !puzzle.scores.querySelector(".history-view").hidden) {
 				ev.preventDefault();
 				puzzle.historyViewport.focus({ preventScroll: true });
-				puzzle.renderRunHistory(puzzle.historyPage + direction);
+				puzzle.turnHistoryPage(direction);
 			} else if (modal == puzzle.scores &&
 			           !puzzle.scores.querySelector(".pantheon-view").hidden) {
 				ev.preventDefault();

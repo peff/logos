@@ -35,6 +35,9 @@ class FakeElement {
 	appendChild(child) {
 		this.children.push(child);
 	}
+	insertBefore(child, before) {
+		this.children.splice(this.children.indexOf(before), 0, child);
+	}
 	replaceChildren(...children) {
 		this.children = children;
 	}
@@ -2743,6 +2746,70 @@ Deno.test("Help page turns retarget an ongoing smooth scroll", function() {
 	} finally {
 		delete globalThis.matchMedia;
 	}
+});
+
+Deno.test("Chronicle turns extend the moving strip and trim it after settling", async function() {
+	await withRunHistory(async function() {
+		const puzzle = makePuzzle(1);
+		puzzle.scores.hidden = false;
+		const viewport = puzzle.historyViewport;
+		viewport.clientWidth = 400;
+		viewport.onscrollend = null;
+		const scrolls = [];
+		viewport.scrollTo = options => scrolls.push(options);
+		globalThis.matchMedia = () => ({ matches: false });
+		try {
+			await puzzle.showRunHistory();
+			puzzle.turnHistoryPage(1);
+			assert(puzzle.historyPage == 1 && puzzle.historyRenderedPage == 0 &&
+			       scrolls[0].behavior == "smooth", "single Chronicle turn did not animate");
+			viewport.scrollLeft = 100;
+			viewport.listeners.scroll();
+			assert(puzzle.historyPage == 1, "scrolling overwrote the intended leaf");
+			puzzle.turnHistoryPage(1);
+			puzzle.turnHistoryPage(1);
+			assert(puzzle.historyPage == 3 && puzzle.historyRenderedPage == 0 &&
+			       viewport.scrollLeft == 100 && viewport.children.length == 4 &&
+			       scrolls.at(-1).left == 1200,
+			       "rapid forward turns did not extend and retarget the moving strip");
+			viewport.listeners.scrollend();
+			assert(puzzle.historyRenderedPage == 0, "an interrupted scroll recycled too early");
+			puzzle.turnHistoryPage(-1);
+			viewport.scrollLeft = 800;
+			viewport.listeners.scrollend();
+			assert(puzzle.historyRenderedPage == 2 && viewport.children.length == 3 &&
+			       puzzle.historyWindowStart == 1 && viewport.scrollLeft == 400,
+			       "settling did not trim the extended strip");
+			puzzle.turnHistoryPage(-1);
+			viewport.scrollLeft = 250;
+			puzzle.turnHistoryPage(-1);
+			assert(puzzle.historyPage == 0 && puzzle.historyWindowStart == 0 &&
+			       viewport.scrollLeft == 650 && scrolls.at(-1).left == 0 &&
+			       viewport.children.length == 4,
+			       "prepending a leaf did not preserve the visible position");
+			viewport.scrollLeft = 0;
+			viewport.listeners.scrollend();
+			assert(puzzle.historyRenderedPage == 0 && viewport.children.length == 2,
+			       "backward settling did not trim the strip");
+			puzzle.turnHistoryPage(1);
+			puzzle.turnHistoryPage(1);
+			puzzle.turnHistoryPage(-1);
+			puzzle.turnHistoryPage(-1);
+			viewport.listeners.scrollend();
+			assert(viewport.children.length == 2 && !puzzle.historyWindowExpanded,
+			       "returning to the original leaf retained extra pages");
+			const count = scrolls.length;
+			globalThis.matchMedia = () => ({ matches: true });
+			puzzle.turnHistoryPage(1);
+			assert(puzzle.historyRenderedPage == 1 && scrolls.length == count,
+			       "reduced motion animated a Chronicle turn");
+		} finally {
+			delete globalThis.matchMedia;
+		}
+	}, Array.from({ length: 40 }, (_, i) => ({
+		date: i, elapsed: i, outcome: "won",
+		difficulty: { version: 1, level: "easy", score: 20 },
+	})));
 });
 
 Deno.test("Roman leaf numbers use subtractive notation", function() {
