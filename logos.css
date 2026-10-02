@@ -1761,7 +1761,14 @@ input[type="text"] {
 
 .help-page-turn:focus-visible {
 	outline: 2px solid #80633a;
-	outline-offset: 0.08rem;
+	outline-offset: -2px;
+}
+
+/* Page navigation focuses the viewport, not an unrelated action button.
+ * Tab navigation still shows focus on the individual controls.
+ */
+:is(.help-pages, .pantheon-tablets, .history-pages):focus {
+	outline: none;
 }
 
 .help-page-previous {

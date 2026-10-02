@@ -1813,9 +1813,18 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		var levels = ["all", "easy", "medium", "hard"];
 		if (!levels.includes(level))
 			return;
-		if (!fromScroll)
-			this.pantheonViewport.scrollLeft = levels.indexOf(level) *
-				this.pantheonViewport.clientWidth;
+		if (!fromScroll) {
+			var left = levels.indexOf(level) * this.pantheonViewport.clientWidth;
+			/* Passing other tablets during a button-driven scroll must not
+			 * select them or replace the destination of another key press.
+			 */
+			this.pantheonScrollTarget = Math.abs(this.pantheonViewport.scrollLeft - left) > 2 ? left : null;
+			if (this.pantheonViewport.scrollTo)
+				this.pantheonViewport.scrollTo({ left: left, behavior:
+					matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" });
+			else
+				this.pantheonViewport.scrollLeft = left;
+		}
 		if (level == this.pantheonLevel && !this.historyError)
 			return;
 		this.pantheonLevel = level;
@@ -1833,6 +1842,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.showPantheon = function() {
+		this.pantheonScrollTarget = null;
 		this.scores.querySelector(".pantheon-view").hidden = false;
 		this.scores.querySelector(".history-view").hidden = true;
 		this.scores.querySelector("#scores-title").textContent = "The Pantheon of the Wise";
@@ -1845,10 +1855,11 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.scores.querySelector(".scores-actions").appendChild(close);
 		this.pantheonViewport.scrollLeft = ["all", "easy", "medium", "hard"].indexOf(
 			this.pantheonLevel) * this.pantheonViewport.clientWidth;
-		this.scores.querySelector(".history-open").focus();
+		this.pantheonViewport.focus({ preventScroll: true });
 	}
 
 	this.showRunHistory = async function(id) {
+		this.pantheonScrollTarget = null;
 		this.pantheonRequest = {};
 		var gameIdentity = this.gameIdentity;
 		var history = await accessRunHistory(null, true);
@@ -1877,7 +1888,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		if (id !== undefined && selected) {
 			selected.focus({ preventScroll: true });
 		} else {
-			this.scores.querySelector(".modal-close").focus();
+			this.historyViewport.focus({ preventScroll: true });
 		}
 	}
 
@@ -2420,12 +2431,23 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		if (puzzle.scores.hidden || puzzle.scores.querySelector(".pantheon-view").hidden ||
 		    !puzzle.pantheonViewport.clientWidth)
 			return;
+		if (puzzle.pantheonScrollTarget != null) {
+			/* clientWidth rounds fractional page widths to whole pixels. */
+			if (Math.abs(puzzle.pantheonViewport.scrollLeft - puzzle.pantheonScrollTarget) > 2)
+				return;
+			puzzle.pantheonScrollTarget = null;
+		}
 		var index = Math.round(puzzle.pantheonViewport.scrollLeft /
 			puzzle.pantheonViewport.clientWidth);
 		var level = ["all", "easy", "medium", "hard"][index];
 		if (level && level != puzzle.pantheonLevel)
 			return puzzle.selectPantheon(level, true);
 	});
+	/* Direct manipulation takes over from a pending button-driven scroll. */
+	for (var event of ["pointerdown", "wheel"])
+		this.pantheonViewport.addEventListener(event, function() {
+			puzzle.pantheonScrollTarget = null;
+		}, { passive: true });
 	var syncHistoryScroll = function() {
 		if (puzzle.scores.hidden || puzzle.scores.querySelector(".history-view").hidden ||
 		    !puzzle.historyViewport.clientWidth)
@@ -2496,13 +2518,23 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			var modal = modals[modals.length - 1];
 			if (modal == puzzle.help) {
 				ev.preventDefault();
+				puzzle.helpViewport.focus({ preventScroll: true });
 				var page = puzzle.helpPage + direction;
 				if (page >= 0 && page < puzzle.helpPages.length)
-					puzzle.turnHelpPage(direction);
+					puzzle.showHelpPage(page);
 			} else if (modal == puzzle.scores &&
 			           !puzzle.scores.querySelector(".history-view").hidden) {
 				ev.preventDefault();
+				puzzle.historyViewport.focus({ preventScroll: true });
 				puzzle.renderRunHistory(puzzle.historyPage + direction);
+			} else if (modal == puzzle.scores &&
+			           !puzzle.scores.querySelector(".pantheon-view").hidden) {
+				ev.preventDefault();
+				puzzle.pantheonViewport.focus({ preventScroll: true });
+				var levels = ["all", "easy", "medium", "hard"];
+				var level = levels[levels.indexOf(puzzle.pantheonLevel) + direction];
+				if (level)
+					puzzle.selectPantheon(level);
 			}
 			return;
 		}
@@ -2530,9 +2562,11 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			puzzle.positionSlotTray();
 			if (!puzzle.help.hidden)
 				puzzle.showHelpPage(puzzle.helpPage);
-			if (!puzzle.scores.hidden && !puzzle.scores.querySelector(".pantheon-view").hidden)
+			if (!puzzle.scores.hidden && !puzzle.scores.querySelector(".pantheon-view").hidden) {
+				puzzle.pantheonScrollTarget = null;
 				puzzle.pantheonViewport.scrollLeft = ["all", "easy", "medium", "hard"].indexOf(
 					puzzle.pantheonLevel) * puzzle.pantheonViewport.clientWidth;
+			}
 			if (!puzzle.scores.hidden && !puzzle.scores.querySelector(".history-view").hidden)
 				puzzle.renderRunHistory(puzzle.historyPage);
 		});

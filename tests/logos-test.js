@@ -1671,7 +1671,7 @@ Deno.test("arrow keys navigate help without escaping the visible dialog", functi
 		assert(puzzle.helpPage == 0, "left arrow escaped the first leaf");
 		press("ArrowRight");
 		assert(puzzle.helpPage == 1 &&
-		       puzzle.helpPages[1].querySelector(".help-page-previous").focused,
+		       puzzle.helpViewport.focused,
 		       "right arrow did not turn the leaf and move focus");
 		press("ArrowLeft");
 		assert(puzzle.helpPage == 0, "left arrow did not turn back");
@@ -1702,7 +1702,7 @@ Deno.test("arrow keys navigate help without escaping the visible dialog", functi
 	}
 });
 
-Deno.test("arrow keys navigate Chronicle leaves but not the Pantheon", async function() {
+Deno.test("arrow keys navigate Chronicle leaves", async function() {
 	await withRunHistory(async function() {
 		const puzzle = makePuzzle(1);
 		puzzle.scores.hidden = false;
@@ -1716,16 +1716,13 @@ Deno.test("arrow keys navigate Chronicle leaves but not the Pantheon", async fun
 			press("ArrowLeft");
 			assert(puzzle.historyPage == 0, "escaped the first Chronicle leaf");
 			press("ArrowRight");
-			assert(puzzle.historyPage == 1, "did not advance the Chronicle");
+			assert(puzzle.historyPage == 1 && puzzle.historyViewport.focused,
+			       "did not advance the Chronicle with focus on its viewport");
 			press("ArrowRight");
 			assert(puzzle.historyPage == 1, "escaped the last Chronicle leaf");
 			press("ArrowLeft");
 			assert(puzzle.historyPage == 0 && prevented == 4,
 			       "did not return to the first Chronicle leaf");
-			puzzle.showPantheon();
-			press("ArrowRight");
-			assert(puzzle.historyPage == 0 && prevented == 4,
-			       "Pantheon consumed a Chronicle navigation key");
 		} finally {
 			document.modals = [];
 		}
@@ -2648,6 +2645,62 @@ Deno.test("Pantheon swipes select levels without interrupting native scrolling",
 		assert(puzzle.pantheonLevel == "hard", "a closed Pantheon handled a late scroll");
 	}, [{ date: 1, elapsed: 100, outcome: "won",
 	      difficulty: { version: 1, level: "medium", score: 50 } }]);
+});
+
+Deno.test("Pantheon keys retarget smooth scrolling without selecting intermediate levels", async function() {
+	await withRunHistory(async function() {
+		const puzzle = makePuzzle(1);
+		puzzle.scores.hidden = true;
+		await puzzle.toggleScores();
+		const viewport = puzzle.pantheonViewport;
+		viewport.clientWidth = 400;
+		viewport.scrollLeft = 0;
+		const scrolls = [];
+		viewport.scrollTo = options => scrolls.push(options);
+		globalThis.matchMedia = () => ({ matches: false });
+		document.modals = [puzzle.scores];
+		const select = puzzle.selectPantheon;
+		let pending;
+		puzzle.selectPantheon = function(...args) {
+			return pending = select.apply(this, args);
+		};
+		let prevented = 0;
+		const press = key => document.listeners.keydown({
+			key, preventDefault() { prevented++; },
+		});
+		try {
+			press("ArrowRight");
+			press("ArrowRight");
+			press("ArrowRight");
+			await pending;
+			assert(prevented == 3 && puzzle.pantheonViewport.focused &&
+			       puzzle.pantheonLevel == "hard" &&
+			       scrolls.map(s => s.left).join() == "400,800,1200" &&
+			       scrolls.every(s => s.behavior == "smooth"),
+			       "repeated keys did not retarget the pending scroll");
+			viewport.scrollLeft = 400;
+			await viewport.listeners.scroll();
+			assert(puzzle.pantheonLevel == "hard", "intermediate tablet replaced the destination");
+			press("ArrowLeft");
+			await pending;
+			assert(puzzle.pantheonLevel == "medium" && scrolls.at(-1).left == 800,
+			       "reverse key did not use the selected destination");
+			viewport.scrollLeft = 801.5;
+			await viewport.listeners.scroll();
+			assert(puzzle.pantheonScrollTarget === null, "arrival retained the pending scroll");
+			await puzzle.selectPantheon("all");
+			viewport.listeners.wheel();
+			viewport.scrollLeft = 400;
+			await viewport.listeners.scroll();
+			assert(puzzle.pantheonLevel == "easy", "direct scrolling did not take over");
+			globalThis.matchMedia = () => ({ matches: true });
+			await puzzle.selectPantheon("hard");
+			assert(scrolls.at(-1).behavior == "instant", "reduced motion used smooth scrolling");
+		} finally {
+			document.modals = [];
+			delete globalThis.matchMedia;
+		}
+	}, []);
 });
 
 Deno.test("Roman leaf numbers use subtractive notation", function() {
