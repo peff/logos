@@ -1610,28 +1610,51 @@ Deno.test("help pages generate folios and switch through hints", function() {
 	const controlsPrevious = controls.querySelector(".help-page-previous");
 
 	puzzle.showHelpPage(0);
-	assert(!rules.hidden && clues.hidden && controls.hidden,
+	assert(!rules.inert && clues.inert && controls.inert,
 	       "rules were not the only visible first page");
 
 	puzzle.turnHelpPage(1);
-	assert(rules.hidden && !clues.hidden && controls.hidden,
+	assert(rules.inert && !clues.inert && controls.inert,
 	       "clues were not the only visible second page");
 	assert(cluesPrevious.focused,
 	       "page turn did not preserve keyboard focus");
 
 	puzzle.turnHelpPage(1);
-	assert(rules.hidden && clues.hidden && !controls.hidden,
+	assert(rules.inert && clues.inert && !controls.inert,
 	       "controls were not the only visible third page");
 	assert(controlsPrevious.focused,
 	       "second page turn did not preserve keyboard focus");
 	puzzle.turnHelpPage(1);
 	const hints = puzzle.help.querySelector(".help-page-hints");
-	assert(!hints.hidden && controls.hidden &&
+	assert(!hints.inert && controls.inert &&
 	       hints.querySelector(".help-page-number").textContent == "Leaf IV of IV" &&
 	       controls.querySelector(".help-page-next").textContent == "Hints and Proofs ›",
 	       "fourth leaf or generated navigation is wrong");
 	hints.querySelector(".help-page-previous").onclick();
-	assert(!controls.hidden && hints.hidden, "generated button did not turn the page");
+	assert(!controls.inert && hints.inert, "generated button did not turn the page");
+});
+
+Deno.test("help scrolling keeps page navigation and accessibility in sync", function() {
+	const puzzle = makePuzzle(1);
+	puzzle.help.hidden = false;
+	const viewport = puzzle.helpViewport;
+	viewport.clientWidth = 400;
+	puzzle.showHelpPage(0);
+	viewport.scrollLeft = 790;
+	viewport.listeners.scroll();
+	assert(puzzle.helpPage == 2 && viewport.scrollLeft == 790,
+	       "scrolling did not select the nearest leaf without moving it");
+	for (const [index, page] of puzzle.helpPages.entries()) {
+		assert(page.inert == (index != 2) &&
+		       page.attributes["aria-hidden"] == String(index != 2),
+		       "offscreen pages remained accessible");
+	}
+	puzzle.turnHelpPage(-1);
+	assert(puzzle.helpPage == 1 && viewport.scrollLeft == 400,
+	       "button navigation did not follow the swiped page");
+	viewport.clientWidth = 0;
+	viewport.listeners.scroll();
+	assert(puzzle.helpPage == 1, "a collapsed viewport lost the current page");
 });
 
 Deno.test("arrow keys navigate help without escaping the visible dialog", function() {
