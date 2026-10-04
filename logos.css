@@ -2248,6 +2248,7 @@ button.score-entry:focus-visible {
 }
 
 .history-table td:first-child,
+.history-table td:nth-child(2),
 .history-table td:nth-child(3) {
 	white-space: nowrap;
 }
