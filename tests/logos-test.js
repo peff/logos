@@ -35,6 +35,9 @@ class FakeElement {
 	appendChild(child) {
 		this.children.push(child);
 	}
+	append(...children) {
+		this.children.push(...children);
+	}
 	insertBefore(child, before) {
 		this.children.splice(this.children.indexOf(before), 0, child);
 	}
@@ -2366,13 +2369,14 @@ async function withRunHistory(callback, initial) {
 	for (const run of runs)
 		run.id = nextId++;
 	let reads = 0;
-	Logos.setHistoryStorage(async function(run, includeRuns, level = "all") {
+	Logos.setHistoryStorage(async function(run, includeRuns, level = "all", multiplayer = false) {
 		reads++;
 		if (run) {
 			run.id = nextId++;
 			runs.push(structuredClone(run));
 		}
-		const wins = runs.filter(run => run.outcome == "won")
+		const selected = runs.filter(run => !!run.multiplayer === !!multiplayer);
+		const wins = selected.filter(run => run.outcome == "won")
 			.sort((a, b) => a.elapsed - b.elapsed || a.id - b.id);
 		return {
 			runs: structuredClone(runs),
@@ -2380,8 +2384,8 @@ async function withRunHistory(callback, initial) {
 			highScores: structuredClone(wins.filter(run => level == "all" ||
 				Logos.hasRunDifficulty(run) && run.difficulty.level == level).slice(0, 10)),
 			gameStats: {
-				won: runs.filter(run => run.outcome == "won").length,
-				lost: runs.filter(run => run.outcome == "lost").length,
+				won: selected.filter(run => run.outcome == "won").length,
+				lost: selected.filter(run => run.outcome == "lost").length,
 			},
 		};
 	});
@@ -4609,4 +4613,40 @@ Deno.test("full difficulty observations do not truncate candidate reductions to 
 	const puzzle = {clues: [{constrain(d) { d[0][0] &= d[0][1] === 3 ? 1 : 3; }}]};
 	const domains = [[15, 3, 15, 15]];
 	assert(Logos.difficultyOpportunities(puzzle, domains)[0].after === 1);
+});
+
+Deno.test("multiplayer Pantheon keeps difficulty filters and opens for a shared record", async () => {
+	await withRunHistory(async () => {
+		const puzzle = makePuzzle(1);
+		puzzle.scores.hidden = true;
+		await puzzle.toggleScores();
+		await puzzle.selectPantheon("hard");
+		assert(puzzle.highScores.length === 1 && !puzzle.highScores[0].multiplayer);
+		await puzzle.togglePantheonMode();
+		assert(puzzle.pantheonMultiplayer && puzzle.pantheonLevel === "hard" &&
+		       puzzle.highScores.length === 1 && puzzle.highScores[0].multiplayer);
+		assert(puzzle.scores.querySelector("#scores-title").textContent === "The Kindred Laurels");
+		assert(puzzle.scores.querySelector(".pantheon-friends").attributes["aria-pressed"] === "true");
+		assert(puzzle.gameStats.won === 2 && puzzle.gameStats.lost === 1);
+		await puzzle.selectPantheon("easy");
+		assert(puzzle.highScores.length === 1 && puzzle.highScores[0].seed === 3);
+		await puzzle.showRunHistory();
+		assert(puzzle.scores.querySelector(".pantheon-friends").hidden);
+		puzzle.showPantheon();
+		assert(!puzzle.scores.querySelector(".pantheon-friends").hidden && puzzle.pantheonMultiplayer);
+		await puzzle.togglePantheonMode();
+		assert(!puzzle.pantheonMultiplayer && puzzle.pantheonLevel === "easy" && !puzzle.highScores.length);
+		await puzzle.toggleScores();
+		puzzle.gameOver = true;
+		await puzzle.recordOutcome("won", { seed: 5, date: 5, elapsed: 50, outcome: "won",
+			multiplayer: 1, multiplayerId: "new-record", players: ["Plato", "Socrates"],
+			difficulty: { version: 1, score: 80, level: "hard" } });
+		assert(!puzzle.scores.hidden && puzzle.pantheonMultiplayer && puzzle.pantheonLevel === "hard");
+		assert(puzzle.highlightedScore.seed === 5 && puzzle.highScores[0].seed === 5);
+	}, [
+		{ seed: 1, date: 1, elapsed: 100, outcome: "won", difficulty: { version: 1, score: 80, level: "hard" } },
+		{ seed: 2, date: 2, elapsed: 100, outcome: "won", multiplayer: 1, difficulty: { version: 1, score: 80, level: "hard" } },
+		{ seed: 3, date: 3, elapsed: 100, outcome: "won", multiplayer: 1, difficulty: { version: 1, score: 20, level: "easy" } },
+		{ seed: 4, date: 4, elapsed: 100, outcome: "lost", multiplayer: 1 },
+	]);
 });

@@ -1616,12 +1616,12 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.updatePauseControl();
 	}
 
-	this.loadHistory = async function(run, level = "all") {
+	this.loadHistory = async function(run, level = "all", multiplayer = false) {
 		var request = this.pantheonRequest = {};
 		var gameIdentity = this.gameIdentity;
 		var current = () => this.pantheonRequest === request &&
 			this.gameIdentity === gameIdentity;
-		var history = await accessRunHistory(run, false, level);
+		var history = await accessRunHistory(run, false, level, multiplayer);
 		if (history && run)
 			this.gameStats = history.gameStats;
 		if (history && level != "all") {
@@ -1649,6 +1649,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		if (!current())
 			return !!history;
 		this.pantheonLevel = level;
+		this.pantheonMultiplayer = !!multiplayer;
 		this.pantheonLoading = false;
 		this.historyError = history ? "" : run ?
 			"Your result could not be saved." : "The Chronicle could not be loaded.";
@@ -1828,7 +1829,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		var gameIdentity = this.gameIdentity;
 		var run = sharedRun || this.runRecord(outcome);
 		var saving = this.loadHistory(run,
-			outcome == "won" && run.difficulty ? run.difficulty.level : "all");
+			outcome == "won" && run.difficulty ? run.difficulty.level : "all", !!run.multiplayer);
 		var request = this.pantheonRequest;
 		var saved = await saving;
 		if (this.pantheonRequest !== request)
@@ -1853,6 +1854,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.renderHighScores = function() {
+		if (!this.scores.querySelector(".pantheon-view").hidden)
+			this.renderPantheonTitle();
 		var tablet = this.pantheonTablets[this.pantheonLevel];
 		for (var level of ["all", "easy", "medium", "hard"]) {
 			this.pantheonTablets[level].inert = level != this.pantheonLevel;
@@ -1925,7 +1928,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		}
 	}
 
-	this.selectPantheon = async function(level, fromScroll = false) {
+	this.selectPantheon = async function(level, fromScroll = false, multiplayer = this.pantheonMultiplayer) {
 		var levels = ["all", "easy", "medium", "hard"];
 		if (!levels.includes(level))
 			return;
@@ -1933,14 +1936,15 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			var left = levels.indexOf(level) * this.pantheonViewport.clientWidth;
 			this.pantheonScroll.to(left);
 		}
-		if (level == this.pantheonLevel && !this.historyError)
+		if (level == this.pantheonLevel && multiplayer == this.pantheonMultiplayer && !this.historyError)
 			return;
 		this.pantheonLevel = level;
+		this.pantheonMultiplayer = !!multiplayer;
 		this.pantheonLoading = true;
 		this.historyError = "";
 		this.renderHighScores();
 		var gameIdentity = this.gameIdentity;
-		var loading = this.loadHistory(undefined, level);
+		var loading = this.loadHistory(undefined, level, multiplayer);
 		var request = this.pantheonRequest;
 		await loading;
 		if (this.pantheonRequest !== request || this.gameIdentity !== gameIdentity ||
@@ -1949,11 +1953,25 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.renderHighScores();
 	}
 
+	this.togglePantheonMode = function() {
+		return this.selectPantheon(this.pantheonLevel, false, !this.pantheonMultiplayer);
+	}
+
+	this.renderPantheonTitle = function() {
+		this.scores.querySelector("#scores-title").textContent = this.pantheonMultiplayer ?
+			"The Kindred Laurels" : "The Pantheon of the Wise";
+		var button = this.scores.querySelector(".pantheon-friends");
+		button.hidden = false;
+		button.setAttribute("aria-pressed", String(this.pantheonMultiplayer));
+		button.title = this.pantheonMultiplayer ? "Show the solo Pantheon" : "Show the Kindred Laurels (multiplayer)";
+		button.setAttribute("aria-label", button.title);
+	}
+
 	this.showPantheon = function() {
 		this.pantheonScroll.cancel();
 		this.scores.querySelector(".pantheon-view").hidden = false;
 		this.scores.querySelector(".history-view").hidden = true;
-		this.scores.querySelector("#scores-title").textContent = "The Pantheon of the Wise";
+		this.renderPantheonTitle();
 		var close = this.scores.querySelector(".modal-close");
 		close.classList.remove("help-page-turn");
 		close.classList.add("modal-done");
@@ -1984,6 +2002,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.scores.querySelector(".pantheon-view").hidden = true;
 		this.scores.querySelector(".history-view").hidden = false;
 		this.scores.querySelector("#scores-title").textContent = "Chronicle of Trials";
+		this.scores.querySelector(".pantheon-friends").hidden = true;
 		var close = this.scores.querySelector(".modal-close");
 		close.classList.remove("modal-done");
 		close.classList.add("help-page-turn");
@@ -3150,6 +3169,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 	this.highScores = [];
 	this.pantheonLevel = "all";
+	this.pantheonMultiplayer = false;
 	this.pantheonLoading = false;
 	this.gameStats = { won: 0, lost: 0 };
 	/* Applying saved preferences must not write a stale snapshot back. */
@@ -3260,7 +3280,7 @@ function openRunDatabase() {
 /* Import legacy scores and optionally append a run, then return a committed
  * Pantheon summary. Record keys are exposed as id, but remain out-of-line.
  */
-function accessRunHistory(run, includeRuns, level = "all") {
+function accessRunHistory(run, includeRuns, level = "all", multiplayer = false) {
 	return new Promise(function(resolve) {
 		if (typeof indexedDB == "undefined") {
 			resolve(null);
@@ -3339,8 +3359,9 @@ function accessRunHistory(run, includeRuns, level = "all") {
 						};
 					}
 					var index = store.index("multiplayerOutcomeElapsed");
-					var wins = IDBKeyRange.bound([0, "won", 0], [0, "won", Number.MAX_VALUE]);
-					var losses = IDBKeyRange.bound([0, "lost", 0], [0, "lost", Number.MAX_VALUE]);
+					var mode = multiplayer ? 1 : 0;
+					var wins = IDBKeyRange.bound([mode, "won", 0], [mode, "won", Number.MAX_VALUE]);
+					var losses = IDBKeyRange.bound([mode, "lost", 0], [mode, "lost", Number.MAX_VALUE]);
 					index.count(wins).onsuccess = function(event) {
 						summary.gameStats.won = event.target.result;
 					};

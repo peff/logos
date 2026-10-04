@@ -1938,14 +1938,32 @@ input[type="text"] {
 	scroll-snap-stop: always;
 }
 
-.pantheon-levels {
+.pantheon-filters {
 	display: flex;
+	align-items: center;
 	justify-content: center;
 	gap: 0.65em;
 	margin: 0.3rem 0 0.65rem;
 }
 
-.pantheon-levels button {
+.pantheon-mode {
+	border-left: 1px solid rgb(128 99 58 / 30%);
+	padding-left: 0.65em;
+}
+
+.pantheon-friends svg {
+	display: block;
+	width: 1.1em;
+	height: 0.825em;
+}
+
+.pantheon-levels {
+	display: flex;
+	justify-content: center;
+	gap: 0.65em;
+}
+
+:is(.pantheon-levels button, .pantheon-friends) {
 	border: 0;
 	border-bottom: 1px solid transparent;
 	padding: 0.15em 0.25em;
@@ -1957,17 +1975,17 @@ input[type="text"] {
 	cursor: var(--action-cursor);
 }
 
-.pantheon-levels button[aria-pressed="true"] {
+:is(.pantheon-levels button, .pantheon-friends)[aria-pressed="true"] {
 	color: #71552f;
 	border-bottom-color: #a98c58;
 }
 
-.pantheon-levels button:hover {
+:is(.pantheon-levels button, .pantheon-friends):hover {
 	color: #71552f;
 	background: rgb(128 99 58 / 6%);
 }
 
-.pantheon-levels button:focus-visible {
+:is(.pantheon-levels button, .pantheon-friends):focus-visible {
 	outline: 2px solid #80633a;
 	outline-offset: 0.1rem;
 }

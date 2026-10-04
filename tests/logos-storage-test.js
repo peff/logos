@@ -278,6 +278,16 @@ var storageTestsDone = (async function() {
 				       "multiplayer run entered a difficulty ranking or backfill");
 			}
 		});
+		await test("multiplayer rankings have separate statistics and difficulty filters", async function() {
+			const summary = await accessRunHistory(null, false, "all", true);
+			assert(summary.gameStats.won === 1 && summary.gameStats.lost === 1 &&
+			       summary.highScores.length === 1 && summary.highScores[0].multiplayer,
+			       "multiplayer summary mixed in solo results");
+			const easy = await accessRunHistory(null, false, "easy", true);
+			const hard = await accessRunHistory(null, false, "hard", true);
+			assert(easy.highScores.length === 1 && hard.highScores.length === 0 &&
+			       hard.gameStats.won === 1, "difficulty filter lost multiplayer mode or changed totals");
+		});
 		await test("multiplayer summaries and duplicate saves use indexes", async function() {
 			for (let i = 0; i < 20; i++)
 				await accessRunHistory({ ...win, elapsed: 0, multiplayer: 1,
