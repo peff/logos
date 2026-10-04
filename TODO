@@ -9,7 +9,6 @@
      between players, but we should be able to facilitate the webrtc
      setup once via the host). Each player gets their own color-tinted
      stylus (or perhaps we can reintroduce the gear).
-   - multiplayer pantheon? That implies multiplayer run history, as well
  - consider simplifying
    - are chalk marks worth the interface complexity
  - evaluate clue interactions
