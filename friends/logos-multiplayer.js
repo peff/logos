@@ -8,6 +8,8 @@
 
 (function() {
 
+var recentActionLimit = 12;
+
 function copyMessage(message) {
 	return JSON.parse(JSON.stringify(message));
 }
@@ -402,7 +404,7 @@ class MultiplayerSession {
 		this.recentActions.clear();
 		for (var entry of message.recentActions || [])
 			if (Array.isArray(entry) && typeof entry[0] == "string" && Array.isArray(entry[1]))
-				this.recentActions.set(entry[0], copyMessage(entry[1].slice(-6)));
+				this.recentActions.set(entry[0], copyMessage(entry[1].slice(-recentActionLimit)));
 		this.ready = true;
 		this.receiveClock(message.clock);
 		this.receivePlayers(message.players);
@@ -470,7 +472,7 @@ class MultiplayerSession {
 			return;
 		var actions = this.recentActions.get(actor) || [];
 		actions.push(copyMessage(action));
-		this.recentActions.set(actor, actions.slice(-6));
+		this.recentActions.set(actor, actions.slice(-recentActionLimit));
 		this.onPlayersChanged(copyMessage(this.players));
 	}
 

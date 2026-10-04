@@ -920,10 +920,13 @@ Deno.test("recent player actions retain attribution across sync and reset with t
 		       "live and late guests have different histories");
 		guest.session.requestSync();
 		assert(snapshot(host.session) == snapshot(guest.session), "sync duplicated history");
-		for (let i = 0; i < 8; i++)
+		for (let i = 0; i < 14; i++)
 			host.puzzle.togglePause();
-		assert(host.session.recentActions.get("host").length == 6 &&
+		assert(host.session.recentActions.get("host").length == 12 &&
 		       snapshot(host.session) == snapshot(guest.session), "history was not bounded");
+		guest.session.requestSync();
+		assert(snapshot(host.session) == snapshot(guest.session),
+		       "sync did not retain all twelve actions");
 		move = wrongMove(guest.puzzle);
 		guest.puzzle.requestTileAction(move.slot, move.value, "place");
 		assert(host.session.recentActions.get("alice").at(-1).mistake &&

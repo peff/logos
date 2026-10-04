@@ -3336,7 +3336,7 @@ body.multiplayer #logo {
 	align-items: baseline;
 	gap: 0.25rem;
 	/* Keep each player's history aligned, even with truncated names. */
-	flex: 0 0 9rem;
+	flex: 0 0 33.333%;
 	min-width: 0;
 }
 
@@ -3348,23 +3348,30 @@ body.multiplayer #logo {
 }
 
 .friends-roster-history {
+	--history-tile-size: max(0.85rem, 16px);
 	display: flex;
+	flex: 1;
+	/* Newest first: older icons wrap below the single visible row. */
+	flex-wrap: wrap;
+	align-content: flex-start;
 	align-items: center;
 	align-self: center;
 	gap: 0.12rem;
+	height: var(--history-tile-size);
 	min-width: 0;
 	overflow: hidden;
 }
 
 .friends-roster-action {
 	--chalk-mark: rgb(240 232 211 / 88%);
+	box-sizing: border-box;
 	position: relative;
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	flex: 0 0 max(0.85rem, 16px);
-	width: max(0.85rem, 16px);
-	height: max(0.85rem, 16px);
+	flex: 0 0 var(--history-tile-size);
+	width: var(--history-tile-size);
+	height: var(--history-tile-size);
 	margin: 0;
 	font-size: max(0.6rem, 12px);
 }
@@ -3372,6 +3379,19 @@ body.multiplayer #logo {
 .friends-roster-action svg {
 	width: 100%;
 	height: 100%;
+}
+
+.friends-roster-action:first-child {
+	order: -2;
+}
+
+.friends-roster-history:has(> :nth-child(2))::before {
+	content: "";
+	order: -1;
+	flex: 0 0 1px;
+	height: 70%;
+	margin-inline: 0.12rem;
+	background: #a99c81;
 }
 
 .friends-roster-action[data-action="remove"]::before,

@@ -135,10 +135,9 @@ function renderPlayers(players) {
 		var history = document.createElement("span");
 		history.className = "friends-roster-history";
 		for (var action of session?.recentActions.get(player.id) || [])
-			history.append(renderRecentAction(action));
+			history.prepend(renderRecentAction(action));
 		entry.append(history);
 		rosterPlayers.append(entry);
-		history.scrollLeft = history.scrollWidth;
 	}
 	roster.dataset.state = rosterConnection;
 	if (rosterConnection == "disconnected")
