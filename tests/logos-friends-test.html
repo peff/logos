@@ -61,6 +61,9 @@
 		host.document.querySelector("#new-game-button").click();
 		await waitFor(() => [host, alice, bob].every(app => app.puzzle.actionController.gameId == 3),
 			"host replaces the game");
+		host.puzzle.actionController.start(0x12345678);
+		await waitFor(() => [host, alice, bob].every(app => app.puzzle.actionController.gameId == 4),
+			"deterministic history test game");
 		const slot = alice.puzzle.rows[0].slots.find(slot => !slot.single);
 		const value = slot.possible.findIndex((possible, value) => possible && value != slot.value);
 		alice.puzzle.requestTileAction(slot, value, "remove");
@@ -73,6 +76,18 @@
 				"discard attributed to the wrong player");
 			assert(icon.textContent == slot.symbols[value] && icon.title.includes("column"),
 				"discard is missing its tile or column tooltip");
+		}
+		const nextSlot = slot.row.slots.find(other => other != slot &&
+			!other.single && other.value != value && other.possible[value]);
+		alice.puzzle.requestTileAction(nextSlot, value, "remove");
+		await waitFor(() => [host, alice, bob].every(app =>
+			players(app).querySelector('.friends-roster-count')?.textContent == "2"),
+			"consecutive discards share a count badge");
+		for (const app of [host, alice, bob]) {
+			const icons = players(app).querySelectorAll('[data-action="remove"]');
+			assert(icons.length == 1 && icons[0].title.includes("columns ") &&
+				icons[0].title.endsWith([slot, nextSlot].map(s => s.row.slots.indexOf(s) + 1).join(", ")),
+				"grouped discard lost its columns");
 		}
 		bob.puzzle.togglePause();
 		await waitFor(() => [host, alice, bob].every(app =>

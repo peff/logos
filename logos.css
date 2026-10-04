@@ -3362,6 +3362,26 @@ body.multiplayer #logo {
 	overflow: hidden;
 }
 
+.friends-roster-event {
+	position: relative;
+	display: inline-flex;
+	align-items: center;
+	flex: 0 0 auto;
+	height: var(--history-tile-size);
+}
+
+.friends-roster-count {
+	position: absolute;
+	z-index: 1;
+	bottom: 0;
+	right: 0;
+	padding-inline: 1px;
+	border-radius: 3px 0 0 0;
+	background: #ded5c3;
+	color: #293638;
+	font: bold max(0.4rem, 9px)/1 sans-serif;
+}
+
 .friends-roster-action {
 	--chalk-mark: rgb(240 232 211 / 88%);
 	box-sizing: border-box;
@@ -3381,7 +3401,7 @@ body.multiplayer #logo {
 	height: 100%;
 }
 
-.friends-roster-action:first-child {
+.friends-roster-event:first-child {
 	order: -2;
 }
 

@@ -83,7 +83,10 @@ function beginSession(role) {
 	newGameButton.onclick = function() { session.requestNewGame(); };
 }
 
-function renderRecentAction(action) {
+function renderRecentAction(actions) {
+	var action = actions[actions.length - 1];
+	var event = document.createElement("span");
+	event.className = "friends-roster-event";
 	var icon = document.createElement("span");
 	icon.className = "friends-roster-action";
 	icon.dataset.action = action.type;
@@ -96,7 +99,8 @@ function renderRecentAction(action) {
 		icon.dataset.mistake = !!action.mistake;
 		description = (action.mistake ? "Mistake: " : "") +
 			(action.type == "place" ? "Placed " : "Discarded ") +
-			symbol + " in column " + (action.column + 1);
+			symbol + (actions.length > 1 ? " in columns " : " in column ") +
+			actions.map(action => action.column + 1).join(", ");
 	} else if (action.type == "pause") {
 		var columns = document.querySelector("#timer .pause-columns").cloneNode(true);
 		columns.removeAttribute("class");
@@ -109,7 +113,16 @@ function renderRecentAction(action) {
 	icon.title = description;
 	icon.setAttribute("role", "img");
 	icon.setAttribute("aria-label", description);
-	return icon;
+	event.append(icon);
+	if (actions.length > 1) {
+		var count = document.createElement("span");
+		count.className = "friends-roster-count";
+		count.textContent = actions.length;
+		count.setAttribute("aria-hidden", "true");
+		event.append(count);
+	}
+	event.title = description;
+	return event;
 }
 
 function renderPlayers(players) {
@@ -134,8 +147,18 @@ function renderPlayers(players) {
 		entry.append(identity);
 		var history = document.createElement("span");
 		history.className = "friends-roster-history";
-		for (var action of session?.recentActions.get(player.id) || [])
-			history.prepend(renderRecentAction(action));
+		var groups = [];
+		for (var action of session?.recentActions.get(player.id) || []) {
+			var previous = groups.at(-1)?.at(-1);
+			if (action.type == "remove" && previous?.type == "remove" &&
+			    action.row == previous.row && action.value == previous.value &&
+			    !action.mistake && !previous.mistake)
+				groups.at(-1).push(action);
+			else
+				groups.push([action]);
+		}
+		for (var group of groups)
+			history.prepend(renderRecentAction(group));
 		entry.append(history);
 		rosterPlayers.append(entry);
 	}
