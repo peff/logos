@@ -82,6 +82,9 @@ class MultiplayerSession {
 		this.updatingTimer = false;
 		this.lastClockBroadcast = null;
 		this.history = [];
+		this.recentActions = new Map();
+		this.lastPaused = false;
+		this.pauseActor = null;
 		this.committedCommands = new Map();
 		this.peers = new Map();
 		this.hostSender = null;
@@ -115,6 +118,8 @@ class MultiplayerSession {
 		this.startedAt = this.puzzle.timerStarted || Date.now();
 		this.revision = 0;
 		this.history = [];
+		this.recentActions.clear();
+		this.lastPaused = false;
 		this.committedCommands.clear();
 		this.puzzle.scoreEligible = false;
 		this.ready = true;
@@ -169,6 +174,7 @@ class MultiplayerSession {
 		if (!this.peers.delete(playerId))
 			return;
 		this.players = this.players.filter(player => player.id != playerId);
+		this.recentActions.delete(playerId);
 		this.playersChanged();
 	}
 
@@ -201,6 +207,9 @@ class MultiplayerSession {
 		    !["connected", "interrupted"].includes(player.state)))
 			return;
 		this.players = copyMessage(players);
+		for (var id of this.recentActions.keys())
+			if (!players.some(player => player.id == id))
+				this.recentActions.delete(id);
 		this.onPlayersChanged(copyMessage(this.players));
 	}
 
@@ -222,9 +231,15 @@ class MultiplayerSession {
 		    typeof message.paused != "boolean")
 			return;
 		/* Explicit states make simultaneous or duplicate requests harmless. */
-		if (this.puzzle.manualPaused != message.paused)
-			this.puzzle.togglePause();
-		this.sendTo(from, { type: "clock", clock: this.clockState() });
+		if (this.puzzle.manualPaused != message.paused) {
+			this.pauseActor = from;
+			try {
+				this.puzzle.togglePause();
+			} finally {
+				this.pauseActor = null;
+			}
+		}
+		this.sendTo(from, { type: "clock", gameId: this.gameId, clock: this.clockState() });
 	}
 
 	requestTileAction(slot, value, type) {
@@ -275,8 +290,9 @@ class MultiplayerSession {
 			this.receiveSync(message);
 		else if (this.role == "guest" && message.type == "players")
 			this.receivePlayers(message.players);
-		else if (this.role == "guest" && message.type == "clock")
-			this.receiveClock(message.clock);
+		else if (this.role == "guest" && message.type == "clock" &&
+		         message.gameId === this.gameId)
+			this.receiveClock(message.clock, message.activity);
 		else if (this.role == "guest" && message.type == "commit")
 			this.receiveCommit(message);
 		else if (this.role == "guest" && message.type == "reject")
@@ -321,6 +337,7 @@ class MultiplayerSession {
 		};
 		this.history.push(commit);
 		this.committedCommands.set(commandKey, commit);
+		this.recordMove(commit);
 		this.broadcast(commit);
 		return true;
 	}
@@ -350,6 +367,7 @@ class MultiplayerSession {
 		this.receiveClock(message.clock);
 		this.revision = message.revision;
 		this.history.push(copyMessage(message));
+		this.recordMove(message);
 	}
 
 	receiveSync(message) {
@@ -381,6 +399,10 @@ class MultiplayerSession {
 		this.startedAt = message.startedAt;
 		this.revision = message.revision;
 		this.history = copyMessage(message.history);
+		this.recentActions.clear();
+		for (var entry of message.recentActions || [])
+			if (Array.isArray(entry) && typeof entry[0] == "string" && Array.isArray(entry[1]))
+				this.recentActions.set(entry[0], copyMessage(entry[1].slice(-6)));
 		this.ready = true;
 		this.receiveClock(message.clock);
 		this.receivePlayers(message.players);
@@ -419,6 +441,7 @@ class MultiplayerSession {
 			startedAt: this.startedAt,
 			revision: this.revision,
 			history: copyMessage(this.history),
+			recentActions: copyMessage([...this.recentActions]),
 			players: copyMessage(this.players),
 			clock: this.clockState(),
 		};
@@ -428,6 +451,27 @@ class MultiplayerSession {
 		this.puzzle.practiceModePreference = this.rules.practiceMode;
 		this.puzzle.practiceMode = this.rules.practiceMode;
 		this.puzzle.continueAfterLoss = this.rules.continueAfterLoss;
+	}
+
+	recordMove(commit) {
+		var action = commit.action;
+		if (action.type != "place" && action.type != "remove")
+			return;
+		var slot = slotForAction(this.puzzle, action);
+		this.recordActivity(commit.actor, {
+			...action,
+			mistake: action.type == "place" ? slot.value != action.value :
+				slot.value == action.value,
+		});
+	}
+
+	recordActivity(actor, action) {
+		if (!this.players.some(player => player.id == actor))
+			return;
+		var actions = this.recentActions.get(actor) || [];
+		actions.push(copyMessage(action));
+		this.recentActions.set(actor, actions.slice(-6));
+		this.onPlayersChanged(copyMessage(this.players));
 	}
 
 	clockState() {
@@ -443,7 +487,16 @@ class MultiplayerSession {
 	timerChanged() {
 		if (this.role == "host" && this.ready && !this.updatingTimer) {
 			this.lastClockBroadcast = Date.now();
-			this.broadcast({ type: "clock", clock: this.clockState() });
+			var message = { type: "clock", gameId: this.gameId, clock: this.clockState() };
+			if (this.puzzle.manualPaused != this.lastPaused) {
+				this.lastPaused = this.puzzle.manualPaused;
+				message.activity = {
+					actor: this.pauseActor || this.playerId,
+					action: { type: this.lastPaused ? "pause" : "resume" },
+				};
+				this.recordActivity(message.activity.actor, message.activity.action);
+			}
+			this.broadcast(message);
 		}
 	}
 
@@ -457,12 +510,14 @@ class MultiplayerSession {
 			this.timerChanged();
 	}
 
-	receiveClock(clock) {
+	receiveClock(clock, activity) {
 		if (!clock || !Number.isFinite(clock.elapsed) || clock.elapsed < 0 ||
 		    typeof clock.running != "boolean" || typeof clock.paused != "boolean")
 			return;
 		this.clock = { ...clock, receivedAt: Date.now() };
 		this.restoreHostTimer();
+		if (activity && ["pause", "resume"].includes(activity.action?.type))
+			this.recordActivity(activity.actor, activity.action);
 	}
 
 	/* Local menus and visibility changes cannot pause a guest's clock. */
@@ -495,6 +550,7 @@ class MultiplayerSession {
 		this.ready = false;
 		this.peers.clear();
 		this.players = [];
+		this.recentActions.clear();
 		this.onPlayersChanged([]);
 		this.hostSender = null;
 		this.puzzle.updatePauseControl();

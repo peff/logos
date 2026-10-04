@@ -3335,7 +3335,7 @@ body.multiplayer #logo {
 	display: flex;
 	align-items: baseline;
 	gap: 0.25rem;
-	/* Leave a common starting point for future per-player history. */
+	/* Keep each player's history aligned, even with truncated names. */
 	flex: 0 0 9rem;
 	min-width: 0;
 }
@@ -3345,6 +3345,54 @@ body.multiplayer #logo {
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
+}
+
+.friends-roster-history {
+	display: flex;
+	align-items: center;
+	align-self: center;
+	gap: 0.12rem;
+	min-width: 0;
+	overflow: hidden;
+}
+
+.friends-roster-action {
+	--chalk-mark: rgb(240 232 211 / 88%);
+	position: relative;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	flex: 0 0 max(0.85rem, 16px);
+	width: max(0.85rem, 16px);
+	height: max(0.85rem, 16px);
+	margin: 0;
+	font-size: max(0.6rem, 12px);
+}
+
+.friends-roster-action svg {
+	width: 100%;
+	height: 100%;
+}
+
+.friends-roster-action[data-action="remove"]::before,
+.friends-roster-action[data-action="remove"]::after {
+	content: "";
+	position: absolute;
+	width: 2px;
+	height: 92%;
+	top: 4%;
+	left: calc(50% - 1px);
+	border-radius: 45%;
+	background: var(--chalk-mark);
+	transform: rotate(38deg);
+}
+
+.friends-roster-action[data-action="remove"]::after {
+	transform: rotate(-38deg);
+}
+
+.friends-roster-action[data-mistake="true"] {
+	border: 2px solid #b44332;
 }
 
 #friends-roster-players li[data-self="true"] .friends-roster-name {

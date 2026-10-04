@@ -885,3 +885,53 @@ Deno.test("empty host difficulty choices do not clear only one player's game", f
 		stopAll(host, guest);
 	}
 });
+
+Deno.test("recent player actions retain attribution across sync and reset with the game", function() {
+	const host = makeSession("host", "host");
+	const guest = makeSession("guest", "alice");
+	const late = makeSession("guest", "bob");
+	const network = new InMemoryMultiplayerNetwork(host.session);
+	try {
+		host.session.start(0x12345678);
+		network.addGuest(guest.session);
+		let move = wrongMove(guest.puzzle);
+		guest.puzzle.requestTileAction(move.slot, move.value, "remove");
+		const commit = host.session.history[0];
+		assert(host.session.recentActions.get("alice")[0].type == "remove" &&
+		       !host.session.recentActions.get("alice")[0].mistake,
+		       "guest discard was not attributed correctly");
+		host.session.receiveCommand("alice", {
+			...commit, expectedRevision: 0,
+		});
+		assert(guest.session.recentActions.get("alice").length == 1,
+		       "duplicate commit added another activity");
+		guest.puzzle.togglePause();
+		guest.session.requestPause(true);
+		host.puzzle.togglePause();
+		host.session.timerChanged();
+		assert(host.session.recentActions.get("alice").map(a => a.type).join() == "remove,pause",
+		       "guest pause was misattributed or duplicated");
+		assert(host.session.recentActions.get("host").map(a => a.type).join() == "resume",
+		       "host resume or clock heartbeat was recorded incorrectly");
+		network.addGuest(late.session);
+		const snapshot = session => JSON.stringify([...session.recentActions]);
+		assert(snapshot(host.session) == snapshot(guest.session) &&
+		       snapshot(host.session) == snapshot(late.session),
+		       "live and late guests have different histories");
+		guest.session.requestSync();
+		assert(snapshot(host.session) == snapshot(guest.session), "sync duplicated history");
+		for (let i = 0; i < 8; i++)
+			host.puzzle.togglePause();
+		assert(host.session.recentActions.get("host").length == 6 &&
+		       snapshot(host.session) == snapshot(guest.session), "history was not bounded");
+		move = wrongMove(guest.puzzle);
+		guest.puzzle.requestTileAction(move.slot, move.value, "place");
+		assert(host.session.recentActions.get("alice").at(-1).mistake &&
+		       snapshot(host.session) == snapshot(guest.session), "mistake was not marked");
+		host.session.start(0x12345678);
+		assert([host, guest, late].every(game => game.session.recentActions.size == 0),
+		       "new game retained old activity");
+	} finally {
+		stopAll(host, guest, late);
+	}
+});

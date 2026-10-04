@@ -61,6 +61,25 @@
 		host.document.querySelector("#new-game-button").click();
 		await waitFor(() => [host, alice, bob].every(app => app.puzzle.actionController.gameId == 3),
 			"host replaces the game");
+		const slot = alice.puzzle.rows[0].slots.find(slot => !slot.single);
+		const value = slot.possible.findIndex((possible, value) => possible && value != slot.value);
+		alice.puzzle.requestTileAction(slot, value, "remove");
+		await waitFor(() => [host, alice, bob].every(app =>
+			players(app).querySelectorAll('[data-action="remove"]').length == 1),
+			"guest discard appears in every roster");
+		for (const app of [host, alice, bob]) {
+			const icon = players(app).querySelector('[data-action="remove"]');
+			assert(icon.closest("li").querySelector(".friends-roster-name").textContent == "Alice",
+				"discard attributed to the wrong player");
+			assert(icon.textContent == slot.symbols[value] && icon.title.includes("column"),
+				"discard is missing its tile or column tooltip");
+		}
+		bob.puzzle.togglePause();
+		await waitFor(() => [host, alice, bob].every(app =>
+			players(app).querySelector('[data-action="pause"] svg')), "pause icons appear");
+		host.puzzle.togglePause();
+		await waitFor(() => [host, alice, bob].every(app =>
+			players(app).querySelector('[data-action="resume"]')), "resume icons appear");
 		alice.document.querySelector("#friends-roster-button").click();
 		assert(!alice.document.querySelector("#friends-menu").hidden, "the roster heading did not open the menu");
 		alice.document.querySelector("#friends-leave").click();
@@ -73,7 +92,7 @@
 		await waitFor(() => bob.document.querySelector("#friends-roster-status").textContent.includes("Disconnected"),
 			"host departure shown to guest");
 		assert(players(bob).children.length == 0, "disconnected guest retained a stale roster");
-		result.textContent = "PASS: lobby, shared New Game controls, three-player rosters, guest and host departures";
+		result.textContent = "PASS: lobby, shared New Game controls, player action histories, guest and host departures";
 	} catch (error) {
 		result.textContent = "FAIL: " + error.stack;
 	}

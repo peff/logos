@@ -83,6 +83,35 @@ function beginSession(role) {
 	newGameButton.onclick = function() { session.requestNewGame(); };
 }
 
+function renderRecentAction(action) {
+	var icon = document.createElement("span");
+	icon.className = "friends-roster-action";
+	icon.dataset.action = action.type;
+	var description;
+	if (action.type == "place" || action.type == "remove") {
+		var row = puzzle.rows[action.row];
+		var symbol = row.slots[action.column].symbols[action.value];
+		icon.classList.add("proof-tile", row.familyClass);
+		icon.textContent = symbol;
+		icon.dataset.mistake = !!action.mistake;
+		description = (action.mistake ? "Mistake: " : "") +
+			(action.type == "place" ? "Placed " : "Discarded ") +
+			symbol + " in column " + (action.column + 1);
+	} else if (action.type == "pause") {
+		var columns = document.querySelector("#timer .pause-columns").cloneNode(true);
+		columns.removeAttribute("class");
+		icon.append(columns);
+		description = "Paused the game";
+	} else {
+		icon.textContent = "▶";
+		description = "Resumed the game";
+	}
+	icon.title = description;
+	icon.setAttribute("role", "img");
+	icon.setAttribute("aria-label", description);
+	return icon;
+}
+
 function renderPlayers(players) {
 	newGameButton.disabled = !!session && !session.ready;
 	rosterPlayers.replaceChildren();
@@ -93,7 +122,6 @@ function renderPlayers(players) {
 		entry.dataset.self = self;
 		var description = player.name + (self ? " (you)" : "") +
 			(player.state == "interrupted" ? " — connection interrupted" : "");
-		entry.setAttribute("aria-label", description);
 		entry.title = description;
 		var identity = document.createElement("span");
 		identity.className = "friends-roster-player";
@@ -101,9 +129,16 @@ function renderPlayers(players) {
 		name.className = "friends-roster-name";
 		name.textContent = player.name;
 		name.title = description;
+		name.setAttribute("aria-label", description);
 		identity.append(name);
 		entry.append(identity);
+		var history = document.createElement("span");
+		history.className = "friends-roster-history";
+		for (var action of session?.recentActions.get(player.id) || [])
+			history.append(renderRecentAction(action));
+		entry.append(history);
 		rosterPlayers.append(entry);
+		history.scrollLeft = history.scrollWidth;
 	}
 	roster.dataset.state = rosterConnection;
 	if (rosterConnection == "disconnected")
