@@ -3331,20 +3331,28 @@ body.multiplayer #logo {
 	align-self: center;
 }
 
+.friends-roster-player {
+	display: flex;
+	align-items: baseline;
+	gap: 0.25rem;
+	/* Leave a common starting point for future per-player history. */
+	flex: 0 0 9rem;
+	min-width: 0;
+}
+
 .friends-roster-name {
+	min-width: 0;
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
 }
 
-.friends-roster-detail {
-	flex-shrink: 0;
-	font-size: max(0.52rem, 10px);
-	color: #68685f;
+#friends-roster-players li[data-self="true"] .friends-roster-name {
+	font-weight: bold;
 }
 
 #friends-roster-players li[data-state="interrupted"]::before {
-	background: #a06e2e;
+	background: #b78327;
 }
 
 #friends-roster[data-state="disconnected"] #friends-roster-players {

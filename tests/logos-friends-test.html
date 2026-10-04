@@ -41,7 +41,9 @@
 			assert(!app.document.querySelector("#friends-roster").hidden, "roster is hidden");
 			assert(Array.from(players(app).querySelectorAll(".friends-roster-name"))
 				.map(name => name.textContent).sort().join() == "Alice,Bob,Helen", "names differ");
-			assert(players(app).textContent.includes("You"), "own player is not identified");
+			const self = players(app).querySelectorAll('[data-self="true"]');
+			assert(self.length == 1 && self[0].querySelector(".friends-roster-name").textContent ==
+				app.puzzle.actionController.playerName, "own player is not identified");
 		}
 		alice.document.querySelector("#friends-roster-button").click();
 		assert(!alice.document.querySelector("#friends-menu").hidden, "the roster heading did not open the menu");

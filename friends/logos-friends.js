@@ -96,18 +96,20 @@ function renderPlayers(players) {
 	for (var player of players) {
 		var entry = document.createElement("li");
 		entry.dataset.state = player.state;
+		var self = player.id == session?.playerId;
+		entry.dataset.self = self;
+		var description = player.name + (self ? " (you)" : "") +
+			(player.state == "interrupted" ? " — connection interrupted" : "");
+		entry.setAttribute("aria-label", description);
+		entry.title = description;
+		var identity = document.createElement("span");
+		identity.className = "friends-roster-player";
 		var name = document.createElement("span");
 		name.className = "friends-roster-name";
 		name.textContent = player.name;
-		name.title = player.name;
-		var details = document.createElement("span");
-		details.className = "friends-roster-detail";
-		var labels = [];
-		if (player.role == "host") labels.push("Host");
-		if (player.id == session?.playerId) labels.push("You");
-		if (player.state == "interrupted") labels.push("Interrupted");
-		details.textContent = labels.join(" · ");
-		entry.append(name, details);
+		name.title = description;
+		identity.append(name);
+		entry.append(identity);
 		rosterPlayers.append(entry);
 	}
 	roster.dataset.state = rosterConnection;
