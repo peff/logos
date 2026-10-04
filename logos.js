@@ -476,7 +476,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.options.querySelector("#game-seed").value = "";
 		this.updateSeedControls();
 		this.updateSeedDifficulty();
-		this.say("Gather your friends. Anyone can start a new game.");
+		this.say("Gather kindred minds. Anyone may begin.");
 	}
 
 	this.startGame = function() {

@@ -13,7 +13,7 @@ Serve the repository root over HTTP:
 
 To try WebRTC between two browsers:
 
-1. Choose **Play with friends** in the host and select **Host a game**.
+1. Choose **LOGOS with Friends** in Options on the host and select **Host a game**.
 2. Copy the generated invitation to the guest.
 3. In the guest, paste the invitation and select **RSVP**.
 4. Copy the answer back to the host.
@@ -40,5 +40,5 @@ its time every ten seconds as well as with moves and pause/resume changes.
 
 Connected players remain visible below the game controls, replacing the logo.
 The host and guests see the same roster, including interrupted connections.
-Click **Logos with friends** above the roster to reopen the invitation and
+Click **LOGOS with Friends** above the roster to reopen the invitation and
 leave controls.
