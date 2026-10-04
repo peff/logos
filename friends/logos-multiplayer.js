@@ -70,6 +70,7 @@ class MultiplayerSession {
 		this.revision = 0;
 		this.nextCommand = 1;
 		this.seed = null;
+		this.gameId = 0;
 		this.rules = {
 			practiceMode: options.practiceMode === undefined ?
 				!!puzzle.practiceModePreference : !!options.practiceMode,
@@ -94,17 +95,23 @@ class MultiplayerSession {
 		if (this.role != "host" && this.role != "guest")
 			throw new Error("a multiplayer session must be host or guest");
 		puzzle.setActionController(this);
+		puzzle.showMultiplayerLobby();
+		this.ready = this.role == "host";
 	}
 
 	start(seed) {
 		if (this.role != "host")
 			throw new Error("only the host can start a game");
+		var wasReady = this.ready;
 		this.ready = false;
 		this.applyRoomRules();
-		if (!this.puzzle.newGame(seed))
+		if (!this.puzzle.newGame(seed)) {
+			this.ready = wasReady;
 			return false;
+		}
 		this.applyRoomRules();
 		this.seed = this.puzzle.seed;
+		this.gameId++;
 		this.startedAt = this.puzzle.timerStarted || Date.now();
 		this.revision = 0;
 		this.history = [];
@@ -112,7 +119,37 @@ class MultiplayerSession {
 		this.puzzle.scoreEligible = false;
 		this.ready = true;
 		this.broadcast(this.syncMessage());
+		this.onPlayersChanged(copyMessage(this.players));
 		return true;
+	}
+
+	requestNewGame() {
+		if (!this.ready)
+			return false;
+		if (this.role == "host")
+			return this.startRandomGame();
+		if (!this.hostSender)
+			return false;
+		this.hostSender({ type: "new-game", gameId: this.gameId });
+		return true;
+	}
+
+	startRandomGame() {
+		/* No selected difficulties means contemplation in single-player. */
+		if (!this.puzzle.randomDifficulties.length) {
+			this.puzzle.say("Choose a difficulty in Options before starting a shared game.");
+			return false;
+		}
+		var seed = this.puzzle.randomPuzzleSeed();
+		return seed !== null && this.start(seed);
+	}
+
+	receiveNewGame(from, message) {
+		if (!this.ready || !this.peers.has(from))
+			return;
+		/* Coalesce requests made for the same game, including the lobby. */
+		if (message.gameId !== this.gameId || !this.startRandomGame())
+			this.sendTo(from, this.syncMessage());
 	}
 
 	addPeer(playerId, sender, playerName) {
@@ -206,10 +243,11 @@ class MultiplayerSession {
 	}
 
 	requestAction(action) {
-		if (!this.ready)
+		if (!this.ready || this.seed === null)
 			return false;
 		var command = {
 			type: "command",
+			gameId: this.gameId,
 			commandId: this.playerId + ":" + this.nextCommand++,
 			expectedRevision: this.revision,
 			action: action,
@@ -227,6 +265,8 @@ class MultiplayerSession {
 			return;
 		if (this.role == "host" && message.type == "command")
 			this.receiveCommand(from, message);
+		else if (this.role == "host" && message.type == "new-game")
+			this.receiveNewGame(from, message);
 		else if (this.role == "host" && message.type == "pause")
 			this.receivePause(from, message);
 		else if (this.role == "host" && message.type == "sync-request")
@@ -256,7 +296,8 @@ class MultiplayerSession {
 				this.committedCommands.get(commandKey));
 			return true;
 		}
-		if (message.expectedRevision != this.revision ||
+		if (message.gameId !== this.gameId ||
+		    message.expectedRevision != this.revision ||
 		    !applicableAction(this.puzzle, message.action)) {
 			this.reject(from, message.commandId, "stale-or-inapplicable");
 			return false;
@@ -270,6 +311,7 @@ class MultiplayerSession {
 		}
 		var commit = {
 			type: "commit",
+			gameId: this.gameId,
 			revision: ++this.revision,
 			commandId: message.commandId,
 			actor: from,
@@ -284,6 +326,10 @@ class MultiplayerSession {
 	}
 
 	receiveCommit(message) {
+		if (message.gameId !== this.gameId) {
+			this.requestSync();
+			return;
+		}
 		if (message.revision <= this.revision)
 			return;
 		if (!this.ready || message.revision != this.revision + 1) {
@@ -307,7 +353,8 @@ class MultiplayerSession {
 	}
 
 	receiveSync(message) {
-		if (!Number.isInteger(message.seed) || !Array.isArray(message.history) ||
+		if ((message.seed !== null && !Number.isInteger(message.seed)) ||
+		    !Number.isInteger(message.gameId) || !Array.isArray(message.history) ||
 		    !message.rules)
 			return;
 		var session = this;
@@ -317,7 +364,9 @@ class MultiplayerSession {
 			continueAfterLoss: !!message.rules.continueAfterLoss,
 		};
 		this.applyRoomRules();
-		if (!this.puzzle.newGame(message.seed))
+		if (message.seed === null)
+			this.puzzle.showMultiplayerLobby();
+		else if (!this.puzzle.newGame(message.seed))
 			return;
 		this.applyRoomRules();
 		this.puzzle.scoreEligible = false;
@@ -328,6 +377,7 @@ class MultiplayerSession {
 			}
 		});
 		this.seed = message.seed;
+		this.gameId = message.gameId;
 		this.startedAt = message.startedAt;
 		this.revision = message.revision;
 		this.history = copyMessage(message.history);
@@ -363,6 +413,7 @@ class MultiplayerSession {
 	syncMessage() {
 		return {
 			type: "sync",
+			gameId: this.gameId,
 			seed: this.seed,
 			rules: copyMessage(this.rules),
 			startedAt: this.startedAt,

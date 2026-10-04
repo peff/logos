@@ -58,12 +58,6 @@ function setGameControlsDisabled(disabled) {
 	document.querySelector("#continue-after-loss").disabled = disabled;
 }
 
-function startSharedGame() {
-	var seed = window.puzzle.randomPuzzleSeed();
-	if (seed !== null)
-		session.start(seed);
-}
-
 function beginSession(role) {
 	invitationPreview++;
 	if (transport)
@@ -78,8 +72,6 @@ function beginSession(role) {
 	roster.hidden = false;
 	document.body.classList.add("multiplayer");
 	renderPlayers(session.players);
-	if (role == "host")
-		startSharedGame();
 	startControls.hidden = true;
 	nameControls.hidden = true;
 	hostControls.hidden = role != "host";
@@ -88,10 +80,11 @@ function beginSession(role) {
 	leaveButton.textContent = role == "host" ?
 		"End multiplayer" : "Leave multiplayer";
 	setGameControlsDisabled(true);
-	newGameButton.onclick = role == "host" ? startSharedGame : toggleMenu;
+	newGameButton.onclick = function() { session.requestNewGame(); };
 }
 
 function renderPlayers(players) {
+	newGameButton.disabled = !!session && !session.ready;
 	rosterPlayers.replaceChildren();
 	for (var player of players) {
 		var entry = document.createElement("li");
@@ -121,6 +114,8 @@ function renderPlayers(players) {
 		rosterStatus.textContent = "Connecting…";
 	else if (players.length == 1)
 		rosterStatus.textContent = "Invite friends";
+	else if (session?.seed === null)
+		rosterStatus.textContent = "Ready to start";
 	else
 		rosterStatus.textContent = "";
 }
@@ -339,6 +334,7 @@ function leave() {
 		transport.close();
 	transport = null;
 	session = null;
+	newGameButton.disabled = false;
 	roster.hidden = true;
 	document.body.classList.remove("multiplayer");
 	rosterPlayers.replaceChildren();

@@ -19,6 +19,11 @@ To try WebRTC between two browsers:
 4. Copy the answer back to the host.
 5. In the host, paste the answer and select **Accept response**.
 
+Hosting opens a lobby with no puzzle or running clock. Players can connect
+before starting; anyone can press **New Game** to start or replace the shared
+puzzle. The host chooses the puzzle using its difficulty preferences. Guests
+who join a game already in progress receive its current state.
+
 Once connected, committed moves and manual clue dismissal/restoration appear
 for every player, including guests who join later. Chalk marks and automatic
 clue dismissal preferences remain local. The host can create a separate

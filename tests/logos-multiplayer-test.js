@@ -784,3 +784,104 @@ Deno.test("every player sees roster changes without replaying the puzzle", funct
 		stopAll(host, alice, bob);
 	}
 });
+
+Deno.test("multiplayer connects in a lobby and any player can start a game", function() {
+	const oldPuzzle = makePuzzle(6, true, Logos.defaultSymbols);
+	oldPuzzle.newGame(0x12345678);
+	const host = { puzzle: oldPuzzle, session: new MultiplayerSession(oldPuzzle, {
+		role: "host", playerId: "host",
+	}) };
+	const guest = makeSession("guest", "guest");
+	try {
+		assert(host.session.ready && !guest.session.ready && !guest.session.requestNewGame(),
+		       "an unconnected guest could request a game");
+		new InMemoryMultiplayerNetwork(host.session).addGuest(guest.session);
+		for (const game of [host, guest]) {
+			assert(game.session.ready && game.session.seed === null &&
+			       game.puzzle.seed === undefined && game.puzzle.gameOver &&
+			       game.puzzle.timerTimeout === null && game.puzzle.timer.hidden &&
+			       game.puzzle.clues.length == 0 && game.session.players.length == 2,
+			       "connecting started a game or retained an old puzzle");
+			assert(game.puzzle.hClueSlots.every(slot => !slot.onclick),
+			       "the lobby retained clickable clues from the old game");
+		}
+		host.puzzle.randomPuzzleSeed = () => 0x87654321;
+		guest.puzzle.randomPuzzleSeed = () => { throw Error("the guest chose the seed"); };
+		guest.session.requestNewGame();
+		for (const game of [host, guest])
+			assert(game.session.gameId == 1 && game.session.seed == 0x87654321 &&
+			       !game.puzzle.gameOver && game.puzzle.timerTimeout !== null,
+			       "a guest could not start the shared game from the lobby");
+		assert(boardState(host.puzzle) == boardState(guest.puzzle), "new boards differ");
+		host.session.requestNewGame();
+		assert(host.session.gameId == 2 && guest.session.gameId == 2,
+		       "the host could not replace a shared game");
+		guest.session.requestNewGame();
+		assert(host.session.gameId == 3 && guest.session.gameId == 3,
+		       "the guest could not replace a shared game");
+	} finally {
+		stopAll(host, guest);
+	}
+});
+
+Deno.test("simultaneous new-game requests start only one puzzle", function() {
+	const host = makeSession("host", "host");
+	const alice = makeSession("guest", "alice");
+	const bob = makeSession("guest", "bob");
+	try {
+		const network = new InMemoryMultiplayerNetwork(host.session);
+		network.addGuest(alice.session);
+		network.addGuest(bob.session);
+		const queue = [];
+		alice.session.connectHost(message => queue.push(["alice", message]));
+		bob.session.connectHost(message => queue.push(["bob", message]));
+		host.puzzle.randomPuzzleSeed = () => 0x12345678;
+		alice.session.requestNewGame();
+		bob.session.requestNewGame();
+		for (const [from, message] of queue) host.session.receive(from, message);
+		assert([host, alice, bob].every(game => game.session.gameId == 1),
+		       "concurrent requests replaced the newly started game");
+		host.session.receive("stranger", { type: "new-game", gameId: 1 });
+		assert(host.session.gameId == 1, "an unknown player started a game");
+	} finally {
+		stopAll(host, alice, bob);
+	}
+});
+
+Deno.test("moves from a previous game cannot affect a replacement with the same seed", function() {
+	const host = makeSession("host", "host");
+	const guest = makeSession("guest", "guest");
+	try {
+		host.session.start(0x12345678);
+		new InMemoryMultiplayerNetwork(host.session).addGuest(guest.session);
+		let queued;
+		guest.session.connectHost(message => queued = message);
+		const move = wrongMove(guest.puzzle);
+		guest.puzzle.requestTileAction(move.slot, move.value, "remove");
+		host.session.start(0x12345678);
+		host.session.receive("guest", queued);
+		assert(host.session.revision == 0 && guest.session.revision == 0 &&
+		       guest.session.lastRejection &&
+		       boardState(host.puzzle) == boardState(guest.puzzle),
+		       "an old move was accepted into the replacement game");
+	} finally {
+		stopAll(host, guest);
+	}
+});
+
+Deno.test("empty host difficulty choices do not clear only one player's game", function() {
+	const host = makeSession("host", "host");
+	const guest = makeSession("guest", "guest");
+	try {
+		host.session.start(0x12345678);
+		new InMemoryMultiplayerNetwork(host.session).addGuest(guest.session);
+		host.puzzle.randomDifficulties = [];
+		guest.session.requestNewGame();
+		assert(host.session.gameId == 1 && guest.session.gameId == 1 &&
+		       !host.puzzle.gameOver && !guest.puzzle.gameOver &&
+		       boardState(host.puzzle) == boardState(guest.puzzle),
+		       "a rejected new-game request cleared the host's puzzle");
+	} finally {
+		stopAll(host, guest);
+	}
+});

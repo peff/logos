@@ -45,6 +45,22 @@
 			assert(self.length == 1 && self[0].querySelector(".friends-roster-name").textContent ==
 				app.puzzle.actionController.playerName, "own player is not identified");
 		}
+		for (const app of [host, alice, bob])
+			assert(app.puzzle.seed === undefined && app.puzzle.timer.hidden &&
+			       !app.document.querySelector("#new-game-button").disabled,
+			       "connecting did not leave an idle lobby with New Game available");
+		alice.document.querySelector("#new-game-button").click();
+		await waitFor(() => [host, alice, bob].every(app =>
+			app.puzzle.actionController.gameId == 1 && !app.puzzle.gameOver),
+			"guest starts the shared game");
+		assert(host.puzzle.seed == alice.puzzle.seed && host.puzzle.seed == bob.puzzle.seed,
+			"the shared seeds differ");
+		bob.document.querySelector("#new-game-button").click();
+		await waitFor(() => [host, alice, bob].every(app => app.puzzle.actionController.gameId == 2),
+			"another guest replaces the game");
+		host.document.querySelector("#new-game-button").click();
+		await waitFor(() => [host, alice, bob].every(app => app.puzzle.actionController.gameId == 3),
+			"host replaces the game");
 		alice.document.querySelector("#friends-roster-button").click();
 		assert(!alice.document.querySelector("#friends-menu").hidden, "the roster heading did not open the menu");
 		alice.document.querySelector("#friends-leave").click();
@@ -57,7 +73,7 @@
 		await waitFor(() => bob.document.querySelector("#friends-roster-status").textContent.includes("Disconnected"),
 			"host departure shown to guest");
 		assert(players(bob).children.length == 0, "disconnected guest retained a stale roster");
-		result.textContent = "PASS: automatic signaling, three-player rosters, clickable heading, guest and host departures";
+		result.textContent = "PASS: lobby, shared New Game controls, three-player rosters, guest and host departures";
 	} catch (error) {
 		result.textContent = "FAIL: " + error.stack;
 	}

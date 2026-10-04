@@ -459,6 +459,26 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.updateActionControls();
 	}
 
+	this.showMultiplayerLobby = function() {
+		this.gameIdentity = {};
+		this.seed = this.pendingSeed = undefined;
+		this.paused = this.resumeAfterModal = false;
+		this.clear();
+		this.scoreEligible = false;
+		this.clues = [];
+		for (var slot of [...this.hClueSlots, ...this.vClueSlots]) {
+			slot.replaceChildren();
+			slot.className = "clue";
+			for (var event of ["onclick", "oncontextmenu", "onpointerdown",
+				"onpointerup", "onpointercancel", "onpointermove"])
+				slot[event] = null;
+		}
+		this.options.querySelector("#game-seed").value = "";
+		this.updateSeedControls();
+		this.updateSeedDifficulty();
+		this.say("Gather your friends. Anyone can start a new game.");
+	}
+
 	this.startGame = function() {
 		if (this.pendingSeed === undefined)
 			return false;
