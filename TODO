@@ -23,8 +23,6 @@
      placed, or a crossd-out X for discard, though of course the latter
      can happen in multiple columns)
    - clue dismissal should be shared
-   - continue after loss should work (at the very least if the host
-     player has it enabled, but maybe even just by default)
    - multiplayer pantheon? That implies multiplayer run history, as well
  - consider simplifying
    - are chalk marks worth the interface complexity

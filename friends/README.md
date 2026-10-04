@@ -22,3 +22,7 @@ To try WebRTC between two browsers:
 Once connected, committed moves should appear in both browsers; chalk marks
 deliberately remain local. The host can create a separate invitation for each
 additional guest.
+
+The host’s practice mode and continue-after-loss preferences apply to the
+shared game. With continuation enabled, a mistake switches everyone to
+practice mode; starting a new shared game restores the host’s original rules.

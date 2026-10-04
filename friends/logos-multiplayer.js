@@ -58,8 +58,10 @@ class MultiplayerSession {
 		this.nextCommand = 1;
 		this.seed = null;
 		this.rules = {
-			practiceMode: !!options.practiceMode,
-			continueAfterLoss: !!options.continueAfterLoss,
+			practiceMode: options.practiceMode === undefined ?
+				!!puzzle.practiceModePreference : !!options.practiceMode,
+			continueAfterLoss: options.continueAfterLoss === undefined ?
+				!!puzzle.continueAfterLoss : !!options.continueAfterLoss,
 		};
 		this.startedAt = null;
 		this.history = [];

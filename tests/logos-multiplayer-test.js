@@ -500,3 +500,38 @@ Deno.test("WebRTC hosts time out accepted answers which do not connect", async f
 	hostTransport.close();
 	stopAll(host, guest);
 });
+
+Deno.test("continued multiplayer losses honor host preferences and replay", function() {
+	const puzzle = makePuzzle(6, true, Logos.defaultSymbols);
+	puzzle.continueAfterLoss = true;
+	const host = { puzzle, session: new MultiplayerSession(puzzle, {
+		role: "host", playerId: "host",
+	}) };
+	const guest = makeSession("guest", "alice");
+	const network = new InMemoryMultiplayerNetwork(host.session);
+	host.session.start(0x10203040);
+	network.addGuest(guest.session);
+	const mistake = wrongMove(guest.puzzle);
+	guest.puzzle.requestTileAction(mistake.slot, mistake.value, "place");
+	for (const game of [host, guest])
+		assert(game.puzzle.continuedFromLoss && game.puzzle.practiceMode &&
+		       !game.puzzle.gameOver, "the shared loss did not allow continuation");
+	const move = wrongMove(host.puzzle);
+	host.puzzle.requestTileAction(move.slot, move.value, "remove");
+	assert(host.session.revision == 2 && guest.session.revision == 2 &&
+	       boardState(host.puzzle) == boardState(guest.puzzle),
+	       "a move after the loss did not synchronize");
+	const late = makeSession("guest", "late");
+	network.addGuest(late.session);
+	assert(late.puzzle.continuedFromLoss && late.puzzle.practiceMode &&
+	       boardState(late.puzzle) == boardState(host.puzzle),
+	       "a late guest did not reconstruct the continued loss");
+	host.session.start(0x22222222);
+	assert(!host.puzzle.practiceMode && !guest.puzzle.practiceMode &&
+	       !late.puzzle.practiceMode && host.puzzle.continueAfterLoss,
+	       "a new shared game did not restore the host's rules");
+	host.session.leave();
+	assert(host.puzzle.continueAfterLoss,
+	       "leaving changed the host's continuation preference");
+	stopAll(host, guest, late);
+});
