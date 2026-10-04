@@ -1911,6 +1911,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			var entry = document.createElement("button");
 			entry.className = "score-entry";
 			entry.type = "button";
+			if (this.pantheonMultiplayer && this.highScores[i].players?.length)
+				entry.title = "Multiplayer with " + this.highScores[i].players.join(", ");
 			entry.addEventListener("click", function(id) {
 				return function() { return puzzle.showRunHistory(id); };
 			}(this.highScores[i].id));
