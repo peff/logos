@@ -791,7 +791,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.messages.classList.add("won");
 		this.say(randomChoice(winMessages));
 		return this.finishDifficultyFeedback("won",
-			this.scoreEligible ? this.recordOutcome("won") : null);
+			this.finishRun("won"));
 	}
 
 	this.checkMilestones = function() {
@@ -819,8 +819,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			this.continuedFromLoss = true;
 			this.playSound("mistake");
 			this.stopTimer();
-			if (this.scoreEligible)
-				this.recordOutcome("lost");
+			this.finishRun("lost");
 			this.scoreEligible = false;
 			this.timer.classList.add("lost");
 			this.practiceMode = true;
@@ -872,7 +871,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.updateActionControls();
 		this.playSound("mistake");
 		this.stopTimer();
-		var saving = this.scoreEligible ? this.recordOutcome("lost") : null;
+		var saving = this.finishRun("lost");
 		this.timer.classList.add("lost");
 		this.messages.classList.add("lost");
 		this.closeSlotTray();
@@ -1786,8 +1785,15 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		}
 	}
 
-	this.recordOutcome = async function(outcome) {
-		var gameIdentity = this.gameIdentity;
+	this.finishRun = function(outcome) {
+		if (this.effectsSuppressed)
+			return null;
+		if (this.actionController)
+			return this.actionController.finishRun(outcome);
+		return this.scoreEligible ? this.recordOutcome(outcome) : null;
+	}
+
+	this.runRecord = function(outcome) {
 		/* Capture the finished game before the asynchronous save.
 		 * date is the finish time in Unix milliseconds; elapsed is
 		 * active play time in milliseconds, excluding pauses.
@@ -1803,6 +1809,12 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		};
 		if (canRateRun(run))
 			run.difficulty = puzzleDifficulty(this);
+		return run;
+	}
+
+	this.recordOutcome = async function(outcome, sharedRun) {
+		var gameIdentity = this.gameIdentity;
+		var run = sharedRun || this.runRecord(outcome);
 		var saving = this.loadHistory(run,
 			outcome == "won" && run.difficulty ? run.difficulty.level : "all");
 		var request = this.pantheonRequest;
@@ -2089,6 +2101,18 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 				var cell = document.createElement("td");
 				cell.textContent = value;
 				row.appendChild(cell);
+			}
+			if (run.multiplayer) {
+				var friends = document.createElement("span");
+				friends.className = "history-friends";
+				friends.setAttribute("role", "img");
+				friends.title = "Multiplayer" + (run.players?.length ? " with " + run.players.join(", ") : "");
+				friends.setAttribute("aria-label", friends.title);
+				friends.innerHTML = '<svg viewBox="0 0 24 18" aria-hidden="true" focusable="false">' +
+					'<g fill="none" stroke="currentColor" stroke-width="1.6">' +
+					'<circle cx="8" cy="5" r="3"/><path d="M1 17v-2a7 7 0 0 1 14 0v2 M16 2a3 3 0 0 1 0 6 M17 10a6 6 0 0 1 6 6v1"/>' +
+					'</g></svg>';
+				row.children[1].append(friends);
 			}
 			if (run.seed !== undefined) {
 				var link = document.createElement("a");
@@ -3194,6 +3218,33 @@ function formatOlympiad(timestamp) {
 	return "Olympiad " + olympiad + "." + year;
 }
 
+/* Numeric multiplayer flags are valid IndexedDB keys; booleans are not. */
+function openRunDatabase() {
+	var request = indexedDB.open("logos", 3);
+	request.onupgradeneeded = function(event) {
+		var store = event.oldVersion < 1 ?
+			request.result.createObjectStore("runs", { autoIncrement: true }) :
+			request.transaction.objectStore("runs");
+		if (event.oldVersion < 3) {
+			if (store.indexNames.contains("outcomeElapsed"))
+				store.deleteIndex("outcomeElapsed");
+			store.createIndex("multiplayerOutcomeElapsed", ["multiplayer", "outcome", "elapsed"]);
+			store.createIndex("multiplayerId", "multiplayerId", { unique: true });
+			store.openCursor().onsuccess = function(event) {
+				var cursor = event.target.result;
+				if (!cursor)
+					return;
+				var run = cursor.value;
+				/* Histories predating multiplayer contain only solo runs. */
+				run.multiplayer = 0;
+				cursor.update(run);
+				cursor.continue();
+			};
+		}
+	};
+	return request;
+}
+
 /* Import legacy scores and optionally append a run, then return a committed
  * Pantheon summary. Record keys are exposed as id, but remain out-of-line.
  */
@@ -3203,14 +3254,7 @@ function accessRunHistory(run, includeRuns, level = "all") {
 			resolve(null);
 			return;
 		}
-		var request = indexedDB.open("logos", 2);
-		request.onupgradeneeded = function(event) {
-			var store = event.oldVersion < 1 ?
-				request.result.createObjectStore("runs", { autoIncrement: true }) :
-				request.transaction.objectStore("runs");
-			if (event.oldVersion < 2)
-				store.createIndex("outcomeElapsed", ["outcome", "elapsed"]);
-		};
+		var request = openRunDatabase();
 		request.onerror = function() { resolve(null); };
 		request.onsuccess = function() {
 			var db = request.result;
@@ -3249,11 +3293,26 @@ function accessRunHistory(run, includeRuns, level = "all") {
 					resolve(null);
 				};
 				function add(entry) {
+					entry.multiplayer = entry.multiplayer ? 1 : 0;
 					store.add(entry).onsuccess = function(event) {
 						added.push({ entry: entry, id: event.target.result });
 					};
 				}
 				function readSummary() {
+					/* Read/write transactions serialize tabs sharing this database. */
+					if (run?.multiplayer && run.multiplayerId) {
+						var shared = run;
+						run = null;
+						store.index("multiplayerId").getKey(shared.multiplayerId).onsuccess = function(event) {
+							var id = event.target.result;
+							if (id === undefined)
+								add(shared);
+							else
+								added.push({ entry: shared, id: id });
+							readSummary();
+						};
+						return;
+					}
 					if (run)
 						add(run);
 					if (includeRuns) {
@@ -3267,9 +3326,9 @@ function accessRunHistory(run, includeRuns, level = "all") {
 							cursor.continue();
 						};
 					}
-					var index = store.index("outcomeElapsed");
-					var wins = IDBKeyRange.bound(["won", 0], ["won", Number.MAX_VALUE]);
-					var losses = IDBKeyRange.bound(["lost", 0], ["lost", Number.MAX_VALUE]);
+					var index = store.index("multiplayerOutcomeElapsed");
+					var wins = IDBKeyRange.bound([0, "won", 0], [0, "won", Number.MAX_VALUE]);
+					var losses = IDBKeyRange.bound([0, "lost", 0], [0, "lost", Number.MAX_VALUE]);
 					index.count(wins).onsuccess = function(event) {
 						summary.gameStats.won = event.target.result;
 					};
@@ -3296,7 +3355,7 @@ function accessRunHistory(run, includeRuns, level = "all") {
 					/* Only legacy import needs to inspect the full history. */
 					store.getAll().onsuccess = function(event) {
 						var known = new Set(event.target.result.filter(function(entry) {
-							return entry.outcome == "won";
+							return entry.outcome == "won" && !entry.multiplayer;
 						}).map(legacyScoreKey));
 						for (var i = 0; i < scores.length; i++) {
 							var key = legacyScoreKey(scores[i]);
@@ -3331,7 +3390,7 @@ function saveRunDifficulty(id, difficulty) {
 			resolve(false);
 			return;
 		}
-		var request = indexedDB.open("logos", 2);
+		var request = openRunDatabase();
 		request.onerror = function() { resolve(false); };
 		request.onsuccess = function() {
 			var db = request.result;

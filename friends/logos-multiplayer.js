@@ -86,6 +86,11 @@ class MultiplayerSession {
 		this.nextCommand = 1;
 		this.seed = null;
 		this.gameId = 0;
+		this.runId = null;
+		this.result = null;
+		this.gamePlayers = new Map();
+		this.participatingRunId = null;
+		this.savedResults = new Set();
 		this.rules = {
 			practiceMode: options.practiceMode === undefined ?
 				!!puzzle.practiceModePreference : !!options.practiceMode,
@@ -130,6 +135,10 @@ class MultiplayerSession {
 		this.applyRoomRules();
 		this.seed = this.puzzle.seed;
 		this.gameId++;
+		this.runId = crypto.randomUUID();
+		this.participatingRunId = this.runId;
+		this.result = null;
+		this.gamePlayers = new Map(this.players.map(player => [player.id, player.name]));
 		this.startedAt = this.puzzle.timerStarted || Date.now();
 		this.revision = 0;
 		this.history = [];
@@ -180,6 +189,8 @@ class MultiplayerSession {
 		this.players.push({
 			id: playerId, name: playerName || playerId, role: "guest", state: "connected",
 		});
+		if (this.seed !== null && !this.result)
+			this.gamePlayers.set(playerId, playerName || playerId);
 		if (this.ready)
 			sender(this.syncMessage());
 		this.playersChanged();
@@ -197,6 +208,8 @@ class MultiplayerSession {
 		this.playerName = name;
 		if (this.role == "host") {
 			this.players[0].name = name;
+			if (this.seed !== null && !this.result)
+				this.gamePlayers.set(this.playerId, name);
 			this.playersChanged();
 		}
 	}
@@ -350,11 +363,13 @@ class MultiplayerSession {
 			committedAt: Date.now(),
 			action: copyMessage(message.action),
 			clock: this.clockState(),
+			result: copyMessage(this.result),
 		};
 		this.history.push(commit);
 		this.committedCommands.set(commandKey, commit);
 		this.recordMove(commit);
 		this.broadcast(commit);
+		this.saveResult();
 		return true;
 	}
 
@@ -384,6 +399,8 @@ class MultiplayerSession {
 		this.revision = message.revision;
 		this.history.push(copyMessage(message));
 		this.recordMove(message);
+		this.result = copyMessage(message.result || null);
+		this.saveResult();
 	}
 
 	receiveSync(message) {
@@ -412,6 +429,10 @@ class MultiplayerSession {
 		});
 		this.seed = message.seed;
 		this.gameId = message.gameId;
+		this.runId = message.runId;
+		this.result = copyMessage(message.result || null);
+		if (this.seed !== null && !this.result)
+			this.participatingRunId = this.runId;
 		this.startedAt = message.startedAt;
 		this.revision = message.revision;
 		this.history = copyMessage(message.history);
@@ -422,6 +443,7 @@ class MultiplayerSession {
 		this.ready = true;
 		this.receiveClock(message.clock);
 		this.receivePlayers(message.players);
+		this.saveResult();
 	}
 
 	receiveRejection(message) {
@@ -451,6 +473,8 @@ class MultiplayerSession {
 	syncMessage() {
 		return {
 			type: "sync",
+			runId: this.runId,
+			result: copyMessage(this.result),
 			gameId: this.gameId,
 			seed: this.seed,
 			rules: copyMessage(this.rules),
@@ -461,6 +485,30 @@ class MultiplayerSession {
 			players: copyMessage(this.players),
 			clock: this.clockState(),
 		};
+	}
+
+	finishRun(outcome) {
+		if (this.role != "host" || !this.ready || this.result || this.puzzle.practiceMode)
+			return;
+		this.result = {
+			...this.puzzle.runRecord(outcome),
+			elapsed: this.clockState().elapsed,
+			multiplayer: true,
+			multiplayerId: this.runId,
+			players: [...this.gamePlayers.values()],
+		};
+	}
+
+	saveResult() {
+		var run = this.result;
+		if (!run || run.multiplayerId !== this.participatingRunId ||
+		    this.savedResults.has(run.multiplayerId))
+			return;
+		this.savedResults.add(run.multiplayerId);
+		this.puzzle.recordOutcome(run.outcome, copyMessage(run)).then(saved => {
+			if (!saved)
+				this.savedResults.delete(run.multiplayerId);
+		});
 	}
 
 	applyRoomRules() {

@@ -252,6 +252,90 @@ var storageTestsDone = (async function() {
 				assert(JSON.stringify(fields) === JSON.stringify(original), "refresh changed run fields");
 			}
 		});
+		await test("multiplayer runs persist once without entering solo summaries", async function() {
+			const before = await accessRunHistory(null, true);
+			const shared = { ...win, id: undefined, elapsed: 1, multiplayer: true,
+				multiplayerId: "room-game-1", players: ["Plato", "Socrates"],
+				difficulty: { level: "easy", version: 1 } };
+			delete shared.id;
+			const copies = [structuredClone(shared), structuredClone(shared)];
+			await Promise.all(copies.map(run => accessRunHistory(run)));
+			assert(copies[0].id === copies[1].id, "concurrent copies received different database keys");
+			await accessRunHistory(structuredClone(shared));
+			await accessRunHistory({ ...shared, multiplayerId: "room-game-2", outcome: "lost" });
+			const after = await accessRunHistory(null, true);
+			assert(after.runs.length === before.runs.length + 2, "shared run was duplicated or lost");
+			assert(JSON.stringify(after.gameStats) === JSON.stringify(before.gameStats) &&
+			       JSON.stringify(after.highScores) === JSON.stringify(before.highScores),
+			       "multiplayer run changed solo statistics or rankings");
+			const saved = after.runs.find(run => run.multiplayerId === shared.multiplayerId);
+			assert(saved.players.join() === "Plato,Socrates" && saved.multiplayer && saved.elapsed === 1,
+			       "shared run metadata did not survive storage");
+			for (const level of ["easy", "medium", "hard"]) {
+				const summary = await accessRunHistory(null, false, level);
+				assert(!summary.highScores.some(run => run.multiplayer) &&
+				       !summary.unratedRuns.some(run => run.multiplayer),
+				       "multiplayer run entered a difficulty ranking or backfill");
+			}
+		});
+		await test("multiplayer summaries and duplicate saves use indexes", async function() {
+			for (let i = 0; i < 20; i++)
+				await accessRunHistory({ ...win, elapsed: 0, multiplayer: 1,
+					multiplayerId: "fast-shared-" + i });
+			const openCursor = IDBObjectStore.prototype.openCursor;
+			const indexCursor = IDBIndex.prototype.openCursor;
+			let visited = 0;
+			IDBObjectStore.prototype.openCursor = function() {
+				throw new Error("unexpected full-store scan");
+			};
+			IDBIndex.prototype.openCursor = function(range) {
+				const request = indexCursor.call(this, range);
+				request.addEventListener("success", () => {
+					if (request.result) visited++;
+				});
+				return request;
+			};
+			try {
+				const history = await accessRunHistory();
+				assert(history && visited === 10 && history.highScores.length === 10 &&
+				       history.highScores.every(run => !run.multiplayer),
+				       "Pantheon scanned multiplayer runs or more than ten solo wins");
+				visited = 0;
+				const duplicate = await accessRunHistory({ ...win, elapsed: 0, multiplayer: 1,
+					multiplayerId: "fast-shared-0" });
+				assert(duplicate && visited === 10, "duplicate save scanned the history");
+			} finally {
+				IDBObjectStore.prototype.openCursor = openCursor;
+				IDBIndex.prototype.openCursor = indexCursor;
+			}
+		});
+		await test("version-2 upgrade indexes existing solo runs and preserves keys", async function() {
+			await new Promise((resolve, reject) => {
+				const request = factory.deleteDatabase(database);
+				request.onsuccess = resolve;
+				request.onerror = () => reject(request.error);
+			});
+			await new Promise((resolve, reject) => {
+				const request = factory.open(database, 2);
+				request.onupgradeneeded = () => {
+					const store = request.result.createObjectStore("runs", { autoIncrement: true });
+					store.createIndex("outcomeElapsed", ["outcome", "elapsed"]);
+					const soloWin = { ...win };
+					delete soloWin.multiplayer;
+					store.add(soloWin, 7);
+					store.add(loss, 8);
+				};
+				request.onsuccess = () => { request.result.close(); resolve(); };
+				request.onerror = () => reject(request.error);
+			});
+			const history = await accessRunHistory(null, true);
+			assert(history && history.runs.length === 2 && history.gameStats.won === 1 &&
+			       history.gameStats.lost === 1 && history.highScores[0].id === 7 &&
+			       history.runs.map(run => run.multiplayer).join() === "0,0",
+			       "upgrade lost records, keys, or solo index entries");
+			assert(await saveRunDifficulty(7, { version: 1, score: 20, level: "easy" }),
+			       "difficulty cache could not open the upgraded database");
+		});
 		await test("a new database creates the index", async function() {
 			await new Promise((resolve, reject) => {
 				const request = factory.deleteDatabase(database);

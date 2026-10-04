@@ -999,3 +999,110 @@ Deno.test("hint requests share zen mode and attribution but keep explanations lo
 		stopAll(host, guest, late);
 	}
 });
+
+function captureMultiplayerRuns(game) {
+	const runs = [];
+	game.puzzle.recordOutcome = async (outcome, run) => {
+		assert(outcome == run.outcome, "result outcome differs from saved run");
+		runs.push(structuredClone(run));
+		return true;
+	};
+	return runs;
+}
+
+function finishSharedPuzzle(game) {
+	for (const row of game.puzzle.rows)
+		for (const slot of row.slots)
+			if (!slot.single)
+				game.puzzle.requestTileAction(slot, slot.value, "place");
+}
+
+Deno.test("shared results use the host's time and names, without replay duplicates", function() {
+	const host = makeSession("host", "host");
+	const guest = makeSession("guest", "alice");
+	const late = makeSession("guest", "bob");
+	const hostRuns = captureMultiplayerRuns(host);
+	const guestRuns = captureMultiplayerRuns(guest);
+	const lateRuns = captureMultiplayerRuns(late);
+	const network = new InMemoryMultiplayerNetwork(host.session);
+	try {
+		host.session.setPlayerName("Plato");
+		guest.session.playerName = "Socrates";
+		host.session.start(0x12345678);
+		network.addGuest(guest.session);
+		host.session.addPeer("departed", () => {}, "Hypatia");
+		host.session.removePeer("departed");
+		host.puzzle.timerStarted = Date.now() - 45000;
+		guest.puzzle.timerStarted = Date.now() - 900000;
+		finishSharedPuzzle(host);
+		assert(hostRuns.length == 1 && guestRuns.length == 1 &&
+		       JSON.stringify(hostRuns) == JSON.stringify(guestRuns), "peers saved different results");
+		const run = hostRuns[0];
+		assert(run.multiplayer && run.outcome == "won" && run.elapsed >= 45000 &&
+		       run.elapsed < 60000 && run.players.join() == "Plato,Socrates,Hypatia" && run.difficulty,
+		       "result lost host timing, participant names, or normal run fields");
+		guest.session.receiveCommit(host.session.history.at(-1));
+		guest.session.requestSync();
+		network.addGuest(late.session);
+		assert(guestRuns.length == 1 && lateRuns.length == 0,
+		       "replay duplicated a result or gave a completed run to a late arrival");
+		host.session.start(0x12345678);
+		finishSharedPuzzle(host);
+		assert(hostRuns.length == 2 && guestRuns.length == 2 && lateRuns.length == 1 &&
+		       hostRuns[0].multiplayerId != hostRuns[1].multiplayerId,
+		       "reusing a seed did not create a separate shared run");
+	} finally {
+		stopAll(host, guest, late);
+	}
+});
+
+Deno.test("resync recovers a missed result for an existing participant", function() {
+	const host = makeSession("host", "host");
+	const guest = makeSession("guest", "alice");
+	captureMultiplayerRuns(host);
+	const runs = captureMultiplayerRuns(guest);
+	try {
+		host.session.start(0x12345678);
+		new InMemoryMultiplayerNetwork(host.session).addGuest(guest.session);
+		const sender = host.session.peers.get("alice");
+		host.session.peers.set("alice", message => { if (!message.result) sender(message); });
+		finishSharedPuzzle(host);
+		assert(!runs.length, "the result was not dropped by the test");
+		host.session.peers.set("alice", sender);
+		guest.session.requestSync();
+		guest.session.requestSync();
+		assert(runs.length == 1 && runs[0].elapsed == host.session.result.elapsed,
+		       "resync did not recover exactly one authoritative result");
+	} finally {
+		stopAll(host, guest);
+	}
+});
+
+Deno.test("multiplayer losses and zen eligibility follow solo recording rules", function() {
+	const host = makeSession("host", "host");
+	const guest = makeSession("guest", "alice");
+	const hostRuns = captureMultiplayerRuns(host);
+	const guestRuns = captureMultiplayerRuns(guest);
+	try {
+		host.session.rules.continueAfterLoss = true;
+		host.session.start(0x12345678);
+		new InMemoryMultiplayerNetwork(host.session).addGuest(guest.session);
+		const mistake = wrongMove(guest.puzzle);
+		guest.puzzle.requestTileAction(mistake.slot, mistake.value, "place");
+		assert(hostRuns.length == 1 && guestRuns.length == 1 && hostRuns[0].outcome == "lost",
+		       "continued loss did not save a shared loss");
+		finishSharedPuzzle(host);
+		assert(hostRuns.length == 1 && guestRuns.length == 1, "continued completion saved another run");
+		host.session.start(0x12345678);
+		guest.puzzle.hintAcknowledged = true;
+		guest.puzzle.hint(1);
+		finishSharedPuzzle(host);
+		assert(hostRuns.length == 1 && guestRuns.length == 1, "hint-assisted game was recorded");
+		host.session.rules.practiceMode = true;
+		host.session.start(0x12345678);
+		finishSharedPuzzle(host);
+		assert(hostRuns.length == 1 && guestRuns.length == 1, "initial zen game was recorded");
+	} finally {
+		stopAll(host, guest);
+	}
+});

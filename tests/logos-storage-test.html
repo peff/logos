@@ -6,3 +6,6 @@
 <pre id="results">Running…</pre>
 <script src="../logos.js"></script>
 <script src="logos-storage-test.js"></script>
+<script>
+storageTestsDone.then(() => console.log("STORAGE_TEST_RESULT " + document.querySelector("#results").textContent));
+</script>
