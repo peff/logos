@@ -296,6 +296,14 @@ function updateWebRTCHost(state) {
 }
 
 function updateWebRTCGuest(state) {
+	if (state.terminal && session && session.seed !== null) {
+		var continuing = !window.puzzle.gameOver;
+		leave();
+		window.puzzle.say(continuing ?
+			"The host disconnected. You can continue on your own." :
+			"The host disconnected.");
+		return;
+	}
 	rosterConnection = state.connected ? "connected" :
 		state.state == "disconnected" ? "disconnected" :
 		state.terminal || state.state == "closed" ? "closed" : "connecting";

@@ -251,11 +251,29 @@
 			assert(requester.puzzle.options.hidden, "starting a seed did not close Options");
 		}
 
+		const beforeDeparture = [host, bob].map(app => ({
+			seed: app.puzzle.seed,
+			elapsed: app.puzzle.actionController.clockState().elapsed,
+			board: JSON.stringify(app.puzzle.rows.map(row => row.slots.map(slot => slot.possible))),
+		}));
 		host.document.querySelector("#friends-roster-button").click();
 		host.document.querySelector("#friends-leave").click();
-		await waitFor(() => bob.document.querySelector("#friends-roster-status").textContent.includes("Disconnected"),
-			"host departure shown to guest");
-		assert(players(bob).children.length == 0, "disconnected guest retained a stale roster");
+		await waitFor(() => bob.puzzle.actionController === null &&
+			bob.document.querySelector("#friends-roster").hidden, "guest returns to solo play");
+		for (const [index, app] of [host, bob].entries()) {
+			const old = beforeDeparture[index];
+			assert(app.puzzle.seed === old.seed && app.puzzle.timerTimeout !== null &&
+			       Date.now() - app.puzzle.timerStarted >= old.elapsed && !app.puzzle.scoreEligible &&
+			       JSON.stringify(app.puzzle.rows.map(row => row.slots.map(slot => slot.possible))) === old.board,
+			       "leaving multiplayer reset the board, timer, or score eligibility");
+			assert(!app.document.body.classList.contains("multiplayer"), "solo layout was not restored");
+			const slot = app.puzzle.rows[1].slots.find(slot => !slot.single);
+			app.puzzle.requestTileAction(slot, slot.value, "place");
+			assert(slot.single, "former multiplayer player could not continue solo");
+		}
+		bob.document.querySelector("#new-game-button").click();
+		assert(bob.puzzle.scoreEligible && !bob.puzzle.gameOver,
+			"guest New Game still used the disconnected session");
 		host.puzzle.newGame(0x10699);
 		const soloSlot = host.puzzle.rows[0].slots.find(slot => !slot.single);
 		host.puzzle.requestTileAction(soloSlot, soloSlot.value, "place");
