@@ -754,6 +754,18 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.updateSeedDifficulty();
 		var input = this.options.querySelector("#game-seed");
 		var value = input.value.trim();
+		if (this.actionController) {
+			var seed = value ? parseSeed(value) : undefined;
+			if (seed === null) {
+				input.setCustomValidity("Enter up to eight hexadecimal digits.");
+				input.reportValidity();
+				return;
+			}
+			input.setCustomValidity("");
+			if (this.actionController.requestNewGame(seed))
+				this.toggleOptions();
+			return;
+		}
 		if (this.pendingSeed !== undefined && parseSeed(value) === this.pendingSeed) {
 			this.startGame();
 			input.setCustomValidity("");

@@ -83,8 +83,6 @@ function playerId() {
 }
 
 function setGameControlsDisabled(disabled) {
-	document.querySelector("#start-game-button").disabled = disabled;
-	document.querySelector("#game-seed").disabled = disabled;
 	document.querySelector("#practice-mode").disabled = disabled;
 	document.querySelector("#continue-after-loss").disabled = disabled;
 }

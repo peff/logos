@@ -227,6 +227,18 @@
 		assert(!players(bob).textContent.includes("Alice"), "departed name remains");
 		checkRosterLayout(host);
 		checkRosterLayout(bob);
+		for (const [requester, seed] of [[host, "10699"], [bob, "0"]]) {
+			requester.puzzle.toggleOptions();
+			const input = requester.document.querySelector("#game-seed");
+			const start = requester.document.querySelector("#start-game-button");
+			assert(!input.disabled && !start.disabled, "shared seed controls are disabled");
+			input.value = seed;
+			start.click();
+			await waitFor(() => [host, bob].every(app => app.puzzle.seed === parseInt(seed, 16)),
+				"explicit shared seed " + seed);
+			assert(requester.puzzle.options.hidden, "starting a seed did not close Options");
+		}
+
 		host.document.querySelector("#friends-roster-button").click();
 		host.document.querySelector("#friends-leave").click();
 		await waitFor(() => bob.document.querySelector("#friends-roster-status").textContent.includes("Disconnected"),

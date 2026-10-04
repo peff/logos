@@ -806,7 +806,7 @@ Deno.test("multiplayer connects in a lobby and any player can start a game", fun
 			       "the lobby retained clickable clues from the old game");
 		}
 		host.puzzle.randomPuzzleSeed = () => 0x87654321;
-		guest.puzzle.randomPuzzleSeed = () => { throw Error("the guest chose the seed"); };
+		guest.puzzle.randomPuzzleSeed = () => 0x87654321;
 		guest.session.requestNewGame();
 		for (const game of [host, guest])
 			assert(game.session.gameId == 1 && game.session.seed == 0x87654321 &&
@@ -878,13 +878,13 @@ Deno.test("moves from a previous game cannot affect a replacement with the same 
 	}
 });
 
-Deno.test("empty host difficulty choices do not clear only one player's game", function() {
+Deno.test("empty requester difficulty choices do not clear only one player's game", function() {
 	const host = makeSession("host", "host");
 	const guest = makeSession("guest", "guest");
 	try {
 		host.session.start(0x12345678);
 		new InMemoryMultiplayerNetwork(host.session).addGuest(guest.session);
-		host.puzzle.randomDifficulties = [];
+		guest.puzzle.randomDifficulties = [];
 		guest.session.requestNewGame();
 		assert(host.session.gameId == 1 && guest.session.gameId == 1 &&
 		       !host.puzzle.gameOver && !guest.puzzle.gameOver &&
@@ -1102,6 +1102,52 @@ Deno.test("multiplayer losses and zen eligibility follow solo recording rules", 
 		host.session.start(0x12345678);
 		finishSharedPuzzle(host);
 		assert(hostRuns.length == 1 && guestRuns.length == 1, "initial zen game was recorded");
+	} finally {
+		stopAll(host, guest);
+	}
+});
+
+Deno.test("seed controls start and restart shared games through the host", function() {
+	const host = makeSession("host", "host");
+	const guest = makeSession("guest", "guest");
+	try {
+		new InMemoryMultiplayerNetwork(host.session).addGuest(guest.session);
+		for (const game of [host, guest]) {
+			game.puzzle.toggleOptions = () => { game.puzzle.options.hidden = true; };
+			game.puzzle.randomDifficulties = [];
+		}
+		const input = guest.puzzle.options.querySelector("#game-seed");
+		input.value = "10699";
+		guest.puzzle.playSeed();
+		assert(host.session.seed === 0x10699 && guest.session.seed === 0x10699 &&
+		       boardState(host.puzzle) === boardState(guest.puzzle), "guest seed did not synchronize");
+		assert(host.session.recentActions.get("guest")[0].type === "new-game");
+		const firstRun = host.session.runId;
+		guest.puzzle.playSeed();
+		assert(host.session.runId !== firstRun && host.session.seed === 0x10699,
+		       "restarting the same seed did not create a new shared run");
+		host.puzzle.options.querySelector("#game-seed").value = "0";
+		host.puzzle.playSeed();
+		assert(host.session.seed === 0 && guest.session.seed === 0, "host seed zero was lost");
+		const gameId = host.session.gameId;
+		input.value = "not-a-seed";
+		guest.puzzle.playSeed();
+		assert(input.validationMessage && host.session.gameId === gameId,
+		       "invalid seed was accepted");
+		for (const seed of [-1, 0x100000000, 1.5, null, "10699"])
+			host.session.receive("guest", {type: "new-game", gameId, seed});
+		host.session.receive("guest", {type: "new-game", gameId: gameId - 1, seed: 1});
+		assert(host.session.gameId === gameId, "invalid or stale request changed the game");
+		guest.puzzle.randomDifficulties = ["easy"];
+		guest.puzzle.randomPuzzleSeed = () => {
+			assert(guest.puzzle.randomDifficulties.join() === "easy");
+			return 0x12345678;
+		};
+		host.puzzle.randomPuzzleSeed = () => { throw Error("host chose a guest seed"); };
+		input.value = "";
+		guest.puzzle.playSeed();
+		assert(host.session.seed === 0x12345678 && guest.session.seed === 0x12345678,
+		       "empty seed did not request a requester-selected random game");
 	} finally {
 		stopAll(host, guest);
 	}

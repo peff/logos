@@ -152,32 +152,31 @@ class MultiplayerSession {
 		return true;
 	}
 
-	requestNewGame() {
-		if (!this.ready)
+	requestNewGame(seed) {
+		if (!this.ready || this.role == "guest" && !this.hostSender)
+			return false;
+		if (seed === undefined) {
+			/* No selected difficulties means contemplation in single-player. */
+			if (!this.puzzle.randomDifficulties.length) {
+				this.puzzle.say("Choose a difficulty in Options before starting a shared game.");
+				return false;
+			}
+			seed = this.puzzle.randomPuzzleSeed();
+		}
+		if (!Number.isInteger(seed) || seed < 0 || seed > 0xffffffff)
 			return false;
 		if (this.role == "host")
-			return this.startRandomGame();
-		if (!this.hostSender)
-			return false;
-		this.hostSender({ type: "new-game", gameId: this.gameId });
+			return this.start(seed);
+		this.hostSender({ type: "new-game", gameId: this.gameId, seed });
 		return true;
-	}
-
-	startRandomGame(actor = this.playerId) {
-		/* No selected difficulties means contemplation in single-player. */
-		if (!this.puzzle.randomDifficulties.length) {
-			this.puzzle.say("Choose a difficulty in Options before starting a shared game.");
-			return false;
-		}
-		var seed = this.puzzle.randomPuzzleSeed();
-		return seed !== null && this.start(seed, actor);
 	}
 
 	receiveNewGame(from, message) {
 		if (!this.ready || !this.peers.has(from))
 			return;
 		/* Coalesce requests made for the same game, including the lobby. */
-		if (message.gameId !== this.gameId || !this.startRandomGame(from))
+		if (message.gameId !== this.gameId || !Number.isInteger(message.seed) ||
+		    message.seed < 0 || message.seed > 0xffffffff || !this.start(message.seed, from))
 			this.sendTo(from, this.syncMessage());
 	}
 
