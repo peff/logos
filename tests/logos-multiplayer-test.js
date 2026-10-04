@@ -524,8 +524,11 @@ Deno.test("continued multiplayer losses honor host preferences and replay", func
 	const late = makeSession("guest", "late");
 	network.addGuest(late.session);
 	assert(late.puzzle.continuedFromLoss && late.puzzle.practiceMode &&
+	       !late.puzzle.timerStarted &&
+	       late.puzzle.timerElapsed == Math.max(0,
+		 host.session.history[0].committedAt - host.session.startedAt) &&
 	       boardState(late.puzzle) == boardState(host.puzzle),
-	       "a late guest did not reconstruct the continued loss");
+	       "a late guest did not reconstruct the continued loss and stopped timer");
 	host.session.start(0x22222222);
 	assert(!host.puzzle.practiceMode && !guest.puzzle.practiceMode &&
 	       !late.puzzle.practiceMode && host.puzzle.continueAfterLoss,

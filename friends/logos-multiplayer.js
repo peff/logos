@@ -218,10 +218,15 @@ class MultiplayerSession {
 			return;
 		this.applyRoomRules();
 		this.puzzle.scoreEligible = false;
+		var stoppedAt = null;
 		this.puzzle.withEffectsSuppressed(function() {
-			for (var i = 0; i < message.history.length; i++)
+			for (var i = 0; i < message.history.length; i++) {
 				applyAction(session.puzzle,
 					message.history[i].action, false, true);
+				if ((session.puzzle.continuedFromLoss ||
+				     session.puzzle.gameOver) && stoppedAt === null)
+					stoppedAt = message.history[i].committedAt;
+			}
 		});
 		this.puzzle.dismissExhaustedClues();
 		this.seed = message.seed;
@@ -229,7 +234,7 @@ class MultiplayerSession {
 		this.revision = message.revision;
 		this.history = copyMessage(message.history);
 		this.ready = true;
-		this.synchronizeTimer();
+		this.synchronizeTimer(stoppedAt);
 	}
 
 	receiveRejection(message) {
@@ -273,20 +278,14 @@ class MultiplayerSession {
 		this.puzzle.continueAfterLoss = this.rules.continueAfterLoss;
 	}
 
-	synchronizeTimer() {
+	synchronizeTimer(stoppedAt) {
 		if (this.rules.practiceMode || !Number.isFinite(this.startedAt))
 			return;
-		var end = Date.now();
-		if (this.puzzle.gameOver && this.history.length) {
-			var committedAt =
-				this.history[this.history.length - 1].committedAt;
-			if (Number.isFinite(committedAt))
-				end = committedAt;
-		}
+		var end = stoppedAt ?? Date.now();
 		this.puzzle.stopTimer();
 		this.puzzle.timerElapsed = Math.max(0, end - this.startedAt);
 		this.puzzle.updateTimer(this.puzzle.timerElapsed);
-		if (!this.puzzle.gameOver)
+		if (!this.puzzle.gameOver && !this.puzzle.practiceMode)
 			this.puzzle.startTimer();
 	}
 
