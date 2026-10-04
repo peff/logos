@@ -256,6 +256,26 @@
 		await waitFor(() => bob.document.querySelector("#friends-roster-status").textContent.includes("Disconnected"),
 			"host departure shown to guest");
 		assert(players(bob).children.length == 0, "disconnected guest retained a stale roster");
+		host.puzzle.newGame(0x10699);
+		const soloSlot = host.puzzle.rows[0].slots.find(slot => !slot.single);
+		host.puzzle.requestTileAction(soloSlot, soloSlot.value, "place");
+		host.puzzle.timerStarted = Date.now() - 45000;
+		const soloSeed = host.puzzle.seed;
+		host.document.querySelector("#friends-button").click();
+		assert(host.puzzle.timerTimeout === null, "solo menu did not pause the timer");
+		host.document.querySelector("#friends-host").click();
+		assert(host.puzzle.seed === soloSeed && soloSlot.single &&
+		       host.puzzle.timerTimeout === null && host.puzzle.paused &&
+		       host.puzzle.actionController.clockState().elapsed >= 45000 &&
+		       !host.puzzle.actionController.recentActions.size,
+		       "hosting through the menu reset the solo game or its timer");
+		host.document.querySelector("#friends-menu .modal-close").click();
+		assert(host.puzzle.timerTimeout !== null && !host.puzzle.paused,
+		       "closing hosting setup did not resume the game");
+		host.document.querySelector("#friends-roster-button").click();
+		assert(host.puzzle.timerTimeout !== null && !host.puzzle.paused,
+		       "reopening the multiplayer dialog paused the game again");
+		host.document.querySelector("#friends-leave").click();
 		result.textContent = "PASS: lobby, shared New Game controls, player action histories, guest and host departures";
 	} catch (error) {
 		result.textContent = "FAIL: " + error.stack;

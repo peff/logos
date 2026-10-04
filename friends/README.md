@@ -19,10 +19,12 @@ To try WebRTC between two browsers:
 4. Copy the answer back to the host.
 5. In the host, paste the answer and select **Accept response**.
 
-Hosting opens a lobby with no puzzle or running clock. Players can connect
-before starting; anyone can press **New Game** to start or replace the shared
-puzzle. The host chooses the puzzle using its difficulty preferences. Guests
-who join a game already in progress receive its current state.
+Hosting during a game shares the current puzzle, progress, and elapsed time.
+Earlier solo moves do not appear in the player action logs. Otherwise, hosting
+opens a lobby so players can connect before starting. Anyone can press
+**New Game** to start or replace the shared puzzle, using their own difficulty
+preferences, or choose a particular seed in Options. Guests who join a game
+already in progress receive its current state.
 
 Once connected, committed moves and manual clue dismissal/restoration appear
 for every player, including guests who join later. Chalk marks and automatic

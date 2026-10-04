@@ -787,7 +787,6 @@ Deno.test("every player sees roster changes without replaying the puzzle", funct
 
 Deno.test("multiplayer connects in a lobby and any player can start a game", function() {
 	const oldPuzzle = makePuzzle(6, true, Logos.defaultSymbols);
-	oldPuzzle.newGame(0x12345678);
 	const host = { puzzle: oldPuzzle, session: new MultiplayerSession(oldPuzzle, {
 		role: "host", playerId: "host",
 	}) };
@@ -1150,5 +1149,106 @@ Deno.test("seed controls start and restart shared games through the host", funct
 		       "empty seed did not request a requester-selected random game");
 	} finally {
 		stopAll(host, guest);
+	}
+});
+
+Deno.test("hosting adopts the solo position and clock without old action history", function() {
+	const puzzle = makePuzzle(6, true, Logos.defaultSymbols);
+	puzzle.newGame(0x12345678);
+	const remove = wrongMove(puzzle);
+	puzzle.requestTileAction(remove.slot, remove.value, "remove");
+	const placed = puzzle.rows[1].slots.find(slot => !slot.single);
+	puzzle.requestTileAction(placed, placed.value, "place");
+	const clue = puzzle.clues.find(clue => clue.display);
+	puzzle.applyClueAction(clue, false);
+	puzzle.timerStarted = Date.now() - 45000;
+	puzzle.stopTimer();
+	puzzle.paused = true;
+	puzzle.resumeAfterModal = true;
+	const before = boardState(puzzle);
+	const host = {puzzle, session: new MultiplayerSession(puzzle, {role: "host", playerId: "host"})};
+	const guest = makeSession("guest", "guest");
+	const hostRuns = captureMultiplayerRuns(host);
+	const guestRuns = captureMultiplayerRuns(guest);
+	try {
+		assert(boardState(puzzle) === before && puzzle.timerTimeout === null && puzzle.paused &&
+		       host.session.clockState().elapsed >= 45000 && !puzzle.scoreEligible,
+		       "hosting reset the position, clock, or eligibility");
+		new InMemoryMultiplayerNetwork(host.session).addGuest(guest.session);
+		assert(boardState(guest.puzzle) === before && guest.session.clockState().elapsed >= 45000 &&
+		       guest.session.clockState().elapsed < 60000, "guest missed initial position or elapsed time");
+		assert(!guest.puzzle.clues[puzzle.clues.indexOf(clue)].active,
+		       "dismissed clue was restored for the guest");
+		assert(!host.session.history.length && !guest.session.history.length &&
+		       !host.session.recentActions.size && !guest.session.recentActions.size,
+		       "solo moves appeared in shared history");
+		assert(guest.puzzle.paused && guest.puzzle.timerTimeout === null,
+		       "guest started playing while the host was setting up invitations");
+		puzzle.options.hidden = false;
+		puzzle.toggleOptions();
+		assert(!puzzle.paused && !guest.puzzle.paused && puzzle.timerTimeout !== null &&
+		       guest.puzzle.timerTimeout !== null && host.session.clockState().elapsed >= 45000,
+		       "closing hosting setup did not resume the shared clock");
+		const next = wrongMove(guest.puzzle, 2);
+		guest.puzzle.requestTileAction(next.slot, next.value, "remove");
+		guest.session.requestSync();
+		assert(boardState(puzzle) === boardState(guest.puzzle) && host.session.revision === 1,
+		       "resync lost the initial position or subsequent shared move");
+		finishSharedPuzzle(host);
+		assert(hostRuns.length === 1 && guestRuns.length === 1 && hostRuns[0].multiplayer &&
+		       hostRuns[0].elapsed >= 45000, "adopted game did not save a multiplayer result");
+		host.session.start(0x12345678);
+		assert(host.session.initialPosition === null && guest.session.initialPosition === null,
+		       "new game retained the adopted position");
+		assert(boardState(puzzle) === boardState(guest.puzzle));
+	} finally {
+		stopAll(host, guest);
+	}
+});
+
+Deno.test("hosting preserves an explicit pause or an existing zen game", function() {
+	for (const zen of [false, true]) {
+		const puzzle = makePuzzle(6, true, Logos.defaultSymbols);
+		puzzle.newGame(0x12345678);
+		puzzle.stopTimer();
+		puzzle.timerElapsed = 12000;
+		puzzle.practiceMode = zen;
+		puzzle.usedHints = zen;
+		puzzle.manualPaused = puzzle.paused = !zen;
+		const host = {puzzle, session: new MultiplayerSession(puzzle, {role: "host", playerId: "host"})};
+		const guest = makeSession("guest", "guest");
+		try {
+			new InMemoryMultiplayerNetwork(host.session).addGuest(guest.session);
+			for (const game of [host, guest])
+				assert(game.puzzle.practiceMode === zen && game.puzzle.manualPaused === !zen &&
+				       game.puzzle.timerTimeout === null && game.puzzle.timerElapsed === 12000 &&
+				       game.puzzle.usedHints === zen, "adoption lost pause or zen state");
+			if (zen) {
+				const runs = captureMultiplayerRuns(host);
+				finishSharedPuzzle(host);
+				assert(!runs.length, "adopting a zen game made it scoreable");
+			}
+		} finally {
+			stopAll(host, guest);
+		}
+	}
+});
+
+Deno.test("finished and unstarted solo puzzles still open a multiplayer lobby", function() {
+	for (const pending of [false, true]) {
+		const puzzle = makePuzzle(6, true, Logos.defaultSymbols);
+		puzzle.newGame(0x12345678, pending);
+		if (!pending) {
+			puzzle.gameOver = true;
+			puzzle.stopTimer();
+		}
+		const session = new MultiplayerSession(puzzle, {role: "host", playerId: "host"});
+		try {
+			assert(session.seed === null && session.initialPosition === null &&
+			       puzzle.seed === undefined && puzzle.timerTimeout === null,
+			       "hosting adopted a completed or unstarted puzzle");
+		} finally {
+			stopAll({puzzle, session});
+		}
 	}
 });

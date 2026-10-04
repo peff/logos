@@ -102,6 +102,7 @@ class MultiplayerSession {
 		this.updatingTimer = false;
 		this.lastClockBroadcast = null;
 		this.history = [];
+		this.initialPosition = null;
 		this.recentActions = new Map();
 		this.lastPaused = false;
 		this.pauseActor = null;
@@ -118,8 +119,71 @@ class MultiplayerSession {
 		if (this.role != "host" && this.role != "guest")
 			throw new Error("a multiplayer session must be host or guest");
 		puzzle.setActionController(this);
-		puzzle.showMultiplayerLobby();
+		if (this.role == "host" && puzzle.seed !== undefined && !puzzle.gameOver &&
+		    puzzle.pendingSeed === undefined)
+			this.adoptGame();
+		else
+			puzzle.showMultiplayerLobby();
 		this.ready = this.role == "host";
+	}
+
+	adoptGame() {
+		var puzzle = this.puzzle;
+		puzzle.closeProof();
+		puzzle.clearPracticeMistake();
+		this.seed = puzzle.seed;
+		this.gameId++;
+		this.runId = crypto.randomUUID();
+		this.participatingRunId = this.runId;
+		this.gamePlayers = new Map(this.players.map(player => [player.id, player.name]));
+		this.initialPosition = {
+			rows: puzzle.rows.map(row => row.slots.map(slot => ({
+				single: slot.single, possible: slot.possible.slice(),
+			}))),
+			clues: puzzle.clues.map(clue => !!clue.active),
+			practiceMode: puzzle.practiceMode,
+			usedHints: puzzle.usedHints,
+			continuedFromLoss: puzzle.continuedFromLoss,
+			nextMilestone: puzzle.nextMilestone,
+		};
+		puzzle.scoreEligible = false;
+		/* Keep the solo menu's pause until hosting setup is closed. Later
+		 * multiplayer dialogs do not set resumeAfterModal.
+		 */
+		if (!puzzle.resumeAfterModal)
+			puzzle.paused = puzzle.manualPaused;
+		this.lastPaused = puzzle.manualPaused;
+		if (!puzzle.paused && !puzzle.practiceMode && puzzle.timerTimeout === null)
+			puzzle.startTimer();
+		this.startedAt = puzzle.timerStarted || Date.now();
+		puzzle.updatePauseControl();
+	}
+
+	restoreInitialPosition(position) {
+		if (!position)
+			return;
+		var puzzle = this.puzzle;
+		for (var [row, slots] of position.rows.entries()) {
+			for (var [column, state] of slots.entries()) {
+				var slot = puzzle.rows[row].slots[column];
+				slot.possible = state.possible.slice();
+				if (state.single)
+					slot.displaySingle();
+				else {
+					slot.displayPossible();
+					slot.clearPencilDisplay();
+				}
+			}
+		}
+		for (var [index, active] of position.clues.entries())
+			if (puzzle.clues[index].display)
+				puzzle.applyClueAction(puzzle.clues[index], active);
+		puzzle.practiceMode = position.practiceMode;
+		puzzle.usedHints = position.usedHints;
+		puzzle.continuedFromLoss = position.continuedFromLoss;
+		puzzle.nextMilestone = position.nextMilestone;
+		if (position.continuedFromLoss)
+			puzzle.timer.classList.add("lost");
 	}
 
 	start(seed, actor = this.playerId) {
@@ -142,6 +206,7 @@ class MultiplayerSession {
 		this.startedAt = this.puzzle.timerStarted || Date.now();
 		this.revision = 0;
 		this.history = [];
+		this.initialPosition = null;
 		this.recentActions.clear();
 		this.lastPaused = false;
 		this.committedCommands.clear();
@@ -421,6 +486,7 @@ class MultiplayerSession {
 		this.applyRoomRules();
 		this.puzzle.scoreEligible = false;
 		this.puzzle.withEffectsSuppressed(function() {
+			session.restoreInitialPosition(message.initialPosition);
 			for (var i = 0; i < message.history.length; i++) {
 				applyAction(session.puzzle,
 					message.history[i].action, false);
@@ -435,6 +501,7 @@ class MultiplayerSession {
 		this.startedAt = message.startedAt;
 		this.revision = message.revision;
 		this.history = copyMessage(message.history);
+		this.initialPosition = copyMessage(message.initialPosition || null);
 		this.recentActions.clear();
 		for (var entry of message.recentActions || [])
 			if (Array.isArray(entry) && typeof entry[0] == "string" && Array.isArray(entry[1]))
@@ -480,6 +547,7 @@ class MultiplayerSession {
 			startedAt: this.startedAt,
 			revision: this.revision,
 			history: copyMessage(this.history),
+			initialPosition: copyMessage(this.initialPosition),
 			recentActions: copyMessage([...this.recentActions]),
 			players: copyMessage(this.players),
 			clock: this.clockState(),
