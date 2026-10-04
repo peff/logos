@@ -72,6 +72,8 @@ class MultiplayerSession {
 				!!puzzle.continueAfterLoss : !!options.continueAfterLoss,
 		};
 		this.startedAt = null;
+		this.clock = null;
+		this.updatingTimer = false;
 		this.history = [];
 		this.committedCommands = new Map();
 		this.peers = new Map();
@@ -91,6 +93,7 @@ class MultiplayerSession {
 	start(seed) {
 		if (this.role != "host")
 			throw new Error("only the host can start a game");
+		this.ready = false;
 		this.applyRoomRules();
 		if (!this.puzzle.newGame(seed))
 			return false;
@@ -125,6 +128,8 @@ class MultiplayerSession {
 	}
 
 	requestTileAction(slot, value, type) {
+		if (this.role == "guest" && this.clock?.paused)
+			return false;
 		/* Tentative marks remain private to each player's board. */
 		if (type == "pencil-select" || type == "pencil-remove")
 			return this.puzzle.applyTileAction(slot, value, type);
@@ -163,6 +168,8 @@ class MultiplayerSession {
 			this.sendTo(from, this.syncMessage());
 		else if (this.role == "guest" && message.type == "sync")
 			this.receiveSync(message);
+		else if (this.role == "guest" && message.type == "clock")
+			this.receiveClock(message.clock);
 		else if (this.role == "guest" && message.type == "commit")
 			this.receiveCommit(message);
 		else if (this.role == "guest" && message.type == "reject")
@@ -188,7 +195,12 @@ class MultiplayerSession {
 			return false;
 		}
 
-		applyAction(this.puzzle, message.action, true);
+		this.updatingTimer = true;
+		try {
+			applyAction(this.puzzle, message.action, true);
+		} finally {
+			this.updatingTimer = false;
+		}
 		var commit = {
 			type: "commit",
 			revision: ++this.revision,
@@ -196,6 +208,7 @@ class MultiplayerSession {
 			actor: from,
 			committedAt: Date.now(),
 			action: copyMessage(message.action),
+			clock: this.clockState(),
 		};
 		this.history.push(commit);
 		this.committedCommands.set(commandKey, commit);
@@ -214,8 +227,14 @@ class MultiplayerSession {
 			this.requestSync();
 			return;
 		}
-		applyAction(this.puzzle, message.action,
-			message.actor == this.playerId);
+		this.updatingTimer = true;
+		try {
+			applyAction(this.puzzle, message.action,
+				message.actor == this.playerId);
+		} finally {
+			this.updatingTimer = false;
+		}
+		this.receiveClock(message.clock);
 		this.revision = message.revision;
 		this.history.push(copyMessage(message));
 	}
@@ -225,6 +244,7 @@ class MultiplayerSession {
 		    !message.rules)
 			return;
 		var session = this;
+		this.ready = false;
 		this.rules = {
 			practiceMode: !!message.rules.practiceMode,
 			continueAfterLoss: !!message.rules.continueAfterLoss,
@@ -234,14 +254,10 @@ class MultiplayerSession {
 			return;
 		this.applyRoomRules();
 		this.puzzle.scoreEligible = false;
-		var stoppedAt = null;
 		this.puzzle.withEffectsSuppressed(function() {
 			for (var i = 0; i < message.history.length; i++) {
 				applyAction(session.puzzle,
 					message.history[i].action, false);
-				if ((session.puzzle.continuedFromLoss ||
-				     session.puzzle.gameOver) && stoppedAt === null)
-					stoppedAt = message.history[i].committedAt;
 			}
 		});
 		this.seed = message.seed;
@@ -249,7 +265,7 @@ class MultiplayerSession {
 		this.revision = message.revision;
 		this.history = copyMessage(message.history);
 		this.ready = true;
-		this.synchronizeTimer(stoppedAt);
+		this.receiveClock(message.clock);
 	}
 
 	receiveRejection(message) {
@@ -284,6 +300,7 @@ class MultiplayerSession {
 			startedAt: this.startedAt,
 			revision: this.revision,
 			history: copyMessage(this.history),
+			clock: this.clockState(),
 		};
 	}
 
@@ -293,15 +310,49 @@ class MultiplayerSession {
 		this.puzzle.continueAfterLoss = this.rules.continueAfterLoss;
 	}
 
-	synchronizeTimer(stoppedAt) {
-		if (this.rules.practiceMode || !Number.isFinite(this.startedAt))
+	clockState() {
+		var puzzle = this.puzzle;
+		return {
+			elapsed: puzzle.timerTimeout === null ? puzzle.timerElapsed :
+				Date.now() - puzzle.timerStarted,
+			running: puzzle.timerTimeout !== null,
+			paused: puzzle.paused && !puzzle.gameOver && !puzzle.practiceMode,
+		};
+	}
+
+	timerChanged() {
+		if (this.role == "host" && this.ready && !this.updatingTimer) {
+			this.broadcast({ type: "clock", clock: this.clockState() });
+		}
+	}
+
+	receiveClock(clock) {
+		if (!clock || !Number.isFinite(clock.elapsed) || clock.elapsed < 0 ||
+		    typeof clock.running != "boolean" || typeof clock.paused != "boolean")
 			return;
-		var end = stoppedAt ?? Date.now();
-		this.puzzle.stopTimer();
-		this.puzzle.timerElapsed = Math.max(0, end - this.startedAt);
-		this.puzzle.updateTimer(this.puzzle.timerElapsed);
-		if (!this.puzzle.gameOver && !this.puzzle.practiceMode)
-			this.puzzle.startTimer();
+		this.clock = { ...clock, receivedAt: Date.now() };
+		this.restoreHostTimer();
+	}
+
+	/* Local menus and visibility changes cannot pause a guest's clock. */
+	restoreHostTimer() {
+		if (this.role != "guest" || !this.ready || !this.clock || this.updatingTimer)
+			return false;
+		var puzzle = this.puzzle;
+		this.updatingTimer = true;
+		try {
+			puzzle.stopTimer();
+			puzzle.timerElapsed = this.clock.elapsed + (this.clock.running ?
+				Math.max(0, Date.now() - this.clock.receivedAt) : 0);
+			puzzle.manualPaused = this.clock.paused;
+			puzzle.paused = this.clock.paused;
+			if (this.clock.running)
+				puzzle.startTimer();
+			puzzle.updatePauseControl();
+		} finally {
+			this.updatingTimer = false;
+		}
+		return true;
 	}
 
 	leave() {
@@ -313,6 +364,7 @@ class MultiplayerSession {
 		this.ready = false;
 		this.peers.clear();
 		this.hostSender = null;
+		this.puzzle.updatePauseControl();
 	}
 
 	broadcast(message) {

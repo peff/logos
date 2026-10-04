@@ -35,6 +35,7 @@ function makeSession(role, playerId) {
 
 function stopAll(...games) {
 	for (const game of games) {
+		game.session.leave();
 		game.puzzle.stopTimer();
 		game.puzzle.say("");
 	}
@@ -550,8 +551,7 @@ Deno.test("continued multiplayer losses honor host preferences and replay", func
 	network.addGuest(late.session);
 	assert(late.puzzle.continuedFromLoss && late.puzzle.practiceMode &&
 	       !late.puzzle.timerStarted &&
-	       late.puzzle.timerElapsed == Math.max(0,
-		 host.session.history[0].committedAt - host.session.startedAt) &&
+	       late.puzzle.timerElapsed == host.puzzle.timerElapsed &&
 	       boardState(late.puzzle) == boardState(host.puzzle),
 	       "a late guest did not reconstruct the continued loss and stopped timer");
 	host.session.start(0x22222222);
@@ -574,7 +574,7 @@ Deno.test("replay preserves restoration of an exhausted clue and the finish time
 				host.puzzle.requestTileAction(slot, slot.value, "place");
 	assert(host.puzzle.gameOver, "the host did not finish the puzzle");
 	const finished = host.session.history.at(-1);
-	finished.committedAt = host.session.startedAt + 1000;
+	host.puzzle.timerElapsed = 1000;
 	const index = host.puzzle.clues.findIndex(clue => clue.display && !clue.active);
 	assert(index >= 0, "no clue was automatically dismissed");
 	host.puzzle.requestClueAction(host.puzzle.clues[index], true);
@@ -587,4 +587,78 @@ Deno.test("replay preserves restoration of an exhausted clue and the finish time
 	assert(guest.puzzle.timerElapsed == 1000,
 	       "a clue action after the finish changed the replayed timer");
 	stopAll(host, guest);
+});
+
+Deno.test("multiplayer menus and hidden tabs stay local for every player", function() {
+	const host = makeSession("host", "host");
+	const guest = makeSession("guest", "guest");
+	const late = makeSession("guest", "late");
+	const realNow = Date.now;
+	let now = 1000000;
+	Date.now = () => now;
+	try {
+		host.session.start(0x12345678);
+		const network = new InMemoryMultiplayerNetwork(host.session);
+		network.addGuest(guest.session);
+		for (const game of [host, guest]) {
+			game.puzzle.options.hidden = true;
+			game.puzzle.toggleOptions();
+			assert(!host.puzzle.paused && !guest.puzzle.paused &&
+			       host.puzzle.timerTimeout !== null && guest.puzzle.timerTimeout !== null,
+			       "a local menu paused the shared game");
+			now += 60000;
+			const move = wrongMove(guest.puzzle);
+			guest.puzzle.requestTileAction(move.slot, move.value, "remove");
+			assert(host.session.revision == guest.session.revision &&
+			       boardState(host.puzzle) == boardState(guest.puzzle),
+			       "a menu blocked another player's move");
+			game.puzzle.toggleOptions();
+			game.puzzle.setPageHidden(true);
+			now += 60000;
+			assert(!host.puzzle.paused && !guest.puzzle.paused,
+			       "a hidden tab paused the shared game");
+			host.puzzle.togglePause();
+			assert(host.puzzle.manualPaused && guest.puzzle.manualPaused,
+			       "a hidden tab prevented a shared pause");
+			now += 30000;
+			host.puzzle.togglePause();
+			game.puzzle.setPageHidden(false);
+			assert(!host.puzzle.paused && !guest.puzzle.paused &&
+			       host.puzzle.timerStarted == guest.puzzle.timerStarted,
+			       "returning from a hidden tab changed the shared clock");
+		}
+		host.puzzle.togglePause();
+		const elapsed = host.puzzle.timerElapsed;
+		now += 60000;
+		network.addGuest(late.session);
+		assert(late.puzzle.timerTimeout === null && late.puzzle.timerElapsed == elapsed,
+		       "a late guest counted time while the room was paused");
+		host.puzzle.togglePause();
+		assert(host.puzzle.timerStarted == late.puzzle.timerStarted &&
+		       host.puzzle.timerStarted == guest.puzzle.timerStarted,
+		       "resuming did not synchronize a late guest");
+	} finally {
+		stopAll(host, guest, late);
+		Date.now = realNow;
+	}
+});
+
+Deno.test("multiplayer clock synchronization does not depend on matching system clocks", function() {
+	const host = makeSession("host", "host");
+	const guest = makeSession("guest", "guest");
+	const realNow = Date.now;
+	let now = 1000000;
+	Date.now = () => now;
+	try {
+		host.session.start(0x12345678);
+		now += 12000;
+		const sync = host.session.syncMessage();
+		now += 3600000;
+		guest.session.receive("host", sync);
+		assert(now - guest.puzzle.timerStarted == 12000,
+		       "a guest's system clock offset changed the elapsed time");
+	} finally {
+		stopAll(host, guest);
+		Date.now = realNow;
+	}
 });

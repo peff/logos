@@ -1557,7 +1557,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		document.body.classList[paused ? "add" : "remove"]("game-paused");
 		for (var element of [board, this.hClues, this.vClues, this.boardActions, this.proofControls])
 			element.inert = paused || this.pendingSeed !== undefined;
-		this.timer.disabled = this.gameOver || this.practiceMode || this.pendingSeed !== undefined;
+		this.timer.disabled = this.gameOver || this.practiceMode || this.pendingSeed !== undefined ||
+			this.actionController?.role == "guest";
 		this.timer.title = this.practiceMode ?
 			(this.timer.classList.contains("lost") ? "Zen mode: time at loss" :
 			 "Zen mode: no time limit") : paused ? "Resume game" : "Pause game";
@@ -1566,8 +1567,11 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.togglePause = function() {
-		if (this.gameOver || this.practiceMode || this.pageHidden ||
+		if (this.gameOver || this.practiceMode ||
+		    this.pageHidden && !this.actionController ||
 		    this.paused && !this.manualPaused)
+			return;
+		if (this.actionController?.role == "guest")
 			return;
 		this.manualPaused = !this.manualPaused;
 		this.paused = this.manualPaused;
@@ -2177,8 +2181,12 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.startTimer = function() {
+		if (this.actionController?.restoreHostTimer())
+			return;
+		clearTimeout(this.timerTimeout);
 		this.timerStarted = Date.now() - this.timerElapsed;
 		this.scheduleTimerUpdate();
+		this.actionController?.timerChanged();
 	}
 
 	this.scheduleTimerUpdate = function() {
@@ -2192,6 +2200,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.stopTimer = function() {
+		if (this.actionController?.restoreHostTimer())
+			return;
 		if (this.timerTimeout === null)
 			return;
 		this.timerElapsed = Date.now() - this.timerStarted;
@@ -2199,6 +2209,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		clearTimeout(this.timerTimeout);
 		this.timerTimeout = null;
 		this.timerStarted = null;
+		this.actionController?.timerChanged();
 	}
 
 	this.generateClues = function() {
@@ -2366,13 +2377,14 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 
 	this.toggleModal = function(modal, button, closeText) {
 		if (modal.hidden) {
-			this.resumeAfterModal = !this.gameOver &&
+			this.resumeAfterModal = !this.actionController && !this.gameOver &&
 				this.timerTimeout !== null;
 			var done = modal.querySelector(".modal-close");
 			if (done)
 				done.value = this.resumeAfterModal ?
 					"Resume game" : closeText;
-			this.paused = true;
+			if (!this.actionController)
+				this.paused = true;
 			if (this.resumeAfterModal)
 				this.stopTimer();
 			modal.hidden = false;
@@ -2382,12 +2394,14 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 				this.pantheonLoading = false;
 			}
 			modal.hidden = true;
-			this.paused = this.manualPaused || this.pageHidden || this.pendingSeed !== undefined;
+			this.paused = this.manualPaused ||
+				(this.pageHidden && !this.actionController) || this.pendingSeed !== undefined;
 			if (!this.gameOver && !this.practiceMode && !this.paused &&
 			    this.timerTimeout === null)
 				this.startTimer();
 			this.resumeAfterModal = false;
 		}
+		this.actionController?.restoreHostTimer();
 		button.setAttribute("aria-expanded", !modal.hidden);
 		if (modal.hidden)
 			queueMicrotask(() => this.maybeShowDifficultyFeedback());
@@ -2481,6 +2495,17 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		if (hidden == this.pageHidden)
 			return;
 		this.pageHidden = hidden;
+		if (this.actionController) {
+			/* A local visibility change must not pause the shared game. */
+			if (hidden) {
+				this.closeSlotTray();
+				this.stopSampleSounds();
+			} else {
+				this.actionController.restoreHostTimer();
+				this.maybeShowDifficultyFeedback();
+			}
+			return;
+		}
 		if (hidden) {
 			this.resumeAfterPageHidden = !this.gameOver &&
 				this.timerTimeout !== null;
