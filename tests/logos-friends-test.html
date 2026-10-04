@@ -1,7 +1,7 @@
 <!doctype html>
 <meta charset="utf-8">
 <title>Logos multiplayer browser tests</title>
-<style>iframe { width: 30%; height: 650px; }</style>
+<style>iframe { width: 390px; height: 844px; }</style>
 <pre id="result">Running (serve this page over HTTP)…</pre>
 <script>
 (async function() {
@@ -108,6 +108,9 @@
 		await waitFor(() => [host, alice, bob].every(app =>
 			players(app).querySelector('[data-action="resume"] svg')), "resume columns appear");
 		alice.puzzle.hintAcknowledged = true;
+		const buttonTop = alice.document.querySelector('#new-game-button').getBoundingClientRect().top;
+		const rosterBox = alice.document.querySelector('#friends-roster').getBoundingClientRect();
+		assert(rosterBox.bottom <= buttonTop, "roster is not above the control buttons");
 		for (let stage = 1; stage <= 3; stage++) {
 			alice.document.querySelector('#explain-button').click();
 			await waitFor(() => [host, alice, bob].every(app =>
@@ -116,6 +119,15 @@
 				"hint press recorded on all peers");
 			assert((alice.getComputedStyle(alice.document.querySelector('#friends-roster')).display == "none") ==
 				(stage >= 2), "roster visibility did not follow the local proof controls");
+			assert(Math.abs(alice.document.querySelector('#new-game-button').getBoundingClientRect().top -
+				buttonTop) < 1, "switching from roster to proof moved the buttons at stage " + stage +
+				": " + buttonTop + " -> " + alice.document.querySelector('#new-game-button').getBoundingClientRect().top);
+			if (stage >= 2) {
+				const proofBox = alice.document.querySelector('#proof-controls').getBoundingClientRect();
+				assert(Math.abs(proofBox.top - rosterBox.top) < 1 &&
+					Math.abs(proofBox.height - rosterBox.height) < 1,
+					"roster and proof controls do not share the same space");
+			}
 			for (const app of [host, bob])
 				assert(app.getComputedStyle(app.document.querySelector('#friends-roster')).display != "none",
 					"another player's hint hid the roster");
@@ -131,6 +143,8 @@
 		assert(alice.puzzle.proof?.hint && !host.puzzle.proof && !bob.puzzle.proof,
 			"proof viewer was not confined to the requester");
 		alice.puzzle.closeProof();
+		assert(Math.abs(alice.document.querySelector('#new-game-button').getBoundingClientRect().top -
+			buttonTop) < 1, "closing the proof moved the buttons");
 		assert(alice.getComputedStyle(alice.document.querySelector('#friends-roster')).display != "none",
 			"closing the proof did not restore the roster");
 		alice.document.querySelector("#friends-roster-button").click();

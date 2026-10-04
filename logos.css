@@ -269,7 +269,8 @@ body #timer::after {
 	}
 
 	#board-actions,
-	#proof-controls {
+	#proof-controls,
+	#friends-roster {
 		grid-area: controls;
 		align-self: start;
 		justify-self: center;
@@ -283,7 +284,7 @@ body #timer::after {
 		margin-top: 0.5rem;
 	}
 
-	body #proof-controls {
+	body :is(#proof-controls, #friends-roster) {
 		margin-top: 0.2rem;
 	}
 
@@ -387,12 +388,12 @@ body #timer::after {
 			1.15rem max-content max-content 15rem 5.8rem max-content;
 	}
 
-	body.game-started:is(.proof-active, :has(#proof-controls.hint-explanation)) {
+	body.game-started:is(.multiplayer, .proof-active, :has(#proof-controls.hint-explanation)) {
 		grid-template-rows:
 			1.15rem max-content max-content 14.25rem 5.51rem max-content;
 	}
 
-	body:is(.proof-active, :has(#proof-controls.hint-explanation)) :is(#hclues, #vclues) {
+	body:is(.multiplayer, .proof-active, :has(#proof-controls.hint-explanation)) :is(#hclues, #vclues) {
 		justify-self: center;
 		transform: scale(0.95);
 		transform-origin: top center;
@@ -426,12 +427,12 @@ body #timer::after {
 /* Make room for the proof viewer on short portrait phones. */
 @media (orientation: portrait) and (min-aspect-ratio: 1 / 2) and
        (aspect-ratio < 3 / 5) {
-	body.game-started:is(.proof-active, :has(#proof-controls.hint-explanation)) {
+	body.game-started:is(.multiplayer, .proof-active, :has(#proof-controls.hint-explanation)) {
 		grid-template-rows:
 			1.15rem max-content max-content 15.372rem 4.872rem max-content;
 	}
 
-	body:is(.proof-active, :has(#proof-controls.hint-explanation)) :is(#hclues, #vclues) {
+	body:is(.multiplayer, .proof-active, :has(#proof-controls.hint-explanation)) :is(#hclues, #vclues) {
 		justify-self: center;
 		transform: scale(0.84);
 		transform-origin: top center;
@@ -3091,7 +3092,7 @@ body.proof-active :is(#hclues, #vclues) .clue.proof-current {
 
 @media (orientation: portrait) {
 	/* Reserve the touch controls' space in both hint and proof views. */
-	body:has(#board-actions:not([hidden])) #proof-controls {
+	body:has(#board-actions:not([hidden])) :is(#proof-controls, #friends-roster) {
 		margin-top: 2rem;
 	}
 }
@@ -3252,14 +3253,17 @@ body.proof-active :is(#hclues, #vclues) .clue.proof-current {
 	gap: 0.5rem;
 }
 
-/* Keep the shared roster visible even when the logo gives way to controls. */
+/* The roster shares the proof controls' space above the footer. */
 body.multiplayer #logo {
 	display: none;
 }
 
 #friends-roster {
 	box-sizing: border-box;
+	display: flex;
+	flex-direction: column;
 	width: 18rem;
+	height: 3.7rem;
 	max-width: 100%;
 	padding: 0.25rem 0.5rem;
 	border-block: 1px solid #a99c81;
@@ -3267,8 +3271,13 @@ body.multiplayer #logo {
 	background: rgb(239 233 219 / 45%);
 }
 
+#friends-roster[hidden] {
+	display: none;
+}
+
 .friends-roster-heading {
 	display: flex;
+	flex-shrink: 0;
 	align-items: baseline;
 	justify-content: space-between;
 	gap: 0.5rem;
@@ -3308,7 +3317,7 @@ body.multiplayer #logo {
 	display: grid;
 	grid-template-columns: minmax(0, 1fr);
 	gap: 0.12rem;
-	max-height: max(3.8rem, 64px);
+	min-height: 0;
 	overflow-y: auto;
 	margin: 0.2rem 0 0;
 	padding: 0;
@@ -3461,6 +3470,11 @@ body.multiplayer #logo {
 }
 
 @media (orientation: portrait) {
+	body.multiplayer:not(.game-started) {
+		grid-template-rows: 1.15rem max-content max-content max-content;
+		grid-template-areas: "message" "board" "controls" "footer";
+	}
+
 	#friends-roster {
 		width: 27.5rem;
 	}
