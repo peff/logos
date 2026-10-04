@@ -32,6 +32,14 @@
 	}
 	try {
 		const host = await open("host", "Helen");
+		const inviteStatus = host.document.querySelector('#friends-roster-status');
+		await waitFor(() => inviteStatus.textContent == "Invite friends" &&
+			host.document.querySelector('#friends-menu').hidden, "host invitation prompt");
+		inviteStatus.click();
+		assert(!host.document.querySelector('#friends-menu').hidden &&
+			host.document.querySelector('#friends-roster-button').getAttribute('aria-expanded') == "true",
+			"clicking Invite friends did not open the friends dialog");
+		host.document.querySelector('#friends-menu .modal-close').click();
 		const alice = await open("guest", "Alice");
 		const bob = await open("guest", "Bob");
 		const players = app => app.document.querySelector("#friends-roster-players");

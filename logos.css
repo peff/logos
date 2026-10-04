@@ -3276,11 +3276,9 @@ body.multiplayer #logo {
 }
 
 .friends-roster-heading {
-	display: flex;
 	flex-shrink: 0;
-	align-items: baseline;
-	justify-content: space-between;
-	gap: 0.5rem;
+	margin: 0;
+	font: inherit;
 }
 
 #friends-roster-title {
@@ -3294,6 +3292,12 @@ body.multiplayer #logo {
 }
 
 #friends-roster-button {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 0.5rem;
+	width: 100%;
+	text-align: left;
 	border: 0;
 	padding: 0;
 	background: none;
