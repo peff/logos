@@ -664,5 +664,12 @@
 		<script src="friends/logos-multiplayer.js"></script>
 		<script src="friends/logos-webrtc.js"></script>
 		<script src="friends/logos-friends.js"></script>
+		<script>
+		if (new URLSearchParams(location.search).has("local-test")) {
+			var localTestScript = document.createElement("script");
+			localTestScript.src = "friends/logos-local-test.js";
+			document.body.append(localTestScript);
+		}
+		</script>
 	</body>
 </html>
