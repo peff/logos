@@ -3402,7 +3402,7 @@ body.multiplayer #logo {
 	color: #cfb779;
 }
 
-.friends-roster-action:is([data-action="pause"], [data-action="resume"]) {
+.friends-roster-action:is([data-action="pause"], [data-action="resume"], [data-action="new-game"]) {
 	border: 1px solid #706b5e;
 	border-radius: 0.1rem;
 	box-shadow:

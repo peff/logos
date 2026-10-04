@@ -813,9 +813,15 @@ Deno.test("multiplayer connects in a lobby and any player can start a game", fun
 			       !game.puzzle.gameOver && game.puzzle.timerTimeout !== null,
 			       "a guest could not start the shared game from the lobby");
 		assert(boardState(host.puzzle) == boardState(guest.puzzle), "new boards differ");
+		assert([host, guest].every(game => game.session.recentActions.size == 1 &&
+		       game.session.recentActions.get("guest")?.[0].type == "new-game"),
+		       "the new game was not attributed to its guest requester");
 		host.session.requestNewGame();
 		assert(host.session.gameId == 2 && guest.session.gameId == 2,
 		       "the host could not replace a shared game");
+		assert([host, guest].every(game => game.session.recentActions.size == 1 &&
+		       game.session.recentActions.get("host")?.[0].type == "new-game"),
+		       "host new game did not replace the previous starter's activity");
 		guest.session.requestNewGame();
 		assert(host.session.gameId == 3 && guest.session.gameId == 3,
 		       "the guest could not replace a shared game");
@@ -841,6 +847,9 @@ Deno.test("simultaneous new-game requests start only one puzzle", function() {
 		for (const [from, message] of queue) host.session.receive(from, message);
 		assert([host, alice, bob].every(game => game.session.gameId == 1),
 		       "concurrent requests replaced the newly started game");
+		assert([host, alice, bob].every(game => game.session.recentActions.size == 1 &&
+		       game.session.recentActions.get("alice")?.[0].type == "new-game"),
+		       "a coalesced request changed the new game's attribution");
 		host.session.receive("stranger", { type: "new-game", gameId: 1 });
 		assert(host.session.gameId == 1, "an unknown player started a game");
 	} finally {
@@ -911,7 +920,7 @@ Deno.test("recent player actions retain attribution across sync and reset with t
 		host.session.timerChanged();
 		assert(host.session.recentActions.get("alice").map(a => a.type).join() == "remove,pause",
 		       "guest pause was misattributed or duplicated");
-		assert(host.session.recentActions.get("host").map(a => a.type).join() == "resume",
+		assert(host.session.recentActions.get("host").map(a => a.type).join() == "new-game,resume",
 		       "host resume or clock heartbeat was recorded incorrectly");
 		network.addGuest(late.session);
 		const snapshot = session => JSON.stringify([...session.recentActions]);
@@ -932,7 +941,8 @@ Deno.test("recent player actions retain attribution across sync and reset with t
 		assert(host.session.recentActions.get("alice").at(-1).mistake &&
 		       snapshot(host.session) == snapshot(guest.session), "mistake was not marked");
 		host.session.start(0x12345678);
-		assert([host, guest, late].every(game => game.session.recentActions.size == 0),
+		assert([host, guest, late].every(game => game.session.recentActions.size == 1 &&
+		       JSON.stringify(game.session.recentActions.get("host")) == '[{"type":"new-game"}]'),
 		       "new game retained old activity");
 	} finally {
 		stopAll(host, guest, late);

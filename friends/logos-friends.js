@@ -101,6 +101,13 @@ function renderRecentAction(actions) {
 			(action.type == "place" ? "Placed " : "Discarded ") +
 			symbol + (actions.length > 1 ? " in columns " : " in column ") +
 			actions.map(action => action.column + 1).join(", ");
+	} else if (action.type == "new-game") {
+		icon.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">' +
+			'<g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round">' +
+			'<path d="M14 3H4v18h15v-8"/>' +
+			'<path d="m9 15 2-5 8-8 3 3-8 8-5 2Z" fill="currentColor" stroke="none"/>' +
+			'</g></svg>';
+		description = "Started a new game";
 	} else {
 		var columns = document.querySelector("#timer .pause-columns").cloneNode(true);
 		columns.removeAttribute("class");

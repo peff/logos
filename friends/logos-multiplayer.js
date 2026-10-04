@@ -104,7 +104,7 @@ class MultiplayerSession {
 		this.ready = this.role == "host";
 	}
 
-	start(seed) {
+	start(seed, actor = this.playerId) {
 		if (this.role != "host")
 			throw new Error("only the host can start a game");
 		var wasReady = this.ready;
@@ -125,8 +125,8 @@ class MultiplayerSession {
 		this.committedCommands.clear();
 		this.puzzle.scoreEligible = false;
 		this.ready = true;
+		this.recordActivity(actor, { type: "new-game" });
 		this.broadcast(this.syncMessage());
-		this.onPlayersChanged(copyMessage(this.players));
 		return true;
 	}
 
@@ -141,21 +141,21 @@ class MultiplayerSession {
 		return true;
 	}
 
-	startRandomGame() {
+	startRandomGame(actor = this.playerId) {
 		/* No selected difficulties means contemplation in single-player. */
 		if (!this.puzzle.randomDifficulties.length) {
 			this.puzzle.say("Choose a difficulty in Options before starting a shared game.");
 			return false;
 		}
 		var seed = this.puzzle.randomPuzzleSeed();
-		return seed !== null && this.start(seed);
+		return seed !== null && this.start(seed, actor);
 	}
 
 	receiveNewGame(from, message) {
 		if (!this.ready || !this.peers.has(from))
 			return;
 		/* Coalesce requests made for the same game, including the lobby. */
-		if (message.gameId !== this.gameId || !this.startRandomGame())
+		if (message.gameId !== this.gameId || !this.startRandomGame(from))
 			this.sendTo(from, this.syncMessage());
 	}
 

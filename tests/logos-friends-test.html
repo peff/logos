@@ -35,6 +35,15 @@
 		const alice = await open("guest", "Alice");
 		const bob = await open("guest", "Bob");
 		const players = app => app.document.querySelector("#friends-roster-players");
+		function checkStarter(name) {
+			for (const app of [host, alice, bob]) {
+				const icons = players(app).querySelectorAll('.friends-roster-action');
+				assert(icons.length == 1 && icons[0].dataset.action == "new-game" &&
+					icons[0].querySelector("svg") &&
+					icons[0].closest("li").querySelector('.friends-roster-name').textContent == name,
+					"new game icon missing or attributed to the wrong player");
+			}
+		}
 		await waitFor(() => [host, alice, bob].every(app => players(app).children.length == 3),
 			"three players connected through automatic signaling");
 		for (const app of [host, alice, bob]) {
@@ -53,14 +62,17 @@
 		await waitFor(() => [host, alice, bob].every(app =>
 			app.puzzle.actionController.gameId == 1 && !app.puzzle.gameOver),
 			"guest starts the shared game");
+		checkStarter("Alice");
 		assert(host.puzzle.seed == alice.puzzle.seed && host.puzzle.seed == bob.puzzle.seed,
 			"the shared seeds differ");
 		bob.document.querySelector("#new-game-button").click();
 		await waitFor(() => [host, alice, bob].every(app => app.puzzle.actionController.gameId == 2),
 			"another guest replaces the game");
+		checkStarter("Bob");
 		host.document.querySelector("#new-game-button").click();
 		await waitFor(() => [host, alice, bob].every(app => app.puzzle.actionController.gameId == 3),
 			"host replaces the game");
+		checkStarter("Helen");
 		host.puzzle.actionController.start(0x12345678);
 		await waitFor(() => [host, alice, bob].every(app => app.puzzle.actionController.gameId == 4),
 			"deterministic history test game");
