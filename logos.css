@@ -3394,21 +3394,16 @@ body.multiplayer #logo {
 	background: #a99c81;
 }
 
-.friends-roster-action[data-action="remove"]::before,
 .friends-roster-action[data-action="remove"]::after {
 	content: "";
 	position: absolute;
 	width: 2px;
-	height: 92%;
-	top: 4%;
+	height: 90%;
+	top: 5%;
 	left: calc(50% - 1px);
 	border-radius: 45%;
 	background: var(--chalk-mark);
 	transform: rotate(38deg);
-}
-
-.friends-roster-action[data-action="remove"]::after {
-	transform: rotate(-38deg);
 }
 
 .friends-roster-action[data-mistake="true"] {
