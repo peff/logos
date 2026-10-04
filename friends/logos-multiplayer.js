@@ -127,6 +127,23 @@ class MultiplayerSession {
 		this.hostSender = sender;
 	}
 
+	requestPause(paused) {
+		if (this.role != "guest" || !this.ready || !this.hostSender)
+			return false;
+		this.hostSender({ type: "pause", seed: this.seed, paused });
+		return true;
+	}
+
+	receivePause(from, message) {
+		if (!this.ready || !this.peers.has(from) || message.seed != this.seed ||
+		    typeof message.paused != "boolean")
+			return;
+		/* Explicit states make simultaneous or duplicate requests harmless. */
+		if (this.puzzle.manualPaused != message.paused)
+			this.puzzle.togglePause();
+		this.sendTo(from, { type: "clock", clock: this.clockState() });
+	}
+
 	requestTileAction(slot, value, type) {
 		if (this.role == "guest" && this.clock?.paused)
 			return false;
@@ -164,6 +181,8 @@ class MultiplayerSession {
 			return;
 		if (this.role == "host" && message.type == "command")
 			this.receiveCommand(from, message);
+		else if (this.role == "host" && message.type == "pause")
+			this.receivePause(from, message);
 		else if (this.role == "host" && message.type == "sync-request")
 			this.sendTo(from, this.syncMessage());
 		else if (this.role == "guest" && message.type == "sync")

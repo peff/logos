@@ -1557,8 +1557,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		document.body.classList[paused ? "add" : "remove"]("game-paused");
 		for (var element of [board, this.hClues, this.vClues, this.boardActions, this.proofControls])
 			element.inert = paused || this.pendingSeed !== undefined;
-		this.timer.disabled = this.gameOver || this.practiceMode || this.pendingSeed !== undefined ||
-			this.actionController?.role == "guest";
+		this.timer.disabled = this.gameOver || this.practiceMode || this.pendingSeed !== undefined;
 		this.timer.title = this.practiceMode ?
 			(this.timer.classList.contains("lost") ? "Zen mode: time at loss" :
 			 "Zen mode: no time limit") : paused ? "Resume game" : "Pause game";
@@ -1572,7 +1571,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		    this.paused && !this.manualPaused)
 			return;
 		if (this.actionController?.role == "guest")
-			return;
+			return this.actionController.requestPause(!this.manualPaused);
 		this.manualPaused = !this.manualPaused;
 		this.paused = this.manualPaused;
 		if (this.manualPaused) {

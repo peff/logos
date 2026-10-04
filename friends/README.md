@@ -28,7 +28,7 @@ The host’s practice mode and continue-after-loss preferences apply to the
 shared game. With continuation enabled, a mistake switches everyone to
 practice mode; starting a new shared game restores the host’s original rules.
 
-The host maintains the shared clock and can explicitly pause or resume the
-game for everyone. Menus and tab visibility remain local for all players and
-do not pause the game. Guests receive the host's elapsed time when joining,
-when a move is committed, and when the host pauses or resumes.
+The host maintains the shared clock, and any player can explicitly pause or
+resume the game for everyone. Menus and tab visibility remain local for all
+players and do not pause the game. Guests receive the host's elapsed time
+when joining, when a move is committed, and with pause/resume changes.

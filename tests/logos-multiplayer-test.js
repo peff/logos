@@ -617,11 +617,11 @@ Deno.test("multiplayer menus and hidden tabs stay local for every player", funct
 			now += 60000;
 			assert(!host.puzzle.paused && !guest.puzzle.paused,
 			       "a hidden tab paused the shared game");
-			host.puzzle.togglePause();
+			guest.puzzle.togglePause();
 			assert(host.puzzle.manualPaused && guest.puzzle.manualPaused,
 			       "a hidden tab prevented a shared pause");
 			now += 30000;
-			host.puzzle.togglePause();
+			guest.puzzle.togglePause();
 			game.puzzle.setPageHidden(false);
 			assert(!host.puzzle.paused && !guest.puzzle.paused &&
 			       host.puzzle.timerStarted == guest.puzzle.timerStarted,
@@ -633,10 +633,10 @@ Deno.test("multiplayer menus and hidden tabs stay local for every player", funct
 		network.addGuest(late.session);
 		assert(late.puzzle.timerTimeout === null && late.puzzle.timerElapsed == elapsed,
 		       "a late guest counted time while the room was paused");
-		host.puzzle.togglePause();
+		late.puzzle.togglePause();
 		assert(host.puzzle.timerStarted == late.puzzle.timerStarted &&
 		       host.puzzle.timerStarted == guest.puzzle.timerStarted,
-		       "resuming did not synchronize a late guest");
+		       "a late guest could not resume everyone's clock");
 	} finally {
 		stopAll(host, guest, late);
 		Date.now = realNow;
@@ -660,5 +660,40 @@ Deno.test("multiplayer clock synchronization does not depend on matching system 
 	} finally {
 		stopAll(host, guest);
 		Date.now = realNow;
+	}
+});
+
+Deno.test("guests request shared pause states without toggling duplicate requests", function() {
+	const host = makeSession("host", "host");
+	const guest = makeSession("guest", "guest");
+	const other = makeSession("guest", "other");
+	try {
+		host.session.start(0x12345678);
+		const network = new InMemoryMultiplayerNetwork(host.session);
+		network.addGuest(guest.session);
+		network.addGuest(other.session);
+		assert(!guest.puzzle.timer.disabled, "a guest cannot use the pause button");
+		guest.puzzle.togglePause();
+		for (const game of [host, guest, other])
+			assert(game.puzzle.manualPaused && game.puzzle.timerTimeout === null,
+			       "a guest pause did not stop everyone's clock");
+		other.session.requestPause(true);
+		assert(host.puzzle.manualPaused, "a second pause request resumed the host");
+		other.puzzle.togglePause();
+		for (const game of [host, guest, other])
+			assert(!game.puzzle.manualPaused && game.puzzle.timerTimeout !== null,
+			       "a guest resume did not restart everyone's clock");
+		guest.session.requestPause(false);
+		assert(!host.puzzle.manualPaused, "a second resume request paused the host");
+		host.session.receive("stranger", {
+			type: "pause", seed: host.session.seed, paused: true,
+		});
+		assert(!host.puzzle.manualPaused, "an unknown peer paused the room");
+		host.session.receive("guest", {
+			type: "pause", seed: host.session.seed + 1, paused: true,
+		});
+		assert(!host.puzzle.manualPaused, "a request for an old puzzle paused the room");
+	} finally {
+		stopAll(host, guest, other);
 	}
 });
