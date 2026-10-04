@@ -70,6 +70,11 @@
 		for (const app of [host, alice, bob]) {
 			checkRosterLayout(app);
 			assert(!app.document.querySelector("#friends-roster").hidden, "roster is hidden");
+			const board = app.document.querySelector("#board").getBoundingClientRect();
+			const roster = app.document.querySelector("#friends-roster").getBoundingClientRect();
+			assert(board.left >= 0 && board.right <= app.innerWidth &&
+			       roster.left >= 0 && roster.right <= app.innerWidth && roster.top >= board.bottom,
+			       "portrait lobby placed the roster beside the board or clipped the board");
 			assert(Array.from(players(app).querySelectorAll(".friends-roster-name"))
 				.map(name => name.textContent).sort().join() == "Alice,Bob,Helen", "names differ");
 			const self = players(app).querySelectorAll('[data-self="true"]');

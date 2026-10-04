@@ -235,7 +235,7 @@ body #timer::after {
 		row-gap: 0.15rem;
 	}
 
-	body:not(.game-started):has(#logo:not([hidden])) {
+	body:not(.game-started, .multiplayer):has(#logo:not([hidden])) {
 		grid-template-rows:
 			1.15rem max-content max-content;
 		grid-template-areas:
