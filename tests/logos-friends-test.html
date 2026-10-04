@@ -94,7 +94,7 @@
 			players(app).querySelector('[data-action="pause"] svg')), "pause icons appear");
 		host.puzzle.togglePause();
 		await waitFor(() => [host, alice, bob].every(app =>
-			players(app).querySelector('[data-action="resume"]')), "resume icons appear");
+			players(app).querySelector('[data-action="resume"] svg')), "resume columns appear");
 		alice.document.querySelector("#friends-roster-button").click();
 		assert(!alice.document.querySelector("#friends-menu").hidden, "the roster heading did not open the menu");
 		alice.document.querySelector("#friends-leave").click();

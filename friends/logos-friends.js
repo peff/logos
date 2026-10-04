@@ -101,14 +101,11 @@ function renderRecentAction(actions) {
 			(action.type == "place" ? "Placed " : "Discarded ") +
 			symbol + (actions.length > 1 ? " in columns " : " in column ") +
 			actions.map(action => action.column + 1).join(", ");
-	} else if (action.type == "pause") {
+	} else {
 		var columns = document.querySelector("#timer .pause-columns").cloneNode(true);
 		columns.removeAttribute("class");
 		icon.append(columns);
-		description = "Paused the game";
-	} else {
-		icon.textContent = "▶";
-		description = "Resumed the game";
+		description = action.type == "pause" ? "Paused the game" : "Resumed the game";
 	}
 	icon.title = description;
 	icon.setAttribute("role", "img");

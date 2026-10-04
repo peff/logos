@@ -3399,6 +3399,18 @@ body.multiplayer #logo {
 .friends-roster-action svg {
 	width: 100%;
 	height: 100%;
+	color: #cfb779;
+}
+
+.friends-roster-action:is([data-action="pause"], [data-action="resume"]) {
+	border: 1px solid #706b5e;
+	border-radius: 0.1rem;
+	box-shadow:
+		inset 1px 1px rgb(230 224 198 / 24%),
+		inset -1px -1px rgb(0 0 0 / 48%);
+	background:
+		linear-gradient(rgb(49 66 68 / 82%), rgb(35 48 50 / 92%)),
+		url("images/stone-texture.png") center / 8rem auto;
 }
 
 .friends-roster-event:first-child {
@@ -3414,7 +3426,11 @@ body.multiplayer #logo {
 	background: #a99c81;
 }
 
-.friends-roster-action[data-action="remove"]::after {
+.friends-roster-action[data-action="resume"] {
+	--chalk-mark: white;
+}
+
+.friends-roster-action:is([data-action="remove"], [data-action="resume"])::after {
 	content: "";
 	position: absolute;
 	width: 2px;
