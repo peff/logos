@@ -165,10 +165,17 @@
 			"placement hold did not highlight its slot");
 		alice.dispatchEvent(new alice.Event('blur'));
 		assert(marked().length == 0, "window blur retained highlights");
+		alice.puzzle.showActionSelector = true;
+		alice.puzzle.updateActionControls();
 		alice.puzzle.hintAcknowledged = true;
 		const buttonTop = alice.document.querySelector('#new-game-button').getBoundingClientRect().top;
 		const rosterBox = alice.document.querySelector('#friends-roster').getBoundingClientRect();
 		assert(rosterBox.bottom <= buttonTop, "roster is not above the control buttons");
+		assert(rosterBox.top >= Math.max(
+			alice.document.querySelector('#hclues').getBoundingClientRect().bottom,
+			alice.document.querySelector('#vclues').getBoundingClientRect().bottom),
+			"portrait roster is not below the clues: " + rosterBox.top + " / " +
+			alice.document.querySelector('#vclues').getBoundingClientRect().bottom);
 		for (let stage = 1; stage <= 3; stage++) {
 			alice.document.querySelector('#explain-button').click();
 			await waitFor(() => [host, alice, bob].every(app =>
@@ -183,7 +190,7 @@
 			if (stage >= 2) {
 				const proofBox = alice.document.querySelector('#proof-controls').getBoundingClientRect();
 				assert(Math.abs(proofBox.top - rosterBox.top) < 1 &&
-					Math.abs(proofBox.height - rosterBox.height) < 1,
+				       Math.abs(proofBox.height - rosterBox.height) < 1,
 					"roster and proof controls do not share the same space");
 			}
 			for (const app of [host, bob])
