@@ -762,7 +762,7 @@ body[data-chalk-cursor="true"][data-discard-cursor="true"]:not([data-custom-curs
 	font: 0.56rem/1 "Logos Tiles";
 }
 
-body:is(.proof-active, :has(#proof-controls.hint-explanation)) #logo {
+body:is(.proof-active, :has(#proof-controls.hint-explanation)) :is(#logo, #friends-roster) {
 	display: none;
 }
 

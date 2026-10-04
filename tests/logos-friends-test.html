@@ -114,6 +114,11 @@
 				app.puzzle.actionController.recentActions.get(alice.puzzle.actionController.playerId)
 					.filter(action => action.type == "hint").length == stage),
 				"hint press recorded on all peers");
+			assert((alice.getComputedStyle(alice.document.querySelector('#friends-roster')).display == "none") ==
+				(stage >= 2), "roster visibility did not follow the local proof controls");
+			for (const app of [host, bob])
+				assert(app.getComputedStyle(app.document.querySelector('#friends-roster')).display != "none",
+					"another player's hint hid the roster");
 		}
 		for (const app of [host, alice, bob]) {
 			const icons = players(app).querySelectorAll('[data-action="hint"]');
@@ -126,6 +131,8 @@
 		assert(alice.puzzle.proof?.hint && !host.puzzle.proof && !bob.puzzle.proof,
 			"proof viewer was not confined to the requester");
 		alice.puzzle.closeProof();
+		assert(alice.getComputedStyle(alice.document.querySelector('#friends-roster')).display != "none",
+			"closing the proof did not restore the roster");
 		alice.document.querySelector("#friends-roster-button").click();
 		assert(!alice.document.querySelector("#friends-menu").hidden, "the roster heading did not open the menu");
 		alice.document.querySelector("#friends-leave").click();
