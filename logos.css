@@ -3254,6 +3254,14 @@ body.proof-active :is(#hclues, #vclues) .clue.proof-current {
 }
 
 /* The roster shares the proof controls' space above the footer. */
+body.multiplayer {
+	--friends-panel-height: max(3.7rem, 60px);
+}
+
+body.multiplayer #proof-controls {
+	height: var(--friends-panel-height);
+}
+
 body.multiplayer #logo {
 	display: none;
 }
@@ -3263,9 +3271,9 @@ body.multiplayer #logo {
 	display: flex;
 	flex-direction: column;
 	width: 18rem;
-	height: 3.7rem;
+	height: var(--friends-panel-height);
 	max-width: 100%;
-	padding: 0.25rem 0.5rem;
+	padding: 0.25rem;
 	border-block: 1px solid #a99c81;
 	color: #293638;
 	background: rgb(239 233 219 / 45%);
@@ -3278,7 +3286,7 @@ body.multiplayer #logo {
 .friends-roster-heading {
 	flex-shrink: 0;
 	margin: 0;
-	font: inherit;
+	font: max(0.7rem, 12px)/1.2 sans-serif;
 }
 
 #friends-roster-title {
@@ -3320,20 +3328,25 @@ body.multiplayer #logo {
 #friends-roster-players {
 	display: grid;
 	grid-template-columns: minmax(0, 1fr);
-	gap: 0.12rem;
+	gap: 0.12rem 0.25rem;
 	min-height: 0;
-	overflow-y: auto;
+	overflow: hidden;
 	margin: 0.2rem 0 0;
 	padding: 0;
 	list-style: none;
 }
 
+#friends-roster-players[data-columns="2"] {
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 #friends-roster-players li {
 	display: flex;
 	align-items: baseline;
-	gap: 0.25rem;
+	gap: 0.15rem;
 	min-width: 0;
 	font-size: max(0.7rem, 12px);
+	line-height: 1.2;
 }
 
 #friends-roster-players li::before {

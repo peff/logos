@@ -177,7 +177,11 @@ function renderPlayers(players) {
 	clearHistoryHighlight();
 	newGameButton.disabled = !!session && !session.ready;
 	rosterPlayers.replaceChildren();
-	for (var player of players) {
+	var visiblePlayers = players;
+	if (players.length > 4)
+		visiblePlayers = players.filter(player => player.id != session?.playerId).slice(0, 4);
+	rosterPlayers.dataset.columns = players.length > 2 ? "2" : "1";
+	for (var player of visiblePlayers) {
 		var entry = document.createElement("li");
 		entry.dataset.state = player.state;
 		var self = player.id == session?.playerId;

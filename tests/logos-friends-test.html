@@ -54,7 +54,21 @@
 		}
 		await waitFor(() => [host, alice, bob].every(app => players(app).children.length == 3),
 			"three players connected through automatic signaling");
+		function checkRosterLayout(app) {
+			const list = players(app);
+			const rows = Array.from(list.children, item => item.getBoundingClientRect());
+			const box = list.getBoundingClientRect();
+			assert(rows.every(row => row.top >= box.top && row.bottom <= box.bottom + 1),
+				"a player row is clipped");
+			assert(rows.length <= 4, "too many player rows are shown");
+			if (rows.length > 2)
+				assert(Math.abs(rows[0].top - rows[1].top) < 1 && rows[1].left > rows[0].left &&
+					rows[2].top > rows[0].top, "larger roster did not use two columns");
+			else if (rows.length == 2)
+				assert(rows[1].top > rows[0].top, "two players did not use one column");
+		}
 		for (const app of [host, alice, bob]) {
+			checkRosterLayout(app);
 			assert(!app.document.querySelector("#friends-roster").hidden, "roster is hidden");
 			assert(Array.from(players(app).querySelectorAll(".friends-roster-name"))
 				.map(name => name.textContent).sort().join() == "Alice,Bob,Helen", "names differ");
@@ -186,6 +200,24 @@
 			buttonTop) < 1, "closing the proof moved the buttons");
 		assert(alice.getComputedStyle(alice.document.querySelector('#friends-roster')).display != "none",
 			"closing the proof did not restore the roster");
+		const carol = await open("guest", "Carol");
+		await waitFor(() => [host, alice, bob, carol].every(app => players(app).children.length == 4),
+			"four-player roster");
+		for (const app of [host, alice, bob, carol]) checkRosterLayout(app);
+		const dora = await open("guest", "Dora");
+		await waitFor(() => [host, alice, bob, carol, dora].every(app =>
+			app.puzzle.actionController.players.length == 5), "five-player room");
+		for (const app of [host, alice, bob, carol, dora]) {
+			checkRosterLayout(app);
+			assert(players(app).children.length == 4 && !players(app).querySelector('[data-self="true"]'),
+				"five-player roster did not omit the local player first");
+		}
+		for (const app of [carol, dora]) {
+			app.document.querySelector('#friends-roster-button').click();
+			app.document.querySelector('#friends-leave').click();
+		}
+		await waitFor(() => [host, alice, bob].every(app => players(app).children.length == 3 &&
+			players(app).querySelector('[data-self="true"]')), "own player restored after departures");
 		alice.document.querySelector("#friends-roster-button").click();
 		assert(!alice.document.querySelector("#friends-menu").hidden, "the roster heading did not open the menu");
 		alice.document.querySelector("#friends-leave").click();
@@ -193,6 +225,8 @@
 		await waitFor(() => players(host).children.length == 2 && players(bob).children.length == 2,
 			"departure propagated to the other guest");
 		assert(!players(bob).textContent.includes("Alice"), "departed name remains");
+		checkRosterLayout(host);
+		checkRosterLayout(bob);
 		host.document.querySelector("#friends-roster-button").click();
 		host.document.querySelector("#friends-leave").click();
 		await waitFor(() => bob.document.querySelector("#friends-roster-status").textContent.includes("Disconnected"),
