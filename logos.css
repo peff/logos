@@ -1932,6 +1932,7 @@ input[type="text"] {
 }
 
 .pantheon-tablet {
+	grid-row: 1;
 	min-width: 0;
 	padding: 0.1rem;
 	scroll-snap-align: start;

@@ -4650,3 +4650,22 @@ Deno.test("multiplayer Pantheon keeps difficulty filters and opens for a shared 
 		{ seed: 4, date: 4, elapsed: 100, outcome: "lost", multiplayer: 1 },
 	]);
 });
+
+Deno.test("switching ranking modes retains inactive pages for layout", async () => {
+	await withRunHistory(async () => {
+		const puzzle = makePuzzle(1);
+		puzzle.scores.hidden = true;
+		await puzzle.toggleScores();
+		const solo = puzzle.pantheonTablets;
+		await puzzle.togglePantheonMode();
+		assert(puzzle.pantheonTablets !== solo && solo.all.style.visibility === "hidden" &&
+		       solo.all.inert && solo.all.attributes["aria-hidden"] === "true" &&
+		       solo.all.querySelector("ol").children.length === 1,
+		       "inactive rankings lost their content or remained accessible");
+		await puzzle.togglePantheonMode();
+		assert(puzzle.pantheonTablets === solo && !solo.all.style.visibility && !solo.all.inert);
+	}, [
+		{seed: 1, date: 1, elapsed: 100, outcome: "won"},
+		{seed: 2, date: 2, elapsed: 100, outcome: "won", multiplayer: 1},
+	]);
+});

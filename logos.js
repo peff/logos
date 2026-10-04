@@ -296,24 +296,29 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.nextMilestone = 0;
 	this.pantheonViewport = this.scores.querySelector(".pantheon-tablets");
 	this.pantheonScroll = new NativeScroll(this.pantheonViewport);
-	this.pantheonTablets = {};
-	for (var level of ["all", "easy", "medium", "hard"]) {
-		var tablet = document.createElement("div");
-		tablet.className = "pantheon-tablet";
-		tablet.setAttribute("aria-label", level == "all" ? "All victories" : level + " victories");
-		var status = document.createElement("p");
-		status.className = "scores-status";
-		status.setAttribute("role", "status");
-		status.textContent = "Loading victories…";
-		tablet.appendChild(status);
-		var empty = document.createElement("p");
-		empty.className = "scores-empty";
-		empty.hidden = true;
-		tablet.appendChild(empty);
-		tablet.appendChild(document.createElement("ol"));
-		this.pantheonTablets[level] = tablet;
-		this.pantheonViewport.appendChild(tablet);
+	this.pantheonModeTablets = [{}, {}];
+	for (var [mode, tablets] of this.pantheonModeTablets.entries()) {
+		for (var level of ["all", "easy", "medium", "hard"]) {
+			var tablet = document.createElement("div");
+			tablet.className = "pantheon-tablet";
+			tablet.style.gridColumn = ["all", "easy", "medium", "hard"].indexOf(level) + 1;
+			tablet.style.visibility = mode ? "hidden" : "";
+			tablet.setAttribute("aria-label", level == "all" ? "All victories" : level + " victories");
+			var status = document.createElement("p");
+			status.className = "scores-status";
+			status.setAttribute("role", "status");
+			status.textContent = "Loading victories…";
+			tablet.appendChild(status);
+			var empty = document.createElement("p");
+			empty.className = "scores-empty";
+			empty.hidden = true;
+			tablet.appendChild(empty);
+			tablet.appendChild(document.createElement("ol"));
+			tablets[level] = tablet;
+			this.pantheonViewport.appendChild(tablet);
+		}
 	}
+	this.pantheonTablets = this.pantheonModeTablets[0];
 	this.historyViewport = this.scores.querySelector(".history-pages");
 	this.historyScroll = new NativeScroll(this.historyViewport);
 	/* Recycling leaves requires knowing that the native gesture has ended.
@@ -1856,10 +1861,15 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.renderHighScores = function() {
 		if (!this.scores.querySelector(".pantheon-view").hidden)
 			this.renderPantheonTitle();
+		this.pantheonTablets = this.pantheonModeTablets[this.pantheonMultiplayer ? 1 : 0];
 		var tablet = this.pantheonTablets[this.pantheonLevel];
-		for (var level of ["all", "easy", "medium", "hard"]) {
-			this.pantheonTablets[level].inert = level != this.pantheonLevel;
-			this.pantheonTablets[level].setAttribute("aria-hidden", level != this.pantheonLevel);
+		for (var [mode, tablets] of this.pantheonModeTablets.entries()) {
+			for (var level of ["all", "easy", "medium", "hard"]) {
+				var inactive = !!mode != this.pantheonMultiplayer || level != this.pantheonLevel;
+				tablets[level].inert = inactive;
+				tablets[level].setAttribute("aria-hidden", inactive);
+				tablets[level].style.visibility = !!mode != this.pantheonMultiplayer ? "hidden" : "";
+			}
 		}
 		var status = tablet.querySelector(".scores-status");
 		tablet.setAttribute(
