@@ -697,3 +697,39 @@ Deno.test("guests request shared pause states without toggling duplicate request
 		stopAll(host, guest, other);
 	}
 });
+
+Deno.test("host clock heartbeats correct drift without sending on every tick", function() {
+	const host = makeSession("host", "host");
+	const guest = makeSession("guest", "guest");
+	const realNow = Date.now;
+	let now = 1000000;
+	Date.now = () => now;
+	let messages = 0;
+	try {
+		host.session.start(0x12345678);
+		host.session.addPeer("guest", message => {
+			if (message.type == "clock") messages++;
+			guest.session.receive("host", message);
+		});
+		host.session.timerTick();
+		const initial = messages;
+		guest.puzzle.timerStarted -= 5000;
+		for (let i = 0; i < 9; i++) {
+			now += 1000;
+			host.session.timerTick();
+		}
+		assert(messages == initial, "a heartbeat was sent before ten seconds");
+		now += 1000;
+		host.session.timerTick();
+		assert(messages == initial + 1 &&
+		       host.puzzle.timerStarted == guest.puzzle.timerStarted,
+		       "the heartbeat did not correct the guest's clock");
+		host.session.removePeer("guest");
+		now += 10000;
+		host.session.timerTick();
+		assert(messages == initial + 1, "a heartbeat was sent with no guests");
+	} finally {
+		stopAll(host, guest);
+		Date.now = realNow;
+	}
+});

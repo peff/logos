@@ -2194,6 +2194,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		var delay = 1000 - elapsed % 1000;
 		this.timerTimeout = setTimeout(function() {
 			puzzle.updateTimer(Date.now() - puzzle.timerStarted);
+			puzzle.actionController?.timerTick();
 			puzzle.scheduleTimerUpdate();
 		}, delay);
 	}

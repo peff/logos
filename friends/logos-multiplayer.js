@@ -74,6 +74,7 @@ class MultiplayerSession {
 		this.startedAt = null;
 		this.clock = null;
 		this.updatingTimer = false;
+		this.lastClockBroadcast = null;
 		this.history = [];
 		this.committedCommands = new Map();
 		this.peers = new Map();
@@ -341,8 +342,19 @@ class MultiplayerSession {
 
 	timerChanged() {
 		if (this.role == "host" && this.ready && !this.updatingTimer) {
+			this.lastClockBroadcast = Date.now();
 			this.broadcast({ type: "clock", clock: this.clockState() });
 		}
+	}
+
+	timerTick() {
+		/* Reuse the running clock's timer; stopped games need no heartbeat. */
+		if (this.role != "host" || !this.ready || !this.peers.size ||
+		    this.puzzle.timerTimeout === null)
+			return;
+		if (this.lastClockBroadcast === null ||
+		    Date.now() - this.lastClockBroadcast >= 10000)
+			this.timerChanged();
 	}
 
 	receiveClock(clock) {
