@@ -891,7 +891,8 @@ body:is(.proof-active, :has(#proof-controls.hint-explanation)) #logo {
 }
 
 #explain-button,
-.help-explain-button {
+.help-explain-button,
+.friends-roster-action[data-action="hint"] {
 	font-family: "Logos Tiles";
 	font-synthesis: none;
 	font-weight: 400;
@@ -3402,7 +3403,8 @@ body.multiplayer #logo {
 	color: #cfb779;
 }
 
-.friends-roster-action:is([data-action="pause"], [data-action="resume"], [data-action="new-game"]) {
+.friends-roster-action:is([data-action="pause"], [data-action="resume"], [data-action="new-game"], [data-action="hint"]) {
+	color: #cfb779;
 	border: 1px solid #706b5e;
 	border-radius: 0.1rem;
 	box-shadow:

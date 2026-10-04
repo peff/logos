@@ -948,3 +948,54 @@ Deno.test("recent player actions retain attribution across sync and reset with t
 		stopAll(host, guest, late);
 	}
 });
+
+Deno.test("hint requests share zen mode and attribution but keep explanations local", function() {
+	const host = makeSession("host", "host");
+	const guest = makeSession("guest", "alice");
+	const late = makeSession("guest", "bob");
+	const network = new InMemoryMultiplayerNetwork(host.session);
+	try {
+		host.session.start(0x12345678);
+		network.addGuest(guest.session);
+		guest.puzzle.hintAcknowledged = false;
+		guest.puzzle.hint(1);
+		assert(guest.puzzle.pendingHint && host.session.revision == 0,
+		       "opening the hint notice recorded a hint");
+		guest.puzzle.finishHintNotice(false);
+		assert(!host.puzzle.practiceMode && !guest.puzzle.practiceMode,
+		       "canceling the notice changed the game mode");
+		guest.puzzle.hint(1);
+		guest.puzzle.finishHintNotice(true);
+		for (const game of [host, guest])
+			assert(game.puzzle.practiceMode && game.puzzle.usedHints &&
+			       game.puzzle.timerTimeout === null && !game.puzzle.practiceModePreference,
+			       "the hint did not stop everyone's clock and enter game-local zen mode");
+		assert(guest.puzzle.hintRequest?.stage == 1 && !host.puzzle.hintRequest,
+		       "the hint was not confined to the requester");
+		guest.puzzle.hint(2);
+		assert(host.session.recentActions.get("alice").length == 2 &&
+		       guest.session.recentActions.get("alice").every(action => action.type == "hint"),
+		       "repeated hint presses did not create separate attributed events");
+		guest.session.receiveCommit(host.session.history.at(-1));
+		assert(guest.session.recentActions.get("alice").length == 2,
+		       "a duplicate hint commit was logged twice");
+		host.puzzle.hint(1);
+		assert(host.session.recentActions.get("host").at(-1).type == "hint" &&
+		       guest.puzzle.hintRequest.stage == 2 && host.puzzle.hintRequest.stage == 1,
+		       "host hint changed another player's explanation");
+		network.addGuest(late.session);
+		guest.session.requestSync();
+		for (const game of [guest, late])
+			assert(game.puzzle.practiceMode && game.puzzle.usedHints &&
+			       game.puzzle.timerTimeout === null && !game.puzzle.hintRequest &&
+			       JSON.stringify([...game.session.recentActions]) ==
+			       JSON.stringify([...host.session.recentActions]),
+			       "sync did not replay zen mode and history without showing hints");
+		host.session.start(0x12345678);
+		assert([host, guest, late].every(game => !game.puzzle.practiceMode &&
+		       !game.puzzle.usedHints && game.puzzle.timerTimeout !== null),
+		       "a new game retained hint-induced zen mode");
+	} finally {
+		stopAll(host, guest, late);
+	}
+});

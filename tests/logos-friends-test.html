@@ -107,6 +107,25 @@
 		host.puzzle.togglePause();
 		await waitFor(() => [host, alice, bob].every(app =>
 			players(app).querySelector('[data-action="resume"] svg')), "resume columns appear");
+		alice.puzzle.hintAcknowledged = true;
+		for (let stage = 1; stage <= 3; stage++) {
+			alice.document.querySelector('#explain-button').click();
+			await waitFor(() => [host, alice, bob].every(app =>
+				app.puzzle.actionController.recentActions.get(alice.puzzle.actionController.playerId)
+					.filter(action => action.type == "hint").length == stage),
+				"hint press recorded on all peers");
+		}
+		for (const app of [host, alice, bob]) {
+			const icons = players(app).querySelectorAll('[data-action="hint"]');
+			assert(icons.length == 1 && icons[0].textContent == "∵" &&
+				icons[0].parentElement.querySelector('.friends-roster-count').textContent == "3",
+				"hint presses did not share a because icon and count badge");
+			assert(app.puzzle.practiceMode && app.puzzle.timerTimeout === null,
+				"hint did not put everyone into zen mode");
+		}
+		assert(alice.puzzle.proof?.hint && !host.puzzle.proof && !bob.puzzle.proof,
+			"proof viewer was not confined to the requester");
+		alice.puzzle.closeProof();
 		alice.document.querySelector("#friends-roster-button").click();
 		assert(!alice.document.querySelector("#friends-menu").hidden, "the roster heading did not open the menu");
 		alice.document.querySelector("#friends-leave").click();

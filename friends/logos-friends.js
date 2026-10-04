@@ -101,6 +101,10 @@ function renderRecentAction(actions) {
 			(action.type == "place" ? "Placed " : "Discarded ") +
 			symbol + (actions.length > 1 ? " in columns " : " in column ") +
 			actions.map(action => action.column + 1).join(", ");
+	} else if (action.type == "hint") {
+		icon.textContent = "∵";
+		description = actions.length == 1 ? "Asked for a hint" :
+			"Asked for a hint " + actions.length + " times";
 	} else if (action.type == "new-game") {
 		icon.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">' +
 			'<g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round">' +
@@ -154,7 +158,8 @@ function renderPlayers(players) {
 		var groups = [];
 		for (var action of session?.recentActions.get(player.id) || []) {
 			var previous = groups.at(-1)?.at(-1);
-			if (action.type == "remove" && previous?.type == "remove" &&
+			if (action.type == "hint" && previous?.type == "hint" ||
+			    action.type == "remove" && previous?.type == "remove" &&
 			    action.row == previous.row && action.value == previous.value &&
 			    !action.mistake && !previous.mistake)
 				groups.at(-1).push(action);

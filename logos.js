@@ -916,13 +916,9 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	/* Reveal assistance in stages without applying moves to the board. */
-	this.hint = function(stage = 3) {
+	this.hint = function(stage = 3, committed = false) {
 		if (this.gameOver || this.pendingSeed !== undefined || this.paused) {
 			console.log("Start or resume a game before requesting a hint.");
-			return;
-		}
-		if (this.hintRequest) {
-			this.showHint(stage);
 			return;
 		}
 		if (!this.practiceMode && !this.hintAcknowledged) {
@@ -930,6 +926,12 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			this.closeSlotTray();
 			this.toggleModal(this.hintNotice, this.explainButton, "Keep solving");
 			this.hintNotice.querySelector(".modal-close").focus();
+			return;
+		}
+		if (this.actionController && !committed)
+			return this.actionController.requestAction({ type: "hint", stage });
+		if (this.hintRequest) {
+			this.showHint(stage);
 			return;
 		}
 		var base = domainsFromSlots(this);

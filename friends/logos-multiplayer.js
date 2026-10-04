@@ -34,6 +34,9 @@ function slotForAction(puzzle, action) {
 function applicableAction(puzzle, action) {
 	if (!action)
 		return false;
+	if (action.type == "hint")
+		return puzzle.seed !== undefined && !puzzle.gameOver && !puzzle.paused &&
+			Number.isInteger(action.stage) && action.stage >= 1 && action.stage <= 3;
 	if (action.type == "clue")
 		return Number.isInteger(action.clue) &&
 			typeof action.active == "boolean" &&
@@ -47,6 +50,16 @@ function applicableAction(puzzle, action) {
 }
 
 function applyAction(puzzle, action, playerAction) {
+	if (action.type == "hint") {
+		puzzle.practiceMode = true;
+		puzzle.scoreEligible = false;
+		puzzle.usedHints = true;
+		puzzle.stopTimer();
+		puzzle.updatePauseControl();
+		if (playerAction)
+			puzzle.hint(action.stage, true);
+		return;
+	}
 	if (action.type == "clue")
 		return puzzle.applyClueAction(puzzle.clues[action.clue],
 			action.active);
@@ -323,7 +336,8 @@ class MultiplayerSession {
 
 		this.updatingTimer = true;
 		try {
-			applyAction(this.puzzle, message.action, true);
+			applyAction(this.puzzle, message.action,
+				message.action.type != "hint" || from == this.playerId);
 		} finally {
 			this.updatingTimer = false;
 		}
@@ -457,6 +471,10 @@ class MultiplayerSession {
 
 	recordMove(commit) {
 		var action = commit.action;
+		if (action.type == "hint") {
+			this.recordActivity(commit.actor, action);
+			return;
+		}
 		if (action.type != "place" && action.type != "remove")
 			return;
 		var slot = slotForAction(this.puzzle, action);
