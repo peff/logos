@@ -251,6 +251,10 @@
 			assert(requester.puzzle.options.hidden, "starting a seed did not close Options");
 		}
 
+		const randomGuest = await open("guest", "Theseus");
+		const seedGuest = await open("guest", "Sappho");
+		await waitFor(() => [randomGuest, seedGuest].every(app => app.puzzle.actionController?.ready),
+			"guests connected for disconnected game-start checks");
 		const beforeDeparture = [host, bob].map(app => ({
 			seed: app.puzzle.seed,
 			elapsed: app.puzzle.actionController.clockState().elapsed,
@@ -258,8 +262,18 @@
 		}));
 		host.document.querySelector("#friends-roster-button").click();
 		host.document.querySelector("#friends-leave").click();
-		await waitFor(() => bob.puzzle.actionController === null &&
-			bob.document.querySelector("#friends-roster").hidden, "guest returns to solo play");
+		await waitFor(() => bob.document.querySelector("#friends-roster-status").textContent === "Host disconnected",
+			"host departure remains visible to the guest");
+		assert(!bob.document.querySelector("#friends-roster").hidden &&
+		       bob.document.body.classList.contains("multiplayer") &&
+		       !bob.document.querySelector("#new-game-button").disabled,
+		       "host departure dismissed the roster or disabled New Game");
+		bob.document.querySelector("#friends-roster-button").click();
+		assert(bob.document.querySelector("#friends-leave").textContent === "End multiplayer",
+		       "guest has no explicit End multiplayer action");
+		bob.document.querySelector("#friends-leave").click();
+		assert(bob.puzzle.actionController === null && bob.document.querySelector("#friends-roster").hidden,
+		       "ending multiplayer did not restore solo play");
 		for (const [index, app] of [host, bob].entries()) {
 			const old = beforeDeparture[index];
 			assert(app.puzzle.seed === old.seed && app.puzzle.timerTimeout !== null &&
@@ -274,6 +288,25 @@
 		bob.document.querySelector("#new-game-button").click();
 		assert(bob.puzzle.scoreEligible && !bob.puzzle.gameOver,
 			"guest New Game still used the disconnected session");
+		for (const app of [randomGuest, seedGuest])
+			await waitFor(() => app.document.querySelector("#friends-roster-status").textContent === "Host disconnected",
+				"extra guest sees host departure");
+		randomGuest.document.querySelector("#new-game-button").click();
+		assert(randomGuest.document.querySelector("#friends-roster").hidden &&
+		       !randomGuest.document.body.classList.contains("multiplayer") && randomGuest.puzzle.scoreEligible,
+		       "New Game did not leave the disconnected room");
+		seedGuest.puzzle.toggleOptions();
+		const seedInput = seedGuest.document.querySelector("#game-seed");
+		seedInput.value = "invalid";
+		seedGuest.document.querySelector("#start-game-button").click();
+		assert(!seedGuest.document.querySelector("#friends-roster").hidden,
+		       "invalid seed prematurely left the disconnected room");
+		seedInput.value = "10699";
+		seedGuest.document.querySelector("#start-game-button").click();
+		assert(seedGuest.puzzle.seed === 0x10699 && seedGuest.puzzle.scoreEligible &&
+		       seedGuest.document.querySelector("#friends-roster").hidden &&
+		       !seedGuest.document.body.classList.contains("multiplayer") && seedGuest.puzzle.options.hidden,
+		       "seed start did not leave the disconnected room");
 		host.puzzle.newGame(0x10699);
 		const soloSlot = host.puzzle.rows[0].slots.find(slot => !slot.single);
 		host.puzzle.requestTileAction(soloSlot, soloSlot.value, "place");

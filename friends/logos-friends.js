@@ -109,7 +109,12 @@ function beginSession(role) {
 	leaveButton.textContent = role == "host" ?
 		"End multiplayer" : "Leave multiplayer";
 	setGameControlsDisabled(true);
-	newGameButton.onclick = function() { session.requestNewGame(); };
+	newGameButton.onclick = function() {
+		if (rosterConnection == "closed")
+			window.puzzle.newGame();
+		else
+			session.requestNewGame();
+	};
 }
 
 function renderRecentAction(actions) {
@@ -173,7 +178,7 @@ function renderRecentAction(actions) {
 
 function renderPlayers(players) {
 	clearHistoryHighlight();
-	newGameButton.disabled = !!session && !session.ready;
+	newGameButton.disabled = !!session && !session.ready && rosterConnection != "closed";
 	rosterPlayers.replaceChildren();
 	var visiblePlayers = players;
 	if (players.length > 4)
@@ -218,7 +223,7 @@ function renderPlayers(players) {
 	if (rosterConnection == "disconnected")
 		rosterStatus.textContent = "Connection interrupted";
 	else if (rosterConnection == "closed")
-		rosterStatus.textContent = "Disconnected";
+		rosterStatus.textContent = "Host disconnected";
 	else if (!players.length)
 		rosterStatus.textContent = "Connecting…";
 	else if (players.length == 1)
@@ -296,14 +301,6 @@ function updateWebRTCHost(state) {
 }
 
 function updateWebRTCGuest(state) {
-	if (state.terminal && session && session.seed !== null) {
-		var continuing = !window.puzzle.gameOver;
-		leave();
-		window.puzzle.say(continuing ?
-			"The host disconnected. You can continue on your own." :
-			"The host disconnected.");
-		return;
-	}
 	rosterConnection = state.connected ? "connected" :
 		state.state == "disconnected" ? "disconnected" :
 		state.terminal || state.state == "closed" ? "closed" : "connecting";
@@ -317,8 +314,9 @@ function updateWebRTCGuest(state) {
 		status.textContent = "The connection to the host was interrupted.";
 		friendsBadgeCaption.textContent = "Disconnected";
 	} else if (state.state == "failed" || state.state == "closed") {
-		status.textContent = "The connection to the host closed. " +
-			"Leave the game to return to single-player.";
+		status.textContent = "The host disconnected. " +
+			"End multiplayer to return to single-player and keep playing.";
+		leaveButton.textContent = "End multiplayer";
 		friendsBadgeCaption.textContent = "Disconnected";
 	} else {
 		status.textContent = "Send the response to the host and wait for connection.";
@@ -445,6 +443,12 @@ async function acceptAnswer() {
 		status.textContent = e.message;
 	}
 }
+
+/* Seed starts and New Game share the same cleanup, including contemplation. */
+window.puzzle.beforeNewGame = function() {
+	if (session && rosterConnection == "closed")
+		leave();
+};
 
 function leave() {
 	clearHistoryHighlight();

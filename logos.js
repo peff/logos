@@ -566,6 +566,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.newGame = function(seed, awaitStart = false) {
 		this.clearHint();
 		seed = arguments.length ? parseSeed(seed) : this.randomPuzzleSeed();
+		if (seed !== null || !arguments.length)
+			this.beforeNewGame?.();
 		if (seed === null)
 			return false;
 		this.clearInvitationTransition();
