@@ -2380,6 +2380,7 @@ async function withRunHistory(callback, initial) {
 			.sort((a, b) => a.elapsed - b.elapsed || a.id - b.id);
 		return {
 			runs: structuredClone(runs),
+			hasMultiplayer: runs.some(run => run.multiplayer),
 			unratedRuns: structuredClone(wins.filter(run => !Logos.hasRunDifficulty(run))),
 			highScores: structuredClone(wins.filter(run => level == "all" ||
 				Logos.hasRunDifficulty(run) && run.difficulty.level == level).slice(0, 10)),
@@ -4649,6 +4650,24 @@ Deno.test("multiplayer Pantheon keeps difficulty filters and opens for a shared 
 		{ seed: 3, date: 3, elapsed: 100, outcome: "won", multiplayer: 1, difficulty: { version: 1, score: 20, level: "easy" } },
 		{ seed: 4, date: 4, elapsed: 100, outcome: "lost", multiplayer: 1 },
 	]);
+});
+
+Deno.test("empty multiplayer history hides the switch until a shared result arrives", async () => {
+	await withRunHistory(async () => {
+		const puzzle = makePuzzle(1);
+		puzzle.scores.hidden = true;
+		await puzzle.toggleScores();
+		const control = puzzle.scores.querySelector(".pantheon-mode");
+		assert(control.hidden);
+		await puzzle.togglePantheonMode();
+		assert(!puzzle.pantheonMultiplayer);
+		puzzle.gameOver = true;
+		await puzzle.recordOutcome("won", {seed: 1, date: 1, elapsed: 100,
+			outcome: "won", multiplayer: 1});
+		assert(puzzle.pantheonMultiplayer && !control.hidden);
+		await puzzle.togglePantheonMode();
+		assert(!puzzle.pantheonMultiplayer && !control.hidden);
+	});
 });
 
 Deno.test("switching ranking modes retains inactive pages for layout", async () => {

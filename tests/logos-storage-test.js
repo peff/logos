@@ -254,6 +254,7 @@ var storageTestsDone = (async function() {
 		});
 		await test("multiplayer runs persist once without entering solo summaries", async function() {
 			const before = await accessRunHistory(null, true);
+			assert(before.hasMultiplayer === false, "solo history enabled multiplayer rankings");
 			const shared = { ...win, id: undefined, elapsed: 1, multiplayer: true,
 				multiplayerId: "room-game-1", players: ["Plato", "Socrates"],
 				difficulty: { level: "easy", version: 1 } };
@@ -264,6 +265,7 @@ var storageTestsDone = (async function() {
 			await accessRunHistory(structuredClone(shared));
 			await accessRunHistory({ ...shared, multiplayerId: "room-game-2", outcome: "lost" });
 			const after = await accessRunHistory(null, true);
+			assert(after.hasMultiplayer === true, "shared records were not detected");
 			assert(after.runs.length === before.runs.length + 2, "shared run was duplicated or lost");
 			assert(JSON.stringify(after.gameStats) === JSON.stringify(before.gameStats) &&
 			       JSON.stringify(after.highScores) === JSON.stringify(before.highScores),
@@ -355,6 +357,11 @@ var storageTestsDone = (async function() {
 			const history = await accessRunHistory();
 			assert(history && !history.gameStats.won && !history.gameStats.lost &&
 			       !history.highScores.length, "new database could not query its index");
+		});
+		await test("a multiplayer loss alone enables the shared rankings", async function() {
+			const history = await accessRunHistory({ ...loss, multiplayer: 1, multiplayerId: "only-loss" });
+			assert(history.hasMultiplayer && !history.highScores.length,
+			       "existence check required a multiplayer win");
 		});
 		output.textContent += "\n" + passed.length + " tests passed";
 		return true;

@@ -1659,6 +1659,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.historyError = history ? "" : run ?
 			"Your result could not be saved." : "The Chronicle could not be loaded.";
 		if (history) {
+			this.hasMultiplayerHistory = history.hasMultiplayer;
 			this.highScores = history.highScores;
 			this.gameStats = history.gameStats;
 			/* A different ranking may omit the new score. Remember it so
@@ -1964,6 +1965,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.togglePantheonMode = function() {
+		if (!this.pantheonMultiplayer && !this.hasMultiplayerHistory)
+			return;
 		return this.selectPantheon(this.pantheonLevel, false, !this.pantheonMultiplayer);
 	}
 
@@ -1972,6 +1975,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			"The Kindred Laurels" : "The Pantheon of the Wise";
 		var button = this.scores.querySelector(".pantheon-friends");
 		button.hidden = false;
+		this.scores.querySelector(".pantheon-mode").hidden =
+			!this.pantheonMultiplayer && !this.hasMultiplayerHistory;
 		button.setAttribute("aria-pressed", String(this.pantheonMultiplayer));
 		button.title = this.pantheonMultiplayer ? "Show the solo Pantheon" : "Show the Kindred Laurels (multiplayer)";
 		button.setAttribute("aria-label", button.title);
@@ -3180,6 +3185,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.highScores = [];
 	this.pantheonLevel = "all";
 	this.pantheonMultiplayer = false;
+	this.hasMultiplayerHistory = false;
 	this.pantheonLoading = false;
 	this.gameStats = { won: 0, lost: 0 };
 	/* Applying saved preferences must not write a stale snapshot back. */
@@ -3369,6 +3375,10 @@ function accessRunHistory(run, includeRuns, level = "all", multiplayer = false) 
 						};
 					}
 					var index = store.index("multiplayerOutcomeElapsed");
+					/* Return only the first matching key, without reading a run. */
+					index.getKey(IDBKeyRange.bound([1], [2], false, true)).onsuccess = function(event) {
+						summary.hasMultiplayer = event.target.result !== undefined;
+					};
 					var mode = multiplayer ? 1 : 0;
 					var wins = IDBKeyRange.bound([mode, "won", 0], [mode, "won", Number.MAX_VALUE]);
 					var losses = IDBKeyRange.bound([mode, "lost", 0], [mode, "lost", Number.MAX_VALUE]);
