@@ -17,7 +17,15 @@
      stylus (or perhaps we can reintroduce the gear).
    - maybe: attribute moves to players. This might be hard to do in a
      way that is not visually distracting, though (and with cursor
-     sharing you can kind of see it in real-time anyway)
+     sharing you can kind of see it in real-time anyway). If we had a
+     player list in the logo area, possibly this could give a list of
+     recent moves by each player (e.g., a tile X to show it had been
+     placed, or a crossd-out X for discard, though of course the latter
+     can happen in multiple columns)
+   - clue dismissal should be shared
+   - continue after loss should work (at the very least if the host
+     player has it enabled, but maybe even just by default)
+   - multiplayer pantheon? That implies multiplayer run history, as well
  - consider simplifying
    - are chalk marks worth the interface complexity
  - evaluate clue interactions
