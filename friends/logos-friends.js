@@ -32,6 +32,37 @@ var transport = null;
 var guestEntries = new Map();
 var nextGuest = 1;
 var invitationPreview = 0;
+var historyHighlight = null;
+
+function clearHistoryHighlight() {
+	if (!historyHighlight)
+		return;
+	var highlight = historyHighlight;
+	historyHighlight = null;
+	for (var slot of highlight.slots)
+		slot.classList.remove("history-highlight");
+	highlight.event.classList.remove("history-held");
+	if (highlight.event.hasPointerCapture(highlight.pointerId))
+		highlight.event.releasePointerCapture(highlight.pointerId);
+}
+
+function highlightHistory(event, actions, pointerId) {
+	clearHistoryHighlight();
+	var slots = actions.map(action => puzzle.rows[action.row].slots[action.column].elem);
+	historyHighlight = { event, slots, pointerId };
+	for (var slot of slots)
+		slot.classList.add("history-highlight");
+	event.classList.add("history-held");
+}
+
+for (var type of ["pointerup", "pointercancel", "lostpointercapture"])
+	window.addEventListener(type, function(ev) {
+		if (historyHighlight?.pointerId === ev.pointerId)
+			clearHistoryHighlight();
+	}, true);
+window.addEventListener("blur", clearHistoryHighlight);
+document.addEventListener("visibilitychange", clearHistoryHighlight);
+rosterPlayers.addEventListener("scroll", clearHistoryHighlight, true);
 
 try {
 	nameInput.value = localStorage.getItem("multiplayerPlayerName") || "";
@@ -130,10 +161,20 @@ function renderRecentAction(actions) {
 		event.append(count);
 	}
 	event.title = description;
+	if (action.type == "place" || action.type == "remove") {
+		event.classList.add("friends-roster-tile-event");
+		event.addEventListener("pointerdown", function(ev) {
+			if (ev.button != 0 || !ev.isPrimary)
+				return;
+			highlightHistory(event, actions, ev.pointerId);
+			event.setPointerCapture(ev.pointerId);
+		});
+	}
 	return event;
 }
 
 function renderPlayers(players) {
+	clearHistoryHighlight();
 	newGameButton.disabled = !!session && !session.ready;
 	rosterPlayers.replaceChildren();
 	for (var player of players) {
@@ -396,6 +437,7 @@ async function acceptAnswer() {
 }
 
 function leave() {
+	clearHistoryHighlight();
 	if (transport)
 		transport.close();
 	transport = null;
@@ -428,6 +470,7 @@ function leave() {
 }
 
 function toggleMenu() {
+	clearHistoryHighlight();
 	if (!window.puzzle.options.hidden)
 		window.puzzle.toggleOptions();
 	window.puzzle.toggleModal(friendsMenu, friendsButton, "Close");

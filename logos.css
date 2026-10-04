@@ -3396,6 +3396,23 @@ body.multiplayer #logo {
 	font: bold max(0.4rem, 9px)/1 sans-serif;
 }
 
+.friends-roster-tile-event {
+	cursor: var(--action-cursor);
+	touch-action: pan-y;
+}
+
+.friends-roster-tile-event.history-held {
+	outline: 1px solid #a36b25;
+	outline-offset: -1px;
+}
+
+#board .slot.history-highlight {
+	background-color: #f4dfb2;
+	outline: 2px solid #a36b25;
+	outline-offset: -2px;
+	box-shadow: 0 0 0.4rem rgb(163 107 37 / 75%);
+}
+
 .friends-roster-action {
 	--chalk-mark: rgb(240 232 211 / 88%);
 	box-sizing: border-box;

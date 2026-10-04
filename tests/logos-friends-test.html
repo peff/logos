@@ -109,12 +109,43 @@
 				icons[0].title.endsWith([slot, nextSlot].map(s => s.row.slots.indexOf(s) + 1).join(", ")),
 				"grouped discard lost its columns");
 		}
+		const heldEvent = players(alice).querySelector('.friends-roster-tile-event');
+		const marked = () => alice.document.querySelectorAll('#board .history-highlight');
+		/* Synthetic pointer events have no browser-owned pointer to capture. */
+		heldEvent.setPointerCapture = () => {};
+		const press = target => target.dispatchEvent(new alice.PointerEvent('pointerdown', {
+			bubbles: true, button: 0, pointerId: 42, isPrimary: true,
+		}));
+		press(heldEvent.querySelector('.friends-roster-count'));
+		assert(marked().length == 2 && slot.elem.classList.contains('history-highlight') &&
+			nextSlot.elem.classList.contains('history-highlight'), "badge hold did not highlight both slots");
+		assert(!host.document.querySelector('.history-highlight'), "history highlighting was shared");
+		alice.document.body.dispatchEvent(new alice.PointerEvent('pointerup', { bubbles: true, pointerId: 42 }));
+		assert(marked().length == 0, "release outside the icon retained highlights");
+		press(heldEvent);
+		heldEvent.dispatchEvent(new alice.PointerEvent('pointercancel', { bubbles: true, pointerId: 42 }));
+		assert(marked().length == 0, "pointer cancellation retained highlights");
+		press(heldEvent);
 		bob.puzzle.togglePause();
 		await waitFor(() => [host, alice, bob].every(app =>
 			players(app).querySelector('[data-action="pause"] svg')), "pause icons appear");
+		assert(marked().length == 0, "roster refresh retained held highlights");
+		press(players(alice).querySelector('[data-action="pause"]'));
+		assert(marked().length == 0, "a meta entry highlighted tiles");
 		host.puzzle.togglePause();
 		await waitFor(() => [host, alice, bob].every(app =>
 			players(app).querySelector('[data-action="resume"] svg')), "resume columns appear");
+		const placedSlot = host.puzzle.rows[1].slots.find(slot => !slot.single);
+		host.puzzle.requestTileAction(placedSlot, placedSlot.value, "place");
+		await waitFor(() => players(alice).querySelector('[data-action="place"]'), "placement history entry");
+		const placementEvent = players(alice).querySelector('[data-action="place"]').parentElement;
+		placementEvent.setPointerCapture = () => {};
+		press(placementEvent);
+		assert(marked().length == 1 && marked()[0] ==
+			alice.puzzle.rows[1].slots[placedSlot.row.slots.indexOf(placedSlot)].elem,
+			"placement hold did not highlight its slot");
+		alice.dispatchEvent(new alice.Event('blur'));
+		assert(marked().length == 0, "window blur retained highlights");
 		alice.puzzle.hintAcknowledged = true;
 		const buttonTop = alice.document.querySelector('#new-game-button').getBoundingClientRect().top;
 		const rosterBox = alice.document.querySelector('#friends-roster').getBoundingClientRect();
