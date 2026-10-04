@@ -62,6 +62,11 @@ class MultiplayerSession {
 		this.puzzle = puzzle;
 		this.role = options.role;
 		this.playerId = options.playerId || this.role;
+		this.playerName = options.playerName || this.playerId;
+		this.onPlayersChanged = options.onPlayersChanged || function() {};
+		this.players = this.role == "host" ? [{
+			id: this.playerId, name: this.playerName, role: "host", state: "connected",
+		}] : [];
 		this.revision = 0;
 		this.nextCommand = 1;
 		this.seed = null;
@@ -110,16 +115,56 @@ class MultiplayerSession {
 		return true;
 	}
 
-	addPeer(playerId, sender) {
+	addPeer(playerId, sender, playerName) {
 		if (this.role != "host")
 			throw new Error("only the host can add peers");
 		this.peers.set(playerId, sender);
+		this.players = this.players.filter(player => player.id != playerId);
+		this.players.push({
+			id: playerId, name: playerName || playerId, role: "guest", state: "connected",
+		});
 		if (this.ready)
 			sender(this.syncMessage());
+		this.playersChanged();
 	}
 
 	removePeer(playerId) {
-		this.peers.delete(playerId);
+		if (!this.peers.delete(playerId))
+			return;
+		this.players = this.players.filter(player => player.id != playerId);
+		this.playersChanged();
+	}
+
+	setPlayerName(name) {
+		this.playerName = name;
+		if (this.role == "host") {
+			this.players[0].name = name;
+			this.playersChanged();
+		}
+	}
+
+	setPeerState(playerId, state) {
+		var player = this.players.find(player => player.id == playerId);
+		if (this.role != "host" || !player || player.state == state)
+			return;
+		player.state = state;
+		this.playersChanged();
+	}
+
+	playersChanged() {
+		this.onPlayersChanged(copyMessage(this.players));
+		if (this.role == "host")
+			this.broadcast({ type: "players", players: copyMessage(this.players) });
+	}
+
+	receivePlayers(players) {
+		if (!Array.isArray(players) || players.some(player =>
+		    !player || typeof player.id != "string" || typeof player.name != "string" ||
+		    !["host", "guest"].includes(player.role) ||
+		    !["connected", "interrupted"].includes(player.state)))
+			return;
+		this.players = copyMessage(players);
+		this.onPlayersChanged(copyMessage(this.players));
 	}
 
 	connectHost(sender) {
@@ -188,6 +233,8 @@ class MultiplayerSession {
 			this.sendTo(from, this.syncMessage());
 		else if (this.role == "guest" && message.type == "sync")
 			this.receiveSync(message);
+		else if (this.role == "guest" && message.type == "players")
+			this.receivePlayers(message.players);
 		else if (this.role == "guest" && message.type == "clock")
 			this.receiveClock(message.clock);
 		else if (this.role == "guest" && message.type == "commit")
@@ -286,6 +333,7 @@ class MultiplayerSession {
 		this.history = copyMessage(message.history);
 		this.ready = true;
 		this.receiveClock(message.clock);
+		this.receivePlayers(message.players);
 	}
 
 	receiveRejection(message) {
@@ -320,6 +368,7 @@ class MultiplayerSession {
 			startedAt: this.startedAt,
 			revision: this.revision,
 			history: copyMessage(this.history),
+			players: copyMessage(this.players),
 			clock: this.clockState(),
 		};
 	}
@@ -394,6 +443,8 @@ class MultiplayerSession {
 			this.localRules.continueAfterLoss;
 		this.ready = false;
 		this.peers.clear();
+		this.players = [];
+		this.onPlayersChanged([]);
 		this.hostSender = null;
 		this.puzzle.updatePauseControl();
 	}
@@ -426,7 +477,7 @@ class InMemoryMultiplayerNetwork {
 		});
 		host.addPeer(guest.playerId, function(message) {
 			guest.receive(host.playerId, message);
-		});
+		}, guest.playerName);
 	}
 }
 

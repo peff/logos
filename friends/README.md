@@ -32,3 +32,8 @@ The host maintains the shared clock, and any player can explicitly pause or
 resume the game for everyone. Menus and tab visibility remain local for all
 players and do not pause the game. While the clock runs, the host broadcasts
 its time every ten seconds as well as with moves and pause/resume changes.
+
+Connected players remain visible below the game controls, replacing the logo.
+The host and guests see the same roster, including interrupted connections.
+Click **Logos with friends** above the roster to reopen the invitation and
+leave controls.

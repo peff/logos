@@ -132,6 +132,7 @@ class WebRTCHostTransport {
 		this.iceGatheringTimeout = options.iceGatheringTimeout || 10000;
 		this.connectionTimeout = options.connectionTimeout || 30000;
 		this.playerName = normalizePlayerName(options.playerName, "Host");
+		this.session.setPlayerName(this.playerName);
 		this.idFactory = options.idFactory || function() {
 			return crypto.randomUUID();
 		};
@@ -195,10 +196,12 @@ class WebRTCHostTransport {
 				transport.drop(record, state);
 			else if (state == "disconnected") {
 				transport.scheduleFailure(record);
+				transport.session.setPeerState(record.playerId, "interrupted");
 				transport.changed("disconnected", record);
 			} else if (state == "connected" &&
 				   record.channel.readyState == "open") {
 				transport.clearFailure(record);
+				transport.session.setPeerState(record.playerId, "connected");
 				transport.changed("connected", record);
 			}
 		};
@@ -212,7 +215,7 @@ class WebRTCHostTransport {
 			transport.clearFailure(record);
 			transport.session.addPeer(record.playerId, function(message) {
 				record.channel.send(JSON.stringify(message));
-			});
+			}, record.playerName);
 			transport.changed("connected", record);
 		};
 		record.channel.onmessage = function(event) {

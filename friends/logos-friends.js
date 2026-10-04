@@ -23,6 +23,10 @@ var answerInput = friendsMenu.querySelector("#friends-answer-input");
 var answerOutput = friendsMenu.querySelector("#friends-answer-output");
 var nameInput = friendsMenu.querySelector("#friends-player-name");
 var playerList = friendsMenu.querySelector(".friends-player-list");
+var roster = document.querySelector("#friends-roster");
+var rosterPlayers = document.querySelector("#friends-roster-players");
+var rosterStatus = document.querySelector("#friends-roster-status");
+var rosterConnection = "connecting";
 var session = null;
 var transport = null;
 var guestEntries = new Map();
@@ -67,7 +71,13 @@ function beginSession(role) {
 	session = new MultiplayerSession(window.puzzle, {
 		role,
 		playerId: playerId(),
+		playerName: playerName(role),
+		onPlayersChanged: renderPlayers,
 	});
+	rosterConnection = role == "host" ? "connected" : "connecting";
+	roster.hidden = false;
+	document.body.classList.add("multiplayer");
+	renderPlayers(session.players);
 	if (role == "host")
 		startSharedGame();
 	startControls.hidden = true;
@@ -79,6 +89,38 @@ function beginSession(role) {
 		"End multiplayer" : "Leave multiplayer";
 	setGameControlsDisabled(true);
 	newGameButton.onclick = role == "host" ? startSharedGame : toggleMenu;
+}
+
+function renderPlayers(players) {
+	rosterPlayers.replaceChildren();
+	for (var player of players) {
+		var entry = document.createElement("li");
+		entry.dataset.state = player.state;
+		var name = document.createElement("span");
+		name.className = "friends-roster-name";
+		name.textContent = player.name;
+		name.title = player.name;
+		var details = document.createElement("span");
+		details.className = "friends-roster-detail";
+		var labels = [];
+		if (player.role == "host") labels.push("Host");
+		if (player.id == session?.playerId) labels.push("You");
+		if (player.state == "interrupted") labels.push("Interrupted");
+		details.textContent = labels.join(" · ");
+		entry.append(name, details);
+		rosterPlayers.append(entry);
+	}
+	roster.dataset.state = rosterConnection;
+	if (rosterConnection == "disconnected")
+		rosterStatus.textContent = "Connection interrupted";
+	else if (rosterConnection == "closed")
+		rosterStatus.textContent = "Disconnected";
+	else if (!players.length)
+		rosterStatus.textContent = "Connecting…";
+	else if (players.length == 1)
+		rosterStatus.textContent = "Invite friends";
+	else
+		rosterStatus.textContent = "";
 }
 
 function playerName(role) {
@@ -148,6 +190,10 @@ function updateWebRTCHost(state) {
 }
 
 function updateWebRTCGuest(state) {
+	rosterConnection = state.connected ? "connected" :
+		state.state == "disconnected" ? "disconnected" :
+		state.terminal || state.state == "closed" ? "closed" : "connecting";
+	renderPlayers(session?.players || []);
 	if (state.connected) {
 		status.textContent = "Connected to the host.";
 		friendsBadgeCaption.textContent = "Joined";
@@ -291,6 +337,9 @@ function leave() {
 		transport.close();
 	transport = null;
 	session = null;
+	roster.hidden = true;
+	document.body.classList.remove("multiplayer");
+	rosterPlayers.replaceChildren();
 	guestEntries.clear();
 	playerList.replaceChildren();
 	playerList.classList.remove("friends-has-guests");
@@ -318,6 +367,8 @@ function toggleMenu() {
 	if (!window.puzzle.options.hidden)
 		window.puzzle.toggleOptions();
 	window.puzzle.toggleModal(friendsMenu, friendsButton, "Close");
+	document.querySelector("#friends-roster-button").setAttribute(
+		"aria-expanded", !friendsMenu.hidden);
 }
 
 async function copyField(selector, button) {
@@ -350,6 +401,7 @@ function showCopied(button) {
 }
 
 friendsButton.addEventListener("click", toggleMenu);
+document.querySelector("#friends-roster-button").addEventListener("click", toggleMenu);
 friendsMenu.querySelector(".modal-close").addEventListener("click", toggleMenu);
 friendsMenu.addEventListener("click", function(event) {
 	if (event.target == friendsMenu)

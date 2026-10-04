@@ -843,6 +843,7 @@ body:is(.proof-active, :has(#proof-controls.hint-explanation)) #logo {
 .modal-done:focus-visible,
 .option-action:focus-visible,
 #friends-button:focus-visible,
+#friends-roster-button:focus-visible,
 .tile-action-selector input:focus-visible + label {
 	outline: 2px solid #80633a;
 	outline-offset: 0.16rem;
@@ -3248,4 +3249,110 @@ body.proof-active :is(#hclues, #vclues) .clue.proof-current {
 	display: flex;
 	justify-content: center;
 	gap: 0.5rem;
+}
+
+/* Keep the shared roster visible even when the logo gives way to controls. */
+body.multiplayer #logo {
+	display: none;
+}
+
+#friends-roster {
+	box-sizing: border-box;
+	width: 18rem;
+	max-width: 100%;
+	padding: 0.25rem 0.5rem;
+	border-block: 1px solid #a99c81;
+	color: #293638;
+	background: rgb(239 233 219 / 45%);
+}
+
+.friends-roster-heading {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 0.5rem;
+}
+
+#friends-roster-title {
+	flex-shrink: 0;
+	margin: 0;
+	font: max(0.7rem, 12px) Forum, Georgia, serif;
+}
+
+#friends-roster-title .logo-name {
+	letter-spacing: 0.18em;
+}
+
+#friends-roster-button {
+	border: 0;
+	padding: 0;
+	background: none;
+	color: inherit;
+	font: inherit;
+	cursor: var(--action-cursor);
+}
+
+#friends-roster-button:hover {
+	color: #80633a;
+}
+
+#friends-roster-status {
+	margin: 0;
+	text-align: right;
+	font-size: max(0.6rem, 11px);
+	color: #68685f;
+}
+
+#friends-roster-players {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+	gap: 0.12rem;
+	max-height: max(3.8rem, 64px);
+	overflow-y: auto;
+	margin: 0.2rem 0 0;
+	padding: 0;
+	list-style: none;
+}
+
+#friends-roster-players li {
+	display: flex;
+	align-items: baseline;
+	gap: 0.25rem;
+	min-width: 0;
+	font-size: max(0.7rem, 12px);
+}
+
+#friends-roster-players li::before {
+	content: "";
+	flex: 0 0 0.28rem;
+	height: 0.28rem;
+	border-radius: 50%;
+	background: #56715a;
+	align-self: center;
+}
+
+.friends-roster-name {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.friends-roster-detail {
+	flex-shrink: 0;
+	font-size: max(0.52rem, 10px);
+	color: #68685f;
+}
+
+#friends-roster-players li[data-state="interrupted"]::before {
+	background: #a06e2e;
+}
+
+#friends-roster[data-state="disconnected"] #friends-roster-players {
+	opacity: 0.55;
+}
+
+@media (orientation: portrait) {
+	#friends-roster {
+		width: 27.5rem;
+	}
 }

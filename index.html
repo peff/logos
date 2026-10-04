@@ -620,6 +620,14 @@
 					       title="Hint / Explain"
 					       aria-label="Hint or explain a mistake" aria-pressed="false">
 				</div>
+				<section id="friends-roster" hidden aria-labelledby="friends-roster-title">
+					<div class="friends-roster-heading">
+						<h2 id="friends-roster-title"><button id="friends-roster-button" type="button"
+						    aria-controls="friends-menu" aria-expanded="false" title="Multiplayer controls"><span class="logo-name">LOGOS</span> with friends</button></h2>
+						<span id="friends-roster-status" role="status"></span>
+					</div>
+					<ul id="friends-roster-players" aria-label="Players" tabindex="0"></ul>
+				</section>
 				<button id="logo" type="button" onClick="puzzle.toggleAbout()"
 				        aria-label="About Logos" aria-expanded="false"
 				        aria-controls="about-menu">

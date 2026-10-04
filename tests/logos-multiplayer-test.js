@@ -436,6 +436,8 @@ Deno.test("WebRTC transports connect sessions through offer and answer", async f
 	assert(guest.session.ready && host.session.peers.has("guest-id") &&
 	       boardState(host.puzzle) == boardState(guest.puzzle),
 	       "the WebRTC guest did not synchronize after connecting");
+	assert(guest.session.players.map(player => player.name).join() == "Helen,Grace",
+	       "the transport did not publish the names from signaling");
 	assert(hostState.connectionId == "connection-id" &&
 	       hostState.playerId == "guest-id" &&
 	       hostState.playerName == "Grace",
@@ -450,9 +452,13 @@ Deno.test("WebRTC transports connect sessions through offer and answer", async f
 	       boardState(host.puzzle) == boardState(guest.puzzle),
 	       "the WebRTC data channel did not carry the guest move");
 	factory.peers[0].setConnectionState("disconnected");
+	assert(host.session.players[1].state == "interrupted",
+	       "the transport did not mark the interrupted guest");
 	assert(hostState.state == "disconnected",
 	       "the WebRTC host did not report an interrupted connection");
 	factory.peers[0].setConnectionState("connected");
+	assert(host.session.players[1].state == "connected",
+	       "the transport did not mark the recovered guest");
 	assert(hostState.state == "connected",
 	       "the WebRTC host did not report a recovered connection");
 	factory.peers[1].setConnectionState("disconnected");
@@ -731,5 +737,50 @@ Deno.test("host clock heartbeats correct drift without sending on every tick", f
 	} finally {
 		stopAll(host, guest);
 		Date.now = realNow;
+	}
+});
+
+Deno.test("every player sees roster changes without replaying the puzzle", function() {
+	const host = makeSession("host", "host");
+	const alice = makeSession("guest", "alice");
+	const bob = makeSession("guest", "bob");
+	try {
+		host.session.setPlayerName("Helen");
+		alice.session.setPlayerName("Alice");
+		bob.session.setPlayerName("Bob");
+		host.session.start(0x12345678);
+		const network = new InMemoryMultiplayerNetwork(host.session);
+		network.addGuest(alice.session);
+		const move = wrongMove(alice.puzzle);
+		alice.puzzle.requestTileAction(move.slot, move.value, "remove");
+		const identity = alice.puzzle.gameIdentity;
+		network.addGuest(bob.session);
+		for (const game of [host, alice, bob]) {
+			assert(game.session.players.map(player => player.name).join() == "Helen,Alice,Bob",
+			       "the roster did not include all player names");
+			assert(game.session.players[0].role == "host",
+			       "the roster did not identify the host");
+		}
+		assert(alice.puzzle.gameIdentity == identity && alice.session.revision == 1,
+		       "a roster update replayed an existing guest's puzzle");
+		host.session.setPeerState("bob", "interrupted");
+		assert(alice.session.players[2].state == "interrupted",
+		       "an interrupted connection was not shared");
+		host.session.setPeerState("bob", "connected");
+		assert(alice.session.players[2].state == "connected",
+		       "a recovered connection was not shared");
+		host.session.removePeer("bob");
+		assert(alice.session.players.length == 2 && host.session.players.length == 2,
+		       "a departed player remained in the shared roster");
+		host.session.start(0x87654321);
+		assert(alice.session.players.map(player => player.name).join() == "Helen,Alice",
+		       "starting a new game lost the roster");
+		let cleared = false;
+		alice.session.onPlayersChanged = players => { cleared = players.length == 0; };
+		alice.session.leave();
+		assert(cleared && alice.session.players.length == 0,
+		       "leaving did not clear the roster");
+	} finally {
+		stopAll(host, alice, bob);
 	}
 });
