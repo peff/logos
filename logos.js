@@ -1248,6 +1248,26 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		return this.applyTileAction(slot, value, action);
 	}
 
+	this.requestClueAction = function(clue, active) {
+		if (this.proof)
+			return false;
+		if (this.actionController)
+			return this.actionController.requestClueAction(clue, active);
+		return this.applyClueAction(clue, active);
+	}
+
+	this.applyClueAction = function(clue, active) {
+		if (clue.active && !active)
+			this.playSound("clue");
+		/* A temporary contradiction reveal must not undo this choice. */
+		if (this.practiceMistake)
+			for (var state of this.practiceMistake.clueStates)
+				if (state.clue == clue)
+					state.active = active;
+		clue.active = active;
+		checkClueDisplay(clue);
+	}
+
 	this.withEffectsSuppressed = function(callback) {
 		var old = this.effectsSuppressed;
 		this.effectsSuppressed = true;
@@ -5549,12 +5569,7 @@ function renderClue(puzzle, clue, slot, type, elements, horizontal) {
 				clue.suppressClick = false;
 				return;
 			}
-			if (puzzle.proof)
-				return;
-			if (clue.active)
-				puzzle.playSound("clue");
-			clue.active = !clue.active;
-			checkClueDisplay(clue);
+			puzzle.requestClueAction(clue, !clue.active);
 		};
 	}
 	slot.onclick = function(ev) {

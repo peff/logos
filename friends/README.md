@@ -19,9 +19,10 @@ To try WebRTC between two browsers:
 4. Copy the answer back to the host.
 5. In the host, paste the answer and select **Accept response**.
 
-Once connected, committed moves should appear in both browsers; chalk marks
-deliberately remain local. The host can create a separate invitation for each
-additional guest.
+Once connected, committed moves and manual clue dismissal/restoration appear
+for every player, including guests who join later. Chalk marks and automatic
+clue dismissal preferences remain local. The host can create a separate
+invitation for each additional guest.
 
 The host’s practice mode and continue-after-loss preferences apply to the
 shared game. With continuation enabled, a mistake switches everyone to

@@ -22,7 +22,6 @@
      recent moves by each player (e.g., a tile X to show it had been
      placed, or a crossd-out X for discard, though of course the latter
      can happen in multiple columns)
-   - clue dismissal should be shared
    - multiplayer pantheon? That implies multiplayer run history, as well
  - consider simplifying
    - are chalk marks worth the interface complexity

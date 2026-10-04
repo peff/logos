@@ -30,6 +30,12 @@ function slotForAction(puzzle, action) {
 }
 
 function applicableAction(puzzle, action) {
+	if (!action)
+		return false;
+	if (action.type == "clue")
+		return Number.isInteger(action.clue) &&
+			typeof action.active == "boolean" &&
+			!!puzzle.clues[action.clue]?.display;
 	if (action.type != "place" && action.type != "remove")
 		return false;
 	var slot = slotForAction(puzzle, action);
@@ -38,13 +44,15 @@ function applicableAction(puzzle, action) {
 		!slot.single && slot.possible[action.value];
 }
 
-function applyAction(puzzle, action, playerAction, deferClueDismissal) {
+function applyAction(puzzle, action, playerAction) {
+	if (action.type == "clue")
+		return puzzle.applyClueAction(puzzle.clues[action.clue],
+			action.active);
 	var slot = slotForAction(puzzle, action);
 	if (!slot)
 		throw new Error("invalid multiplayer action coordinates");
 	puzzle.applyTileAction(slot, action.value, action.type, {
 		playerAction,
-		deferClueDismissal,
 	});
 }
 
@@ -120,10 +128,18 @@ class MultiplayerSession {
 		/* Tentative marks remain private to each player's board. */
 		if (type == "pencil-select" || type == "pencil-remove")
 			return this.puzzle.applyTileAction(slot, value, type);
+		return this.requestAction(actionFromSlot(this.puzzle, slot, value, type));
+	}
+
+	requestClueAction(clue, active) {
+		return this.requestAction({
+			type: "clue", clue: this.puzzle.clues.indexOf(clue), active,
+		});
+	}
+
+	requestAction(action) {
 		if (!this.ready)
 			return false;
-
-		var action = actionFromSlot(this.puzzle, slot, value, type);
 		var command = {
 			type: "command",
 			commandId: this.playerId + ":" + this.nextCommand++,
@@ -222,13 +238,12 @@ class MultiplayerSession {
 		this.puzzle.withEffectsSuppressed(function() {
 			for (var i = 0; i < message.history.length; i++) {
 				applyAction(session.puzzle,
-					message.history[i].action, false, true);
+					message.history[i].action, false);
 				if ((session.puzzle.continuedFromLoss ||
 				     session.puzzle.gameOver) && stoppedAt === null)
 					stoppedAt = message.history[i].committedAt;
 			}
 		});
-		this.puzzle.dismissExhaustedClues();
 		this.seed = message.seed;
 		this.startedAt = message.startedAt;
 		this.revision = message.revision;

@@ -114,7 +114,7 @@ Deno.test("remote moves dismiss exhausted clues locally", function() {
 	stopAll(host, guest);
 });
 
-Deno.test("history replay dismisses exhausted clues only once", function() {
+Deno.test("history replay checks exhausted clues after each tile move", function() {
 	const host = makeSession("host", "host");
 	host.session.start(0x13572468);
 	for (let i = 0; i < 3; i++) {
@@ -126,8 +126,8 @@ Deno.test("history replay dismisses exhausted clues only once", function() {
 	let dismissals = 0;
 	guest.puzzle.dismissExhaustedClues = function() { dismissals++; };
 	new InMemoryMultiplayerNetwork(host.session).addGuest(guest.session);
-	assert(dismissals == 1,
-	       "history replay checked exhausted clues more than once");
+	assert(dismissals == 3,
+	       "history replay did not preserve clue dismissal order");
 	stopAll(host, guest);
 });
 
@@ -501,6 +501,31 @@ Deno.test("WebRTC hosts time out accepted answers which do not connect", async f
 	stopAll(host, guest);
 });
 
+Deno.test("manual clue choices reach all guests and survive replay", function() {
+	const host = makeSession("host", "host");
+	const alice = makeSession("guest", "alice");
+	const bob = makeSession("guest", "bob");
+	const network = new InMemoryMultiplayerNetwork(host.session);
+	host.session.start(0x12345678);
+	network.addGuest(alice.session);
+	network.addGuest(bob.session);
+	const index = host.puzzle.clues.findIndex(clue => clue.display);
+	alice.puzzle.clues[index].listener({ preventDefault() {} });
+	for (const game of [host, alice, bob])
+		assert(!game.puzzle.clues[index].active,
+		       "a guest dismissal was not shared");
+	bob.puzzle.requestClueAction(bob.puzzle.clues[index], true);
+	for (const game of [host, alice, bob])
+		assert(game.puzzle.clues[index].active,
+		       "a guest restoration was not shared");
+	host.puzzle.requestClueAction(host.puzzle.clues[index], false);
+	const late = makeSession("guest", "late");
+	network.addGuest(late.session);
+	assert(!late.puzzle.clues[index].active && late.session.revision == 3,
+	       "a late guest lost the manual clue choice");
+	stopAll(host, alice, bob, late);
+});
+
 Deno.test("continued multiplayer losses honor host preferences and replay", function() {
 	const puzzle = makePuzzle(6, true, Logos.defaultSymbols);
 	puzzle.continueAfterLoss = true;
@@ -537,4 +562,29 @@ Deno.test("continued multiplayer losses honor host preferences and replay", func
 	assert(host.puzzle.continueAfterLoss,
 	       "leaving changed the host's continuation preference");
 	stopAll(host, guest, late);
+});
+
+Deno.test("replay preserves restoration of an exhausted clue and the finish time", function() {
+	const host = makeSession("host", "host");
+	host.puzzle.autoDismissClues = true;
+	host.session.start(0x12345678);
+	for (const row of host.puzzle.rows)
+		for (const slot of row.slots)
+			if (!slot.single)
+				host.puzzle.requestTileAction(slot, slot.value, "place");
+	assert(host.puzzle.gameOver, "the host did not finish the puzzle");
+	const finished = host.session.history.at(-1);
+	finished.committedAt = host.session.startedAt + 1000;
+	const index = host.puzzle.clues.findIndex(clue => clue.display && !clue.active);
+	assert(index >= 0, "no clue was automatically dismissed");
+	host.puzzle.requestClueAction(host.puzzle.clues[index], true);
+	host.session.history.at(-1).committedAt = finished.committedAt + 5000;
+	const guest = makeSession("guest", "late");
+	guest.puzzle.autoDismissClues = true;
+	new InMemoryMultiplayerNetwork(host.session).addGuest(guest.session);
+	assert(guest.puzzle.clues[index].active,
+	       "replay dismissed a clue restored after its last tile move");
+	assert(guest.puzzle.timerElapsed == 1000,
+	       "a clue action after the finish changed the replayed timer");
+	stopAll(host, guest);
 });
