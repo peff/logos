@@ -6,6 +6,8 @@ const room = params.get("local-test");
 const id = params.get("local-id") || crypto.randomUUID();
 const fileMode = location.protocol == "file:";
 const targets = new Map();
+const guestNames = ["Socrates", "Eratosthenes", "Io", "Theseus", "Hypatia", "Sappho", "Archimedes"];
+let nextGuestName = 0;
 let channel;
 
 async function start() {
@@ -30,10 +32,15 @@ async function start() {
 				const url = new URL(location.href);
 				url.searchParams.set("local-role", "guest");
 				url.searchParams.set("local-id", guestId);
-				url.searchParams.delete("local-name");
+				const name = guestNames[nextGuestName % guestNames.length];
+				const round = Math.floor(nextGuestName / guestNames.length);
+				url.searchParams.set("local-name", name + (round ? " " + (round + 1) : ""));
 				/* Retain the opener to signal between file: windows. */
 				const guest = window.open(url, "_blank");
-				if (guest) targets.set(guestId, guest);
+				if (guest) {
+					targets.set(guestId, guest);
+					nextGuestName++;
+				}
 				else report("Allow popups to open a guest tab");
 			};
 			controls.append(button);
@@ -58,7 +65,7 @@ async function start() {
 		}
 		const click = selector => document.querySelector(selector).click();
 		document.querySelector("#friends-player-name").value = params.get("local-name") ||
-			(role == "host" ? "Host" : "Guest " + id.slice(0, 4));
+			(role == "host" ? "Plato" : "Socrates");
 		const pending = new Set();
 		let queue = Promise.resolve();
 		let joining = false;
