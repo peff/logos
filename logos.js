@@ -1894,6 +1894,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			return;
 		}
 		var gamesSought = this.gameStats.won + this.gameStats.lost;
+		this.scores.querySelector(".games-subject").textContent =
+			this.pantheonMultiplayer ? "Together, you" : "You";
 		this.scores.querySelector(".games-sought").textContent = gamesSought;
 		this.scores.querySelector(".games-sought-unit").textContent =
 			gamesSought == 1 ? "time" : "times";
@@ -1976,13 +1978,13 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 
 	this.renderPantheonTitle = function() {
 		this.scores.querySelector("#scores-title").textContent = this.pantheonMultiplayer ?
-			"The Kindred Laurels" : "The Pantheon of the Wise";
+			"The Circle of the Wise" : "The Pantheon of the Wise";
 		var button = this.scores.querySelector(".pantheon-friends");
 		button.hidden = false;
 		this.scores.querySelector(".pantheon-mode").hidden =
 			!this.pantheonMultiplayer && !this.hasMultiplayerHistory;
 		button.setAttribute("aria-pressed", String(this.pantheonMultiplayer));
-		button.title = this.pantheonMultiplayer ? "Show the solo Pantheon" : "Show the Kindred Laurels (multiplayer)";
+		button.title = this.pantheonMultiplayer ? "Show the solo Pantheon" : "Show the Circle of the Wise (multiplayer)";
 		button.setAttribute("aria-label", button.title);
 	}
 

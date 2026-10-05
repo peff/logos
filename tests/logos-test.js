@@ -4626,7 +4626,7 @@ Deno.test("multiplayer Pantheon keeps difficulty filters and opens for a shared 
 		await puzzle.togglePantheonMode();
 		assert(puzzle.pantheonMultiplayer && puzzle.pantheonLevel === "hard" &&
 		       puzzle.highScores.length === 1 && puzzle.highScores[0].multiplayer);
-		assert(puzzle.scores.querySelector("#scores-title").textContent === "The Kindred Laurels");
+		assert(puzzle.scores.querySelector("#scores-title").textContent === "The Circle of the Wise");
 		assert(puzzle.scores.querySelector(".pantheon-friends").attributes["aria-pressed"] === "true");
 		assert(puzzle.gameStats.won === 2 && puzzle.gameStats.lost === 1);
 		await puzzle.selectPantheon("easy");
