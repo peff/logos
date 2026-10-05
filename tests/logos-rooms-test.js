@@ -103,3 +103,42 @@ Deno.test("reconnecting a host preserves its transport; guests retry their hands
 		assert(room.transport === transport);
 	}
 });
+
+Deno.test("random creation retries occupied names before starting a game session", async () => {
+	const { room, states } = fixture();
+	room.role = null;
+	room.randomName = () => "fresh-olive-grove";
+	let connects = 0, sessions = 0;
+	room.connect = () => connects++;
+	room.onRole = () => sessions++;
+	const socket = room.socket;
+	await room.receive({ type: "error", code: "ROOM_TAKEN", message: "Taken" }, socket);
+	assert(socket.closed && room.name == "fresh-olive-grove");
+	assert(connects == 1 && sessions == 0 && !room.stopped && states.length == 0);
+});
+
+Deno.test("ordinary joins and server failures do not trigger random-name retries", async () => {
+	for (const random of [true, false]) {
+		const { room, states } = fixture();
+		room.role = null;
+		room.randomName = random ? () => { throw new Error("unexpected retry"); } : null;
+		await room.receive({ type: "error", code: random ? "OTHER_ERROR" : "ROOM_TAKEN",
+			message: "Failed" }, room.socket);
+		assert(room.stopped && states.at(-1).state == "error");
+	}
+});
+
+Deno.test("random room creation stops after sixteen occupied names", async () => {
+	const { room, states } = fixture();
+	room.role = null;
+	room.randomName = () => "occupied";
+	let connects = 0;
+	room.connect = () => {
+		connects++;
+		room.socket = { close() {} };
+	};
+	for (let attempt = 0; attempt < 16; attempt++)
+		await room.receive({ type: "error", code: "ROOM_TAKEN" }, room.socket);
+	assert(connects == 15 && room.stopped);
+	assert(states.at(-1).state == "error");
+});

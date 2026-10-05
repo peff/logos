@@ -231,7 +231,9 @@ It stores neither puzzle data nor game history.
 A disconnected host has 30 seconds to reconnect; new guests cannot replace
 it during that interval. Expiration rejects new arrivals, permits a short
 handshake grace period, then clears room storage and closes remaining sockets.
-Explicit departure closes invitations immediately. Reopening invitations for
+Only an explicit host `extend` message resets admission to 15 minutes from now;
+existing handshake deadlines are unchanged. Explicit departure closes
+invitations immediately. Reopening invitations for
 an existing game uses a host-only join, so a name collision reports an error
 rather than attaching the existing host to another game.
 

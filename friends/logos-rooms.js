@@ -34,6 +34,7 @@ class RoomSignaling {
 		this.stopped = false;
 		this.expiresAt = 0;
 		this.retryCount = 0;
+		this.nameAttempts = 0;
 	}
 
 	start() {
@@ -131,6 +132,10 @@ class RoomSignaling {
 				if (record) this.transport.drop(record, "closed");
 			}
 			this.pending.delete(message.id);
+		} else if (message.type == "extended") {
+			this.expiresAt = message.expiresAt;
+			this.report("open", this.role == "host" ?
+				"Room open. Share its name or link." : "Connecting to the host…");
 		} else if (message.type == "expired") {
 			/* The server allows already-started handshakes a short grace period. */
 			this.report("expired", "Invitation expired");
@@ -139,8 +144,25 @@ class RoomSignaling {
 				this.fail(message.message + ". Try joining again.");
 			else this.finish("expired", message.message);
 		} else if (message.type == "error") {
-			this.fail(message.message);
+			if (message.code == "ROOM_TAKEN" && this.randomName && !this.role) {
+				if (++this.nameAttempts >= 16)
+					return this.fail("Could not find an unused room name. Try again.");
+				/* Claim a fresh name before constructing any game session. */
+				this.socket = null;
+				ws.close();
+				this.name = this.randomName();
+				this.connect();
+			} else this.fail(message.message);
 		}
+	}
+
+	extend() {
+		if (this.role != "host" || this.stopped ||
+		    this.socket?.readyState !== WebSocket.OPEN)
+			return false;
+		this.report("extending", "Extending invitation…");
+		this.send({ type: "extend" });
+		return true;
 	}
 
 	discard(id) {

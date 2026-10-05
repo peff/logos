@@ -153,3 +153,37 @@ Deno.test("binary and oversized signaling messages are rejected", async () => {
 		assert(host.messages.at(-1).type == "error");
 	}
 });
+
+Deno.test("only the host can extend the deadline without replacing pending handshakes", async () => {
+	const f = await fixture();
+	const host = await f.join(hostToken), guest = await f.join(guestToken);
+	await f.send(host, { type: "offer", id: guest.state.id, signal: "offer" });
+	f.room.room.expiresAt = Date.now() + 1000;
+	const deadline = guest.state.deadline;
+	await f.send(host, { type: "extend" });
+	assert(f.room.room.expiresAt >= Date.now() + 899000);
+	assert(guest.state.deadline == deadline, "extension prolonged a stalled handshake");
+	assert(host.messages.at(-1).type == "extended");
+	assert(guest.messages.at(-1).expiresAt == f.room.room.expiresAt);
+	await f.wake();
+	assert(f.room.room.expiresAt == host.messages.at(-1).expiresAt);
+	await f.send(guest, { type: "answer", signal: "answer" });
+	assert(host.messages.at(-1).signal == "answer");
+	const expiresAt = f.room.room.expiresAt;
+	await f.send(guest, { type: "extend" });
+	assert(guest.messages.at(-1).type == "error");
+	assert(f.room.room.expiresAt == expiresAt);
+});
+
+Deno.test("host can reopen admission during the pending-handshake grace period", async () => {
+	const f = await fixture();
+	const host = await f.join(hostToken);
+	await f.join(guestToken);
+	f.room.room.expiresAt = Date.now() - 1;
+	await f.room.alarm();
+	assert(f.room.room.expired);
+	await f.send(host, { type: "extend" });
+	assert(!f.room.room.expired);
+	const next = await f.join("c".repeat(64));
+	assert(next.messages.at(-1).role == "guest");
+});

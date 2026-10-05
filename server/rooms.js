@@ -119,7 +119,8 @@ export class RendezvousRoom {
 						this.room = { token: message.token, expiresAt: Date.now() + lifetime };
 					} else if (message.token != this.room.token &&
 					           (message.hostOnly || message.resume)) {
-						throw new Error("That room already belongs to another gathering");
+						throw Object.assign(new Error("That room already belongs to another gathering"),
+							{ code: "ROOM_TAKEN" });
 					}
 					if (this.room.expired) throw new Error("Invitation expired");
 					if (message.token == this.room.token) {
@@ -146,6 +147,14 @@ export class RendezvousRoom {
 						this.send(host, { type: "guest", id });
 					}
 					await this.save();
+				} else if (state.role == "host" && message.type == "extend") {
+					this.room.expiresAt = Date.now() + lifetime;
+					delete this.room.expired;
+					await this.save();
+					for (const peer of this.sockets()) {
+						if (peer.deserializeAttachment().role != "pending")
+							this.send(peer, { type: "extended", expiresAt: this.room.expiresAt });
+					}
 				} else if (state.role == "host" && message.type == "leave") {
 					await this.reset("Invitations closed");
 				} else if (state.role == "host" && message.type == "reject") {
@@ -178,7 +187,7 @@ export class RendezvousRoom {
 					throw new Error("Unexpected signaling message");
 				}
 			} catch (error) {
-				this.send(ws, { type: "error", message: error instanceof SyntaxError ?
+				this.send(ws, { type: "error", code: error.code, message: error instanceof SyntaxError ?
 					"Invalid signaling message" : error.message });
 				ws.close(1008, "Invalid request");
 			}
