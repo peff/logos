@@ -1,10 +1,6 @@
  - daily puzzle
  - shared leaderboard (would require actual server infrastructure)
  - logos with friends: collaborative puzzle
-   - less awful lobby / invite infrastructure; this will require an
-     actual server under our control, even if it is only doing the
-     rendezvous. Probably worth it as the current system is super
-     awkward.
    - cursor sharing (again, this probably wants a direct connection
      between players, but we should be able to facilitate the webrtc
      setup once via the host). Each player gets their own color-tinted
