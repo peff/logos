@@ -302,11 +302,6 @@ body #timer::after {
 		margin-top: 0;
 	}
 
-	/* Keep clues stationary when proof navigation hides the tap controls. */
-	body.proof-active #board-actions {
-		visibility: hidden;
-	}
-
 	body #status-lane {
 		display: block;
 		container-type: inline-size;
