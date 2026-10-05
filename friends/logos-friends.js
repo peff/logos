@@ -75,7 +75,7 @@ function renderSharedHover() {
 	for (const [elem, colors] of targets) {
 		elem.dataset.sharedHover = "true";
 		elem.style.setProperty("--shared-hover-rings", colors.map((color, i) =>
-			`inset 0 0 0 ${(i + 1) * 2}px ${color}`).join(", "));
+			`inset 0 0 0 ${(i + 1) * 0.1}rem ${color}`).join(", "));
 		hoverElements.add(elem);
 	}
 }

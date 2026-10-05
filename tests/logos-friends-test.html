@@ -125,7 +125,7 @@
 			"hover mapped to the wrong possibility");
 		pointerOver(bob, bob.puzzle.rows[0].slots[0].possibilityElems[0]);
 		await waitFor(() => host.puzzle.rows[0].slots[0].possibilityElems[0].style
-			.getPropertyValue("--shared-hover-rings").includes("4px"), "overlapping player rings");
+			.getPropertyValue("--shared-hover-rings").includes("0.2rem"), "overlapping player rings");
 		alice.document.querySelector("#friends-roster-button").click();
 		await waitFor(() => !bob.document.querySelector("[data-shared-hover]"), "dialog clears hover");
 		alice.document.querySelector("#friends-menu .modal-close").click();
