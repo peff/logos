@@ -113,7 +113,7 @@ function beginSession(role) {
 	document.body.classList.add("multiplayer");
 	renderPlayers(session.players);
 	startControls.hidden = true;
-	nameControls.hidden = true;
+	nameControls.hidden = false;
 	hostControls.hidden = !!room || role != "host";
 	guestControls.hidden = !!room || role != "guest";
 	leaveButton.hidden = false;
@@ -704,6 +704,12 @@ friendsMenu.addEventListener("click", function(event) {
 friendsMenu.querySelector("#friends-host").addEventListener("click", hostWebRTC);
 friendsMenu.querySelector("#friends-join").addEventListener("click", joinWebRTC);
 invitationInput.addEventListener("input", previewInvitation);
+nameInput.addEventListener("change", function() {
+	if (!session) return;
+	const name = playerName(session.role);
+	if (transport) transport.playerName = name;
+	session.setPlayerName(name);
+});
 nameInput.addEventListener("input", function() {
 	try {
 		localStorage.setItem("multiplayerPlayerName", nameInput.value);

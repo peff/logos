@@ -1252,3 +1252,31 @@ Deno.test("finished and unstarted solo puzzles still open a multiplayer lobby", 
 		}
 	}
 });
+
+Deno.test("players can rename themselves before and after connecting", function() {
+	const host = makeSession("host", "host");
+	const guest = makeSession("guest", "alice");
+	const observer = makeSession("guest", "bob");
+	try {
+		host.session.start(0x12345678);
+		guest.session.setPlayerName("Sappho");
+		const network = new InMemoryMultiplayerNetwork(host.session);
+		network.addGuest(guest.session);
+		network.addGuest(observer.session);
+		assert(host.session.players[1].name == "Sappho", "pending rename lost");
+		guest.session.setPlayerName("  Hypatia  ");
+		host.session.setPlayerName("Plato");
+		for (const game of [host, guest, observer]) {
+			assert(game.session.players[0].name == "Plato", "host rename not shared");
+			assert(game.session.players[1].name == "Hypatia", "guest rename not shared");
+		}
+		assert(host.session.gamePlayers.get("alice") == "Hypatia", "run participant name stale");
+		host.session.receive("stranger", { type: "name", name: "Intruder" });
+		host.session.receive("alice", { type: "name", name: null });
+		host.session.receive("alice", { type: "name", playerId: "host", name: "Sappho" });
+		assert(host.session.players[0].name == "Plato", "guest renamed another player");
+		assert(host.session.players[1].name == "Sappho", "sender rename lost");
+	} finally {
+		stopAll(host, guest, observer);
+	}
+});

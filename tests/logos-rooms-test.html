@@ -75,6 +75,14 @@
 		await waitFor(() => guests.every(app => app.puzzle.actionController?.ready), "two guest handshakes");
 		await waitFor(() => host.puzzle.actionController.players.length == 3, "roster");
 		assert(guests.every(app => app.puzzle.actionController.role == "guest"), "multiple hosts elected");
+		assert(!guests[0].document.querySelector(".friends-name-controls").hidden,
+			"joined player cannot edit name");
+		const nameField = guests[0].document.querySelector("#friends-player-name");
+		nameField.value = "Hypatia";
+		nameField.dispatchEvent(new guests[0].Event("change"));
+		await waitFor(() => host.puzzle.actionController.players.some(player => player.name == "Hypatia") &&
+			guests[1].puzzle.actionController.players.some(player => player.name == "Hypatia"),
+			"renamed guest reaches everyone");
 		let link;
 		Object.defineProperty(host.navigator, "clipboard", {
 			configurable: true, value: { async writeText(text) { link = text; } },

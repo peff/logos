@@ -8,6 +8,15 @@
 
 (function() {
 
+function normalizePlayerName(name, fallback) {
+	name = String(name || "")
+		.replace(/[\u0000-\u001f\u007f\u202a-\u202e\u2066-\u2069]/g, " ")
+		.trim().replace(/\s+/g, " ");
+	name = Array.from(name).slice(0, 32).join("");
+	return name || fallback;
+}
+
+
 var recentActionLimit = 12;
 
 function copyMessage(message) {
@@ -269,13 +278,29 @@ class MultiplayerSession {
 	}
 
 	setPlayerName(name) {
-		this.playerName = name;
+		this.playerName = normalizePlayerName(name, this.playerName);
 		if (this.role == "host") {
-			this.players[0].name = name;
-			if (this.seed !== null && !this.result)
-				this.gamePlayers.set(this.playerId, name);
-			this.playersChanged();
+			this.renamePlayer(this.playerId, this.playerName);
+		} else {
+			this.pendingName = this.playerName;
+			this.sendPlayerName();
 		}
+	}
+
+	sendPlayerName() {
+		if (!this.ready || !this.hostSender || !this.pendingName) return;
+		const name = this.pendingName;
+		this.pendingName = null;
+		this.hostSender({ type: "name", name });
+	}
+
+	renamePlayer(id, name) {
+		const player = this.players.find(player => player.id == id);
+		if (!player || typeof name != "string") return;
+		player.name = normalizePlayerName(name, player.name);
+		if (this.seed !== null && !this.result)
+			this.gamePlayers.set(id, player.name);
+		this.playersChanged();
 	}
 
 	setPeerState(playerId, state) {
@@ -376,6 +401,8 @@ class MultiplayerSession {
 			this.receiveNewGame(from, message);
 		else if (this.role == "host" && message.type == "pause")
 			this.receivePause(from, message);
+		else if (this.role == "host" && message.type == "name" && this.peers.has(from))
+			this.renamePlayer(from, message.name);
 		else if (this.role == "host" && message.type == "sync-request")
 			this.sendTo(from, this.syncMessage());
 		else if (this.role == "guest" && message.type == "sync")
@@ -509,6 +536,7 @@ class MultiplayerSession {
 		this.ready = true;
 		this.receiveClock(message.clock);
 		this.receivePlayers(message.players);
+		this.sendPlayerName();
 		this.saveResult();
 	}
 
@@ -724,6 +752,7 @@ class InMemoryMultiplayerNetwork {
 }
 
 Object.assign(globalThis.LogosFriends ||= {}, {
+	normalizePlayerName,
 	InMemoryMultiplayerNetwork,
 	MultiplayerSession,
 	actionFromSlot,

@@ -1,3 +1,4 @@
+import "../friends/logos-multiplayer.js";
 import "../friends/logos-webrtc.js";
 import "../friends/logos-rooms.js";
 

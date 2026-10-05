@@ -7,13 +7,7 @@ const defaultIceServers = [
 	{ urls: "stun:stun.cloudflare.com:3478" },
 ];
 
-function normalizePlayerName(name, fallback) {
-	name = String(name || "")
-		.replace(/[\u0000-\u001f\u007f\u202a-\u202e\u2066-\u2069]/g, " ")
-		.trim().replace(/\s+/g, " ");
-	name = Array.from(name).slice(0, 32).join("");
-	return name || fallback;
-}
+const { normalizePlayerName } = globalThis.LogosFriends;
 
 async function compress(bytes) {
 	var stream = new Blob([bytes]).stream()
