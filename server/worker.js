@@ -1,3 +1,6 @@
+import { normalizeRoomName, validRoomName } from "./rooms.js";
+export { RendezvousRoom } from "./rooms.js";
+
 const levels = ["easy", "medium", "hard"];
 const answers = ["about-right", "felt-easier", "felt-harder", "unsure"];
 const fields = ["id", "senderId", "seed", "generatorVersion", "ratingVersion",
@@ -75,7 +78,17 @@ async function readBody(request) {
 
 export default {
 	async fetch(request, env) {
-		if (new URL(request.url).pathname !== "/api/feedback")
+		const path = new URL(request.url).pathname;
+		if (path.startsWith("/api/rooms/")) {
+			const name = normalizeRoomName(path.slice("/api/rooms/".length));
+			if (!validRoomName(name))
+				return reply(400, { error: "Invalid room name" });
+			if (request.method !== "GET" ||
+			    request.headers.get("Upgrade")?.toLowerCase() !== "websocket")
+				return reply(426, { error: "Use a WebSocket connection" });
+			return env.ROOMS.getByName(name).fetch(request);
+		}
+		if (path !== "/api/feedback")
 			return reply(404, { error: "Not found" });
 		if (request.method === "OPTIONS")
 			return reply(204, null, {

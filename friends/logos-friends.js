@@ -33,6 +33,16 @@ var guestEntries = new Map();
 var nextGuest = 1;
 var invitationPreview = 0;
 var historyHighlight = null;
+var room = null;
+var roomTimer = null;
+var roomControls = friendsMenu.querySelector(".friends-room-controls");
+var roomInput = friendsMenu.querySelector("#friends-room-name");
+var roomJoin = friendsMenu.querySelector("#friends-join-room");
+var roomGenerate = friendsMenu.querySelector("#friends-generate-room");
+var roomSharing = friendsMenu.querySelector(".friends-room-sharing");
+var roomStatus = friendsMenu.querySelector("#friends-room-status");
+var roomRenew = friendsMenu.querySelector("#friends-renew-room");
+var roomLink = friendsMenu.querySelector("#friends-room-link");
 
 function clearHistoryHighlight() {
 	if (!historyHighlight)
@@ -88,6 +98,7 @@ function setGameControlsDisabled(disabled) {
 }
 
 function beginSession(role) {
+	roomControls.hidden = !room;
 	invitationPreview++;
 	if (transport)
 		transport.close();
@@ -103,8 +114,8 @@ function beginSession(role) {
 	renderPlayers(session.players);
 	startControls.hidden = true;
 	nameControls.hidden = true;
-	hostControls.hidden = role != "host";
-	guestControls.hidden = role != "guest";
+	hostControls.hidden = !!room || role != "host";
+	guestControls.hidden = !!room || role != "guest";
 	leaveButton.hidden = false;
 	leaveButton.textContent = role == "host" ?
 		"End multiplayer" : "Leave multiplayer";
@@ -258,6 +269,14 @@ async function previewInvitation() {
 }
 
 function updateWebRTCHost(state) {
+	if (room) {
+		friendsBadgeCaption.textContent = "Hosting";
+		if (state.state == "connected" && !friendsMenu.hidden)
+			toggleMenu();
+		if (state.state == "failed")
+			status.textContent = "A guest connection failed. They can try joining again.";
+		return;
+	}
 	var entry = guestEntries.get(state.connectionId);
 	if (entry) {
 		if (state.playerName)
@@ -306,6 +325,7 @@ function updateWebRTCGuest(state) {
 		state.terminal || state.state == "closed" ? "closed" : "connecting";
 	renderPlayers(session?.players || []);
 	if (state.connected) {
+		room?.connected();
 		status.textContent = "Connected to the host.";
 		friendsBadgeCaption.textContent = "Joined";
 		if (!friendsMenu.hidden)
@@ -319,12 +339,18 @@ function updateWebRTCGuest(state) {
 		leaveButton.textContent = "End multiplayer";
 		friendsBadgeCaption.textContent = "Disconnected";
 	} else {
-		status.textContent = "Send the response to the host and wait for connection.";
+		status.textContent = room ? "Connecting to the host…" :
+			"Send the response to the host and wait for connection.";
 		friendsBadgeCaption.textContent = "Connecting";
 	}
 }
 
 function hostWebRTC() {
+	if (room) {
+		const previous = room;
+		room = null;
+		previous.close();
+	}
 	beginSession("host");
 	var hostName = playerName("host");
 	addHostEntry(hostName);
@@ -398,6 +424,11 @@ async function createInvitation() {
 }
 
 async function joinWebRTC() {
+	if (room) {
+		const previous = room;
+		room = null;
+		previous.close();
+	}
 	if (!invitationInput.value.trim()) {
 		invitationInput.setCustomValidity("Paste the host's invitation.");
 		invitationInput.reportValidity();
@@ -451,6 +482,18 @@ window.puzzle.beforeNewGame = function() {
 };
 
 function leave() {
+	if (room) {
+		const previous = room;
+		room = null;
+		previous.close();
+	}
+	clearInterval(roomTimer);
+	roomControls.hidden = false;
+	roomSharing.hidden = true;
+	roomInput.disabled = false;
+	roomGenerate.disabled = false;
+	roomJoin.hidden = false;
+	roomJoin.disabled = false;
 	clearHistoryHighlight();
 	if (transport)
 		transport.close();
@@ -464,7 +507,7 @@ function leave() {
 	playerList.replaceChildren();
 	playerList.classList.remove("friends-has-guests");
 	nextGuest = 1;
-	status.textContent = "Host a game or paste an invitation from a friend.";
+	status.textContent = "Gather kindred minds in a shared room.";
 	startControls.hidden = false;
 	nameControls.hidden = false;
 	hostControls.hidden = true;
@@ -476,6 +519,7 @@ function leave() {
 		field.value = "";
 		field.setCustomValidity("");
 	}
+	roomInput.value = globalThis.LogosFriends.generateRoomName();
 	friendsBadgeCaption.textContent = "with Friends";
 	setGameControlsDisabled(false);
 	newGameButton.onclick = function() { window.puzzle.newGame(); };
@@ -520,6 +564,128 @@ function showCopied(button) {
 	button.textContent = "Copied";
 	setTimeout(function() { button.textContent = old; }, 1200);
 }
+
+function roomInvitationStatus(state) {
+	if (!room) return;
+	status.textContent = state.message;
+	roomRenew.hidden = !(session?.role == "host" &&
+		(state.state == "expired" || state.state == "error"));
+	roomJoin.disabled = state.state == "connecting";
+	if (state.state == "error" && !session) {
+		roomJoin.disabled = false;
+		roomInput.disabled = false;
+		roomGenerate.disabled = false;
+		startControls.hidden = false;
+		leaveButton.hidden = true;
+	}
+	if (state.state == "error" && session?.role == "guest" && !session.ready) {
+		/* Keep the error visible, but restore solo controls after a failed join. */
+		const message = state.message;
+		leave();
+		if (friendsMenu.hidden) toggleMenu();
+		status.textContent = message;
+	}
+	if (state.state == "expired" || state.state == "error") {
+		clearInterval(roomTimer);
+		roomStatus.textContent = state.message;
+		if (session?.role == "host") {
+			roomInput.disabled = false;
+			roomGenerate.disabled = false;
+		}
+	}
+	if (state.state == "open") {
+		roomSharing.hidden = false;
+		roomJoin.hidden = true;
+		const url = new URL(location.href);
+		url.search = "";
+		url.hash = "room=" + room.name;
+		roomLink.value = url.href;
+		clearInterval(roomTimer);
+		const update = () => {
+			const remaining = Math.max(0, Math.ceil((room.expiresAt - Date.now()) / 60000));
+			roomStatus.textContent = remaining ?
+				"Invitation expires in " + remaining + " min." : "Invitation expired";
+		};
+		update();
+		roomTimer = setInterval(update, 1000);
+	}
+}
+
+function joinRoom() {
+	const { RoomSignaling, normalizeRoomName, validRoomName } = globalThis.LogosFriends;
+	const name = normalizeRoomName(roomInput.value);
+	if (!validRoomName(name)) {
+		roomInput.setCustomValidity("Use letters, numbers, and spaces or hyphens (up to 64 characters).");
+		roomInput.reportValidity();
+		return;
+	}
+	roomInput.setCustomValidity("");
+	const endpoint = document.querySelector('meta[name="logos-rooms-endpoint"]')?.content;
+	if (!endpoint) {
+		status.textContent = "Room connections are not configured in this copy of Logos.";
+		return;
+	}
+	const existingHost = session?.role == "host";
+	if (room) {
+		const previous = room;
+		room = null;
+		previous.close();
+	}
+	roomInput.value = name;
+	roomInput.disabled = true;
+	roomGenerate.disabled = true;
+	startControls.hidden = true;
+	leaveButton.hidden = false;
+	leaveButton.textContent = existingHost ? "End multiplayer" : "Cancel";
+	roomRenew.hidden = true;
+	room = new RoomSignaling({
+		name, endpoint, hostOnly: existingHost,
+		onRole(role) {
+			if (existingHost) return transport;
+			beginSession(role);
+			const update = role == "host" ? updateWebRTCHost : updateWebRTCGuest;
+			const Transport = role == "host" ? WebRTCHostTransport : WebRTCGuestTransport;
+			const next = new Transport(session, {
+				playerName: playerName(role),
+				onChange(state) {
+					if (transport === next) update(state);
+				},
+			});
+			transport = next;
+			return transport;
+		},
+		onState: roomInvitationStatus,
+	});
+	room.start();
+}
+
+roomInput.value = globalThis.LogosFriends.generateRoomName();
+roomInput.addEventListener("input", () => roomInput.setCustomValidity(""));
+roomInput.addEventListener("keydown", event => {
+	if (event.key == "Enter") {
+		event.preventDefault();
+		if (!roomJoin.hidden && !roomJoin.disabled) joinRoom();
+	}
+});
+roomGenerate.addEventListener("click", () => {
+	roomInput.value = globalThis.LogosFriends.generateRoomName();
+	roomInput.setCustomValidity("");
+});
+roomJoin.addEventListener("click", joinRoom);
+roomRenew.addEventListener("click", joinRoom);
+friendsMenu.querySelector("#friends-copy-room").addEventListener("click", function() {
+	copyField(roomLink, this);
+});
+window.addEventListener("pagehide", () => room?.close());
+
+function readRoomLink() {
+	const name = new URLSearchParams(location.hash.slice(1)).get("room");
+	if (name === null || session) return;
+	roomInput.value = globalThis.LogosFriends.normalizeRoomName(name);
+	if (friendsMenu.hidden) toggleMenu();
+}
+window.addEventListener("hashchange", readRoomLink);
+readRoomLink();
 
 friendsButton.addEventListener("click", toggleMenu);
 document.querySelector("#friends-roster-button").addEventListener("click", toggleMenu);

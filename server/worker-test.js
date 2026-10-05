@@ -159,3 +159,29 @@ Deno.test("feedback accepts the current rating without a historical comparison",
 	assert(response.status === 200);
 	assert(DB.calls[0].values[5] === null && DB.calls[0].values[6] === "hard");
 });
+
+Deno.test("room upgrades route normalized names without touching D1", async () => {
+	let routed;
+	const request = new Request("https://example.test/api/rooms/Amber-Olive", {
+		headers: { Upgrade: "websocket" },
+	});
+	const response = await worker.fetch(request, {
+		ROOMS: { getByName(name) {
+			routed = name;
+			return { fetch: received => {
+				assert(received === request);
+				return new Response("room");
+			} };
+		} },
+	});
+	assert(routed === "amber-olive" && await response.text() === "room");
+});
+
+Deno.test("room routes reject invalid names and non-WebSocket requests", async () => {
+	for (const name of ["a--b", "%20", "a".repeat(65)]) {
+		const response = await worker.fetch(new Request("https://example.test/api/rooms/" + name), {});
+		assert(response.status === 400);
+	}
+	const response = await worker.fetch(new Request("https://example.test/api/rooms/amber-olive"), {});
+	assert(response.status === 426);
+});

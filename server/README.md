@@ -1,18 +1,20 @@
 # Optional Logos server
 
-This is a small Cloudflare Worker prototype for collecting difficulty feedback
-in D1. The beta game opts in through the `logos-feedback-endpoint` meta tag in
+This Cloudflare Worker collects difficulty feedback in D1 and coordinates
+named multiplayer rooms using Durable Objects. The beta game opts in through the `logos-feedback-endpoint` meta tag in
 `index.html`, currently pointing to `https://logos.peff.workers.dev/api/feedback`.
 Clear that value to disable feedback entirely in a standalone copy. Deploying
 this server does not host the game or change its current location.
 
-The Worker has one public operation: `POST /api/feedback`. Database reads and
-exports use your authenticated Cloudflare tooling. There is no player account
-system, public report browser, or runtime dependency beyond Workers and D1.
+The public routes are `POST /api/feedback` and WebSocket upgrades at
+`/api/rooms/<name>`. Database reads and exports use your authenticated Cloudflare
+tooling. There is no player account system or public report browser.
 
 ## Files
 
-- `worker.js`: HTTP handling, report validation, and a parameterized insert.
+- `worker.js`: HTTP routing, report validation, and a parameterized insert.
+- `rooms.js`: room ownership, expiration, and WebSocket signaling.
+- `rooms-test.js`: room lifecycle, routing, and hibernation-state tests.
 - `migrations/0001_feedback.sql`: the feedback table.
 - `wrangler.jsonc`: deployment configuration.
 - `worker-test.js`: Deno tests for requests and database binding arguments.
@@ -22,7 +24,7 @@ system, public report browser, or runtime dependency beyond Workers and D1.
 Run the handler tests without a Cloudflare account or Node installation:
 
 ```sh
-deno test server/worker-test.js
+deno test server/worker-test.js server/rooms-test.js
 ```
 
 For the actual Workers runtime and a local D1 database, install Node.js supported
@@ -198,3 +200,47 @@ npx wrangler d1 migrations apply logos --local
 npx wrangler d1 migrations apply logos --remote
 npx wrangler deploy
 ```
+
+## Multiplayer rooms
+
+The `logos-rooms-endpoint` meta tag in the game points to
+`https://logos.peff.workers.dev/api/rooms`. The Worker routes each normalized
+room name to one `RendezvousRoom` Durable Object. The SQLite class migration and
+`ROOMS` binding are declared in `wrangler.jsonc`; deploying with Wrangler applies
+that migration. This does not require a D1 schema change.
+
+Each socket first sends a `join` message with a random private token. The first
+arrival claims host ownership for 15 minutes. The server saves the ownership
+token and expiration in Durable Object storage; each socket's role, handshake
+stage, and deadline are stored in its hibernation attachment. No recurring
+server timer keeps the object awake: alarms handle deadlines, and the
+hibernatable WebSocket API handles idle connections.
+
+Later arrivals receive the guest role and their own handshake ID. The server
+notifies the host, then routes one offer and answer for each guest. Only the
+host may send offers or close the room; guests may only answer their own
+offer. The private host token permits reconnecting to the same room without
+electing another host. It is never part of the shared link.
+
+Pending sockets must identify themselves within 10 seconds. Guest handshakes
+have at most 60 seconds, capped at 30 seconds beyond invitation expiry. There
+are at most 17 open signaling sockets per room and messages are limited to
+32,768 characters. The server discards signaling payloads after forwarding them.
+It stores neither puzzle data nor game history.
+
+A disconnected host has 30 seconds to reconnect; new guests cannot replace
+it during that interval. Expiration rejects new arrivals, permits a short
+handshake grace period, then clears room storage and closes remaining sockets.
+Explicit departure closes invitations immediately. Reopening invitations for
+an existing game uses a host-only join, so a name collision reports an error
+rather than attaching the existing host to another game.
+
+These limits bound each room, not aggregate public traffic across arbitrary
+names. There is no global room directory or account authentication. Room names
+are shareable addresses, not secrets.
+
+To exercise the complete browser flow locally, run `wrangler dev` on port
+8787, serve the repository root over HTTP, and open
+`tests/logos-rooms-test.html`. The test uses the real local Worker and WebRTC
+between browser frames, without external STUN. The ordinary `./test` command
+also covers the room server and client lifecycle logic.

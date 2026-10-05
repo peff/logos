@@ -1,0 +1,109 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Logos room browser tests</title>
+<pre id="result">Running (serve the repository and run wrangler dev on port 8787)…</pre>
+<script>
+(async function() {
+	const result = document.querySelector("#result");
+	const room = "browser-room-" + crypto.randomUUID();
+	const frames = [];
+	function assert(condition, message) {
+		if (!condition) throw new Error(message);
+	}
+	async function waitFor(test, message) {
+		console.log("ROOM_TEST waiting: " + message);
+		const deadline = Date.now() + 40000;
+		while (!test()) {
+			if (Date.now() > deadline) throw new Error("Timed out: " + message);
+			await new Promise(resolve => setTimeout(resolve, 100));
+		}
+	}
+	async function open(name, join = true, roomName = room) {
+		const frame = document.createElement("iframe");
+		frame.style = "width:390px;height:844px";
+		frame.src = "../index.html#room=" + roomName;
+		frames.push(frame);
+		const loaded = new Promise(resolve => frame.onload = resolve);
+		document.body.append(frame);
+		await loaded;
+		const app = frame.contentWindow, doc = app.document;
+		/* Same-machine peers need no external STUN service. */
+		const Peer = app.RTCPeerConnection;
+		app.RTCPeerConnection = function() { return new Peer({ iceServers: [] }); };
+		const Signaling = app.LogosFriends.RoomSignaling;
+		app.LogosFriends.RoomSignaling = class extends Signaling {
+			constructor(options) { super(options); app.testRoom = this; }
+		};
+		const Socket = app.WebSocket;
+		app.testRoomSockets = [];
+		app.WebSocket = class extends Socket {
+			constructor(url) { super(url); app.testRoomSockets.push(this); }
+		};
+		doc.querySelector('meta[name="logos-rooms-endpoint"]').content = "http://127.0.0.1:8787/api/rooms";
+		assert(!doc.querySelector("#friends-menu").hidden, "room link did not open friends");
+		assert(doc.querySelector("#friends-room-name").value == roomName, "room name not filled from link");
+		doc.querySelector("#friends-player-name").value = name;
+		if (join) doc.querySelector("#friends-join-room").click();
+		return app;
+	}
+	try {
+		const host = await open("Plato");
+		await waitFor(() => host.puzzle.actionController?.role == "host", "first arrival host");
+		const guests = await Promise.all([open("Sappho"), open("Socrates")]);
+		await waitFor(() => guests.every(app => app.puzzle.actionController?.ready), "two guest handshakes");
+		await waitFor(() => host.puzzle.actionController.players.length == 3, "roster");
+		assert(guests.every(app => app.puzzle.actionController.role == "guest"), "multiple hosts elected");
+		const link = host.document.querySelector("#friends-room-link").value;
+		assert(new URL(link).hash == "#room=" + room, "invitation link has opaque additions");
+		guests[0].document.querySelector("#new-game-button").click();
+		await waitFor(() => host.puzzle.seed !== undefined &&
+			guests.every(app => app.puzzle.seed == host.puzzle.seed), "shared new game");
+		guests[0].puzzle.actionController.requestPause(true);
+		await waitFor(() => guests.every(app => app.puzzle.paused), "shared pause");
+		guests[0].puzzle.actionController.requestPause(false);
+		await waitFor(() => guests.every(app => !app.puzzle.paused), "shared resume");
+		/* A signaling interruption must not discard the live WebRTC game. */
+		const seed = host.puzzle.seed;
+		host.testRoomSockets[0].close();
+		await waitFor(() => host.testRoomSockets.length == 2 &&
+			host.document.querySelector(".friends-status").textContent.startsWith("Room open"),
+			"host signaling reconnect");
+		assert(host.puzzle.seed == seed && host.puzzle.actionController.players.length == 3,
+			"signaling reconnect changed the shared game");
+		/* Closing admission models expiry without waiting fifteen minutes. */
+		host.testRoom.send({ type: "leave" });
+		await waitFor(() => !host.document.querySelector("#friends-renew-room").hidden,
+			"invitation closure");
+		assert(host.puzzle.seed == seed && host.puzzle.actionController.players.length == 3,
+			"closing invitations interrupted play");
+		const other = await open("Aristotle");
+		await waitFor(() => other.puzzle.actionController?.role == "host", "another gathering");
+		const controller = host.puzzle.actionController;
+		host.document.querySelector("#friends-renew-room").click();
+		await waitFor(() => host.document.querySelector(".friends-status").textContent.includes("another gathering"),
+			"renewal name collision");
+		assert(host.puzzle.actionController === controller && host.puzzle.seed == seed,
+			"renewal joined the other game");
+		host.document.querySelector("#friends-room-name").value = room + "-again";
+		host.document.querySelector("#friends-renew-room").click();
+		await waitFor(() => host.document.querySelector(".friends-status").textContent.startsWith("Room open"),
+			"renewal under a new name");
+		other.document.querySelector("#friends-leave").click();
+		const late = await open("Hypatia", true, room + "-again");
+		await waitFor(() => late.puzzle.actionController?.ready, "late join");
+		assert(late.puzzle.seed == host.puzzle.seed, "late guest missed the game");
+		host.document.querySelector("#friends-leave").click();
+		await waitFor(() => guests.every(app =>
+			app.document.querySelector("#friends-roster-status").textContent == "Host disconnected"),
+			"host departure");
+		await new Promise(resolve => setTimeout(resolve, 300));
+		const next = await open("Theseus");
+		await waitFor(() => next.puzzle.actionController?.role == "host", "reuse released room");
+		next.document.querySelector("#friends-leave").click();
+		result.textContent = "PASS: room links, host assignment, simultaneous guests, shared game, reconnect, renewal, collision, late join, room reuse";
+	} catch (error) {
+		result.textContent = "FAIL: " + error.stack;
+	}
+	console.log("ROOM_TEST_RESULT " + result.textContent);
+})();
+</script>

@@ -4,6 +4,7 @@
 		<meta http-equiv="content-type" content="text/html; charset=utf-8">
 		<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 		<title>Logos</title>
+		<meta name="logos-rooms-endpoint" content="https://logos.peff.workers.dev/api/rooms">
 		<meta name="logos-feedback-endpoint" content="https://logos.peff.workers.dev/api/feedback">
 		<link rel="stylesheet" type="text/css" href="logos.css">
 		<script src="logos.js"></script>
@@ -269,7 +270,26 @@
 					</div>
 					<p class="friends-status">
 					</p>
+					<div class="friends-room-controls">
+						<label for="friends-room-name">Room name:</label>
+						<div class="friends-room-name-row">
+							<input id="friends-room-name" type="text" maxlength="64"
+							       autocapitalize="none" autocomplete="off" spellcheck="false">
+							<button id="friends-generate-room" type="button">Generate name</button>
+						</div>
+						<button id="friends-join-room" type="button">Join room</button>
+						<div class="friends-room-sharing" hidden>
+							<div class="friends-room-name-row">
+								<input id="friends-room-link" type="text" readonly aria-label="Invitation link">
+								<button id="friends-copy-room" type="button">Copy link</button>
+							</div>
+							<p id="friends-room-status" role="status"></p>
+							<button id="friends-renew-room" type="button" hidden>Invite more friends</button>
+						</div>
+					</div>
 					<div class="friends-start">
+						<details class="friends-manual">
+						<summary>Manual connection</summary>
 						<button id="friends-host" type="button">Host a game</button>
 						<p>or</p>
 						<div class="friends-join-controls friends-signal-controls">
@@ -277,6 +297,7 @@
 							       spellcheck="false" aria-label="Invitation received">
 							<button id="friends-join" type="button">RSVP</button>
 						</div>
+						</details>
 					</div>
 					<div class="friends-host-controls" hidden>
 						<p class="friends-host-instructions">
@@ -686,6 +707,7 @@
 		</script>
 		<script src="friends/logos-multiplayer.js"></script>
 		<script src="friends/logos-webrtc.js"></script>
+		<script src="friends/logos-rooms.js"></script>
 		<script src="friends/logos-friends.js"></script>
 		<script>
 		if (new URLSearchParams(location.search).has("local-test")) {
