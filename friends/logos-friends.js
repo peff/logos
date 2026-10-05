@@ -33,6 +33,103 @@ var roomSharing = friendsMenu.querySelector(".friends-room-sharing");
 var roomRenew = friendsMenu.querySelector("#friends-renew-room");
 var roomLink = "";
 
+/* Hover targets use puzzle coordinates, never screen pixels. */
+const hoverColors = ["#2374b8", "#a84391", "#25866a", "#c26920", "#6754b3", "#ac4242", "#36858e", "#827028"];
+function playerColor(player) {
+	const color = Number.isInteger(player.color) ? player.color : 0;
+	return hoverColors[color] || `hsl(${color * 137.508 % 360} 55% 40%)`;
+}
+const hoverElements = new Set();
+let hoverTarget = null;
+let sentHover = null;
+let hoverTimer = null;
+let hoverGame = null;
+let hoverSession = null;
+const board = document.querySelector("#board");
+const hoverAreas = [board, document.querySelector("#hclues"), document.querySelector("#vclues")];
+
+function renderSharedHover() {
+	for (const elem of hoverElements) {
+		delete elem.dataset.sharedHover;
+		elem.style.removeProperty("--shared-hover-rings");
+	}
+	hoverElements.clear();
+	const targets = new Map();
+	for (const player of session?.players || []) {
+		if (player.id == session.playerId) continue;
+		const target = session.hovers.get(player.id);
+		if (!target) continue;
+		let elem;
+		if (Object.hasOwn(target, "clue")) {
+			elem = puzzle.clues[target.clue]?.display;
+		} else {
+			const slot = puzzle.rows[target.row]?.slots[target.column];
+			if (!slot) continue;
+			elem = target.value !== null && !slot.single && slot.possible[target.value] ?
+				slot.possibilityElems[target.value] : slot.elem;
+		}
+		if (!elem) continue;
+		if (!targets.has(elem)) targets.set(elem, []);
+		targets.get(elem).push(playerColor(player));
+	}
+	for (const [elem, colors] of targets) {
+		elem.dataset.sharedHover = "true";
+		elem.style.setProperty("--shared-hover-rings", colors.map((color, i) =>
+			`inset 0 0 0 ${(i + 1) * 2}px ${color}`).join(", "));
+		hoverElements.add(elem);
+	}
+}
+
+function hoverAt(elem) {
+	if (!session?.ready || session.seed === null || !elem || !hoverAreas.some(area => area.contains(elem)) ||
+	    !friendsMenu.hidden || document.querySelector(".modal:not([hidden])")) return null;
+	const clue = puzzle.clues.findIndex(clue => clue.display?.contains(elem));
+	if (clue >= 0) return { clue };
+	for (const [row, line] of puzzle.rows.entries()) {
+		for (const [column, slot] of line.slots.entries()) {
+			if (!slot.elem.contains(elem)) continue;
+			const value = slot.single ? -1 : slot.possibilityElems.findIndex(cell => cell.contains(elem));
+			return { row, column, value: value < 0 ? null : value };
+		}
+	}
+	return null;
+}
+
+function queueHover(target) {
+	hoverTarget = target;
+	if (hoverTimer !== null) return;
+	/* Combine the leave/enter pair without adding a dwell delay. */
+	hoverTimer = setTimeout(() => {
+		hoverTimer = null;
+		if (JSON.stringify(hoverTarget) == JSON.stringify(sentHover)) return;
+		sentHover = hoverTarget;
+		session?.requestHover(hoverTarget);
+	}, 0);
+}
+function clearLocalHover() { queueHover(null); }
+for (const area of hoverAreas) {
+	area.addEventListener("pointerover", event => {
+		if (event.pointerType == "mouse") queueHover(hoverAt(event.target));
+	});
+	area.addEventListener("pointerout", event => {
+		if (event.pointerType == "mouse") queueHover(hoverAt(event.relatedTarget));
+	});
+	area.addEventListener("pointercancel", clearLocalHover);
+}
+/* Local clue reordering changes display elements, but not clue identities. */
+const clueObserver = new MutationObserver(renderSharedHover);
+for (const area of hoverAreas.slice(1))
+	clueObserver.observe(area, { childList: true, subtree: true });
+window.addEventListener("blur", clearLocalHover);
+document.addEventListener("visibilitychange", () => {
+	if (document.hidden) clearLocalHover();
+});
+const modalObserver = new MutationObserver(() => {
+	if (document.querySelector(".modal:not([hidden])")) clearLocalHover();
+});
+for (const modal of document.querySelectorAll(".modal"))
+	modalObserver.observe(modal, { attributes: true, attributeFilter: ["hidden"] });
+
 function clearHistoryHighlight() {
 	if (!historyHighlight)
 		return;
@@ -94,6 +191,7 @@ function beginSession(role) {
 		playerId: playerId(),
 		playerName: playerName(role),
 		onPlayersChanged: renderPlayers,
+		onHoverChanged: renderSharedHover,
 	});
 	rosterConnection = role == "host" ? "connected" : "connecting";
 	roster.hidden = false;
@@ -171,6 +269,14 @@ function renderRecentAction(actions) {
 }
 
 function renderPlayers(players) {
+	if (hoverSession !== session || hoverGame !== session?.gameId) {
+		clearTimeout(hoverTimer);
+		hoverTimer = null;
+		hoverTarget = sentHover = null;
+		hoverSession = session;
+		hoverGame = session?.gameId;
+	}
+	renderSharedHover();
 	clearHistoryHighlight();
 	newGameButton.disabled = !!session && !session.ready && rosterConnection != "closed";
 	rosterPlayers.replaceChildren();
@@ -181,6 +287,7 @@ function renderPlayers(players) {
 	for (var player of visiblePlayers) {
 		var entry = document.createElement("li");
 		entry.dataset.state = player.state;
+		entry.style.setProperty("--player-color", playerColor(player));
 		var self = player.id == session?.playerId;
 		entry.dataset.self = self;
 		var description = player.name + (self ? " (you)" : "") +
@@ -307,6 +414,8 @@ function leave() {
 		transport.close();
 	transport = null;
 	session = null;
+	renderSharedHover();
+	clearLocalHover();
 	newGameButton.disabled = false;
 	roster.hidden = true;
 	document.body.classList.remove("multiplayer");

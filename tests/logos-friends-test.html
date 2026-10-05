@@ -111,6 +111,47 @@
 		host.puzzle.actionController.start(0x12345678);
 		await waitFor(() => [host, alice, bob].every(app => app.puzzle.actionController.gameId == 4),
 			"deterministic history test game");
+		const hoverCell = alice.puzzle.rows[0].slots[0].possibilityElems[0];
+		const pointerOver = (app, cell, pointerType = "mouse") => cell.dispatchEvent(
+			new app.PointerEvent("pointerover", { bubbles: true, pointerType }));
+		pointerOver(alice, hoverCell, "touch");
+		await new Promise(resolve => setTimeout(resolve, 50));
+		assert(!host.document.querySelector("[data-shared-hover]"), "touch shared a hover");
+		pointerOver(alice, hoverCell);
+		await waitFor(() => host.document.querySelector("[data-shared-hover]") &&
+			bob.document.querySelector("[data-shared-hover]"), "guest hover relayed");
+		assert(!alice.document.querySelector("[data-shared-hover]"), "local hover was drawn");
+		assert(host.puzzle.rows[0].slots[0].possibilityElems[0].dataset.sharedHover,
+			"hover mapped to the wrong possibility");
+		pointerOver(bob, bob.puzzle.rows[0].slots[0].possibilityElems[0]);
+		await waitFor(() => host.puzzle.rows[0].slots[0].possibilityElems[0].style
+			.getPropertyValue("--shared-hover-rings").includes("4px"), "overlapping player rings");
+		alice.document.querySelector("#friends-roster-button").click();
+		await waitFor(() => !bob.document.querySelector("[data-shared-hover]"), "dialog clears hover");
+		alice.document.querySelector("#friends-menu .modal-close").click();
+		bob.dispatchEvent(new bob.Event("blur"));
+		await waitFor(() => !host.document.querySelector("[data-shared-hover]"), "blur clears hover");
+		const clueIndex = alice.puzzle.clues.findIndex(clue => clue.displayType == "horizontal");
+		const hostClue = host.puzzle.clues[clueIndex];
+		pointerOver(alice, alice.puzzle.clues[clueIndex].display.querySelector(".tile"));
+		await waitFor(() => hostClue.display.dataset.sharedHover &&
+			bob.puzzle.clues[clueIndex].display.dataset.sharedHover, "clue hover relayed");
+		assert(!alice.puzzle.clues[clueIndex].display.dataset.sharedHover, "local clue hover drawn");
+		const oldClueDisplay = hostClue.display;
+		host.puzzle.moveClueToSlot(hostClue, host.puzzle.hClueSlots.at(-1));
+		await waitFor(() => hostClue.display !== oldClueDisplay && hostClue.display.dataset.sharedHover,
+			"highlight follows locally reordered clue");
+		assert(!oldClueDisplay.dataset.sharedHover, "highlight stuck on old clue position");
+		host.puzzle.applyClueAction(hostClue, false);
+		assert(hostClue.display.dataset.sharedHover, "local clue dismissal lost shared highlight");
+		alice.puzzle.clues[clueIndex].display.dispatchEvent(new alice.PointerEvent("pointerout", {
+			bubbles: true, pointerType: "mouse", relatedTarget: alice.document.body,
+		}));
+		await waitFor(() => !host.document.querySelector("[data-shared-hover]"), "leaving clues clears hover");
+		host.puzzle.applyClueAction(hostClue, true);
+		assert(new Set(Array.from(players(host).children, entry =>
+			host.getComputedStyle(entry, "::before").backgroundColor)).size == 3,
+			"roster bullets lack distinct player colors");
 		const slot = alice.puzzle.rows[0].slots.find(slot => !slot.single);
 		const value = slot.possible.findIndex((possible, value) => possible && value != slot.value);
 		alice.puzzle.requestTileAction(slot, value, "remove");

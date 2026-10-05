@@ -16,7 +16,6 @@ function normalizePlayerName(name, fallback) {
 	return name || fallback;
 }
 
-
 var recentActionLimit = 12;
 
 function copyMessage(message) {
@@ -88,8 +87,11 @@ class MultiplayerSession {
 		this.playerId = options.playerId || this.role;
 		this.playerName = options.playerName || this.playerId;
 		this.onPlayersChanged = options.onPlayersChanged || function() {};
+		this.onHoverChanged = options.onHoverChanged || function() {};
+		this.hovers = new Map();
+		this.nextColor = 1;
 		this.players = this.role == "host" ? [{
-			id: this.playerId, name: this.playerName, role: "host", state: "connected",
+			id: this.playerId, name: this.playerName, role: "host", state: "connected", color: 0,
 		}] : [];
 		this.revision = 0;
 		this.nextCommand = 1;
@@ -217,6 +219,8 @@ class MultiplayerSession {
 		this.history = [];
 		this.initialPosition = null;
 		this.recentActions.clear();
+		this.hovers.clear();
+		this.onHoverChanged();
 		this.lastPaused = false;
 		this.committedCommands.clear();
 		this.puzzle.scoreEligible = false;
@@ -261,6 +265,7 @@ class MultiplayerSession {
 		this.players = this.players.filter(player => player.id != playerId);
 		this.players.push({
 			id: playerId, name: playerName || playerId, role: "guest", state: "connected",
+			color: this.nextColor++,
 		});
 		if (this.seed !== null && !this.result)
 			this.gamePlayers.set(playerId, playerName || playerId);
@@ -274,6 +279,8 @@ class MultiplayerSession {
 			return;
 		this.players = this.players.filter(player => player.id != playerId);
 		this.recentActions.delete(playerId);
+		this.hovers.delete(playerId);
+		this.onHoverChanged();
 		this.playersChanged();
 	}
 
@@ -308,6 +315,10 @@ class MultiplayerSession {
 		if (this.role != "host" || !player || player.state == state)
 			return;
 		player.state = state;
+		if (state != "connected") {
+			this.hovers.delete(playerId);
+			this.onHoverChanged();
+		}
 		this.playersChanged();
 	}
 
@@ -324,10 +335,44 @@ class MultiplayerSession {
 		    !["connected", "interrupted"].includes(player.state)))
 			return;
 		this.players = copyMessage(players);
+		for (const id of this.hovers.keys())
+			if (!players.some(player => player.id == id && player.state == "connected"))
+				this.hovers.delete(id);
+		this.onHoverChanged();
 		for (var id of this.recentActions.keys())
 			if (!players.some(player => player.id == id))
 				this.recentActions.delete(id);
 		this.onPlayersChanged(copyMessage(this.players));
+	}
+
+	requestHover(target) {
+		if (!this.ready || this.seed === null) return;
+		const message = { type: "hover", gameId: this.gameId, target };
+		if (this.role == "host") this.receiveHover(this.playerId, message);
+		else if (this.hostSender) this.hostSender(message);
+	}
+
+	receiveHover(from, message) {
+		if (!this.ready || this.seed === null || message.gameId !== this.gameId) return;
+		const id = this.role == "host" ? from : message.playerId;
+		if (!this.players.some(player => player.id == id && player.state == "connected")) return;
+		const target = message.target;
+		if (target && Object.hasOwn(target, "clue")) {
+			if (!Number.isInteger(target.clue) || !this.puzzle.clues[target.clue]?.displayType) return;
+			this.hovers.set(id, { clue: target.clue });
+		} else if (target !== null) {
+			if (!target || !Number.isInteger(target.row) || !Number.isInteger(target.column)) return;
+			const slot = this.puzzle.rows[target.row]?.slots[target.column];
+			if (!slot || target.value !== null &&
+			    (!Number.isInteger(target.value) || target.value < 0 || target.value >= slot.possible.length)) return;
+			this.hovers.set(id, { row: target.row, column: target.column, value: target.value });
+		} else {
+			this.hovers.delete(id);
+		}
+		this.onHoverChanged();
+		if (this.role == "host")
+			this.broadcast({ type: "hover", gameId: this.gameId, playerId: id,
+				target: this.hovers.get(id) || null });
 	}
 
 	connectHost(sender) {
@@ -395,7 +440,9 @@ class MultiplayerSession {
 	receive(from, message) {
 		if (!message || typeof message.type != "string")
 			return;
-		if (this.role == "host" && message.type == "command")
+		if (message.type == "hover")
+			this.receiveHover(from, message);
+		else if (this.role == "host" && message.type == "command")
 			this.receiveCommand(from, message);
 		else if (this.role == "host" && message.type == "new-game")
 			this.receiveNewGame(from, message);
@@ -530,6 +577,8 @@ class MultiplayerSession {
 		this.history = copyMessage(message.history);
 		this.initialPosition = copyMessage(message.initialPosition || null);
 		this.recentActions.clear();
+		this.hovers.clear();
+		this.onHoverChanged();
 		for (var entry of message.recentActions || [])
 			if (Array.isArray(entry) && typeof entry[0] == "string" && Array.isArray(entry[1]))
 				this.recentActions.set(entry[0], copyMessage(entry[1].slice(-recentActionLimit)));
@@ -714,6 +763,8 @@ class MultiplayerSession {
 		this.peers.clear();
 		this.players = [];
 		this.recentActions.clear();
+		this.hovers.clear();
+		this.onHoverChanged();
 		this.onPlayersChanged([]);
 		this.hostSender = null;
 		this.puzzle.updatePauseControl();

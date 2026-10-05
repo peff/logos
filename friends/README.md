@@ -70,3 +70,9 @@ Connected players remain visible above the game controls, replacing the logo.
 The host and guests see the same roster, including interrupted connections.
 Click **LOGOS with Friends** above the roster to reopen the invitation and
 leave controls.
+
+With a mouse, hovering over a slot, possibility, or clue points it out to
+other players using your roster color. Hover targets are relayed through the
+host over WebRTC, independently of moves and history. Leaving the board and clue areas,
+opening a dialog, or switching away clears the highlight; touch input does
+not share a hover target.

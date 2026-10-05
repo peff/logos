@@ -1282,6 +1282,54 @@ Deno.test("players can rename themselves before and after connecting", function(
 	}
 });
 
+Deno.test("hover targets are attributed, transient, and separate from moves", function() {
+	const host = makeSession("host", "host");
+	const guest = makeSession("guest", "alice");
+	const observer = makeSession("guest", "bob");
+	try {
+		host.session.start(0x12345678);
+		const network = new InMemoryMultiplayerNetwork(host.session);
+		network.addGuest(guest.session);
+		network.addGuest(observer.session);
+		const target = { row: 0, column: 1, value: 2 };
+		guest.session.requestHover(target);
+		for (const game of [host, guest, observer]) {
+			assert(JSON.stringify(game.session.hovers.get("alice")) == JSON.stringify(target));
+			assert(new Set(game.session.players.map(player => player.color)).size == 3,
+				"players share a color");
+			assert(game.session.history.length == 0 && game.session.revision == 0,
+				"hover became a move");
+		}
+		const message = { type: "hover", gameId: host.session.gameId, playerId: "host", target };
+		host.session.receive("alice", message);
+		assert(!host.session.hovers.has("host"), "guest spoofed another player");
+		host.session.receive("stranger", message);
+		assert(!host.session.hovers.has("stranger"), "unknown player can hover");
+		host.session.receive("alice", { ...message, target: { ...target, value: 99 } });
+		assert(host.session.hovers.get("alice").value == 2, "invalid target accepted");
+		const clue = host.puzzle.clues.findIndex(clue => clue.displayType);
+		guest.session.requestHover({ clue });
+		assert([host, guest, observer].every(game => game.session.hovers.get("alice").clue == clue),
+			"clue hover not relayed");
+		guest.session.requestHover({ clue: host.puzzle.clues.length });
+		assert(host.session.hovers.get("alice").clue == clue, "invalid clue accepted");
+		guest.session.requestHover(null);
+		assert([host, guest, observer].every(game => !game.session.hovers.size), "clear not shared");
+		host.session.requestHover({ row: 1, column: 1, value: null });
+		assert(observer.session.hovers.has("host"), "host hover not relayed");
+		guest.session.requestHover(target);
+		host.session.setPeerState("alice", "interrupted");
+		assert([host, guest, observer].every(game => !game.session.hovers.has("alice")),
+			"interrupted player kept a highlight");
+		host.session.start(10699);
+		assert([host, guest, observer].every(game => !game.session.hovers.size), "new game retained hover");
+		host.session.receive("host", message);
+		assert(!host.session.hovers.size, "old game hover accepted");
+	} finally {
+		stopAll(host, guest, observer);
+	}
+});
+
 Deno.test("intentional WebRTC departures do not request invitation recovery", async function() {
 	for (const leavingHost of [false, true]) {
 		const factory = fakeWebRTCFactory();

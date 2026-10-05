@@ -3296,7 +3296,7 @@ body.multiplayer #logo {
 	flex: 0 0 0.28rem;
 	height: 0.28rem;
 	border-radius: 50%;
-	background: black;
+	background: var(--player-color, black);
 	align-self: center;
 }
 
@@ -3577,4 +3577,19 @@ body.multiplayer #logo {
 #friends-copy-room:focus-visible {
 	outline: 1px solid #80633a;
 	outline-offset: 3px;
+}
+
+/* These rings do not replace clue, chalk, or history highlighting. */
+:is(#board, #hclues, #vclues) [data-shared-hover] {
+	position: relative;
+}
+
+:is(#board, #hclues, #vclues) [data-shared-hover]::after {
+	content: "";
+	position: absolute;
+	inset: 0;
+	border-radius: 3px;
+	box-shadow: var(--shared-hover-rings);
+	pointer-events: none;
+	z-index: 2;
 }
