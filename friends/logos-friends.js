@@ -34,15 +34,15 @@ var nextGuest = 1;
 var invitationPreview = 0;
 var historyHighlight = null;
 var room = null;
-var roomTimer = null;
 var roomControls = friendsMenu.querySelector(".friends-room-controls");
 var roomInput = friendsMenu.querySelector("#friends-room-name");
+var roomEditor = friendsMenu.querySelector(".friends-room-editor");
+var roomNameDisplay = friendsMenu.querySelector("#friends-room-name-display");
 var roomJoin = friendsMenu.querySelector("#friends-join-room");
-var roomGenerate = friendsMenu.querySelector("#friends-generate-room");
+var roomRandom = friendsMenu.querySelector("#friends-random-room");
 var roomSharing = friendsMenu.querySelector(".friends-room-sharing");
-var roomStatus = friendsMenu.querySelector("#friends-room-status");
 var roomRenew = friendsMenu.querySelector("#friends-renew-room");
-var roomLink = friendsMenu.querySelector("#friends-room-link");
+var roomLink = "";
 
 function clearHistoryHighlight() {
 	if (!historyHighlight)
@@ -487,12 +487,14 @@ function leave() {
 		room = null;
 		previous.close();
 	}
-	clearInterval(roomTimer);
 	roomControls.hidden = false;
 	roomSharing.hidden = true;
+	roomEditor.hidden = false;
+	roomNameDisplay.hidden = true;
 	roomInput.disabled = false;
-	roomGenerate.disabled = false;
+	roomRandom.disabled = false;
 	roomJoin.hidden = false;
+	roomRandom.hidden = false;
 	roomJoin.disabled = false;
 	clearHistoryHighlight();
 	if (transport)
@@ -519,7 +521,7 @@ function leave() {
 		field.value = "";
 		field.setCustomValidity("");
 	}
-	roomInput.value = globalThis.LogosFriends.generateRoomName();
+	roomInput.value = "";
 	friendsBadgeCaption.textContent = "with Friends";
 	setGameControlsDisabled(false);
 	newGameButton.onclick = function() { window.puzzle.newGame(); };
@@ -572,9 +574,11 @@ function roomInvitationStatus(state) {
 		(state.state == "expired" || state.state == "error"));
 	roomJoin.disabled = state.state == "connecting";
 	if (state.state == "error" && !session) {
+		roomEditor.hidden = false;
+		roomNameDisplay.hidden = true;
 		roomJoin.disabled = false;
 		roomInput.disabled = false;
-		roomGenerate.disabled = false;
+		roomRandom.disabled = false;
 		startControls.hidden = false;
 		leaveButton.hidden = true;
 	}
@@ -586,34 +590,31 @@ function roomInvitationStatus(state) {
 		status.textContent = message;
 	}
 	if (state.state == "expired" || state.state == "error") {
-		clearInterval(roomTimer);
-		roomStatus.textContent = state.message;
 		if (session?.role == "host") {
+			roomEditor.hidden = false;
+			roomNameDisplay.hidden = true;
 			roomInput.disabled = false;
-			roomGenerate.disabled = false;
+			roomRandom.disabled = false;
 		}
 	}
 	if (state.state == "open") {
+		roomNameDisplay.textContent = room.name;
+		roomNameDisplay.hidden = false;
+		roomEditor.hidden = true;
 		roomSharing.hidden = false;
 		roomJoin.hidden = true;
+		roomRandom.hidden = true;
+		roomInput.value = room.name;
 		const url = new URL(location.href);
 		url.search = "";
 		url.hash = "room=" + room.name;
-		roomLink.value = url.href;
-		clearInterval(roomTimer);
-		const update = () => {
-			const remaining = Math.max(0, Math.ceil((room.expiresAt - Date.now()) / 60000));
-			roomStatus.textContent = remaining ?
-				"Invitation expires in " + remaining + " min." : "Invitation expired";
-		};
-		update();
-		roomTimer = setInterval(update, 1000);
+		roomLink = url.href;
 	}
 }
 
-function joinRoom() {
+function joinRoom(requestedName = roomInput.value, random = false) {
 	const { RoomSignaling, normalizeRoomName, validRoomName } = globalThis.LogosFriends;
-	const name = normalizeRoomName(roomInput.value);
+	const name = normalizeRoomName(requestedName);
 	if (!validRoomName(name)) {
 		roomInput.setCustomValidity("Use letters, numbers, and spaces or hyphens (up to 64 characters).");
 		roomInput.reportValidity();
@@ -631,15 +632,15 @@ function joinRoom() {
 		room = null;
 		previous.close();
 	}
-	roomInput.value = name;
 	roomInput.disabled = true;
-	roomGenerate.disabled = true;
+	roomRandom.disabled = true;
 	startControls.hidden = true;
 	leaveButton.hidden = false;
 	leaveButton.textContent = existingHost ? "End multiplayer" : "Cancel";
 	roomRenew.hidden = true;
 	room = new RoomSignaling({
-		name, endpoint, hostOnly: existingHost,
+		name, endpoint, hostOnly: existingHost || random,
+		randomName: random ? globalThis.LogosFriends.generateRoomName : null,
 		onRole(role) {
 			if (existingHost) return transport;
 			beginSession(role);
@@ -659,7 +660,7 @@ function joinRoom() {
 	room.start();
 }
 
-roomInput.value = globalThis.LogosFriends.generateRoomName();
+roomInput.value = "";
 roomInput.addEventListener("input", () => roomInput.setCustomValidity(""));
 roomInput.addEventListener("keydown", event => {
 	if (event.key == "Enter") {
@@ -667,14 +668,20 @@ roomInput.addEventListener("keydown", event => {
 		if (!roomJoin.hidden && !roomJoin.disabled) joinRoom();
 	}
 });
-roomGenerate.addEventListener("click", () => {
-	roomInput.value = globalThis.LogosFriends.generateRoomName();
-	roomInput.setCustomValidity("");
+roomRandom.addEventListener("click", () => {
+	joinRoom(globalThis.LogosFriends.generateRoomName(), true);
 });
-roomJoin.addEventListener("click", joinRoom);
-roomRenew.addEventListener("click", joinRoom);
-friendsMenu.querySelector("#friends-copy-room").addEventListener("click", function() {
-	copyField(roomLink, this);
+roomJoin.addEventListener("click", () => joinRoom());
+roomRenew.addEventListener("click", function() {
+	if (!room?.extend()) joinRoom();
+});
+friendsMenu.querySelector("#friends-copy-room").addEventListener("click", async function() {
+	try {
+		await navigator.clipboard.writeText(roomLink);
+		showCopied(this);
+	} catch (e) {
+		window.prompt("Copy this invitation link:", roomLink);
+	}
 });
 window.addEventListener("pagehide", () => room?.close());
 

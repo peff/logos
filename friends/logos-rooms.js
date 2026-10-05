@@ -99,7 +99,7 @@ class RoomSignaling {
 			if (!this.transport || this.role == "guest")
 				this.transport = this.onRole(this.role);
 			this.report("open", this.role == "host" ?
-				"Room open. Share its name or link." : "Connecting to the host…");
+				"You’re hosting. Share the room name or link." : "Connecting to the host…");
 		} else if (message.type == "guest" && this.role == "host") {
 			this.gathering.add(message.id);
 			const signal = await this.transport.createInvitation();
@@ -135,7 +135,7 @@ class RoomSignaling {
 		} else if (message.type == "extended") {
 			this.expiresAt = message.expiresAt;
 			this.report("open", this.role == "host" ?
-				"Room open. Share its name or link." : "Connecting to the host…");
+				"You’re hosting. Share the room name or link." : "Connecting to the host…");
 		} else if (message.type == "expired") {
 			/* The server allows already-started handshakes a short grace period. */
 			this.report("expired", "Invitation expired");

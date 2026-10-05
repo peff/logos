@@ -271,25 +271,29 @@
 					<p class="friends-status">
 					</p>
 					<div class="friends-room-controls">
-						<label for="friends-room-name">Room name:</label>
-						<div class="friends-room-name-row">
-							<input id="friends-room-name" type="text" maxlength="64"
-							       autocapitalize="none" autocomplete="off" spellcheck="false">
-							<button id="friends-generate-room" type="button">Generate name</button>
-						</div>
-						<button id="friends-join-room" type="button">Join room</button>
-						<div class="friends-room-sharing" hidden>
-							<div class="friends-room-name-row">
-								<input id="friends-room-link" type="text" readonly aria-label="Invitation link">
-								<button id="friends-copy-room" type="button">Copy link</button>
+						<div class="friends-room-choices">
+							<div class="friends-room-editor friends-room-choice">
+								<div class="friends-room-name-row">
+									<input id="friends-room-name" type="text" maxlength="32" aria-label="Room name" placeholder="Room name"
+									       autocapitalize="none" autocomplete="off" spellcheck="false">
+									<button id="friends-join-room" class="option-action" type="button">Join room</button>
+								</div>
 							</div>
-							<p id="friends-room-status" role="status"></p>
-							<button id="friends-renew-room" type="button" hidden>Invite more friends</button>
+							<div class="friends-room-random friends-room-choice">
+								<button id="friends-random-room" class="option-action" type="button">Random room</button>
+							</div>
+						</div>
+						<p id="friends-room-name-display" hidden></p>
+						<div class="friends-room-sharing" hidden>
+							<div class="friends-room-link-row">
+								<button id="friends-copy-room" type="button">Copy invitation link</button>
+							</div>
+							<button id="friends-renew-room" type="button" hidden>Reopen invitation</button>
 						</div>
 					</div>
 					<div class="friends-start">
-						<details class="friends-manual">
-						<summary>Manual connection</summary>
+						<!-- The local-tab test helper still drives these controls. -->
+						<div hidden>
 						<button id="friends-host" type="button">Host a game</button>
 						<p>or</p>
 						<div class="friends-join-controls friends-signal-controls">
@@ -297,7 +301,7 @@
 							       spellcheck="false" aria-label="Invitation received">
 							<button id="friends-join" type="button">RSVP</button>
 						</div>
-						</details>
+						</div>
 					</div>
 					<div class="friends-host-controls" hidden>
 						<p class="friends-host-instructions">
@@ -320,7 +324,7 @@
 						</div>
 					</div>
 					<div class="friends-footer-actions">
-						<button id="friends-leave" type="button" hidden>Leave game</button>
+						<button id="friends-leave" class="modal-done" type="button" hidden>Leave game</button>
 						<input class="modal-done modal-close" type="button"
 						       value="Resume game">
 					</div>

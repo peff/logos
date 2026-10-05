@@ -21,7 +21,7 @@
 	async function open(name, join = true, roomName = room) {
 		const frame = document.createElement("iframe");
 		frame.style = "width:390px;height:844px";
-		frame.src = "../index.html#room=" + roomName;
+		frame.src = "../index.html" + (roomName === null ? "" : "#room=" + roomName);
 		frames.push(frame);
 		const loaded = new Promise(resolve => frame.onload = resolve);
 		document.body.append(frame);
@@ -40,20 +40,46 @@
 			constructor(url) { super(url); app.testRoomSockets.push(this); }
 		};
 		doc.querySelector('meta[name="logos-rooms-endpoint"]').content = "http://127.0.0.1:8787/api/rooms";
+		if (roomName === null) doc.querySelector("#friends-button").click();
 		assert(!doc.querySelector("#friends-menu").hidden, "room link did not open friends");
-		assert(doc.querySelector("#friends-room-name").value == roomName, "room name not filled from link");
+		assert(doc.querySelector("#friends-room-name").value == (roomName || ""), "unexpected initial room name");
 		doc.querySelector("#friends-player-name").value = name;
 		if (join) doc.querySelector("#friends-join-room").click();
 		return app;
 	}
 	try {
+		const occupied = await open("Zeno", true, room + "-occupied");
+		await waitFor(() => occupied.puzzle.actionController?.role == "host", "occupied room");
+		const random = await open("Euclid", false, null);
+		random.puzzle.newGame(10699);
+		const placed = random.puzzle.rows[0].slots[0];
+		random.puzzle.requestTileAction(placed, placed.value, "place");
+		let generated = 0;
+		random.LogosFriends.generateRoomName = () =>
+			room + (++generated == 1 ? "-occupied" : "-random");
+		random.document.querySelector("#friends-random-room").click();
+		assert(random.document.querySelector("#friends-room-name").value == "",
+			"random name shown before joining");
+		await waitFor(() => random.puzzle.actionController?.role == "host", "random room");
+		assert(generated == 2 && random.testRoom.name == room + "-random", "collision did not retry");
+		assert(random.puzzle.seed == 10699 && placed.single, "collision lost the solo game");
+		assert(occupied.puzzle.actionController.players.length == 1, "random creation joined occupied room");
+		occupied.document.querySelector("#friends-leave").click();
+		assert(random.document.querySelector("#friends-room-name-display").textContent == random.testRoom.name,
+			"joined random room name not displayed");
+		random.document.querySelector("#friends-leave").click();
+		assert(random.document.querySelector("#friends-room-name").value == "", "room name not cleared on leave");
 		const host = await open("Plato");
 		await waitFor(() => host.puzzle.actionController?.role == "host", "first arrival host");
 		const guests = await Promise.all([open("Sappho"), open("Socrates")]);
 		await waitFor(() => guests.every(app => app.puzzle.actionController?.ready), "two guest handshakes");
 		await waitFor(() => host.puzzle.actionController.players.length == 3, "roster");
 		assert(guests.every(app => app.puzzle.actionController.role == "guest"), "multiple hosts elected");
-		const link = host.document.querySelector("#friends-room-link").value;
+		let link;
+		Object.defineProperty(host.navigator, "clipboard", {
+			configurable: true, value: { async writeText(text) { link = text; } },
+		});
+		host.document.querySelector("#friends-copy-room").click();
 		assert(new URL(link).hash == "#room=" + room, "invitation link has opaque additions");
 		guests[0].document.querySelector("#new-game-button").click();
 		await waitFor(() => host.puzzle.seed !== undefined &&
@@ -62,11 +88,15 @@
 		await waitFor(() => guests.every(app => app.puzzle.paused), "shared pause");
 		guests[0].puzzle.actionController.requestPause(false);
 		await waitFor(() => guests.every(app => !app.puzzle.paused), "shared resume");
+		assert(host.document.querySelector("#friends-renew-room").hidden,
+			"open room displays expiration controls");
+		assert(host.document.querySelector("#friends-room-name-display").textContent == room &&
+			host.document.querySelector(".friends-room-editor").hidden, "open room name is editable");
 		/* A signaling interruption must not discard the live WebRTC game. */
 		const seed = host.puzzle.seed;
 		host.testRoomSockets[0].close();
 		await waitFor(() => host.testRoomSockets.length == 2 &&
-			host.document.querySelector(".friends-status").textContent.startsWith("Room open"),
+			host.document.querySelector(".friends-status").textContent.startsWith("You’re hosting."),
 			"host signaling reconnect");
 		assert(host.puzzle.seed == seed && host.puzzle.actionController.players.length == 3,
 			"signaling reconnect changed the shared game");
@@ -86,7 +116,7 @@
 			"renewal joined the other game");
 		host.document.querySelector("#friends-room-name").value = room + "-again";
 		host.document.querySelector("#friends-renew-room").click();
-		await waitFor(() => host.document.querySelector(".friends-status").textContent.startsWith("Room open"),
+		await waitFor(() => host.document.querySelector(".friends-status").textContent.startsWith("You’re hosting."),
 			"renewal under a new name");
 		other.document.querySelector("#friends-leave").click();
 		const late = await open("Hypatia", true, room + "-again");

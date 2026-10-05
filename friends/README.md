@@ -7,8 +7,10 @@ later arrivals connect to that host over WebRTC. The Worker exchanges connection
 messages only. Game traffic goes directly between browsers.
 
 1. Choose **LOGOS with Friends** in Options.
-2. Enter a room name, or use **Generate name**, and select **Join room**.
-3. Share the room name or **Copy link**. Friends can enter the same name or open
+2. Enter a room name and select **Join room**, or select **Random room**
+   to claim a generated name. If it is taken, creation retries another name
+   without joining the existing game (up to 16 attempts).
+3. Share the room name or **Copy invitation link**. Friends can enter the same name or open
    the link, choose their player name, and select **Join room**.
 
 Names are case-insensitive; spaces become hyphens. Links contain only the room
@@ -17,8 +19,8 @@ Knowing a room name permits joining it; rooms are not password-protected.
 
 Invitations last 15 minutes. The host's signaling connection then closes, with
 up to 30 seconds for handshakes already underway to finish. Established games
-continue independently. **Invite more friends** opens a new invitation for the
-same game; if someone else has claimed the name, choose another. A brief host
+continue independently. When the invitation expires, **Reopen invitation**
+appears to open another invitation for the same game; if someone else has claimed the name, choose another. A brief host
 signaling interruption can reconnect, but guests are never promoted within an
 existing room. Ending multiplayer closes invitations immediately.
 
@@ -32,12 +34,7 @@ and local development. For local room testing, run the Worker with
 `tests/logos-rooms-test.html`; that test points its clients at the local Worker
 on port 8787.
 
-The collapsed **Manual connection** fallback works without the Worker: the host
-creates an invitation, the guest pastes it and selects **RSVP**, and the host
-pastes the returned response and selects **Accept response**. Each guest needs
-a separate manual invitation.
-
-Both paths use Cloudflare's public STUN server, but no TURN relay is configured.
+WebRTC uses Cloudflare's public STUN server, but no TURN relay is configured.
 Some restrictive networks may therefore still prevent a connection.
 
 Hosting during a game shares the current puzzle, progress, and elapsed time.
