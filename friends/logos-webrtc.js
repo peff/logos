@@ -214,7 +214,10 @@ class WebRTCHostTransport {
 		};
 		record.channel.onmessage = function(event) {
 			var message = parseChannelMessage(event);
-			if (message && record.playerId)
+			if (message?.type == "leave") {
+				record.intentionalDeparture = true;
+				transport.drop(record, "closed");
+			} else if (message && record.playerId)
 				transport.session.receive(record.playerId, message);
 		};
 		record.channel.onclose = function() {
@@ -241,6 +244,8 @@ class WebRTCHostTransport {
 		if (record.closed)
 			return;
 		record.closed = true;
+		record.unexpectedDeparture = !this.closed && !record.intentionalDeparture &&
+			this.connected.get(record.playerId) === record;
 		this.clearFailure(record);
 		this.pending.delete(record.connectionId);
 		if (record.playerId && this.connected.get(record.playerId) == record) {
@@ -259,10 +264,12 @@ class WebRTCHostTransport {
 			connectionId: record && record.connectionId,
 			playerId: record && record.playerId,
 			playerName: record && record.playerName,
+			unexpectedDeparture: !!record?.unexpectedDeparture,
 		});
 	}
 
 	close() {
+		this.closed = true;
 		for (var record of Array.from(this.pending.values()))
 			this.drop(record, "closed");
 		for (var record of Array.from(this.connected.values()))
@@ -395,7 +402,9 @@ class WebRTCGuestTransport {
 	}
 
 	close() {
+		const notify = !this.closed && this.channel?.readyState == "open";
 		this.closed = true;
+		if (notify) this.channel.send(JSON.stringify({ type: "leave" }));
 		this.clearFailure();
 		if (this.peer)
 			this.peer.close();

@@ -11,6 +11,8 @@ var friendsButton = document.querySelector("#friends-button");
 var friendsBadgeCaption = friendsButton.querySelector(".friends-badge-caption");
 var friendsMenu = document.querySelector("#friends-menu");
 var status = friendsMenu.querySelector(".friends-status");
+var rejoinButton = friendsMenu.querySelector("#friends-rejoin");
+var invitationNeedsAttention = false;
 var leaveButton = friendsMenu.querySelector("#friends-leave");
 var newGameButton = document.querySelector("#new-game-button");
 var nameInput = friendsMenu.querySelector("#friends-player-name");
@@ -216,6 +218,8 @@ function renderPlayers(players) {
 		rosterStatus.textContent = "Connection interrupted";
 	else if (rosterConnection == "closed")
 		rosterStatus.textContent = "Host disconnected";
+	else if (invitationNeedsAttention)
+		rosterStatus.textContent = "Reopen invitation";
 	else if (!players.length)
 		rosterStatus.textContent = "Connecting…";
 	else if (players.length == 1)
@@ -232,6 +236,7 @@ function playerName(role) {
 }
 
 function updateWebRTCHost(state) {
+	if (state.unexpectedDeparture) room?.renew();
 	friendsBadgeCaption.textContent = "Hosting";
 	if (state.state == "connected" && !friendsMenu.hidden)
 		toggleMenu();
@@ -240,6 +245,9 @@ function updateWebRTCHost(state) {
 }
 
 function updateWebRTCGuest(state) {
+	if (state.terminal) room?.close();
+	rejoinButton.hidden = !state.terminal;
+	rejoinButton.disabled = false;
 	rosterConnection = state.connected ? "connected" :
 		state.state == "disconnected" ? "disconnected" :
 		state.terminal || state.state == "closed" ? "closed" : "connecting";
@@ -254,8 +262,8 @@ function updateWebRTCGuest(state) {
 		status.textContent = "The connection to the host was interrupted.";
 		friendsBadgeCaption.textContent = "Disconnected";
 	} else if (state.state == "failed" || state.state == "closed") {
-		status.textContent = "The host disconnected. " +
-			"End multiplayer to return to single-player and keep playing.";
+		status.textContent = "The host disconnected. Rejoin the room, or " +
+			"end multiplayer to keep playing solo.";
 		leaveButton.textContent = "End multiplayer";
 		friendsBadgeCaption.textContent = "Disconnected";
 	} else {
@@ -278,6 +286,8 @@ function setInvitationView(enabled) {
 }
 
 function leave() {
+	rejoinButton.hidden = true;
+	invitationNeedsAttention = false;
 	setInvitationView(false);
 	if (room) {
 		const previous = room;
@@ -330,6 +340,10 @@ function showCopied(button) {
 function roomInvitationStatus(state) {
 	if (!room) return;
 	status.textContent = state.message;
+	if (session?.role == "host" && ["open", "error"].includes(state.state)) {
+		invitationNeedsAttention = state.state == "error";
+		renderPlayers(session.players);
+	}
 	roomRenew.hidden = !(session?.role == "host" &&
 		(state.state == "expired" || state.state == "error"));
 	roomJoin.disabled = state.state == "connecting";
@@ -343,6 +357,13 @@ function roomInvitationStatus(state) {
 		leaveButton.hidden = true;
 	}
 	if (state.state == "error" && session?.role == "guest" && !session.ready) {
+		if (room.guestOnly) {
+			transport?.close();
+			updateWebRTCGuest({ state: "closed", terminal: true });
+			status.textContent = "Could not rejoin: " + state.message +
+				". Ask the host to reopen the invitation.";
+			return;
+		}
 		/* Keep the error visible, but restore solo controls after a failed join. */
 		const message = state.message;
 		leave();
@@ -373,7 +394,7 @@ function roomInvitationStatus(state) {
 	}
 }
 
-function joinRoom(requestedName = roomInput.value, random = false) {
+function joinRoom(requestedName = roomInput.value, random = false, guestOnly = false) {
 	const { RoomSignaling, normalizeRoomName, validRoomName } = globalThis.LogosFriends;
 	const name = normalizeRoomName(requestedName);
 	if (!validRoomName(name)) {
@@ -399,7 +420,7 @@ function joinRoom(requestedName = roomInput.value, random = false) {
 	leaveButton.textContent = existingHost ? "End multiplayer" : "Cancel";
 	roomRenew.hidden = true;
 	room = new RoomSignaling({
-		name, endpoint, hostOnly: existingHost || random,
+		name, endpoint, hostOnly: existingHost || random, guestOnly,
 		randomName: random ? globalThis.LogosFriends.generateRoomName : null,
 		onRole(role) {
 			if (existingHost) return transport;
@@ -433,7 +454,12 @@ roomRandom.addEventListener("click", () => {
 });
 roomJoin.addEventListener("click", () => joinRoom());
 roomRenew.addEventListener("click", function() {
-	if (!room?.extend()) joinRoom();
+	if (room?.role == "host" && roomInput.value == room.name) room.renew();
+	else joinRoom();
+});
+rejoinButton.addEventListener("click", function() {
+	rejoinButton.disabled = true;
+	joinRoom(room.name, false, true);
 });
 friendsMenu.querySelector("#friends-copy-room").addEventListener("click", async function() {
 	try {

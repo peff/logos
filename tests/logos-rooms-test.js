@@ -143,3 +143,33 @@ Deno.test("random room creation stops after sixteen occupied names", async () =>
 	assert(connects == 15 && room.stopped);
 	assert(states.at(-1).state == "error");
 });
+
+Deno.test("renewal reclaims the same room token and preserves its game transport", async () => {
+	const { room, transport, sent } = fixture();
+	const token = room.token;
+	room.stopped = true;
+	room.expiresAt = 1;
+	let connects = 0;
+	room.connect = () => {
+		connects++;
+		room.socket = { readyState: WebSocket.OPEN, close() {} };
+	};
+	room.onRole = () => { throw new Error("renewal replaced the game"); };
+	room.renew();
+	assert(connects == 1 && room.token == token && !room.stopped && room.role == "host");
+	await room.receive({ type: "joined", role: "host", expiresAt: 123 }, room.socket);
+	assert(room.transport === transport && sent.at(-1).type == "extend");
+	room.renew();
+	assert(connects == 1 && sent.at(-1).type == "extend", "open invitation was reconnected");
+});
+
+Deno.test("renewal during a signaling reconnect waits for room ownership", async () => {
+	const { room, transport, sent } = fixture();
+	room.socket.readyState = WebSocket.CONNECTING;
+	room.connect = () => { throw new Error("duplicate reconnect"); };
+	room.renew();
+	assert(!sent.length && room.renewOnJoin);
+	room.socket.readyState = WebSocket.OPEN;
+	await room.receive({ type: "joined", role: "host", expiresAt: 123 }, room.socket);
+	assert(room.transport === transport && sent.at(-1).type == "extend");
+});

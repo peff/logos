@@ -27,6 +27,9 @@
 		document.body.append(frame);
 		await loaded;
 		const app = frame.contentWindow, doc = app.document;
+		for (const id of ["friends-rejoin", "friends-leave"])
+			assert(app.getComputedStyle(doc.getElementById(id)).display == "none",
+				id + " is visible before joining");
 		/* Same-machine peers need no external STUN service. */
 		const Peer = app.RTCPeerConnection;
 		app.RTCPeerConnection = function() { return new Peer({ iceServers: [] }); };
@@ -93,6 +96,12 @@
 		await waitFor(() => guests.every(app => app.puzzle.actionController?.ready), "two guest handshakes");
 		await waitFor(() => host.puzzle.actionController.players.length == 3, "roster");
 		assert(guests.every(app => app.puzzle.actionController.role == "guest"), "multiple hosts elected");
+		for (const app of [host, ...guests]) {
+			assert(app.getComputedStyle(app.document.querySelector("#friends-rejoin")).display == "none",
+				"connected player sees Rejoin");
+			assert(app.getComputedStyle(app.document.querySelector("#friends-leave")).display != "none",
+				"connected player cannot leave");
+		}
 		assert(!guests[0].document.querySelector(".friends-name-controls").hidden,
 			"joined player cannot edit name");
 		const nameField = guests[0].document.querySelector("#friends-player-name");
@@ -114,32 +123,64 @@
 		await waitFor(() => guests.every(app => app.puzzle.paused), "shared pause");
 		guests[0].puzzle.actionController.requestPause(false);
 		await waitFor(() => guests.every(app => !app.puzzle.paused), "shared resume");
+		/* Explicit departures leave the invitation deadline alone. */
+		const visitor = await open("Diogenes");
+		await waitFor(() => visitor.puzzle.actionController?.ready, "temporary guest");
+		const deadline = host.testRoom.expiresAt;
+		visitor.document.querySelector("#friends-leave").click();
+		await waitFor(() => host.puzzle.actionController.players.length == 3, "intentional departure");
+		assert(host.testRoom.expiresAt == deadline, "intentional departure renewed invitations");
+		const sharedSeed = host.puzzle.seed;
+		const sharedController = host.puzzle.actionController;
+		for (const expired of [false, true]) {
+			if (expired) {
+				host.testRoom.send({ type: "leave" });
+				await waitFor(() => host.testRoom.stopped, "expired admission before disconnect");
+			}
+			const oldDeadline = host.testRoom.expiresAt;
+			const id = guests[0].puzzle.actionController.playerId;
+			host.testRoom.transport.drop(host.testRoom.transport.connected.get(id), "failed");
+			await waitFor(() => !guests[0].document.querySelector("#friends-rejoin").hidden,
+				"disconnected guest can rejoin");
+			await waitFor(() => !host.testRoom.stopped && host.testRoom.expiresAt > oldDeadline,
+				expired ? "automatically reopened admission" : "automatically renewed admission");
+			guests[0].document.querySelector("#friends-rejoin").click();
+			await waitFor(() => guests[0].puzzle.actionController?.ready &&
+				host.puzzle.actionController.players.length == 3, "guest rejoined");
+			assert(host.puzzle.actionController === sharedController && guests[0].puzzle.seed == sharedSeed,
+				"rejoin replaced the host game or missed synchronization");
+		}
 		assert(host.document.querySelector("#friends-renew-room").hidden,
 			"open room displays expiration controls");
 		assert(host.document.querySelector("#friends-room-name-display").textContent == room &&
 			host.document.querySelector(".friends-room-editor").hidden, "open room name is editable");
 		/* A signaling interruption must not discard the live WebRTC game. */
 		const seed = host.puzzle.seed;
-		host.testRoomSockets[0].close();
-		await waitFor(() => host.testRoomSockets.length == 2 &&
+		const socketCount = host.testRoomSockets.length;
+		host.testRoomSockets.at(-1).close();
+		await waitFor(() => host.testRoomSockets.length == socketCount + 1 &&
 			host.document.querySelector(".friends-status").textContent.startsWith("You’re hosting."),
 			"host signaling reconnect");
 		assert(host.puzzle.seed == seed && host.puzzle.actionController.players.length == 3,
 			"signaling reconnect changed the shared game");
+		const stranded = await open("Zeno");
+		await waitFor(() => stranded.puzzle.actionController?.ready, "guest before room-name collision");
 		/* Closing admission models expiry without waiting fifteen minutes. */
 		host.testRoom.send({ type: "leave" });
 		await waitFor(() => !host.document.querySelector("#friends-renew-room").hidden,
 			"invitation closure");
-		assert(host.puzzle.seed == seed && host.puzzle.actionController.players.length == 3,
+		assert(host.puzzle.seed == seed && host.puzzle.actionController.players.length == 4,
 			"closing invitations interrupted play");
 		const other = await open("Aristotle");
 		await waitFor(() => other.puzzle.actionController?.role == "host", "another gathering");
 		const controller = host.puzzle.actionController;
-		host.document.querySelector("#friends-renew-room").click();
+		host.testRoom.transport.drop(host.testRoom.transport.connected.get(stranded.puzzle.actionController.playerId), "failed");
 		await waitFor(() => host.document.querySelector(".friends-status").textContent.includes("another gathering"),
 			"renewal name collision");
 		assert(host.puzzle.actionController === controller && host.puzzle.seed == seed,
 			"renewal joined the other game");
+		assert(host.document.querySelector("#friends-roster-status").textContent == "Reopen invitation",
+			"automatic renewal failure is invisible outside the dialog");
 		host.document.querySelector("#friends-room-name").value = room + "-again";
 		host.document.querySelector("#friends-renew-room").click();
 		await waitFor(() => host.document.querySelector(".friends-status").textContent.startsWith("You’re hosting."),
@@ -152,6 +193,12 @@
 		await waitFor(() => guests.every(app =>
 			app.document.querySelector("#friends-roster-status").textContent == "Host disconnected"),
 			"host departure");
+		guests[0].document.querySelector("#friends-rejoin").click();
+		await waitFor(() => guests[0].document.querySelector(".friends-status").textContent.includes("Could not rejoin"),
+			"rejoin without a host fails");
+		assert(guests[0].puzzle.actionController === null &&
+			!guests[0].document.querySelector("#friends-rejoin").hidden && guests[0].puzzle.seed == sharedSeed,
+			"failed rejoin created a host or lost the solo continuation");
 		await new Promise(resolve => setTimeout(resolve, 300));
 		const next = await open("Theseus");
 		await waitFor(() => next.puzzle.actionController?.role == "host", "reuse released room");

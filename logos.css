@@ -1007,6 +1007,7 @@ body:is(.proof-active, :has(#proof-controls.hint-explanation)) :is(#logo, #frien
 	font-size: 0.7rem;
 }
 
+.modal-done[hidden],
 .option-action[hidden] {
 	display: none;
 }

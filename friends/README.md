@@ -25,6 +25,13 @@ appears to open another invitation for the same game; if someone else has claime
 signaling interruption can reconnect, but guests are never promoted within an
 existing room. Ending multiplayer closes invitations immediately.
 
+If an established guest connection fails or times out, the host renews or
+reopens the invitation for another 15 minutes. Intentional departures do not
+extend it. Disconnected guests can select **Rejoin room** to reconnect and
+receive the host's current puzzle, or **End multiplayer** to continue solo.
+Rejoining never creates a new room. If another gathering has claimed an expired
+name, the host must choose a new name and share its invitation.
+
 The first arrival shares their current puzzle if they are already playing.
 Otherwise, the room begins in the lobby.
 

@@ -56,7 +56,7 @@ class RoomSignaling {
 		ws.onopen = () => {
 			clearTimeout(timeout);
 			ws.send(JSON.stringify({ type: "join", token: this.token,
-				guestOnly: this.role == "guest", hostOnly: !!this.hostOnly,
+				guestOnly: !!this.guestOnly || this.role == "guest", hostOnly: !!this.hostOnly,
 				resume: this.role == "host" }));
 		};
 		ws.onmessage = event => {
@@ -100,6 +100,10 @@ class RoomSignaling {
 				this.transport = this.onRole(this.role);
 			this.report("open", this.role == "host" ?
 				"You’re hosting. Share the room name or link." : "Connecting to the host…");
+			if (this.renewOnJoin && this.role == "host") {
+				this.renewOnJoin = false;
+				this.extend();
+			}
 		} else if (message.type == "guest" && this.role == "host") {
 			this.gathering.add(message.id);
 			const signal = await this.transport.createInvitation();
@@ -154,6 +158,22 @@ class RoomSignaling {
 				this.connect();
 			} else this.fail(message.message);
 		}
+	}
+
+	renew() {
+		if (this.role != "host") return;
+		if (this.extend()) return;
+		this.renewOnJoin = true;
+		/* A pending reconnect will renew once it has reclaimed the room. */
+		if (!this.stopped && this.socket?.readyState == WebSocket.CONNECTING) return;
+		const previous = this.socket;
+		this.socket = null;
+		previous?.close();
+		clearTimeout(this.retryTimer);
+		this.stopped = false;
+		this.retryCount = 0;
+		this.expiresAt = 0;
+		this.connect();
 	}
 
 	extend() {

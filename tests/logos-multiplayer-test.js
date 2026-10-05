@@ -474,6 +474,7 @@ Deno.test("WebRTC transports connect sessions through offer and answer", async f
 	       "a failed WebRTC guest did not report a terminal failure");
 	assert(!host.session.peers.has("guest-id"),
 	       "a failed WebRTC guest remained attached to the host");
+	assert(hostState.unexpectedDeparture, "failed guest did not request invitation recovery");
 
 	guestTransport.close();
 	hostTransport.close();
@@ -1278,5 +1279,31 @@ Deno.test("players can rename themselves before and after connecting", function(
 		assert(host.session.players[1].name == "Sappho", "sender rename lost");
 	} finally {
 		stopAll(host, guest, observer);
+	}
+});
+
+Deno.test("intentional WebRTC departures do not request invitation recovery", async function() {
+	for (const leavingHost of [false, true]) {
+		const factory = fakeWebRTCFactory();
+		const host = makeSession("host", "host");
+		const guest = makeSession("guest", "guest");
+		const events = [];
+		const hostTransport = new WebRTCHostTransport(host.session, {
+			peerConnectionFactory: factory, onChange: state => events.push(state),
+		});
+		const guestTransport = new WebRTCGuestTransport(guest.session, { peerConnectionFactory: factory });
+		try {
+			host.session.start(10699);
+			await hostTransport.acceptAnswer(await guestTransport.acceptInvitation(
+				await hostTransport.createInvitation()));
+			if (leavingHost) hostTransport.close();
+			else guestTransport.close();
+			assert(!host.session.peers.size, "departed guest remains connected");
+			assert(!events.some(event => event.unexpectedDeparture), "intentional leave triggered renewal");
+		} finally {
+			guestTransport.close();
+			hostTransport.close();
+			stopAll(host, guest);
+		}
 	}
 });
