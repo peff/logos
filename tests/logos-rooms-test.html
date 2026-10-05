@@ -147,6 +147,8 @@
 			guests[0].document.querySelector("#friends-rejoin").click();
 			await waitFor(() => guests[0].puzzle.actionController?.ready &&
 				host.puzzle.actionController.players.length == 3, "guest rejoined");
+			assert(guests[0].getComputedStyle(guests[0].document.querySelector("#friends-rejoin")).display == "none",
+				"Rejoin remains visible after reconnecting");
 			assert(host.puzzle.actionController === sharedController && guests[0].puzzle.seed == sharedSeed,
 				"rejoin replaced the host game or missed synchronization");
 		}
