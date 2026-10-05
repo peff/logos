@@ -3296,7 +3296,7 @@ body.multiplayer #logo {
 	flex: 0 0 0.28rem;
 	height: 0.28rem;
 	border-radius: 50%;
-	background: #56715a;
+	background: black;
 	align-self: center;
 }
 
@@ -3437,8 +3437,8 @@ body.multiplayer #logo {
 	font-weight: bold;
 }
 
-#friends-roster-players li[data-state="interrupted"]::before {
-	background: #b78327;
+#friends-roster-players li[data-state="interrupted"] .friends-roster-name {
+	opacity: 0.55;
 }
 
 #friends-roster[data-state="disconnected"] #friends-roster-players {
