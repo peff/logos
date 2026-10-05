@@ -2,7 +2,7 @@
 <meta charset="utf-8">
 <title>Logos multiplayer browser tests</title>
 <style>iframe { width: 390px; height: 844px; }</style>
-<pre id="result">Running (serve this page over HTTP)…</pre>
+<pre id="result">Running (serve the repository and run wrangler dev on port 8787)…</pre>
 <script>
 (async function() {
 	const result = document.querySelector("#result");
@@ -20,15 +20,23 @@
 	}
 	async function open(role, name) {
 		const frame = document.createElement("iframe");
-		frame.src = "../index.html?" + new URLSearchParams({
-			"local-role": role, "local-name": name, "local-test": room,
-		});
+		frame.src = "../index.html";
 		frames.push(frame);
 		const loaded = new Promise(resolve => frame.onload = resolve);
 		document.body.append(frame);
 		await loaded;
-		await waitFor(() => frame.contentDocument.querySelector("#local-test-controls"), "test controls");
-		return frame.contentWindow;
+		const app = frame.contentWindow, doc = app.document;
+		/* Same-machine peers need no external STUN service. */
+		const Peer = app.RTCPeerConnection;
+		app.RTCPeerConnection = function() { return new Peer({ iceServers: [] }); };
+		doc.querySelector('meta[name="logos-rooms-endpoint"]').content = "http://127.0.0.1:8787/api/rooms";
+		doc.querySelector("#friends-player-name").value = name;
+		app.location.hash = "room=" + room;
+		await waitFor(() => app.puzzle.actionController?.ready, "room connection");
+		assert(app.puzzle.actionController.role == role, "unexpected room role");
+		if (!doc.querySelector("#friends-menu").hidden)
+			doc.querySelector("#friends-menu .modal-close").click();
+		return app;
 	}
 	try {
 		const host = await open("host", "Helen");
@@ -314,7 +322,9 @@
 		const soloSeed = host.puzzle.seed;
 		host.document.querySelector("#friends-button").click();
 		assert(host.puzzle.timerTimeout === null, "solo menu did not pause the timer");
-		host.document.querySelector("#friends-host").click();
+		host.document.querySelector("#friends-room-name").value = room + "-adopt";
+		host.document.querySelector("#friends-join-room").click();
+		await waitFor(() => host.puzzle.actionController?.role == "host", "adopting solo game");
 		assert(host.puzzle.seed === soloSeed && soloSlot.single &&
 		       host.puzzle.timerTimeout === null && host.puzzle.paused &&
 		       host.puzzle.actionController.clockState().elapsed >= 45000 &&

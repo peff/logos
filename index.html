@@ -291,38 +291,6 @@
 							<button id="friends-renew-room" type="button" hidden>Reopen invitation</button>
 						</div>
 					</div>
-					<div class="friends-start">
-						<!-- The local-tab test helper still drives these controls. -->
-						<div hidden>
-						<button id="friends-host" type="button">Host a game</button>
-						<p>or</p>
-						<div class="friends-join-controls friends-signal-controls">
-							<input id="friends-invitation-input" type="text"
-							       spellcheck="false" aria-label="Invitation received">
-							<button id="friends-join" type="button">RSVP</button>
-						</div>
-						</div>
-					</div>
-					<div class="friends-host-controls" hidden>
-						<p class="friends-host-instructions">
-							Each guest requires their own invitation code. Send it to
-							them and ask them to RSVP.
-						</p>
-						<div class="friends-player-list" aria-label="Players"></div>
-						<button id="friends-add-guest" type="button">Create invitation</button>
-						<div class="friends-answer-controls friends-signal-controls">
-							<input id="friends-answer-input" type="text"
-							       spellcheck="false" aria-label="Response received">
-							<button id="friends-accept-answer" type="button">Accept response</button>
-						</div>
-					</div>
-					<div class="friends-guest-controls" hidden>
-						<div class="friends-response-controls friends-signal-controls">
-							<input id="friends-answer-output" type="text" readonly
-							       aria-label="Response to send">
-							<button id="friends-copy-answer" type="button">Copy response</button>
-						</div>
-					</div>
 					<div class="friends-footer-actions">
 						<button id="friends-leave" class="modal-done" type="button" hidden>Leave game</button>
 						<input class="modal-done modal-close" type="button"
@@ -713,12 +681,5 @@
 		<script src="friends/logos-webrtc.js"></script>
 		<script src="friends/logos-rooms.js"></script>
 		<script src="friends/logos-friends.js"></script>
-		<script>
-		if (new URLSearchParams(location.search).has("local-test")) {
-			var localTestScript = document.createElement("script");
-			localTestScript.src = "friends/logos-local-test.js";
-			document.body.append(localTestScript);
-		}
-		</script>
 	</body>
 </html>

@@ -10,8 +10,9 @@ messages only. Game traffic goes directly between browsers.
 2. Enter a room name and select **Join room**, or select **Random room**
    to claim a generated name. If it is taken, creation retries another name
    without joining the existing game (up to 16 attempts).
-3. Share the room name or **Copy invitation link**. Friends can enter the same name or open
-   the link, choose their player name, and select **Join room**.
+3. Share the room name or **Copy invitation link**. Friends can enter the same
+   name or follow the link to join automatically. First-time players enter their
+   name and select **Join room**. Names can be changed later in the Friends dialog.
 
 Names are case-insensitive; spaces become hyphens. Links contain only the room
 name, so an old link may lead to a new gathering if that name has been reused.
@@ -31,8 +32,9 @@ The signaling endpoint is configured by the `logos-rooms-endpoint` meta tag in
 `index.html`. See [the server instructions](../server/README.md) for deployment
 and local development. For local room testing, run the Worker with
 `wrangler dev`, serve the repository over HTTP, and open
-`tests/logos-rooms-test.html`; that test points its clients at the local Worker
-on port 8787.
+`tests/logos-rooms-test.html` for signaling checks or
+`tests/logos-friends-test.html` for roster and gameplay checks. Both tests point
+their clients at the local Worker on port 8787.
 
 WebRTC uses Cloudflare's public STUN server, but no TURN relay is configured.
 Some restrictive networks may therefore still prevent a connection.

@@ -1567,12 +1567,6 @@ input[type="text"] {
 	letter-spacing: 0.04em;
 }
 
-.friends-actions {
-	display: flex;
-	justify-content: center;
-	gap: 0.3rem;
-}
-
 .friends-name-controls {
 	display: flex;
 	align-items: center;
@@ -1581,89 +1575,11 @@ input[type="text"] {
 	margin-bottom: 0.45rem;
 }
 
-.friends-name-controls[hidden] {
-	display: none;
-}
-
 .friends-name-controls input {
 	box-sizing: border-box;
 	width: 9rem;
 }
 
-.friends-host-instructions {
-	margin: 0.35rem 0;
-	color: #746c60;
-}
-
-.friends-player-list {
-	margin-bottom: 0.35rem;
-	border-bottom: 1px solid #c8c0b2;
-}
-
-.friends-player-list:empty {
-	display: none;
-}
-
-.friends-player-list:not(.friends-has-guests) ~ .friends-answer-controls {
-	display: none;
-}
-
-.friends-signal-controls {
-	display: flex;
-	align-items: center;
-	gap: 0.3rem;
-	max-width: 13rem;
-}
-
-.friends-join-controls,
-.friends-answer-controls,
-.friends-response-controls {
-	margin: 0.45rem auto 0;
-}
-
-.friends-panel .friends-signal-controls > input {
-	box-sizing: border-box;
-	flex: 1 1 auto;
-	min-width: 0;
-	width: auto;
-	background: #f7f3e9;
-	font-family: monospace;
-	font-size: 0.55rem;
-	user-select: text;
-}
-
-.friends-signal-controls > button {
-	white-space: nowrap;
-}
-
-.friends-player {
-	display: flex;
-	align-items: center;
-	gap: 0.45rem;
-	margin: auto;
-	max-width: 25rem;
-	border-top: 1px solid #c8c0b2;
-	padding: 0.35rem 0;
-}
-
-.friends-player-heading {
-	display: flex;
-	flex: 1 0 8rem;
-	justify-content: space-between;
-	gap: 0.4rem;
-}
-
-.friends-player-status {
-	color: #746c60;
-}
-
-.friends-player-invitation {
-	flex: 1 1 13rem;
-}
-
-.friends-player-invitation[hidden] {
-	display: none;
-}
 
 .friends-panel :where(button:not(.option-action, .modal-done), input:not(.modal-done)) {
 	border: 1px solid #8f826e;

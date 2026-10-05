@@ -1,4 +1,4 @@
-/* Manual-signaling WebRTC transport for Logos multiplayer. */
+/* WebRTC transport for Logos multiplayer. */
 
 (function() {
 
