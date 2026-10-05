@@ -3619,6 +3619,10 @@ body.multiplayer #logo {
 	margin-block: 0.4rem;
 }
 
+.friends-room-name-row:has(input[hidden]) {
+	justify-content: center;
+}
+
 .friends-room-name-row input {
 	flex: 1;
 	min-width: 0;

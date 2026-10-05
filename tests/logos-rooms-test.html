@@ -18,10 +18,10 @@
 			await new Promise(resolve => setTimeout(resolve, 100));
 		}
 	}
-	async function open(name, join = true, roomName = room) {
+	async function open(name, roomName = room, firstVisit = false) {
 		const frame = document.createElement("iframe");
 		frame.style = "width:390px;height:844px";
-		frame.src = "../index.html" + (roomName === null ? "" : "#room=" + roomName);
+		frame.src = "../index.html";
 		frames.push(frame);
 		const loaded = new Promise(resolve => frame.onload = resolve);
 		document.body.append(frame);
@@ -40,17 +40,35 @@
 			constructor(url) { super(url); app.testRoomSockets.push(this); }
 		};
 		doc.querySelector('meta[name="logos-rooms-endpoint"]').content = "http://127.0.0.1:8787/api/rooms";
-		if (roomName === null) doc.querySelector("#friends-button").click();
+		doc.querySelector("#friends-player-name").value = firstVisit ? "" : name;
+		if (roomName === null) {
+			doc.querySelector("#friends-button").click();
+			assert(doc.querySelector("#friends-room-name").value == "", "unexpected initial room name");
+		} else {
+			/* Follow the invitation after installing the local signaling endpoint. */
+			app.location.hash = "room=" + roomName;
+			if (firstVisit) {
+				await waitFor(() => doc.activeElement == doc.querySelector("#friends-player-name"),
+					"invitation asks for a name");
+				assert(!app.testRoom, "blank name joined automatically");
+				assert(doc.querySelector("#friends-random-room").hidden &&
+					doc.querySelector("#friends-room-name").hidden,
+					"invitation offers unrelated room choices");
+				assert(doc.querySelector("#friends-room-name-display").textContent == roomName &&
+					!doc.querySelector("#friends-room-name-display").hidden,
+					"invited room is not displayed");
+				doc.querySelector("#friends-player-name").value = name;
+				doc.querySelector("#friends-join-room").click();
+			}
+			await waitFor(() => app.testRoom, "invitation joins without a click");
+		}
 		assert(!doc.querySelector("#friends-menu").hidden, "room link did not open friends");
-		assert(doc.querySelector("#friends-room-name").value == (roomName || ""), "unexpected initial room name");
-		doc.querySelector("#friends-player-name").value = name;
-		if (join) doc.querySelector("#friends-join-room").click();
 		return app;
 	}
 	try {
-		const occupied = await open("Zeno", true, room + "-occupied");
+		const occupied = await open("Zeno", room + "-occupied");
 		await waitFor(() => occupied.puzzle.actionController?.role == "host", "occupied room");
-		const random = await open("Euclid", false, null);
+		const random = await open("Euclid", null);
 		random.puzzle.newGame(10699);
 		const placed = random.puzzle.rows[0].slots[0];
 		random.puzzle.requestTileAction(placed, placed.value, "place");
@@ -71,7 +89,7 @@
 		assert(random.document.querySelector("#friends-room-name").value == "", "room name not cleared on leave");
 		const host = await open("Plato");
 		await waitFor(() => host.puzzle.actionController?.role == "host", "first arrival host");
-		const guests = await Promise.all([open("Sappho"), open("Socrates")]);
+		const guests = await Promise.all([open("Sappho", room, true), open("Socrates")]);
 		await waitFor(() => guests.every(app => app.puzzle.actionController?.ready), "two guest handshakes");
 		await waitFor(() => host.puzzle.actionController.players.length == 3, "roster");
 		assert(guests.every(app => app.puzzle.actionController.role == "guest"), "multiple hosts elected");
@@ -127,7 +145,7 @@
 		await waitFor(() => host.document.querySelector(".friends-status").textContent.startsWith("You’re hosting."),
 			"renewal under a new name");
 		other.document.querySelector("#friends-leave").click();
-		const late = await open("Hypatia", true, room + "-again");
+		const late = await open("Hypatia", room + "-again");
 		await waitFor(() => late.puzzle.actionController?.ready, "late join");
 		assert(late.puzzle.seed == host.puzzle.seed, "late guest missed the game");
 		host.document.querySelector("#friends-leave").click();

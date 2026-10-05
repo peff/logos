@@ -481,7 +481,15 @@ window.puzzle.beforeNewGame = function() {
 		leave();
 };
 
+function setInvitationView(enabled) {
+	roomInput.hidden = enabled;
+	roomRandom.hidden = enabled;
+	roomNameDisplay.hidden = !enabled;
+	if (enabled) roomNameDisplay.textContent = roomInput.value;
+}
+
 function leave() {
+	setInvitationView(false);
 	if (room) {
 		const previous = room;
 		room = null;
@@ -574,6 +582,7 @@ function roomInvitationStatus(state) {
 		(state.state == "expired" || state.state == "error"));
 	roomJoin.disabled = state.state == "connecting";
 	if (state.state == "error" && !session) {
+		setInvitationView(false);
 		roomEditor.hidden = false;
 		roomNameDisplay.hidden = true;
 		roomJoin.disabled = false;
@@ -591,6 +600,7 @@ function roomInvitationStatus(state) {
 	}
 	if (state.state == "expired" || state.state == "error") {
 		if (session?.role == "host") {
+			setInvitationView(false);
 			roomEditor.hidden = false;
 			roomNameDisplay.hidden = true;
 			roomInput.disabled = false;
@@ -689,7 +699,14 @@ function readRoomLink() {
 	const name = new URLSearchParams(location.hash.slice(1)).get("room");
 	if (name === null || session) return;
 	roomInput.value = globalThis.LogosFriends.normalizeRoomName(name);
+	setInvitationView(globalThis.LogosFriends.validRoomName(roomInput.value));
 	if (friendsMenu.hidden) toggleMenu();
+	if (normalizePlayerName(nameInput.value, "")) {
+		joinRoom();
+	} else {
+		status.textContent = "Enter your name, then join the room.";
+		nameInput.focus();
+	}
 }
 window.addEventListener("hashchange", readRoomLink);
 readRoomLink();
