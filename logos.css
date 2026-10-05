@@ -221,9 +221,13 @@ body #timer::after {
 	}
 
 	body {
+		--portrait-hclues-height: 18.3rem;
+		--portrait-clue-scale: 1;
 		grid-template-columns: 27.5rem;
 		grid-template-rows:
-			1.15rem max-content max-content 18.3rem 5.8rem max-content max-content;
+			1.15rem max-content max-content
+			calc(var(--portrait-hclues-height) * var(--portrait-clue-scale))
+			calc(5.8rem * var(--portrait-clue-scale)) max-content max-content;
 		grid-template-areas:
 			"message"
 			"board"
@@ -386,24 +390,20 @@ body #timer::after {
 		}
 	}
 
+	/* Budget for the roster's pixel minimum as well as its rem height. */
+	html:has(body.game-started.multiplayer) {
+		font-size: min(2.66vw, 1.82vh, calc((100vh - 60px) / 51));
+	}
+
+	@supports (height: 100dvh) {
+		html:has(body.game-started.multiplayer) {
+			font-size: min(2.66vw, 1.82dvh, calc((100dvh - 60px) / 51));
+		}
+	}
+
 	body {
+		--portrait-hclues-height: 15rem;
 		grid-template-columns: 36.5rem;
-	}
-
-	body.game-started {
-		grid-template-rows:
-			1.15rem max-content max-content 15rem 5.8rem max-content max-content;
-	}
-
-	body.game-started:is(.multiplayer, .proof-active, :has(#proof-controls.hint-explanation)) {
-		grid-template-rows:
-			1.15rem max-content max-content 14.25rem 5.51rem max-content max-content;
-	}
-
-	body:is(.multiplayer, .proof-active, :has(#proof-controls.hint-explanation)) :is(#hclues, #vclues) {
-		justify-self: center;
-		transform: scale(0.95);
-		transform-origin: top center;
 	}
 
 	body.game-started #board {
@@ -431,17 +431,19 @@ body #timer::after {
 	}
 }
 
-/* Make room for the proof viewer on short portrait phones. */
-@media (orientation: portrait) and (min-aspect-ratio: 1 / 2) and
-       (aspect-ratio < 3 / 5) {
+/*
+ * Reserve panel space at every portrait aspect ratio. Fullscreen can cross
+ * the board's enlargement breakpoints, so extra height is not all spare room.
+ * Use the same scale for the clues and their grid tracks to keep them in sync.
+ */
+@media (orientation: portrait) {
 	body.game-started:is(.multiplayer, .proof-active, :has(#proof-controls.hint-explanation)) {
-		grid-template-rows:
-			1.15rem max-content max-content 14.274rem 4.524rem max-content max-content;
+		--portrait-clue-scale: 0.78;
 	}
 
 	body:is(.multiplayer, .proof-active, :has(#proof-controls.hint-explanation)) :is(#hclues, #vclues) {
 		justify-self: center;
-		transform: scale(0.78);
+		transform: scale(var(--portrait-clue-scale));
 		transform-origin: top center;
 	}
 }
