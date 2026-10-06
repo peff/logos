@@ -386,7 +386,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	} catch (e) {
 		/* Unlocking can still last for this page without storage. */
 	}
-	this.usedHints = false;
+	/* Multiplayer uses this to restore the loss-colored timer when joining. */
 	this.continuedFromLoss = false;
 	this.hintNotice = document.querySelector("#hint-notice");
 	this.hintNotice.hidden = true;
@@ -420,7 +420,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.clear = function() {
-		this.usedHints = false;
 		this.continuedFromLoss = false;
 		this.clearHint();
 		this.clearInvitationTransition();
@@ -559,7 +558,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.clearInvitationTransition();
 		this.pendingSeed = awaitStart ? seed : undefined;
 		this.gameIdentity = {};
-		this.usedHints = false;
 		this.continuedFromLoss = false;
 		this.seed = seed;
 		this.options.querySelector("#game-seed").value = formatSeed(seed);
@@ -954,7 +952,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.stopTimer();
 		this.timer.hidden = false;
 		this.updatePauseControl();
-		this.usedHints = true;
 		this.hintRequest = { base, basePlacements, step, stage: 0 };
 		this.say("A little enlightenment. Consider the highlighted clue.");
 		this.showHint(stage);

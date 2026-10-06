@@ -61,7 +61,6 @@ function applyAction(puzzle, action, playerAction) {
 	if (action.type == "hint") {
 		puzzle.practiceMode = true;
 		puzzle.scoreEligible = false;
-		puzzle.usedHints = true;
 		puzzle.stopTimer();
 		puzzle.updatePauseControl();
 		if (playerAction)
@@ -153,7 +152,6 @@ class MultiplayerSession {
 			}))),
 			clues: puzzle.clues.map(clue => !!clue.active),
 			practiceMode: puzzle.practiceMode,
-			usedHints: puzzle.usedHints,
 			continuedFromLoss: puzzle.continuedFromLoss,
 			nextMilestone: puzzle.nextMilestone,
 		};
@@ -190,7 +188,6 @@ class MultiplayerSession {
 			if (puzzle.clues[index].display)
 				puzzle.applyClueAction(puzzle.clues[index], active);
 		puzzle.practiceMode = position.practiceMode;
-		puzzle.usedHints = position.usedHints;
 		puzzle.continuedFromLoss = position.continuedFromLoss;
 		puzzle.nextMilestone = position.nextMilestone;
 		if (position.continuedFromLoss)

@@ -967,7 +967,7 @@ Deno.test("hint requests share zen mode and attribution but keep explanations lo
 		guest.puzzle.hint(1);
 		guest.puzzle.finishHintNotice(true);
 		for (const game of [host, guest])
-			assert(game.puzzle.practiceMode && game.puzzle.usedHints &&
+			assert(game.puzzle.practiceMode &&
 			       game.puzzle.timerTimeout === null && !game.puzzle.practiceModePreference,
 			       "the hint did not stop everyone's clock and enter game-local zen mode");
 		assert(guest.puzzle.hintRequest?.stage == 1 && !host.puzzle.hintRequest,
@@ -986,14 +986,14 @@ Deno.test("hint requests share zen mode and attribution but keep explanations lo
 		network.addGuest(late.session);
 		guest.session.requestSync();
 		for (const game of [guest, late])
-			assert(game.puzzle.practiceMode && game.puzzle.usedHints &&
+			assert(game.puzzle.practiceMode &&
 			       game.puzzle.timerTimeout === null && !game.puzzle.hintRequest &&
 			       JSON.stringify([...game.session.recentActions]) ==
 			       JSON.stringify([...host.session.recentActions]),
 			       "sync did not replay zen mode and history without showing hints");
 		host.session.start(0x12345678);
 		assert([host, guest, late].every(game => !game.puzzle.practiceMode &&
-		       !game.puzzle.usedHints && game.puzzle.timerTimeout !== null),
+		       game.puzzle.timerTimeout !== null),
 		       "a new game retained hint-induced zen mode");
 	} finally {
 		stopAll(host, guest, late);
@@ -1214,7 +1214,6 @@ Deno.test("hosting preserves an explicit pause or an existing zen game", functio
 		puzzle.stopTimer();
 		puzzle.timerElapsed = 12000;
 		puzzle.practiceMode = zen;
-		puzzle.usedHints = zen;
 		puzzle.manualPaused = puzzle.paused = !zen;
 		const host = {puzzle, session: new MultiplayerSession(puzzle, {role: "host", playerId: "host"})};
 		const guest = makeSession("guest", "guest");
@@ -1222,8 +1221,8 @@ Deno.test("hosting preserves an explicit pause or an existing zen game", functio
 			new InMemoryMultiplayerNetwork(host.session).addGuest(guest.session);
 			for (const game of [host, guest])
 				assert(game.puzzle.practiceMode === zen && game.puzzle.manualPaused === !zen &&
-				       game.puzzle.timerTimeout === null && game.puzzle.timerElapsed === 12000 &&
-				       game.puzzle.usedHints === zen, "adoption lost pause or zen state");
+				       game.puzzle.timerTimeout === null && game.puzzle.timerElapsed === 12000,
+				       "adoption lost pause or zen state");
 			if (zen) {
 				const runs = captureMultiplayerRuns(host);
 				finishSharedPuzzle(host);
