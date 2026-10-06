@@ -2,7 +2,6 @@
  - shared leaderboard (would require actual server infrastructure)
  - consider simplifying
    - are chalk marks worth the interface complexity
-   - do we still need feedback prompts?
  - evaluate clue interactions
    - is rearranging / dragging clues useful?
    - is highlighting clues that refer to a symbol useful?

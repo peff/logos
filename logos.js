@@ -386,23 +386,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	} catch (e) {
 		/* Unlocking can still last for this page without storage. */
 	}
-	this.feedback = document.querySelector("#difficulty-feedback");
-	this.feedback.hidden = true;
-	this.feedbackEndpoint = document.querySelector('meta[name="logos-feedback-endpoint"]')?.content || "";
-	this.feedbackDisabled = false;
-	this.feedbackCooldown = 0;
-	this.feedbackDismissals = 0;
-	this.feedbackName = "";
-	this.feedbackSenderId = null;
 	this.usedHints = false;
 	this.continuedFromLoss = false;
-	try {
-		this.feedbackDisabled = localStorage.getItem("difficultyFeedbackDisabled") == "true";
-		this.feedbackName = localStorage.getItem("difficultyFeedbackName") || "";
-		var sender = localStorage.getItem("difficultyFeedbackSenderId");
-		if (/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/.test(sender))
-			this.feedbackSenderId = sender;
-	} catch (_) { /* Feedback can work without persistent preferences. */ }
 	this.hintNotice = document.querySelector("#hint-notice");
 	this.hintNotice.hidden = true;
 	this.hintAcknowledged = false;
@@ -435,7 +420,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.clear = function() {
-		this.resetDifficultyFeedback();
+		this.usedHints = false;
+		this.continuedFromLoss = false;
 		this.clearHint();
 		this.clearInvitationTransition();
 		this.manualPaused = false;
@@ -573,7 +559,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.clearInvitationTransition();
 		this.pendingSeed = awaitStart ? seed : undefined;
 		this.gameIdentity = {};
-		this.resetDifficultyFeedback();
+		this.usedHints = false;
+		this.continuedFromLoss = false;
 		this.seed = seed;
 		this.options.querySelector("#game-seed").value = formatSeed(seed);
 		this.updateSeedControls();
@@ -809,8 +796,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.timer.classList.add("won");
 		this.messages.classList.add("won");
 		this.say(randomChoice(winMessages));
-		return this.finishDifficultyFeedback("won",
-			this.finishRun("won"));
+		return this.finishRun("won");
 	}
 
 	this.checkMilestones = function() {
@@ -890,7 +876,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.updateActionControls();
 		this.playSound("mistake");
 		this.stopTimer();
-		var saving = this.finishRun("lost");
+		this.finishRun("lost");
 		this.timer.classList.add("lost");
 		this.messages.classList.add("lost");
 		this.closeSlotTray();
@@ -918,7 +904,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			failedSlot.possibilityElems[failedValue].classList.add(
 				"failed-action");
 		this.say(msg);
-		this.finishDifficultyFeedback("lost", saving);
 	}
 
 	this.renderProofDomains = function(domains, placements, change) {
@@ -1676,136 +1661,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		return !!history;
 	}
 
-	this.resetDifficultyFeedback = function() {
-		if (this.feedbackRequest?.controller)
-			this.feedbackRequest.controller.abort();
-		this.feedbackRequest = null;
-		this.feedback.hidden = true;
-		this.usedHints = false;
-		this.continuedFromLoss = false;
-	}
-
-	this.finishDifficultyFeedback = async function(outcome, saving) {
-		var identity = this.gameIdentity;
-		if (this.feedbackCooldown > 0)
-			this.feedbackCooldown--;
-		else if (this.feedbackEndpoint && !this.feedbackDisabled && !this.effectsSuppressed &&
-		    this.seed !== undefined &&
-		    this.rows.length == 6 && this.rows.every(row => row.slots.length == 6)) {
-			if (Math.random() < 0.2)
-				this.feedbackRequest = { identity, data: {
-					seed: formatSeed(this.seed), generatorVersion: puzzleGeneratorVersion,
-					ratingVersion: "placement-composite-2",
-					newLevel: puzzleDifficulty(this).level, outcome,
-					elapsedMs: this.timerElapsed, hintsUsed: this.usedHints,
-					continuedAfterLoss: this.continuedFromLoss, zenMode: this.practiceMode,
-				} };
-		}
-		await saving;
-		if (this.gameIdentity === identity) {
-			if (this.feedbackRequest)
-				this.feedbackRequest.ready = true;
-			this.maybeShowDifficultyFeedback();
-		}
-	}
-
-	this.maybeShowDifficultyFeedback = function() {
-		var request = this.feedbackRequest;
-		if (!request || !request.ready || request.identity !== this.gameIdentity || request.shown ||
-		    this.feedbackDisabled || this.pageHidden ||
-		    document.querySelectorAll(".modal:not([hidden])").length)
-			return;
-		request.shown = true;
-		this.feedbackCooldown = 2;
-		request.focus = document.activeElement;
-		var level = request.data.newLevel;
-		this.feedback.querySelector(".feedback-level").textContent =
-			level[0].toUpperCase() + level.slice(1);
-		this.feedback.querySelector(".feedback-name").value = this.feedbackName;
-		this.feedback.querySelector("fieldset").disabled = false;
-		this.feedback.querySelector(".feedback-status").textContent = "";
-		this.feedback.querySelector(".feedback-retry").hidden = true;
-		this.feedback.hidden = false;
-		this.paused = true;
-		this.feedback.querySelector(".modal-close").focus();
-	}
-
-	this.dismissDifficultyFeedback = function(never = false) {
-		if (never) {
-			this.feedbackDisabled = true;
-			try {
-				localStorage.setItem("difficultyFeedbackDisabled", true);
-			} catch (_) { /* The choice still lasts for this page. */ }
-		}
-		var request = this.feedbackRequest;
-		if (request?.shown && !request.sent) {
-			this.feedbackDismissals = Math.min(this.feedbackDismissals + 1, 3);
-			this.feedbackCooldown = [5, 10, 20][this.feedbackDismissals - 1];
-		}
-		if (request?.controller)
-			request.controller.abort();
-		this.feedbackRequest = null;
-		this.feedback.hidden = true;
-		this.paused = this.manualPaused || this.pageHidden || this.pendingSeed !== undefined;
-		request?.focus?.focus();
-	}
-
-	this.sendDifficultyFeedback = async function(answer) {
-		var request = this.feedbackRequest;
-		if (!request || request.sending || request.sent || this.feedback.hidden)
-			return;
-		var status = this.feedback.querySelector(".feedback-status");
-		if (!request.report) {
-			if (!["about-right", "felt-easier", "felt-harder", "unsure"].includes(answer))
-				return;
-			this.feedbackName = this.feedback.querySelector(".feedback-name").value.trim();
-			if (this.feedbackName.length > 80 || /[\u0000-\u001f\u007f]/.test(this.feedbackName)) {
-				status.textContent = "Please use a name of at most 80 characters on one line.";
-				return;
-			}
-			if (!this.feedbackSenderId)
-				this.feedbackSenderId = crypto.randomUUID();
-			try {
-				localStorage.setItem("difficultyFeedbackSenderId", this.feedbackSenderId);
-				localStorage.setItem("difficultyFeedbackName", this.feedbackName);
-			} catch (_) { /* Keep the identity and name for this page. */ }
-			request.report = { ...request.data, id: crypto.randomUUID(),
-				senderId: this.feedbackSenderId, playerName: this.feedbackName,
-				answer };
-		}
-		request.sending = true;
-		request.controller = new AbortController();
-		var timeout = setTimeout(() => request.controller.abort(), 15000);
-		this.feedback.querySelector("fieldset").disabled = true;
-		var retry = this.feedback.querySelector(".feedback-retry");
-		retry.hidden = true;
-		status.textContent = "Sending…";
-		try {
-			var response = await fetch(this.feedbackEndpoint, {
-				method: "POST", headers: { "Content-Type": "application/json" },
-				body: JSON.stringify(request.report), credentials: "omit",
-				signal: request.controller.signal,
-			});
-			if (!response.ok || !(await response.json()).ok)
-				throw new Error("Feedback not accepted");
-			if (this.feedbackRequest !== request)
-				return;
-			request.sent = true;
-			this.feedbackDismissals = 0;
-			this.feedbackCooldown = 2;
-			this.dismissDifficultyFeedback();
-			this.say("Thank you for helping refine our difficulty ratings!");
-		} catch (_) {
-			if (this.feedbackRequest !== request)
-				return;
-			status.textContent = "We couldn’t send your feedback. You can retry or dismiss this window.";
-			retry.hidden = false;
-		} finally {
-			clearTimeout(timeout);
-			request.sending = false;
-		}
-	}
-
 	this.finishRun = function(outcome) {
 		if (this.effectsSuppressed)
 			return null;
@@ -2501,8 +2356,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		}
 		this.actionController?.restoreHostTimer();
 		button.setAttribute("aria-expanded", !modal.hidden);
-		if (modal.hidden)
-			queueMicrotask(() => this.maybeShowDifficultyFeedback());
 	}
 
 	this.toggleOptions = function() {
@@ -2600,7 +2453,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 				this.stopSampleSounds();
 			} else {
 				this.actionController.restoreHostTimer();
-				this.maybeShowDifficultyFeedback();
 			}
 			return;
 		}
@@ -2620,7 +2472,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 				this.startTimer();
 			this.resumeAfterPageHidden = false;
 			this.pausedBeforePageHidden = false;
-			this.maybeShowDifficultyFeedback();
 		}
 	}
 
@@ -2636,10 +2487,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.options.querySelector("#game-seed").addEventListener("input", function() {
 		puzzle.updateSeedControls();
 		puzzle.updateSeedDifficulty();
-	});
-	this.feedback.addEventListener("click", function(ev) {
-		if (ev.target == puzzle.feedback)
-			puzzle.dismissDifficultyFeedback();
 	});
 	this.analysis.addEventListener("click", function(ev) {
 		if (ev.target == puzzle.analysis)

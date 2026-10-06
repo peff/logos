@@ -5,7 +5,6 @@
 		<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 		<title>Logos</title>
 		<meta name="logos-rooms-endpoint" content="https://logos.peff.workers.dev/api/rooms">
-		<meta name="logos-feedback-endpoint" content="https://logos.peff.workers.dev/api/feedback">
 		<link rel="stylesheet" type="text/css" href="logos.css">
 		<script src="logos.js"></script>
 	</head>
@@ -126,39 +125,6 @@
 					        onClick="puzzle.copyAnalysisPosition()">Copy position</button>
 					<button class="modal-done modal-close" type="button"
 					        onClick="puzzle.closeAnalysis()">Close</button>
-				</div>
-			</div>
-			<div id="difficulty-feedback" class="modal" hidden role="dialog"
-			     aria-modal="true" aria-labelledby="feedback-title">
-				<div class="modal-panel feedback-panel">
-					<h2 id="feedback-title">A moment of reflection</h2>
-					<form onSubmit="event.preventDefault()">
-						<fieldset>
-							<legend>We rated this puzzle <strong class="feedback-level"></strong>.
-								Does that feel reasonable?</legend>
-							<label class="feedback-name-label"><span>Nickname (optional)</span>
-								<input class="feedback-name" size="10" type="text" maxlength="80" autocomplete="nickname">
-							</label>
-							<div class="feedback-answers">
-								<button type="button" class="option-action" onClick="puzzle.sendDifficultyFeedback('felt-easier')">Felt easier</button>
-								<button type="button" class="option-action" onClick="puzzle.sendDifficultyFeedback('about-right')">About right</button>
-								<button type="button" class="option-action" onClick="puzzle.sendDifficultyFeedback('felt-harder')">Felt harder</button>
-								<button type="button" class="option-action" onClick="puzzle.sendDifficultyFeedback('unsure')">Not sure</button>
-							</div>
-							<p class="feedback-note">Help us tune the difficulty ratings. Sending shares your answer,
-								puzzle seed, timer, result, and use of assistance. A random browser ID groups
-								your reports; your name is optional and remembered here.</p>
-						</fieldset>
-						<button type="button" class="option-action feedback-retry" hidden
-						        onClick="puzzle.sendDifficultyFeedback()">Try again</button>
-					</form>
-					<p class="feedback-status" role="status" aria-live="polite"></p>
-					<div class="feedback-dismissals">
-						<button type="button" class="option-action modal-close"
-						        onClick="puzzle.dismissDifficultyFeedback()">Dismiss</button>
-						<button type="button" class="option-action feedback-never"
-						        onClick="puzzle.dismissDifficultyFeedback(true)">Never ask again</button>
-					</div>
 				</div>
 			</div>
 			<div id="hint-notice" class="modal" hidden role="dialog"

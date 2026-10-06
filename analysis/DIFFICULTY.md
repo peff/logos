@@ -94,7 +94,6 @@ one of the difficulty metrics. Mistake proofs keep their own ordering:
 finding a short explanation of a particular error differs from solving the
 whole board.
 
-Feedback uses rating version `placement-composite-2` and samples 20% of
-eligible completions, subject to cooldowns and player preferences. Historical
-comparison fields remain readable on the server, but new reports contain
-only the current label.
+The automatic difficulty survey has been retired. Its last rating version was
+`placement-composite-2`; existing reports remain available in the server's D1
+database, including reports made under earlier metrics.

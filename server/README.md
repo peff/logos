@@ -1,10 +1,10 @@
 # Optional Logos server
 
-This Cloudflare Worker collects difficulty feedback in D1 and coordinates
-named multiplayer rooms using Durable Objects. The beta game opts in through the `logos-feedback-endpoint` meta tag in
-`index.html`, currently pointing to `https://logos.peff.workers.dev/api/feedback`.
-Clear that value to disable feedback entirely in a standalone copy. Deploying
-this server does not host the game or change its current location.
+This Cloudflare Worker coordinates named multiplayer rooms using Durable
+Objects and retains the retired difficulty survey's D1 database and submission
+endpoint. The current game no longer prompts for or submits survey responses;
+older clients can still submit. Deploying this server does not host the game
+or change its current location.
 
 The public routes are `POST /api/feedback` and WebSocket upgrades at
 `/api/rooms/<name>`. Database reads and exports use your authenticated Cloudflare
@@ -44,7 +44,9 @@ Local D1 state lives under
 secret files are ignored by Git. The deployment configuration is checked in;
 the Worker name and D1 identifier are not secrets.
 
-## Request format
+## Legacy survey request format
+
+The client behavior described below applies to older survey-enabled copies.
 
 Send JSON with `Content-Type: application/json`:
 
@@ -83,7 +85,7 @@ name, the persistent sender ID makes the reports pseudonymous, not anonymous.
 The dialog explains that answers are grouped by browser and names are optional.
 
 The seed is eight lowercase hexadecimal digits. `ratingVersion` identifies the
-scoring method; current clients use `placement-composite-2` (excess discards +
+scoring method; the last survey-enabled clients use `placement-composite-2` (excess discards +
 5 × scarcity averaged over ten routes, with cutoffs 47/70). `newLevel` is the
 reported difficulty.
 The names remain compatible with earlier clients; `oldLevel` is optional
@@ -139,10 +141,9 @@ npx wrangler d1 migrations apply DB --remote
 npx wrangler deploy
 ```
 
-Wrangler prints the HTTPS `workers.dev` address. Set the
-`logos-feedback-endpoint` meta tag to its `/api/feedback` URL to opt in, or leave
-it blank to disable prompting and submission. Cloudflare credentials belong in Wrangler's authentication or deployment environment,
-never in the game or committed configuration.
+Wrangler prints the HTTPS `workers.dev` address. Cloudflare credentials belong
+in Wrangler's authentication or deployment environment, never in the game or
+committed configuration.
 
 ## Read the reports
 
@@ -167,39 +168,6 @@ Keep downloaded player reports outside the public repository.
 Cloudflare references: [D1 setup](https://developers.cloudflare.com/d1/get-started/),
 [prepared statements](https://developers.cloudflare.com/d1/worker-api/prepared-statements/),
 [Wrangler D1 commands](https://developers.cloudflare.com/d1/wrangler-commands/).
-
-## Player controls
-
-The beta samples 20% of eligible completed games for feedback. After showing
-a prompt, it skips the next two completed attempts. Dismissing increases the
-gap to five attempts, then ten,
-then twenty on subsequent dismissals. A successful submission resets the gap
-to two. This backoff lasts only until the page is reloaded. A qualifying
-Pantheon entry is shown first; feedback waits until it is dismissed. Nothing
-is sent unless the player submits.
-
-Each response button submits immediately, using the optional name above it.
-Players can dismiss with Dismiss, Escape, or a click outside the dialog. They
-can also choose Never ask again. That preference is stored as
-`difficultyFeedbackDisabled`; deleting that localStorage entry and reloading
-re-enables prompts. The browser ID and optional name use
-`difficultyFeedbackSenderId` and `difficultyFeedbackName`.
-
-Failed submissions can be retried with the same report ID, or dismissed.
-There is no background upload queue. Successful submission closes the dialog and shows a thank-you in the status bar.
-
-When publishing a client with a new rating version, deploy the Worker first
-so it accepts that version before clients begin submitting reports.
-
-Before publishing clients that omit `oldLevel`, apply migration 0002 to the
-local and remote databases, then deploy the Worker. It keeps existing reports
-and accepts both old and new clients:
-
-```sh
-npx wrangler d1 migrations apply logos --local
-npx wrangler d1 migrations apply logos --remote
-npx wrangler deploy
-```
 
 ## Multiplayer rooms
 
