@@ -4386,7 +4386,9 @@ function* clueProofSteps(puzzle, clue, domains) {
 			clue.mRow.slots[clue.mCol].value : -1;
 		var edges = 1 | (1 << (domains[row].length - 1));
 		var removedEdges = domains[row][symbol] & ~after & edges;
-		if (row == middleRow && symbol == middleSymbol &&
+		/* Keep direct placements intact before splitting edge discards. */
+		if (countBits(after) != 1 &&
+		    row == middleRow && symbol == middleSymbol &&
 		    removedEdges == edges)
 			after = domains[row][symbol] & ~removedEdges;
 		else

@@ -4044,6 +4044,33 @@ Deno.test("hints find a placement beyond a clue's first target", () => {
 	assert(JSON.stringify({domains, placements}) === before, "lookahead mutated its input");
 });
 
+Deno.test("hints place a three-adjacent middle before discarding its edges", () => {
+	const puzzle = Logos.puzzleFromSeed(0xd57ecd6c);
+	for (let row = 0; row < 6; row++)
+		puzzle.rows[row].slots[0].symbols = Logos.defaultSymbols[row];
+	let domains = puzzle.rows.map(row => row.slots.map(() => 63));
+	let placements = Array(6).fill(0);
+	for (const clue of puzzle.clues)
+		if (clue.applyInitialState) clue.constrain(domains, 63);
+	Logos.drainForcedProofSteps(domains, placements);
+	// Place D and ◇. The latter forces ‒ inward from column five.
+	for (let i = 0; i < 2; i++) {
+		const step = Logos.nextHintStep(puzzle, domains, placements);
+		assert(step && step.placement, "expected an opening placement");
+		domains = step.domains;
+		placements = step.placements;
+	}
+	const before = JSON.stringify({ domains, placements });
+	const step = Logos.nextHintStep(puzzle, domains, placements);
+	assert(step.placement && step.domain == 8 &&
+	       step.deduction == "adjacent3.placement.inward-from-edge",
+	       "hint discarded candidates despite an available middle placement");
+	assert(Logos.proofMessageText(puzzle, step.message) ==
+	       "‒ must be in the fourth column because the sequence containing ◇ can only extend toward the center.");
+	assert(JSON.stringify({ domains, placements }) == before,
+	       "hint mutated the input position");
+});
+
 Deno.test("hints favor a discard cascade over a single direct placement", () => {
 	const puzzle = makePuzzle(4);
 	const direct = new Adjacent2Clue(puzzle);
