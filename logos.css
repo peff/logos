@@ -158,6 +158,10 @@ body #timer.zen:not(.contemplating) .contemplation-infinity path {
 	stroke: currentColor;
 }
 
+body:not(.game-paused):has(.modal:not([hidden])) :is(#board-container, #hclues, #vclues) {
+	filter: blur(1px);
+}
+
 body.game-paused :is(#board-container, #hclues, #vclues) {
 	filter: blur(0.12rem);
 	pointer-events: none;
@@ -1025,7 +1029,6 @@ body:is(.proof-active, :has(#proof-controls.hint-explanation)) :is(#logo, #frien
 	align-items: center;
 	justify-content: center;
 	background-color: rgb(20 25 25 / 45%);
-	backdrop-filter: blur(1px);
 	font-family: Georgia, "Times New Roman", serif;
 	font-size: 0.72rem;
 }
