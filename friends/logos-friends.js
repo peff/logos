@@ -593,7 +593,6 @@ function readRoomLink() {
 		nameInput.focus();
 	}
 }
-window.addEventListener("hashchange", readRoomLink);
 readRoomLink();
 
 friendsButton.addEventListener("click", toggleMenu);

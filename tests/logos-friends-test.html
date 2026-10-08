@@ -31,7 +31,9 @@
 		app.RTCPeerConnection = function() { return new Peer({ iceServers: [] }); };
 		doc.querySelector('meta[name="logos-rooms-endpoint"]').content = "http://127.0.0.1:8787/api/rooms";
 		doc.querySelector("#friends-player-name").value = name;
-		app.location.hash = "room=" + room;
+		/* Read the invitation without reloading away our local test setup. */
+		app.history.replaceState(null, "", "#room=" + room);
+		app.readRoomLink();
 		await waitFor(() => app.puzzle.actionController?.ready, "room connection");
 		assert(app.puzzle.actionController.role == role, "unexpected room role");
 		if (!doc.querySelector("#friends-menu").hidden)

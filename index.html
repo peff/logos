@@ -626,6 +626,13 @@
 		</div>
 
 		<script>
+		window.addEventListener("hashchange", function(event) {
+			var before = new URLSearchParams(new URL(event.oldURL).hash.slice(1));
+			var after = new URLSearchParams(new URL(event.newURL).hash.slice(1));
+			/* Reinitialize puzzles and rooms just as when following a fresh link. */
+			if (["seed", "room"].some(key => before.get(key) !== after.get(key)))
+				window.location.reload();
+		});
 		var puzzle = new Puzzle(
 				document.getElementById("board"),
 				document.getElementById("hclues"),

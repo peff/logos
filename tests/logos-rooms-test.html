@@ -48,8 +48,9 @@
 			doc.querySelector("#friends-button").click();
 			assert(doc.querySelector("#friends-room-name").value == "", "unexpected initial room name");
 		} else {
-			/* Follow the invitation after installing the local signaling endpoint. */
-			app.location.hash = "room=" + roomName;
+			/* Read the invitation without reloading away our local test setup. */
+			app.history.replaceState(null, "", "#room=" + roomName);
+			app.readRoomLink();
 			if (firstVisit) {
 				await waitFor(() => doc.activeElement == doc.querySelector("#friends-player-name"),
 					"invitation asks for a name");
