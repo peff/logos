@@ -210,6 +210,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.optionsButton = optionsButton;
 	this.newGameButton = document.querySelector("#new-game-button");
 	this.invitation = document.querySelector("#game-invitation");
+	this.invitationModal = document.querySelector("#invitation-menu");
 	this.help = help;
 	this.helpButton = helpButton;
 	this.scores = scores;
@@ -420,6 +421,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.clear = function() {
+		this.invitationDeclined = false;
 		this.continuedFromLoss = false;
 		this.clearHint();
 		this.clearInvitationTransition();
@@ -469,6 +471,17 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.say("Gather kindred minds. Anyone may begin.");
 	}
 
+	this.closeInvitation = function() {
+		if (this.invitationAnimation)
+			return;
+		this.fadeInvitation(() => {
+			this.invitationDeclined = true;
+			this.updateActionControls();
+			this.say("Let this mystery remain.");
+			this.newGameButton.focus();
+		}, 350);
+	}
+
 	this.startGame = function() {
 		if (this.pendingSeed === undefined)
 			return false;
@@ -476,6 +489,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			return false;
 		var finish = () => {
 			this.pendingSeed = undefined;
+			this.invitationModal.hidden = true;
 			var modalOpen = document.querySelectorAll(".modal:not([hidden])").length > 0;
 			this.paused = this.pageHidden || modalOpen;
 			this.pausedBeforePageHidden = modalOpen;
@@ -488,27 +502,43 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 				this.startTimer();
 			this.say(randomChoice(startMessages));
 		};
-		if (typeof this.invitation.animate != "function" ||
+		return this.fadeInvitation(finish, 800, true);
+	}
+
+	this.fadeInvitation = function(finish, duration, reveal = false) {
+		if (this.invitation.hidden || typeof this.invitation.animate != "function" ||
 		    typeof matchMedia != "undefined" &&
 		    matchMedia("(prefers-reduced-motion: reduce)").matches) {
 			finish();
 			return true;
 		}
-		this.invitation.classList.add("revealing");
+		if (reveal)
+			this.invitation.classList.add("revealing");
+		this.invitationModal.classList.add("invitation-exiting");
+		var timing = { duration: duration, easing: "ease-in-out", fill: "forwards" };
+		this.invitationBackgroundAnimations = [];
+		if (typeof this.invitationModal.animate == "function")
+			this.invitationBackgroundAnimations.push(this.invitationModal.animate(
+				[{ backgroundColor: "rgb(20 25 25 / 45%)" },
+				 { backgroundColor: "rgb(20 25 25 / 0%)" }], timing));
 		var animation = this.invitationAnimation = this.invitation.animate(
-			[{ opacity: 1 }, { opacity: 1, offset: 900 / 2400, easing: "cubic-bezier(0.25, 0, 0.75, 0.8)" }, { opacity: 0 }],
-			{ duration: 2400, fill: "forwards" });
+			[{ opacity: 1 }, { opacity: 0 }], timing);
 		animation.finished.then(() => {
 			if (this.invitationAnimation !== animation)
 				return;
 			this.invitationAnimation = null;
 			finish();
+			this.clearInvitationTransition();
 			animation.cancel();
 		}, function() {});
 		return true;
 	}
 
 	this.clearInvitationTransition = function() {
+		this.invitationModal.classList.remove("invitation-exiting");
+		for (var animation of this.invitationBackgroundAnimations || [])
+			animation.cancel();
+		this.invitationBackgroundAnimations = [];
 		if (this.invitationAnimation) {
 			this.invitationAnimation.cancel();
 			this.invitationAnimation = null;
@@ -556,6 +586,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		if (seed === null)
 			return false;
 		this.clearInvitationTransition();
+		this.invitationDeclined = false;
 		this.pendingSeed = awaitStart ? seed : undefined;
 		this.gameIdentity = {};
 		this.continuedFromLoss = false;
@@ -1582,7 +1613,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		for (var element of [board, this.hClues, this.vClues, this.boardActions, this.proofControls])
 			element.inert = paused || this.pendingSeed !== undefined;
 		this.timer.disabled = this.gameOver || this.practiceMode || this.pendingSeed !== undefined;
-		this.timer.title = this.seed === undefined || this.pendingSeed !== undefined ?
+		this.timer.title = this.invitationDeclined && this.pendingSeed !== undefined ?
+			"Invitation declined" : this.seed === undefined || this.pendingSeed !== undefined ?
 			"Puzzle not started" : this.practiceMode ?
 			(this.timer.classList.contains("lost") ? "Zen mode: time at loss" :
 			 "Zen mode: no time limit") : paused ? "Resume game" : "Pause game";
@@ -2542,6 +2574,13 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		puzzle.selectHelpPage(Math.round(puzzle.helpViewport.scrollLeft /
 			puzzle.helpViewport.clientWidth));
 	});
+	this.invitationModal.addEventListener("click", function(ev) {
+		if (ev.target == puzzle.invitationModal)
+			puzzle.closeInvitation();
+	});
+	this.invitation.querySelector(".invitation-accept").addEventListener("blur", function() {
+		this.classList.remove("invitation-initial-focus");
+	});
 	this.scores.addEventListener("click", function(ev) {
 		if (ev.target == puzzle.scores)
 			puzzle.toggleScores();
@@ -2558,6 +2597,22 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		puzzle.updateFullscreenButton();
 	});
 	document.addEventListener("keydown", function(ev) {
+		puzzle.invitation.querySelector(".invitation-accept").classList.remove("invitation-initial-focus");
+		if (ev.key == "Tab") {
+			var modal = !puzzle.invitationModal.hidden ? puzzle.invitationModal : null;
+			if (modal) {
+				var controls = Array.from(modal.querySelectorAll("button, input, a[href]"))
+					.filter(control => !control.disabled && control.getClientRects().length);
+				var index = controls.indexOf(document.activeElement);
+				if (controls.length) {
+					ev.preventDefault();
+					var next = index < 0 ? (ev.shiftKey ? controls.length - 1 : 0) :
+						(index + (ev.shiftKey ? controls.length - 1 : 1)) % controls.length;
+					controls[next].focus();
+				}
+			}
+			return;
+		}
 		if (ev.key == "Control" || ev.key == "Shift" || ev.key == "Alt") {
 			if (ev.key == "Control")
 				puzzle.controlHeld = true;
@@ -2814,7 +2869,14 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		else
 			document.body.classList.add("game-started");
 		this.boardActions.hidden = !show;
-		this.invitation.hidden = this.pendingSeed === undefined;
+		this.invitation.hidden = this.pendingSeed === undefined || this.invitationDeclined;
+		var openingInvitation = this.invitationModal.hidden && !this.invitation.hidden;
+		this.invitationModal.hidden = this.invitation.hidden;
+		if (openingInvitation) {
+			var accept = this.invitation.querySelector(".invitation-accept");
+			accept.classList.add("invitation-initial-focus");
+			accept.focus();
+		}
 		this.logoButton.hidden = show;
 	}
 

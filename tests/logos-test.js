@@ -525,6 +525,8 @@ Deno.test("the invitation keeps play paused until its reveal finishes", async fu
 		return { finished: new Promise(resolve => { reveal = resolve; }), cancel() {} };
 	};
 	assert(puzzle.startGame() && !puzzle.startGame(), "a second click started another reveal");
+	assert(puzzle.invitationModal.classList.contains("invitation-exiting"),
+	       "exit fade did not release the static blur");
 	assert(puzzle.paused && puzzle.timerTimeout === null && !puzzle.invitation.hidden,
 	       "the clock started before the reveal completed");
 	puzzle.setPageHidden(true);
@@ -532,6 +534,8 @@ Deno.test("the invitation keeps play paused until its reveal finishes", async fu
 	await Promise.resolve();
 	assert(puzzle.invitation.hidden && puzzle.paused && puzzle.timerTimeout === null,
 	       "a reveal in a hidden tab started the clock");
+	assert(!puzzle.invitationModal.classList.contains("invitation-exiting"),
+	       "completed reveal retained its exit state");
 	puzzle.setPageHidden(false);
 	assert(!puzzle.paused && puzzle.timerTimeout !== null && !puzzle.hClues.inert,
 	       "returning to the revealed puzzle did not begin play");
@@ -587,7 +591,50 @@ Deno.test("an invitation reveal cannot restart a replacement game", async functi
 	assert(cancelled && puzzle.seed == 7 && puzzle.invitation.hidden &&
 	       puzzle.timerTimeout === null && puzzle.pendingSeed === undefined,
 	       "an obsolete reveal changed the replacement game");
+	assert(!puzzle.invitationModal.classList.contains("invitation-exiting"),
+	       "cancelled reveal retained its exit state");
 	delete puzzle.invitation.animate;
+});
+
+Deno.test("declining an invitation preserves the unstarted puzzle for Options", function() {
+	const puzzle = makePuzzle(6);
+	let message;
+	puzzle.say = function(text) { message = text; };
+	puzzle.loadURLSeed("https://example.com/#seed=21");
+	assert(!puzzle.invitationModal.hidden, "invitation lacked a modal backdrop");
+	const before = puzzleSignature(puzzle);
+	const identity = puzzle.gameIdentity;
+	puzzle.closeInvitation();
+	puzzle.updateActionControls();
+	assert(puzzle.invitationModal.hidden && puzzle.invitation.hidden &&
+	       puzzle.seed === 0x21 && puzzle.pendingSeed === 0x21 &&
+	       puzzle.paused && puzzle.hClues.inert && puzzle.vClues.inert &&
+	       puzzle.timerTimeout === null && puzzleSignature(puzzle) === before,
+	       "declining changed the board, started play, or reopened the invitation");
+	assert(puzzle.timerText.textContent === "—" && puzzle.timer.classList.contains("unstarted") &&
+	       puzzle.timer.title === "Invitation declined" && message === "Let this mystery remain.",
+	       "declined invitation still looked like a running game");
+	puzzle.options.hidden = true;
+	puzzle.toggleOptions();
+	assert(puzzle.options.querySelector("#start-game-button").value === "Start");
+	puzzle.playSeed();
+	assert(puzzle.gameIdentity === identity && puzzleSignature(puzzle) === before &&
+	       puzzle.pendingSeed === undefined && !puzzle.paused && puzzle.timerTimeout !== null,
+	       "Options did not start the preserved puzzle");
+	assert(!puzzle.timer.classList.contains("unstarted") && puzzle.timerText.textContent === "0:00",
+	       "starting the declined puzzle did not restore its clock");
+	puzzle.stopTimer();
+	puzzle.loadURLSeed("https://example.com/#seed=21");
+	const modals = document.modals;
+	document.modals = [puzzle.invitationModal];
+	try {
+		puzzle.startGame();
+		assert(puzzle.invitationModal.hidden && !puzzle.paused && puzzle.timerTimeout !== null,
+		       "the invitation's own backdrop kept the started game paused");
+	} finally {
+		document.modals = modals;
+		puzzle.stopTimer();
+	}
 });
 
 Deno.test("a linked zero seed can be started from Options", function() {

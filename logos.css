@@ -163,7 +163,8 @@ body #timer.zen:not(.contemplating) .contemplation-infinity path {
 	stroke: currentColor;
 }
 
-body:not(.game-paused):has(.modal:not([hidden])) :is(#board-container, #hclues, #vclues) {
+/* Drop the invitation's static blur before its exit fade begins. */
+body:not(.game-paused):has(.modal:not([hidden], .invitation-exiting)) :is(#board-container, #hclues, #vclues) {
 	filter: blur(1px);
 }
 
@@ -2422,12 +2423,7 @@ button.score-entry:focus-visible {
 }
 
 #game-invitation {
-	grid-row: board-start / hclues-end;
-	grid-column: 1 / -1;
 	position: relative;
-	z-index: 2;
-	align-self: center;
-	justify-self: center;
 	width: 20rem;
 	max-width: calc(100vw - 2rem);
 	min-height: 16rem;
@@ -2533,10 +2529,11 @@ button.score-entry:focus-visible {
 	gap: 0.75rem;
 }
 
-.invitation-actions .option-action {
-	margin: 0;
-	padding: 0.35rem 1rem;
-	font-size: 0.85rem;
+.invitation-choices {
+	display: flex;
+	align-items: center;
+	gap: 0.25rem;
+	color: #9a7d3d;
 }
 
 .invitation-inscription {
@@ -2549,6 +2546,37 @@ button.score-entry:focus-visible {
 
 .invitation-numero {
 	margin-right: 0.15em;
+}
+
+.invitation-choice {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	box-sizing: border-box;
+	min-height: 2.3rem;
+	border: 0;
+	border-radius: 0.15rem;
+	padding: 0.4rem;
+	background: none;
+	color: #70572a;
+	font: 0.8rem/1.4 Forum, Georgia, "Times New Roman", serif;
+	text-decoration: underline;
+	text-underline-offset: 0.18em;
+	cursor: pointer;
+}
+
+.invitation-choice:hover {
+	background: rgb(135 110 62 / 8%);
+}
+
+.invitation-choice:focus-visible {
+	outline: 1px solid #9a7d3d;
+	outline-offset: -0.15rem;
+}
+
+/* Keep automatic focus quiet until the player uses the keyboard. */
+.invitation-choice.invitation-initial-focus {
+	outline: none;
 }
 
 @media (orientation: portrait) {
@@ -2569,7 +2597,7 @@ button.score-entry:focus-visible {
 
 #game-invitation.revealing > *,
 #game-invitation.revealing::before {
-	animation: invitation-inscription-fade 1000ms ease-in forwards;
+	animation: invitation-inscription-fade 300ms ease-in forwards;
 }
 
 @keyframes invitation-inscription-fade {
