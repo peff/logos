@@ -707,10 +707,17 @@ Deno.test("copying a puzzle link preserves the game and has a manual fallback", 
 	}
 });
 
-Deno.test("the timer appears only after a timed game starts", function() {
+Deno.test("the pre-game dash becomes a clock when a timed game starts", function() {
 	const puzzle = makePuzzle(6);
-	assert(puzzle.timer.hidden,
-	       "the timer was visible outside a game");
+	assert(!puzzle.timer.hidden && puzzle.timerText.textContent === "—",
+	       "the initial board did not show a dash");
+	puzzle.newGame(1, true);
+	assert(puzzle.timerText.textContent === "—" && puzzle.timerTimeout === null,
+	       "the invitation showed a running clock");
+	puzzle.startGame();
+	assert(puzzle.timerText.textContent === "0:00" && !puzzle.timer.classList.contains("unstarted"),
+	       "accepting did not replace the dash with the clock");
+	puzzle.stopTimer();
 	puzzle.newGame(1);
 	assert(!puzzle.timer.hidden && puzzle.timerTimeout !== null,
 	       "a timed game did not reveal the timer");

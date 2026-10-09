@@ -124,6 +124,11 @@ body #timer:focus-visible {
 	outline-offset: 2px;
 }
 
+body #timer.unstarted #timer-text {
+	color: #cfb779;
+	font-family: Forum, Georgia, "Times New Roman", serif;
+}
+
 body.game-paused #timer-text {
 	display: none;
 }

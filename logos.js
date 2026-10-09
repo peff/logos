@@ -439,7 +439,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.hClues.classList.remove("solution");
 		this.vClues.classList.remove("solution");
 		this.stopTimer();
-		this.timer.hidden = true;
+		this.timer.hidden = false;
 		this.timerElapsed = 0;
 		this.clearOutcome();
 		this.updateTimer(0);
@@ -1569,9 +1569,11 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.updateTimer = function(elapsed) {
-		var untimed = this.practiceMode && !this.timer.classList.contains("lost");
+		var unstarted = this.seed === undefined || this.pendingSeed !== undefined;
+		var untimed = !unstarted && this.practiceMode && !this.timer.classList.contains("lost");
+		this.timer.classList[unstarted ? "add" : "remove"]("unstarted");
 		this.timer.classList[untimed ? "add" : "remove"]("zen");
-		this.timerText.textContent = this.manualPaused ? "Paused" : formatTime(elapsed);
+		this.timerText.textContent = unstarted ? "—" : this.manualPaused ? "Paused" : formatTime(elapsed);
 	}
 
 	this.updatePauseControl = function() {
@@ -1580,7 +1582,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		for (var element of [board, this.hClues, this.vClues, this.boardActions, this.proofControls])
 			element.inert = paused || this.pendingSeed !== undefined;
 		this.timer.disabled = this.gameOver || this.practiceMode || this.pendingSeed !== undefined;
-		this.timer.title = this.practiceMode ?
+		this.timer.title = this.seed === undefined || this.pendingSeed !== undefined ?
+			"Puzzle not started" : this.practiceMode ?
 			(this.timer.classList.contains("lost") ? "Zen mode: time at loss" :
 			 "Zen mode: no time limit") : paused ? "Resume game" : "Pause game";
 		this.timer.setAttribute("aria-label", this.timer.title);
@@ -2726,7 +2729,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			   this.timerTimeout === null) {
 			this.startTimer();
 		}
-		this.timer.hidden = this.seed === undefined;
+		this.timer.hidden = false;
 		this.updatePauseControl();
 		return true;
 	}

@@ -799,7 +799,8 @@ Deno.test("multiplayer connects in a lobby and any player can start a game", fun
 		for (const game of [host, guest]) {
 			assert(game.session.ready && game.session.seed === null &&
 			       game.puzzle.seed === undefined && game.puzzle.gameOver &&
-			       game.puzzle.timerTimeout === null && game.puzzle.timer.hidden &&
+			       game.puzzle.timerTimeout === null && !game.puzzle.timer.hidden &&
+			       game.puzzle.timerText.textContent === "—" &&
 			       game.puzzle.clues.length == 0 && game.session.players.length == 2,
 			       "connecting started a game or retained an old puzzle");
 			assert(game.puzzle.hClueSlots.every(slot => !slot.onclick),
