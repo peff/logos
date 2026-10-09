@@ -1282,6 +1282,93 @@ body:is(.proof-active, :has(#proof-controls.hint-explanation)) :is(#logo, #frien
 	white-space: nowrap;
 }
 
+.daily-date-link {
+	border: 0;
+	padding: 0;
+	background: none;
+	color: inherit;
+	font: inherit;
+	cursor: pointer;
+}
+
+.daily-date-arrow {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex: 0 0 1.15em;
+	width: 1.15em;
+	height: 1.6em;
+	padding: 0;
+	border: 0;
+	border-radius: 50%;
+	background: none;
+	color: #9a7d3d;
+	font: inherit;
+	cursor: pointer;
+}
+
+.daily-date-arrow svg {
+	width: 0.45em;
+	height: 0.75em;
+	fill: none;
+	stroke: currentColor;
+	stroke-width: 1.3;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+}
+
+.daily-next svg {
+	transform: rotate(180deg);
+}
+
+.daily-date-arrow:not(:disabled):hover {
+	color: #70572a;
+	background: rgb(135 110 62 / 8%);
+}
+
+.daily-date-arrow:disabled {
+	opacity: 0.25;
+	cursor: default;
+}
+
+.daily-date-arrow:focus-visible {
+	outline: 1px solid #9a7d3d;
+	outline-offset: 0.1em;
+}
+
+.daily-date > input {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	opacity: 0;
+	pointer-events: none;
+}
+
+.daily-date-link:hover {
+	color: #9a7d3d;
+}
+
+.daily-date-link:focus-visible {
+	outline: 1px solid #9a7d3d;
+	outline-offset: 0.15em;
+}
+
+.daily-date-fallback > .daily-date-link {
+	display: none;
+}
+
+.daily-date-fallback > input {
+	pointer-events: auto;
+	position: static;
+	width: auto;
+	opacity: 1;
+	color: inherit;
+	font: inherit;
+	background: transparent;
+	border: 0;
+}
+
 .daily-options {
 	margin-bottom: 0.45em;
 }

@@ -827,6 +827,26 @@ Deno.test("daily attempts remember the first result and share a fixed date", asy
 			assert(await puzzle.startGame() && puzzle.pendingSeed === undefined &&
 			       puzzle.daily === "20261011", "Options could not start a declined daily");
 			puzzle.stopTimer();
+			const picker = puzzle.invitation.querySelector("#invitation-title").children.at(-1).children[2];
+			picker.value = "2026-10-08";
+			picker.validity = { valid: true };
+			await picker.onchange();
+			assert(!modal.hidden && !puzzle.invitationModal.hidden &&
+			       puzzle.invitation.querySelector(".invitation-prompt").hidden &&
+			       puzzle.displayedDailyResult.date === "20261008" &&
+			       puzzle.seed === 0x20261008 && puzzle.pendingSeed === puzzle.seed,
+			       "choosing a completed date did not swap the tablet interior");
+			const resultPicker = puzzle.invitation.querySelector("#invitation-title").children.at(-1).children[2];
+			resultPicker.value = "2026-10-07";
+			resultPicker.validity = { valid: true };
+			await resultPicker.onchange();
+			assert(modal.hidden && !puzzle.invitationModal.hidden && puzzle.daily === "20261007" &&
+			       puzzle.pendingSeed === 0x20261007,
+			       "choosing an unplayed date did not show only its board invitation");
+			await puzzle.invitation.querySelector("#invitation-title").children.at(-1).children[0].onclick();
+			assert(puzzle.daily === "20261006", "previous-day arrow did not move back one day");
+			await puzzle.invitation.querySelector("#invitation-title").children.at(-1).children[3].onclick();
+			assert(puzzle.daily === "20261007", "next-day arrow did not move forward one day");
 			assert(!Object.keys(localStorage.values).some(key => key.startsWith("daily-")),
 			       "daily results still used separate localStorage records");
 		});

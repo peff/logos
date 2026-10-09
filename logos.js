@@ -138,7 +138,7 @@ function dailyDateLabel(date) {
 	return date.slice(0, 4) + "-" + date.slice(4, 6) + "-" + date.slice(6);
 }
 
-function renderDailyTitle(heading, date) {
+function renderDailyTitle(heading, date, selectDate, direction = 0) {
 	var day = Number(date.slice(6));
 	var suffix = day >= 11 && day <= 13 ? "th" :
 		({ 1: "st", 2: "nd", 3: "rd" }[day % 10] || "th");
@@ -146,9 +146,56 @@ function renderDailyTitle(heading, date) {
 		Number(date.slice(4, 6)) - 1, day).toLocaleString("en-US", { month: "long" });
 	var label = document.createElement("span");
 	label.className = "daily-date";
-	label.textContent = month + " " + day + suffix + ", " + date.slice(0, 4);
+	var text = document.createElement("button");
+	text.type = "button";
+	text.className = "daily-date-link";
+	text.title = "Choose another day's puzzle";
+	text.textContent = month + " " + day + suffix + ", " + date.slice(0, 4);
+	label.appendChild(text);
+	var input = document.createElement("input");
+	input.type = "date";
+	input.value = dailyDateLabel(date);
+	input.min = "0100-01-01";
+	input.max = dailyDateLabel(dailyDate());
+	input.setAttribute("aria-label", "Choose a daily puzzle date");
+	input.title = "Choose another day's puzzle";
+	input.onchange = function() {
+		if (input.validity.valid && input.value)
+			return selectDate(input.value.replaceAll("-", ""));
+	};
+	if (typeof input.showPicker == "function") {
+		input.tabIndex = -1;
+		input.setAttribute("aria-hidden", "true");
+		text.onclick = () => input.showPicker();
+	} else {
+		label.classList.add("daily-date-fallback");
+	}
+	label.appendChild(input);
+	for (var step of [-1, 1]) {
+		var adjacent = dailyDate(new Date(Number(date.slice(0, 4)),
+			Number(date.slice(4, 6)) - 1, day + step, 12));
+		var arrow = document.createElement("button");
+		arrow.type = "button";
+		arrow.className = "daily-date-arrow " + (step < 0 ? "daily-previous" : "daily-next");
+		arrow.setAttribute("aria-label", step < 0 ? "Previous day's puzzle" : "Next day's puzzle");
+		arrow.title = step < 0 ? "Previous day" : "Next day";
+		arrow.disabled = !validDailyDate(adjacent) || step > 0 && adjacent > dailyDate();
+		arrow.innerHTML = '<svg viewBox="0 0 12 20" aria-hidden="true" focusable="false">' +
+			'<path d="M9 3L3 10l6 7"/></svg>';
+		arrow.onclick = ((value, movement) => () => selectDate(value, movement))(adjacent, step);
+		if (step < 0)
+			label.insertBefore(arrow, text);
+		else
+			label.appendChild(arrow);
+	}
 	heading.textContent = "";
 	heading.appendChild(label);
+	if (direction && typeof text.animate == "function" &&
+	    !(typeof matchMedia == "function" && matchMedia("(prefers-reduced-motion: reduce)").matches))
+		text.animate([
+			{ transform: "translateX(" + direction * 0.7 + "em)", opacity: 0 },
+			{ transform: "translateX(0)", opacity: 1 },
+		], { duration: 240, easing: "ease-out" });
 }
 
 function parseSeed(seed) {
@@ -754,7 +801,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		button.setAttribute("aria-label", label + status + ".");
 	}
 
-	this.openDaily = async function(date = dailyDate()) {
+	this.openDaily = async function(date = dailyDate(), direction = 0) {
 		if (!validDailyDate(date) || this.actionController)
 			return false;
 		if (!this.options.hidden)
@@ -776,7 +823,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			}
 			this.gameOver = true;
 			this.updateActionControls();
-			this.showDailyResult(result);
+			this.showDailyResult(result, direction);
 			return true;
 		}
 		this.clearDailyCopyFeedback();
@@ -791,7 +838,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		}
 		this.invitation.classList.add("daily-panel");
 		this.invitation.querySelector(".invitation-heading").textContent = "LOGOS Daily";
-		renderDailyTitle(this.invitation.querySelector("#invitation-title"), date);
+		renderDailyTitle(this.invitation.querySelector("#invitation-title"), date,
+			(value, movement) => this.openDaily(value, movement), direction);
 		this.invitation.querySelector(".invitation-seed").textContent = date;
 		this.focusDailyAccept();
 		return true;
@@ -818,7 +866,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		result.hidden = result.inert = !show;
 	}
 
-	this.showDailyResult = function(result) {
+	this.showDailyResult = function(result, direction = 0) {
 		this.clearDailyCopyFeedback();
 		this.displayedDailyResult = result;
 		var modal = document.querySelector("#daily-menu");
@@ -827,7 +875,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.invitation.classList.add("daily-panel");
 		this.invitation.querySelector(".invitation-heading").textContent = "LOGOS Daily";
 		this.invitation.querySelector(".invitation-seed").textContent = result.date;
-		renderDailyTitle(this.invitation.querySelector("#invitation-title"), result.date);
+		renderDailyTitle(this.invitation.querySelector("#invitation-title"), result.date,
+			(value, movement) => this.openDaily(value, movement), direction);
 		var link = modal.querySelector(".daily-result-link");
 		link.textContent = this.dailyResultText(result).split("\n")[1];
 		link.disabled = result.runId === undefined;
@@ -2914,8 +2963,10 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		puzzle.updateFullscreenButton();
 	});
 	document.addEventListener("keydown", function(ev) {
-		puzzle.invitation.querySelector(".invitation-accept").classList.remove("invitation-initial-focus");
-		document.querySelector("#daily-menu .modal-close").classList.remove("invitation-initial-focus");
+		if (ev.key != "ArrowLeft" && ev.key != "ArrowRight") {
+			puzzle.invitation.querySelector(".invitation-accept").classList.remove("invitation-initial-focus");
+			document.querySelector("#daily-menu .modal-close").classList.remove("invitation-initial-focus");
+		}
 		if (ev.key == "Tab") {
 			var modal = !puzzle.invitationModal.hidden ? puzzle.invitationModal : null;
 			if (modal) {
@@ -2964,7 +3015,13 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			     !["button", "submit", "reset", "checkbox"].includes(target.type))))
 				return;
 			var modal = modals[modals.length - 1];
-			if (modal == puzzle.help) {
+			if (modal == puzzle.invitationModal && (puzzle.daily || puzzle.dailyResultOpen)) {
+				ev.preventDefault();
+				var arrow = modal.querySelector(direction < 0 ? ".daily-previous" : ".daily-next");
+				if (arrow && !arrow.disabled) {
+					arrow.click();
+				}
+			} else if (modal == puzzle.help) {
 				ev.preventDefault();
 				puzzle.helpViewport.focus({ preventScroll: true });
 				var page = puzzle.helpPage + direction;

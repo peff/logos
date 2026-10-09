@@ -47,4 +47,5 @@ Daily puzzles
 =============
 
 Open `#daily` (or choose "Today's puzzle" in Options) to open the daily
-puzzle. Use `#daily=20261008` to link to a previous date's puzzle.
+puzzle, or browse to previous daily puzzles. Use `#daily=20261008` to
+link to a previous date's puzzle.
