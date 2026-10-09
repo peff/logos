@@ -159,7 +159,7 @@ body #timer:is(.contemplating, .zen) .contemplation-infinity {
 }
 
 /* Ordinary Zen uses the same shape without contemplation's gold finish. */
-body #timer.zen:not(.contemplating) .contemplation-infinity path {
+body #timer.zen:not(.contemplating) .contemplation-infinity {
 	stroke: currentColor;
 }
 
@@ -2117,6 +2117,15 @@ button.score-entry:focus-visible {
 	color: inherit;
 	font: inherit;
 	cursor: var(--action-cursor);
+}
+
+.history-infinity {
+	width: 2em;
+	height: 1em;
+	vertical-align: -0.1em;
+	fill: none;
+	stroke: currentColor;
+	stroke-width: 1.8;
 }
 
 .history-friends {

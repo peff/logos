@@ -34,3 +34,11 @@ Puzzle links
 
 Append `#seed=1234abcd` to the page URL to link to a particular puzzle
 (seeds are up to 8 hexadecimal digits). Choose "Accept" to begin it.
+
+Zen completions
+===============
+
+Solo Zen completions appear in the Chronicle with an infinity symbol instead
+of a time. They do not enter the Pantheon or its win/loss totals. Continuing
+after a loss preserves the timed loss and adds an untimed win if you finish;
+abandoning the puzzle leaves only the loss.

@@ -363,6 +363,26 @@ var storageTestsDone = (async function() {
 			assert(history.hasMultiplayer && !history.highScores.length,
 			       "existence check required a multiplayer win");
 		});
+		await test("untimed completions persist outside the score index", async function() {
+			const before = await accessRunHistory(null, true);
+			const timed = { ...loss };
+			delete timed.id;
+			await accessRunHistory(timed);
+			const zen = { ...win, seed: timed.seed };
+			delete zen.elapsed;
+			delete zen.id;
+			const history = await accessRunHistory(zen, true);
+			assert(history.runs.length === before.runs.length + 2 &&
+			       history.gameStats.won === before.gameStats.won &&
+			       history.gameStats.lost === before.gameStats.lost + 1 &&
+			       !history.highScores.some(run => run.id === zen.id),
+			       "untimed completion was missing from history or entered the score index");
+			const reloaded = await accessRunHistory(null, true);
+			const appended = reloaded.runs.slice(before.runs.length);
+			assert(appended.length === 2 && appended[0].id === timed.id &&
+			       appended[1].id === zen.id && !("elapsed" in appended[1]),
+			       "reload did not preserve the initial loss followed by its Zen completion");
+		});
 		output.textContent += "\n" + passed.length + " tests passed";
 		return true;
 	} catch (error) {

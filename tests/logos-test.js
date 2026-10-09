@@ -2429,7 +2429,8 @@ async function withRunHistory(callback, initial) {
 			run.id = nextId++;
 			runs.push(structuredClone(run));
 		}
-		const selected = runs.filter(run => !!run.multiplayer === !!multiplayer);
+		const selected = runs.filter(run => !!run.multiplayer === !!multiplayer &&
+			run.elapsed !== undefined);
 		const wins = selected.filter(run => run.outcome == "won")
 			.sort((a, b) => a.elapsed - b.elapsed || a.id - b.id);
 		return {
@@ -2545,7 +2546,7 @@ Deno.test("pending saves capture the finished game and do not interrupt a new on
 	}
 });
 
-Deno.test("continued losses record only the first mistake", async function() {
+Deno.test("continued losses record the first mistake and an untimed completion", async function() {
 	await withRunHistory(async function(runs) {
 		const puzzle = makePuzzle(1, true);
 		puzzle.seed = 456;
@@ -2556,14 +2557,49 @@ Deno.test("continued losses record only the first mistake", async function() {
 		puzzle.lose("practice mistake");
 		for (const slot of puzzle.rows[0].slots)
 			slot.displaySingle();
-		puzzle.checkWin();
-		assert(runs.length == 1 && runs[0].outcome == "lost" &&
-		       runs[0].elapsed == 700 && puzzle.gameStats.lost == 1,
-		       "continued play recorded more than the initial loss");
+		await puzzle.checkWin();
+		assert(runs.length == 2 && runs[0].outcome == "lost" &&
+		       runs[0].elapsed == 700 && puzzle.gameStats.lost == 1 &&
+		       runs[1].outcome == "won" && !("elapsed" in runs[1]),
+		       "continued play did not preserve the loss and add an untimed completion");
 		puzzle.renderHighScores();
 		assert(puzzle.scores.querySelector(".games-won").textContent == 0,
 		       "loss counted as a win");
 	});
+});
+
+Deno.test("Zen completions appear in the Chronicle without affecting rankings", async function() {
+	await withRunHistory(async function(runs) {
+		const puzzle = makePuzzle(6, true);
+		puzzle.newGame(42, true);
+		puzzle.setPracticeMode(true);
+		puzzle.scores.hidden = true;
+		for (const row of puzzle.rows)
+			for (const slot of row.slots)
+				slot.displaySingle();
+		await puzzle.checkWin();
+		assert(runs.length == 3 && runs[2].outcome == "won" && !("elapsed" in runs[2]),
+		       "Zen completion did not produce an untimed Chronicle record");
+		assert(puzzle.scores.hidden && puzzle.highScores.length == 1 &&
+		       puzzle.gameStats.won == 1 && puzzle.gameStats.lost == 1,
+		       "Zen completion affected the Pantheon or its statistics");
+		puzzle.scores.hidden = false;
+		await puzzle.showRunHistory(runs[2].id);
+		const body = puzzle.historyBody;
+		assert(body.children[0].children[2].title === "Untimed completion",
+		       "Chronicle did not display infinity for the untimed completion");
+		for (const sort of ["fastest", "slowest"]) {
+			puzzle.historySort = sort;
+			puzzle.renderRunHistory();
+			assert(body.children[2].children[2].title === "Untimed completion" &&
+			       body.children[0].children[3].textContent === (sort == "fastest" ? "00000001" : "00000002"),
+			       "time sorting did not put untimed completions after timed runs");
+		}
+		localStorage.removeItem("practiceMode");
+	}, [
+		{ date: 1, seed: 1, elapsed: 1000, outcome: "won" },
+		{ date: 2, seed: 2, elapsed: 2000, outcome: "lost" },
+	]);
 });
 
 Deno.test("run history sorts and filters without hiding unknown dates", async function() {

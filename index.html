@@ -20,7 +20,8 @@
 						<path d="M8.5 8v10 M27.5 8v10" stroke-width="0.8"/>
 					</g>
 				</svg>
-				<svg class="contemplation-infinity" viewBox="0 0 40 20" aria-hidden="true" focusable="false">
+				<svg class="contemplation-infinity" viewBox="0 0 40 20" aria-hidden="true" focusable="false"
+				     fill="none" stroke="url(#infinity-gold)" stroke-width="2.4">
 					<defs>
 						<linearGradient id="infinity-gold" x1="0" y1="0" x2="0" y2="1">
 							<stop offset="0" stop-color="#fff4b0"/>
@@ -28,9 +29,9 @@
 							<stop offset=".58" stop-color="#ffe89a"/>
 							<stop offset="1" stop-color="#9d6f1e"/>
 						</linearGradient>
+						<path id="infinity-shape" d="M20 10C14 2 4 2 4 10s10 8 16 0 16-8 16 0-10 8-16 0Z"/>
 					</defs>
-					<path d="M20 10C14 2 4 2 4 10s10 8 16 0 16-8 16 0-10 8-16 0Z"
-					      fill="none" stroke="url(#infinity-gold)" stroke-width="2.4"/>
+					<use href="#infinity-shape"/>
 				</svg>
 			</button>
 		</div>

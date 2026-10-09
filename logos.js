@@ -1694,23 +1694,25 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			return null;
 		if (this.actionController)
 			return this.actionController.finishRun(outcome);
-		return this.scoreEligible ? this.recordOutcome(outcome) : null;
+		return this.recordOutcome(outcome);
 	}
 
 	this.runRecord = function(outcome) {
 		/* Capture the finished game before the asynchronous save.
 		 * date is the finish time in Unix milliseconds; elapsed is
-		 * active play time in milliseconds, excluding pauses.
+		 * active play time in milliseconds, excluding pauses. Untimed
+		 * completions omit elapsed and so do not enter the Pantheon index.
 		 */
 		var run = {
 			date: Date.now(),
 			seed: this.seed,
-			elapsed: this.timerElapsed,
 			outcome: outcome,
 			rows: this.rows.length,
 			columns: this.rows[0].slots.length,
 			generatorVersion: puzzleGeneratorVersion,
 		};
+		if (this.scoreEligible)
+			run.elapsed = this.timerElapsed;
 		if (canRateRun(run))
 			run.difficulty = puzzleDifficulty(this);
 		return run;
@@ -2001,8 +2003,12 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			return levels.length == 3 || hasRunDifficulty(run) &&
 				levels.includes(run.difficulty.level);
 		}).sort(function(a, b) {
-			if (sort == "fastest" || sort == "slowest")
+			if (sort == "fastest" || sort == "slowest") {
+				/* Untimed completions follow timed runs in either direction. */
+				if (a.elapsed === undefined || b.elapsed === undefined)
+					return (a.elapsed === undefined) - (b.elapsed === undefined) || a.id - b.id;
 				return (sort == "fastest" ? a.elapsed - b.elapsed : b.elapsed - a.elapsed) || a.id - b.id;
+			}
 			/* Imported runs with unknown dates always go last. */
 			if (a.date === null || b.date === null)
 				return (a.date === null) - (b.date === null) || a.id - b.id;
@@ -2030,12 +2036,21 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 				row.setAttribute("aria-current", "true");
 			}
 			var values = [formatScoreDate(run.date, true),
-				run.outcome == "won" ? "Win" : "Loss", formatTime(run.elapsed),
+				run.outcome == "won" ? "Win" : "Loss",
+				run.elapsed === undefined ? "" : formatTime(run.elapsed),
 				run.seed === undefined ? "—" : formatSeed(run.seed)];
 			for (var value of values) {
 				var cell = document.createElement("td");
 				cell.textContent = value;
 				row.appendChild(cell);
+			}
+			if (run.elapsed === undefined) {
+				var time = row.children[2];
+				time.textContent = "";
+				time.title = "Untimed completion";
+				time.innerHTML = '<svg class="history-infinity" viewBox="0 0 40 20" ' +
+					'role="img" aria-label="Untimed completion" focusable="false">' +
+					'<use href="#infinity-shape"/></svg>';
 			}
 			if (run.multiplayer) {
 				var friends = document.createElement("span");
