@@ -441,7 +441,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.hClues.classList.remove("solution");
 		this.vClues.classList.remove("solution");
 		this.stopTimer();
-		this.timer.hidden = false;
 		this.timerElapsed = 0;
 		this.clearOutcome();
 		this.updateTimer(0);
@@ -558,7 +557,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			this.options.querySelector("#game-seed").value = "";
 			this.updateSeedControls();
 			this.updateSeedDifficulty();
-			this.timer.hidden = false;
 			this.timer.classList.add("contemplating");
 			this.timer.title = "Contemplation has no time limit";
 			this.timer.setAttribute("aria-label", this.timer.title);
@@ -595,7 +593,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.updateSeedControls();
 		this.gameOver = true;
 		this.practiceMode = this.practiceModePreference;
-		this.timer.hidden = false;
 		this.proof = null;
 		this.pendingProof = null;
 		this.practiceMistake = null;
@@ -981,7 +978,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.practiceMode = true;
 		this.scoreEligible = false;
 		this.stopTimer();
-		this.timer.hidden = false;
 		this.updatePauseControl();
 		this.hintRequest = { base, basePlacements, step, stage: 0 };
 		this.say("A little enlightenment. Consider the highlighted clue.");
@@ -2784,7 +2780,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			   this.timerTimeout === null) {
 			this.startTimer();
 		}
-		this.timer.hidden = false;
 		this.updatePauseControl();
 		return true;
 	}
