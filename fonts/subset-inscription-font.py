@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-"""Subset Google Fonts' EBGaramond-Italic[wght].ttf for the invitation.
+"""Subset Google Fonts' EBGaramond-Italic[wght].ttf for tablet footers.
 
 Source: https://github.com/google/fonts/tree/main/ofl/ebgaramond
 Requires fontTools and Brotli (pip install 'fonttools[woff]').
@@ -9,6 +9,7 @@ Keep EBGaramond-OFL.txt alongside the generated font.
 """
 
 import argparse
+import string
 
 from fontTools import subset
 from fontTools.ttLib import TTFont
@@ -26,7 +27,7 @@ def main():
 	options = subset.Options()
 	options.name_IDs = [0, 1, 2, 3, 4, 5, 6, 13, 14, 16, 17]
 	subsetter = subset.Subsetter(options=options)
-	subsetter.populate(text="№ 0123456789abcdef")
+	subsetter.populate(text="№ " + string.digits + string.ascii_letters)
 	subsetter.subset(font)
 	font.flavor = "woff2"
 	font.save(args.output)
