@@ -120,6 +120,37 @@ function formatSeed(seed) {
 	return seed.toString(16).padStart(8, "0");
 }
 
+function dailyDate(date = new Date()) {
+	return String(date.getFullYear()).padStart(4, "0") +
+		String(date.getMonth() + 1).padStart(2, "0") +
+		String(date.getDate()).padStart(2, "0");
+}
+
+function validDailyDate(date) {
+	if (typeof date != "string" || !/^[0-9]{8}$/.test(date))
+		return false;
+	var parsed = new Date(Number(date.slice(0, 4)),
+		Number(date.slice(4, 6)) - 1, Number(date.slice(6)));
+	return dailyDate(parsed) === date;
+}
+
+function dailyDateLabel(date) {
+	return date.slice(0, 4) + "-" + date.slice(4, 6) + "-" + date.slice(6);
+}
+
+function renderDailyTitle(heading, date) {
+	var day = Number(date.slice(6));
+	var suffix = day >= 11 && day <= 13 ? "th" :
+		({ 1: "st", 2: "nd", 3: "rd" }[day % 10] || "th");
+	var month = new Date(Number(date.slice(0, 4)),
+		Number(date.slice(4, 6)) - 1, day).toLocaleString("en-US", { month: "long" });
+	var label = document.createElement("span");
+	label.className = "daily-date";
+	label.textContent = month + " " + day + suffix + ", " + date.slice(0, 4);
+	heading.textContent = "";
+	heading.appendChild(label);
+}
+
 function parseSeed(seed) {
 	if (typeof seed == "number")
 		return Number.isInteger(seed) && seed >= 0 && seed <= 0xffffffff ?
@@ -422,6 +453,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 
 	this.clear = function() {
 		this.invitationDeclined = false;
+		this.daily = null;
+		this.setInvitationResult(false);
 		this.continuedFromLoss = false;
 		this.clearHint();
 		this.clearInvitationTransition();
@@ -471,6 +504,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.closeInvitation = function() {
+		if (this.dailyResultOpen)
+			return this.closeDailyResult();
 		if (this.invitationAnimation)
 			return;
 		this.fadeInvitation(() => {
@@ -484,6 +519,34 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.startGame = function() {
 		if (this.pendingSeed === undefined)
 			return false;
+		if (this.daily)
+			return this.startDailyGame();
+		return this.startInvitedGame();
+	}
+
+	this.startDailyGame = async function() {
+		/* Another tab may have finished this date since the invitation opened. */
+		var gameIdentity = this.gameIdentity;
+		var declined = this.invitationDeclined;
+		var result = await this.getDailyResult(this.daily);
+		if (this.gameIdentity !== gameIdentity || this.pendingSeed === undefined ||
+		    this.invitationDeclined !== declined)
+			return false;
+		if (result === null) {
+			this.say("The Chronicle could not be loaded.");
+			return false;
+		}
+		if (result) {
+			this.pendingSeed = undefined;
+			this.gameOver = true;
+			this.updateActionControls();
+			this.showDailyResult(result);
+			return false;
+		}
+		return this.startInvitedGame();
+	}
+
+	this.startInvitedGame = function() {
 		if (this.invitationAnimation)
 			return false;
 		var finish = () => {
@@ -583,6 +646,11 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			this.beforeNewGame?.();
 		if (seed === null)
 			return false;
+		this.daily = null;
+		this.setInvitationResult(false);
+		this.invitation.querySelector("#invitation-title").textContent = "A puzzle awaits";
+		this.invitation.classList.remove("daily-panel");
+		this.invitation.querySelector(".invitation-heading").textContent = "Logos";
 		this.clearInvitationTransition();
 		this.invitationDeclined = false;
 		this.pendingSeed = awaitStart ? seed : undefined;
@@ -632,12 +700,221 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 
 	this.loadURLSeed = function(url) {
 		var params = new URLSearchParams(new URL(url).hash.slice(1));
+		if (params.has("daily") && !params.has("room"))
+			return this.openDaily(params.get("daily") || dailyDate());
 		var seed = parseSeed(params.get("seed"));
 		if (seed === null)
 			return false;
 		this.invitation.querySelector(".invitation-seed").textContent =
 			formatSeed(seed);
 		return this.newGame(seed, true);
+	}
+
+	this.dailyResultFromRun = function(run, scores = [], level = "all") {
+		var result = { date: run.daily, outcome: run.outcome,
+			elapsed: run.elapsed, assisted: run.elapsed === undefined, runId: run.id };
+		if (hasRunDifficulty(run))
+			result.difficulty = run.difficulty.level;
+		var place = scores.findIndex(score => run.id !== undefined && score.id === run.id);
+		if (place >= 0) {
+			result.pantheonPlace = place + 1;
+			result.pantheonLevel = level;
+		}
+		return result;
+	}
+
+	this.getDailyResult = async function(date) {
+		var history = await accessRunHistory(null, true);
+		if (!history)
+			return null;
+		/* The store cursor returns records in insertion order. A later Zen
+		 * completion must not replace the original timed loss.
+		 */
+		var run = history.runs.find(run => run.daily === date && !run.multiplayer);
+		if (!run)
+			return undefined;
+		var level = run.difficulty?.level || "all";
+		if (level != "all")
+			history = await accessRunHistory(null, false, level);
+		return this.dailyResultFromRun(run, history?.highScores, level);
+	}
+
+	this.updateDailyButton = async function() {
+		var button = this.options.querySelector("#daily-button");
+		button.disabled = !!this.actionController;
+		button.title = this.actionController ? "Daily attempts are played solo." : "";
+		var request = this.dailyButtonRequest = {};
+		var result = await this.getDailyResult(dailyDate());
+		if (this.dailyButtonRequest !== request)
+			return;
+		var status = result === null ? "available" : result ? "completed" : "awaits";
+		var label = "Today's puzzle " + (result === null ? "is " : result ? "has been " : "");
+		this.options.querySelector("#daily-label").textContent = label;
+		button.textContent = status;
+		button.setAttribute("aria-label", label + status + ".");
+	}
+
+	this.openDaily = async function(date = dailyDate()) {
+		if (!validDailyDate(date) || this.actionController)
+			return false;
+		if (!this.options.hidden)
+			this.toggleOptions();
+		var gameIdentity = this.gameIdentity;
+		var request = this.dailyRequest = {};
+		var result = await this.getDailyResult(date);
+		if (this.gameIdentity !== gameIdentity || this.dailyRequest !== request || this.actionController)
+			return false;
+		if (result === null) {
+			this.say("The Chronicle could not be loaded.");
+			return false;
+		}
+		if (result) {
+			/* Completed dates get the same unsolved preview as fresh ones. */
+			if (this.daily !== date || this.pendingSeed === undefined) {
+				this.newGame(date, true);
+				this.daily = date;
+			}
+			this.gameOver = true;
+			this.updateActionControls();
+			this.showDailyResult(result);
+			return true;
+		}
+		this.clearDailyCopyFeedback();
+		this.setInvitationResult(false);
+		/* Reopening Options must not restart an ongoing daily attempt. */
+		if (this.daily === date) {
+			this.invitationDeclined = false;
+			this.updateActionControls();
+		} else {
+			this.newGame(date, true);
+			this.daily = date;
+		}
+		this.invitation.classList.add("daily-panel");
+		this.invitation.querySelector(".invitation-heading").textContent = "LOGOS Daily";
+		renderDailyTitle(this.invitation.querySelector("#invitation-title"), date);
+		this.invitation.querySelector(".invitation-seed").textContent = date;
+		this.focusDailyAccept();
+		return true;
+	}
+
+	this.focusDailyAccept = function() {
+		var accept = this.invitation.querySelector(".invitation-accept");
+		accept.classList.add("invitation-initial-focus");
+		accept.focus({ preventScroll: true });
+	}
+
+	this.dailyResultText = function(result) {
+		return "Logos daily · " + dailyDateLabel(result.date) + "\n" +
+			(result.outcome == "won" ? "Solved" : "Lost") +
+			(result.assisted ? " · Assisted / Zen (untimed)" :
+				" · " + formatTime(result.elapsed));
+	}
+
+	this.setInvitationResult = function(show) {
+		this.dailyResultOpen = show;
+		var prompt = this.invitation.querySelector(".invitation-prompt");
+		var result = document.querySelector("#daily-menu");
+		prompt.hidden = prompt.inert = show;
+		result.hidden = result.inert = !show;
+	}
+
+	this.showDailyResult = function(result) {
+		this.clearDailyCopyFeedback();
+		this.displayedDailyResult = result;
+		var modal = document.querySelector("#daily-menu");
+		this.setInvitationResult(true);
+		this.invitationDeclined = true;
+		this.invitation.classList.add("daily-panel");
+		this.invitation.querySelector(".invitation-heading").textContent = "LOGOS Daily";
+		this.invitation.querySelector(".invitation-seed").textContent = result.date;
+		renderDailyTitle(this.invitation.querySelector("#invitation-title"), result.date);
+		var link = modal.querySelector(".daily-result-link");
+		link.textContent = this.dailyResultText(result).split("\n")[1];
+		link.disabled = result.runId === undefined;
+		link.title = link.disabled ? "" : "View this attempt in the Chronicle";
+		modal.querySelector(".daily-difficulty").textContent =
+			["easy", "medium", "hard"].includes(result.difficulty) ?
+				result.difficulty[0].toUpperCase() + result.difficulty.slice(1) + " difficulty" : "";
+		var pantheon = modal.querySelector(".daily-pantheon");
+		pantheon.hidden = !(Number.isInteger(result.pantheonPlace) &&
+			result.pantheonPlace >= 1 && result.pantheonPlace <= 10 &&
+			["all", "easy", "medium", "hard"].includes(result.pantheonLevel));
+		modal.querySelector(".daily-history-error").hidden = !result.historyUnsaved;
+		this.invitation.hidden = false;
+		if (this.invitationModal.hidden)
+			this.toggleModal(this.invitationModal, this.options.querySelector("#daily-button"), "Close");
+		var close = modal.querySelector(".modal-close");
+		close.classList.add("invitation-initial-focus");
+		close.focus();
+	}
+
+	this.openDailyChronicle = async function() {
+		var result = this.displayedDailyResult;
+		if (!result || result.runId === undefined || document.querySelector("#daily-menu").hidden)
+			return;
+		this.closeDailyResult();
+		this.scoresDailyReturn = { result, gameIdentity: this.gameIdentity };
+		if (this.scores.hidden)
+			this.toggleModal(this.scores, this.scoresButton, "Rejoin the mortal realm");
+		await this.showRunHistory(result.runId);
+	}
+
+	this.openDailyPantheon = async function() {
+		var result = this.displayedDailyResult;
+		var modal = document.querySelector("#daily-menu");
+		if (!result || modal.hidden ||
+		    !["all", "easy", "medium", "hard"].includes(result.pantheonLevel))
+			return;
+		var gameIdentity = this.gameIdentity;
+		var loading = this.loadHistory(undefined, result.pantheonLevel, false);
+		var request = this.pantheonRequest;
+		await loading;
+		if (this.gameIdentity !== gameIdentity || this.pantheonRequest !== request ||
+		    this.displayedDailyResult !== result || modal.hidden)
+			return;
+		this.highlightedScore = this.highScores.find(score => result.runId !== undefined ?
+			score.id === result.runId : score.daily === result.date) || null;
+		this.closeDailyResult();
+		this.scoresDailyReturn = { result, gameIdentity };
+		if (this.scores.hidden)
+			this.toggleModal(this.scores, this.scoresButton, "Rejoin the mortal realm");
+		this.showPantheon();
+		this.renderHighScores();
+	}
+
+	this.closeDailyResult = function() {
+		this.clearDailyCopyFeedback();
+		if (!this.dailyResultOpen)
+			return;
+		this.setInvitationResult(false);
+		this.invitationDeclined = true;
+		if (!this.invitationModal.hidden)
+			this.toggleModal(this.invitationModal, this.options.querySelector("#daily-button"), "Close");
+		this.invitation.hidden = true;
+	}
+
+	this.clearDailyCopyFeedback = function() {
+		clearTimeout(this.dailyCopyTimeout);
+		this.dailyCopyRequest = null;
+		document.querySelector("#invitation-menu .daily-copy-status").textContent = "";
+	}
+
+	this.copyDailyResult = async function() {
+		this.clearDailyCopyFeedback();
+		var request = this.dailyCopyRequest = {};
+		var result = this.displayedDailyResult;
+		var url = new URL(window.location.href);
+		url.hash = "daily=" + result.date;
+		var text = this.dailyResultText(result) + "\n" + url.href;
+		try {
+			await navigator.clipboard.writeText(text);
+			if (this.dailyCopyRequest === request) {
+				document.querySelector("#invitation-menu .daily-copy-status").textContent = "Copied to clipboard";
+				this.dailyCopyTimeout = setTimeout(() => this.clearDailyCopyFeedback(), 3000);
+			}
+		} catch (e) {
+			window.prompt("Copy this result and puzzle link:", text);
+		}
 	}
 
 	this.updateSeedControls = function() {
@@ -1282,6 +1559,10 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.setActionController = function(controller) {
+		if (controller) {
+			this.daily = null;
+			this.setInvitationResult(false);
+		}
 		this.actionController = controller;
 	}
 
@@ -1713,6 +1994,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		};
 		if (this.scoreEligible)
 			run.elapsed = this.timerElapsed;
+		if (this.daily)
+			run.daily = this.daily;
 		if (canRateRun(run))
 			run.difficulty = puzzleDifficulty(this);
 		return run;
@@ -1725,13 +2008,24 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			outcome == "won" && run.difficulty ? run.difficulty.level : "all", !!run.multiplayer);
 		var request = this.pantheonRequest;
 		var saved = await saving;
+		var dailyResult;
+		if (run.daily) {
+			if (saved) {
+				dailyResult = await this.getDailyResult(run.daily);
+				if (dailyResult?.runId !== run.id)
+					dailyResult = null;
+			} else {
+				dailyResult = this.dailyResultFromRun(run);
+				dailyResult.historyUnsaved = true;
+			}
+		}
 		if (this.pantheonRequest !== request)
 			return saved;
 		var highScore = this.highScores.find(function(score) {
 			return run.id !== undefined && score.id === run.id;
 		});
 		/* A completed save must not interrupt a newer game. */
-		if (highScore && this.gameIdentity === gameIdentity) {
+		if (highScore && !run.daily && this.gameIdentity === gameIdentity) {
 			this.highlightedScore = highScore;
 			if (this.scores.hidden)
 				this.toggleModal(this.scores, this.scoresButton,
@@ -1743,6 +2037,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			this.say("Your result could not be saved.");
 		if (!this.scores.hidden)
 			this.renderHighScores();
+		if (dailyResult && this.gameIdentity === gameIdentity)
+			this.showDailyResult(dailyResult);
 		return saved;
 	}
 
@@ -2402,6 +2698,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.toggleOptions = function() {
+		this.updateDailyButton();
 		this.analysisClicks = 0;
 		if (this.options.hidden && this.seed !== undefined)
 			this.options.querySelector("#game-seed").value =
@@ -2449,10 +2746,14 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 
 	this.toggleScores = async function() {
 		if (!this.scores.hidden) {
+			var dailyReturn = this.scoresDailyReturn;
+			this.scoresDailyReturn = null;
 			this.pantheonRequest = {};
 			this.toggleModal(this.scores, this.scoresButton,
 				"Rejoin the mortal realm");
 			this.highlightedScore = null;
+			if (dailyReturn && dailyReturn.gameIdentity === this.gameIdentity)
+				this.showDailyResult(dailyReturn.result);
 			return;
 		}
 		var gameIdentity = this.gameIdentity;
@@ -2478,7 +2779,9 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		var modals = document.querySelectorAll(".modal:not([hidden])");
 		if (!modals.length)
 			return false;
-		var close = modals[modals.length - 1].querySelector(".modal-close");
+		var modal = modals[modals.length - 1];
+		var close = modal.querySelector(modal === this.invitationModal && this.dailyResultOpen ?
+			".daily-close" : ".modal-close");
 		if (!close)
 			return false;
 		close.click();
@@ -2592,6 +2895,9 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.invitation.querySelector(".invitation-accept").addEventListener("blur", function() {
 		this.classList.remove("invitation-initial-focus");
 	});
+	document.querySelector("#daily-menu .modal-close").addEventListener("blur", function() {
+		this.classList.remove("invitation-initial-focus");
+	});
 	this.scores.addEventListener("click", function(ev) {
 		if (ev.target == puzzle.scores)
 			puzzle.toggleScores();
@@ -2609,11 +2915,13 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	});
 	document.addEventListener("keydown", function(ev) {
 		puzzle.invitation.querySelector(".invitation-accept").classList.remove("invitation-initial-focus");
+		document.querySelector("#daily-menu .modal-close").classList.remove("invitation-initial-focus");
 		if (ev.key == "Tab") {
 			var modal = !puzzle.invitationModal.hidden ? puzzle.invitationModal : null;
 			if (modal) {
 				var controls = Array.from(modal.querySelectorAll("button, input, a[href]"))
-					.filter(control => !control.disabled && control.getClientRects().length);
+					.filter(control => !control.disabled && control.tabIndex !== -1 &&
+						control.getClientRects().length && getComputedStyle(control).visibility !== "hidden");
 				var index = controls.indexOf(document.activeElement);
 				if (controls.length) {
 					ev.preventDefault();
@@ -2879,10 +3187,11 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		else
 			document.body.classList.add("game-started");
 		this.boardActions.hidden = !show;
-		this.invitation.hidden = this.pendingSeed === undefined || this.invitationDeclined;
+		this.invitation.hidden = !this.dailyResultOpen &&
+			(this.pendingSeed === undefined || this.invitationDeclined);
 		var openingInvitation = this.invitationModal.hidden && !this.invitation.hidden;
 		this.invitationModal.hidden = this.invitation.hidden;
-		if (openingInvitation) {
+		if (openingInvitation && !this.dailyResultOpen) {
 			var accept = this.invitation.querySelector(".invitation-accept");
 			accept.classList.add("invitation-initial-focus");
 			accept.focus();

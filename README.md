@@ -42,3 +42,9 @@ Solo Zen completions appear in the Chronicle with an infinity symbol instead
 of a time. They do not enter the Pantheon or its win/loss totals. Continuing
 after a loss preserves the timed loss and adds an untimed win if you finish;
 abandoning the puzzle leaves only the loss.
+
+Daily puzzles
+=============
+
+Open `#daily` (or choose "Today's puzzle" in Options) to open the daily
+puzzle. Use `#daily=20261008` to link to a previous date's puzzle.

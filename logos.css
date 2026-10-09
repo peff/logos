@@ -220,12 +220,12 @@ body #timer::after {
 	}
 
 	/* Leave room for clues, tap controls, and the footer on short phones. */
-	html:has(body.game-started) {
+	html:has(body.game-started, #daily-menu:not([hidden])) {
 		font-size: min(3.5vw, 1.82vh);
 	}
 
 	@supports (height: 100dvh) {
-		html:has(body.game-started) {
+		html:has(body.game-started, #daily-menu:not([hidden])) {
 			font-size: min(3.5vw, 1.82dvh);
 		}
 	}
@@ -381,7 +381,7 @@ body #timer::after {
 		font-size: min(2.66vw, 1.94vh);
 	}
 
-	html:has(body.game-started) {
+	html:has(body.game-started, #daily-menu:not([hidden])) {
 		font-size: min(2.66vw, 1.82vh);
 	}
 
@@ -390,7 +390,7 @@ body #timer::after {
 			font-size: min(2.66vw, 1.94dvh);
 		}
 
-		html:has(body.game-started) {
+		html:has(body.game-started, #daily-menu:not([hidden])) {
 			font-size: min(2.66vw, 1.82dvh);
 		}
 	}
@@ -1250,6 +1250,63 @@ body:is(.proof-active, :has(#proof-controls.hint-explanation)) :is(#logo, #frien
 	padding: 0;
 }
 
+.daily-result-link {
+	border: 0;
+	padding: 0;
+	background: none;
+	color: inherit;
+	font: inherit;
+	text-decoration: underline;
+	cursor: pointer;
+}
+
+.daily-result-link {
+	text-underline-offset: 0.18em;
+	text-decoration-thickness: 1px;
+}
+
+.daily-result-link:disabled {
+	text-decoration: none;
+	cursor: default;
+}
+
+.daily-date {
+	position: relative;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 0.35em;
+	margin-top: 0.4em;
+	font-size: 0.7em;
+	font-weight: normal;
+	white-space: nowrap;
+}
+
+.daily-options {
+	margin-bottom: 0.45em;
+}
+
+#daily-button {
+	border: 0;
+	padding: 0;
+	background: none;
+	color: #70572a;
+	font: inherit;
+	cursor: pointer;
+}
+
+#daily-button:hover,
+#daily-button:focus-visible {
+	color: #9a7d3d;
+	text-decoration: underline;
+	text-underline-offset: 0.18em;
+}
+
+#daily-button:disabled {
+	opacity: 0.5;
+	cursor: default;
+}
+
 .options-panel {
 	max-height: calc(100vh - 2rem);
 	overflow-y: auto;
@@ -1262,6 +1319,7 @@ body:is(.proof-active, :has(#proof-controls.hint-explanation)) :is(#logo, #frien
 
 #options-menu .game-options {
 	border-bottom: 1px solid #c8c0b2;
+	padding-top: 0.1rem;
 	padding-bottom: 0.55rem;
 }
 
@@ -1389,13 +1447,13 @@ body:is(.proof-active, :has(#proof-controls.hint-explanation)) :is(#logo, #frien
 
 #seed-difficulty {
 	display: block;
+	margin-top: 0.25em;
 	border: 0;
 	padding: 0;
 	background: transparent;
 	font-size: inherit;
 	text-align: left;
 	min-height: 1.2em;
-	margin-top: 0.25em;
 	color: #68685f;
 	font-family: Forum, Georgia, "Times New Roman", serif;
 }
@@ -2432,6 +2490,10 @@ button.score-entry:focus-visible {
 }
 
 #game-invitation {
+	animation: invitation-arrive 450ms ease-out both;
+}
+
+.invitation-panel {
 	position: relative;
 	width: 20rem;
 	max-width: calc(100vw - 2rem);
@@ -2449,17 +2511,17 @@ button.score-entry:focus-visible {
 		0.12rem 0.18rem 0.3rem rgb(48 40 27 / 25%);
 	text-align: center;
 	font-family: Forum, Georgia, "Times New Roman", serif;
-	animation: invitation-arrive 450ms ease-out both;
 }
 
-#game-invitation:not([hidden]) {
+#game-invitation:not([hidden]),
+.daily-panel {
 	display: flex;
 	flex-direction: column;
 	align-items: center;
 	justify-content: center;
 }
 
-#game-invitation::before {
+.invitation-panel::before {
 	content: "";
 	position: absolute;
 	inset: 0.3rem;
@@ -2516,7 +2578,7 @@ button.score-entry:focus-visible {
 	stroke-width: 1.2;
 }
 
-#invitation-title {
+.invitation-title {
 	margin: 0.65rem 0 0.5rem;
 	color: #70572a;
 	font-size: 1.8rem;
@@ -2525,17 +2587,10 @@ button.score-entry:focus-visible {
 	text-shadow: 0 1px rgb(255 250 232 / 75%);
 }
 
-#game-invitation p {
+.invitation-panel p {
 	margin: 0 0 1rem;
 	color: #665e50;
 	font: italic 0.65rem/1.6 Georgia, "Times New Roman", serif;
-}
-
-.invitation-actions {
-	display: flex;
-	flex-direction: column;
-	align-items: center;
-	gap: 0.75rem;
 }
 
 .invitation-choices {
@@ -2555,6 +2610,135 @@ button.score-entry:focus-visible {
 
 .invitation-numero {
 	margin-right: 0.15em;
+}
+
+.daily-panel {
+	min-height: 0;
+	max-height: calc(100dvh - 2rem);
+	overflow-y: auto;
+	justify-content: flex-start;
+}
+
+.daily-panel .invitation-heading {
+	font-family: Forum, Georgia, "Times New Roman", serif;
+	font-size: 0.7rem;
+	text-transform: none;
+}
+
+#game-invitation.daily-panel {
+	animation: none;
+	justify-content: flex-start;
+}
+
+.invitation-body {
+	width: 100%;
+}
+
+.invitation-prompt,
+#daily-menu {
+	text-align: center;
+}
+
+.invitation-body .invitation-choices {
+	justify-content: center;
+}
+
+.daily-panel .invitation-body {
+	display: grid;
+}
+
+.daily-panel .invitation-body > * {
+	grid-area: 1 / 1;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+}
+
+.daily-panel .invitation-prompt > p {
+	flex: 1;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	margin: 0;
+}
+
+.daily-panel .invitation-body > [hidden] {
+	visibility: hidden;
+	pointer-events: none;
+}
+
+.daily-panel .daily-pantheon[hidden] {
+	display: block;
+	visibility: hidden;
+}
+
+.daily-panel .invitation-choices {
+	display: flex;
+	justify-content: center;
+	width: 100%;
+	margin-top: auto;
+	padding-top: 0.15rem;
+}
+
+.daily-panel > * {
+	flex-shrink: 0;
+}
+
+.daily-panel .daily-result {
+	min-height: 1.4em;
+	color: #70572a;
+	font: 1.15rem/1.4 Forum, Georgia, "Times New Roman", serif;
+}
+
+.daily-panel .daily-result {
+	margin-bottom: 0.1rem;
+}
+
+.daily-panel .daily-result-link {
+	display: block;
+	min-height: 1.4em;
+	margin-inline: auto;
+}
+
+.daily-difficulty {
+	display: block;
+	min-height: 1.3em;
+	margin-top: 0.1rem;
+	color: #746d60;
+	font: 0.6rem/1.3 Forum, Georgia, "Times New Roman", serif;
+}
+
+.daily-panel .daily-pantheon {
+	margin-bottom: 0.5rem;
+}
+
+.daily-actions {
+	margin-top: 0.15rem;
+}
+
+.invitation-footer {
+	display: grid;
+	place-items: center;
+	margin-top: 0.75rem;
+	color: #746d60;
+	font: italic 0.65rem/1.2 "EB Garamond", Georgia, "Times New Roman", serif;
+	letter-spacing: 0.04em;
+}
+
+.invitation-footer > * {
+	grid-area: 1 / 1;
+}
+
+.invitation-footer:has(.daily-copy-status:not(:empty)) .invitation-inscription {
+	visibility: hidden;
+}
+
+.invitation-panel .daily-copy-status {
+	min-height: 1.2em;
+	margin: 0;
+	color: inherit;
+	font: inherit;
+	letter-spacing: inherit;
 }
 
 .invitation-choice {
@@ -2589,13 +2773,17 @@ button.score-entry:focus-visible {
 }
 
 @media (orientation: portrait) {
-	#game-invitation {
+	.invitation-panel {
 		zoom: 1.3;
 		padding: 0.65rem 1rem;
 	}
 
-	#game-invitation .invitation-ornament {
+	.invitation-panel .invitation-ornament {
 		margin-top: 0.35rem;
+	}
+
+	.daily-panel {
+		max-height: calc(100dvh / 1.3 - 2rem);
 	}
 }
 

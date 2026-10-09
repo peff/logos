@@ -754,6 +754,211 @@ Deno.test("copying a puzzle link preserves the game and has a manual fallback", 
 	}
 });
 
+Deno.test("daily attempts remember the first result and share a fixed date", async function() {
+	const oldWindow = globalThis.window;
+	const oldValues = localStorage.values;
+	const clipboard = Object.getOwnPropertyDescriptor(navigator, "clipboard");
+	const copied = [];
+	localStorage.values = {};
+	globalThis.window = new FakeElement();
+	window.location = { href: "https://example.com/#daily" };
+	Object.defineProperty(navigator, "clipboard", { configurable: true,
+		value: { async writeText(text) { copied.push(text); } } });
+	const puzzle = makePuzzle(6);
+	puzzle.say = function() {};
+	puzzle.options.hidden = puzzle.scores.hidden = true;
+	const modal = document.querySelector("#daily-menu");
+	modal.hidden = true;
+	try {
+		await withRunHistory(async runs => {
+			for (const date of ["20260229", "20261301", "20261000", "abcd1234"])
+				assert(!await puzzle.openDaily(date), "invalid daily date accepted");
+			assert(await puzzle.loadURLSeed("https://example.com/#daily=20261008"));
+			assert(puzzle.seed === 0x20261008 && puzzle.pendingSeed === puzzle.seed);
+			const identity = puzzle.gameIdentity;
+			await puzzle.openDaily("20261008");
+			assert(puzzle.gameIdentity === identity, "daily entry restarted the attempt");
+			await puzzle.startGame();
+			puzzle.stopTimer();
+			puzzle.timerElapsed = 83000;
+			puzzle.gameOver = true;
+			await puzzle.finishRun("lost");
+			assert(!modal.hidden && puzzle.scores.hidden, "daily result was not shown alone");
+			assert((await puzzle.getDailyResult("20261008")).outcome === "lost");
+			puzzle.scoreEligible = false;
+			await puzzle.finishRun("won");
+			assert((await puzzle.getDailyResult("20261008")).outcome === "lost", "continuation replaced result");
+			await puzzle.copyDailyResult();
+			assert(copied[0] === "Logos daily · 2026-10-08\nLost · 1:23\nhttps://example.com/#daily=20261008");
+			const original = (await puzzle.getDailyResult("20261008")).runId;
+			await puzzle.openDailyChronicle();
+			assert(modal.hidden && puzzle.selectedRun === original &&
+			       !puzzle.scores.querySelector(".history-view").hidden,
+			       "daily Chronicle link did not select the original loss");
+			await puzzle.toggleScores();
+			assert(!modal.hidden, "Chronicle did not return to the daily result");
+			puzzle.closeDailyResult();
+			const restored = makePuzzle(6);
+			restored.options.hidden = true;
+			assert(await restored.openDaily("20261008") && restored.seed === 0x20261008 &&
+			       restored.pendingSeed === restored.seed && restored.gameOver &&
+			       restored.dailyResultOpen && restored.timerTimeout === null,
+			       "completed daily did not show its preview and saved result after reload");
+			puzzle.newGame("20261008", true);
+			assert(!puzzle.daily && !puzzle.runRecord("won").daily, "regular replay retained daily identity");
+			await puzzle.openDaily("20261009");
+			puzzle.pendingSeed = undefined;
+			puzzle.scoreEligible = false;
+			puzzle.gameOver = true;
+			await puzzle.finishRun("won");
+			assert((await puzzle.getDailyResult("20261009")).assisted, "assisted completion was not remembered");
+			await puzzle.openDailyChronicle();
+			assert(puzzle.selectedRun === (await puzzle.getDailyResult("20261009")).runId,
+			       "untimed result did not link to its Chronicle entry");
+			await puzzle.toggleScores();
+			puzzle.closeDailyResult();
+			await puzzle.openDaily("20261010");
+			runs.push({ id: 100, daily: "20261010", outcome: "won", elapsed: 1000 });
+			assert(!await puzzle.startGame() && puzzle.gameOver && !modal.hidden,
+			       "invitation allowed a date finished by another tab");
+			puzzle.closeDailyResult();
+			await puzzle.openDaily("20261011");
+			puzzle.closeInvitation();
+			assert(await puzzle.startGame() && puzzle.pendingSeed === undefined &&
+			       puzzle.daily === "20261011", "Options could not start a declined daily");
+			puzzle.stopTimer();
+			assert(!Object.keys(localStorage.values).some(key => key.startsWith("daily-")),
+			       "daily results still used separate localStorage records");
+		});
+	} finally {
+		puzzle.stopTimer();
+		modal.hidden = true;
+		localStorage.values = oldValues;
+		if (oldWindow === undefined) delete globalThis.window;
+		else globalThis.window = oldWindow;
+		if (clipboard) Object.defineProperty(navigator, "clipboard", clipboard);
+		else delete navigator.clipboard;
+	}
+});
+
+Deno.test("daily results wait for history and report earned Pantheon places", async function() {
+	const oldWindow = globalThis.window;
+	const oldValues = localStorage.values;
+	localStorage.values = {};
+	globalThis.window = new FakeElement();
+	window.location = { href: "https://example.com/#daily" };
+	const modal = document.querySelector("#daily-menu");
+	let release;
+	try {
+		for (const [index, scenario] of ["placed", "unranked", "failed", "new-game"].entries()) {
+			const date = "202610" + (12 + index);
+			const pending = new Promise(resolve => { release = resolve; });
+			let recorded, writes = 0;
+			Logos.setHistoryStorage(async run => {
+				if (run) await pending;
+				if (scenario == "failed" && run) return null;
+				if (run) {
+					run.id = 2;
+					recorded = { ...run };
+					writes++;
+				}
+				return {
+					highScores: scenario == "unranked" ? [] :
+						[{ id: 1, elapsed: 1 }, ...(recorded ? [recorded] : [])],
+					gameStats: { won: 2, lost: 0 },
+					runs: recorded ? [recorded] : [],
+				};
+			});
+			const puzzle = makePuzzle(6);
+			puzzle.say = function() {};
+			puzzle.options.hidden = puzzle.scores.hidden = modal.hidden = true;
+			await puzzle.openDaily(date);
+			puzzle.gameOver = true;
+			puzzle.timerElapsed = 123000;
+			const saving = puzzle.finishRun("won");
+			assert(modal.hidden, "daily result opened before saving");
+			if (scenario == "new-game") puzzle.newGame("42", true);
+			release();
+			await saving;
+			assert(puzzle.scores.hidden, "daily opened the Pantheon separately");
+			if (scenario == "new-game") {
+				assert(modal.hidden, "late daily save interrupted a new game");
+				continue;
+			}
+			assert(!modal.hidden, "daily result did not open after saving");
+			const result = puzzle.displayedDailyResult;
+			if (scenario == "placed") {
+				assert(result.pantheonPlace == 2 &&
+				       result.pantheonLevel == puzzle.pantheonLevel &&
+				       !modal.querySelector(".daily-pantheon").hidden &&
+				       result.runId === 2,
+				       "daily result omitted its earned place");
+				puzzle.closeDailyResult();
+				await puzzle.openDaily(date);
+				assert(!modal.querySelector(".daily-pantheon").hidden,
+				       "reopening the saved result lost its placement");
+			} else {
+				assert(modal.querySelector(".daily-pantheon").hidden,
+				       "unranked result claimed a Pantheon place");
+			}
+			assert(modal.querySelector(".daily-history-error").hidden == (scenario != "failed"),
+			       "history failure was not reflected in the daily result");
+			assert(modal.querySelector(".daily-result-link").disabled === (scenario == "failed"),
+			       "Chronicle link availability did not reflect the saved record");
+			await puzzle.openDailyChronicle();
+			if (scenario == "failed") {
+				assert(!modal.hidden && puzzle.scores.hidden, "unsaved result opened the Chronicle");
+			} else {
+				assert(modal.hidden && puzzle.selectedRun === result.runId &&
+				       puzzle.historyBody.children[0].className === "history-selected",
+				       "Chronicle did not highlight the daily entry");
+				await puzzle.toggleScores();
+				assert(!modal.hidden, "Chronicle close did not restore daily result");
+			}
+			if (scenario == "placed") {
+				/* The link should choose its own ranking, even after browsing another. */
+				puzzle.pantheonLevel = "all";
+				puzzle.pantheonMultiplayer = true;
+				await puzzle.openDailyPantheon();
+				assert(modal.hidden && !puzzle.scores.hidden &&
+				       puzzle.pantheonLevel === result.pantheonLevel &&
+				       !puzzle.pantheonMultiplayer &&
+				       puzzle.highlightedScore === puzzle.highScores[1] && writes === 1,
+				       "daily link did not open the right ranking with the saved score highlighted");
+				assert(puzzle.pantheonTablets[result.pantheonLevel].querySelector("ol").children[1].className === "score-new",
+				       "daily score did not receive the usual visual highlight");
+				await puzzle.toggleScores();
+				assert(!modal.hidden && puzzle.scores.hidden && puzzle.displayedDailyResult.date === date,
+				       "closing the Pantheon did not return to the daily result");
+				await puzzle.openDailyPantheon();
+				await puzzle.showRunHistory(result.runId);
+				assert(!puzzle.scores.querySelector(".history-view").hidden,
+				       "daily Pantheon could not open the Chronicle");
+				await puzzle.toggleScores();
+				assert(!modal.hidden && puzzle.scores.hidden,
+				       "closing the Chronicle did not return to the daily result");
+				puzzle.closeDailyResult();
+				await puzzle.toggleScores();
+				await puzzle.toggleScores();
+				assert(modal.hidden, "ordinary Pantheon visit reopened the daily result");
+				puzzle.showDailyResult(result);
+				await puzzle.openDailyPantheon();
+				puzzle.newGame("42", true);
+				await puzzle.toggleScores();
+				assert(modal.hidden, "closing scores after a new game reopened a stale daily result");
+			}
+			puzzle.closeDailyResult();
+		}
+	} finally {
+		release?.();
+		Logos.setHistoryStorage(Logos.accessRunHistory);
+		modal.hidden = true;
+		localStorage.values = oldValues;
+		if (oldWindow === undefined) delete globalThis.window;
+		else globalThis.window = oldWindow;
+	}
+});
+
 Deno.test("the pre-game dash becomes a clock when a timed game starts", function() {
 	const puzzle = makePuzzle(6);
 	assert(!puzzle.timer.hidden && puzzle.timerText.textContent === "—",
@@ -2600,6 +2805,51 @@ Deno.test("Zen completions appear in the Chronicle without affecting rankings", 
 		{ date: 1, seed: 1, elapsed: 1000, outcome: "won" },
 		{ date: 2, seed: 2, elapsed: 2000, outcome: "lost" },
 	]);
+});
+
+Deno.test("daily lookup uses the first marked entry, not the seed or finish clock", async function() {
+	await withRunHistory(async function(runs) {
+		const puzzle = makePuzzle(6);
+		const result = await puzzle.getDailyResult("20261008");
+		assert(result.runId === runs[1].id && result.outcome === "lost" && result.elapsed === 2000,
+		       "daily lookup chose an ordinary replay or a later untimed completion");
+	}, [
+		{ date: 1, seed: 0x20261008, elapsed: 1000, outcome: "won" },
+		{ date: 100, seed: 0x20261008, daily: "20261008", elapsed: 2000, outcome: "lost" },
+		{ date: 50, seed: 0x20261008, daily: "20261008", outcome: "won" },
+	]);
+});
+
+Deno.test("failed daily reads do not offer a fresh attempt", async function() {
+	Logos.setHistoryStorage(async () => null);
+	try {
+		const puzzle = makePuzzle(6);
+		puzzle.options.hidden = true;
+		let message;
+		puzzle.say = text => { message = text; };
+		assert(!await puzzle.openDaily("20261008") && puzzle.seed === undefined &&
+		       message === "The Chronicle could not be loaded.",
+		       "failed daily lookup was treated as an unplayed date");
+	} finally {
+		Logos.setHistoryStorage(Logos.accessRunHistory);
+	}
+});
+
+Deno.test("a pending daily lookup cannot interrupt a new game", async function() {
+	let release;
+	Logos.setHistoryStorage(() => new Promise(resolve => { release = resolve; }));
+	try {
+		const puzzle = makePuzzle(6);
+		puzzle.options.hidden = true;
+		puzzle.say = function() {};
+		const opening = puzzle.openDaily("20261008");
+		puzzle.newGame(42, true);
+		release({ runs: [], highScores: [] });
+		assert(!await opening && puzzle.seed === 42 && !puzzle.daily,
+		       "delayed daily lookup replaced the new puzzle");
+	} finally {
+		Logos.setHistoryStorage(Logos.accessRunHistory);
+	}
 });
 
 Deno.test("run history sorts and filters without hiding unknown dates", async function() {
