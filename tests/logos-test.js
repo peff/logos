@@ -4961,3 +4961,120 @@ Deno.test("switching ranking modes retains inactive pages for layout", async () 
 		{seed: 2, date: 2, elapsed: 100, outcome: "won", multiplayer: 1},
 	]);
 });
+
+Deno.test("daily browsing restores the original solo position and clock", async function() {
+	await withRunHistory(async runs => {
+		const puzzle = makePuzzle(6);
+		puzzle.options.hidden = puzzle.scores.hidden = true;
+		try {
+			for (const mode of ["timed", "paused", "zen", "continued"]) {
+				puzzle.newGame(123);
+				puzzle.stopTimer();
+				puzzle.timerElapsed = 42000;
+				puzzle.manualPaused = mode === "paused";
+				puzzle.practiceMode = mode === "zen" || mode === "continued";
+				puzzle.scoreEligible = !puzzle.practiceMode;
+				puzzle.continuedFromLoss = mode === "continued";
+				puzzle.daily = "20261001";
+				puzzle.nextMilestone = 2;
+				const slot = puzzle.rows[0].slots[0];
+				slot.displaySingle();
+				puzzle.rows[1].slots[0].possible[0] = false;
+				puzzle.clues[0].active = false;
+				puzzle.pencilMarks = [{ slot: puzzle.rows[2].slots[0], value: 1, discard: true }];
+				const position = JSON.stringify(puzzle.positionSnapshot());
+				const clues = puzzle.clues.map(clue => clue.active);
+				const identity = puzzle.gameIdentity;
+				await puzzle.openDaily("20261008");
+				const saved = puzzle.dailyReturn;
+				assert(saved && puzzle.timerTimeout === null);
+				await puzzle.openDaily("20261009");
+				assert(puzzle.dailyReturn === saved, "browsing replaced the original snapshot");
+				puzzle.closeInvitation();
+				assert(!puzzle.dailyReturn && puzzle.daily === "20261001" &&
+				       puzzle.gameIdentity !== identity && puzzle.pendingSeed === undefined && !puzzle.gameOver);
+				assert(JSON.stringify(puzzle.positionSnapshot()) === position, "position changed on return");
+				assert(JSON.stringify(puzzle.clues.map(clue => clue.active)) === JSON.stringify(clues));
+				assert(puzzle.timerElapsed === 42000 && puzzle.nextMilestone === 2);
+				assert(puzzle.scoreEligible === !puzzle.practiceMode &&
+				       puzzle.continuedFromLoss === (mode === "continued"));
+				assert((puzzle.timerTimeout !== null) === (mode === "timed"), "wrong timer resume state");
+				puzzle.stopTimer();
+			}
+			assert(runs.length === 0, "restoration recorded an outcome");
+		} finally {
+			puzzle.stopTimer();
+		}
+	});
+});
+
+Deno.test("daily result detours retain the suspended game until closing", async function() {
+	await withRunHistory(async () => {
+		const puzzle = makePuzzle(6);
+		puzzle.options.hidden = puzzle.scores.hidden = true;
+		try {
+			puzzle.newGame(123);
+			await puzzle.openDaily("20261008");
+			const saved = puzzle.dailyReturn;
+			await puzzle.openDailyChronicle();
+			assert(puzzle.dailyReturn === saved && puzzle.seed === 0x20261008);
+			await puzzle.toggleScores();
+			assert(puzzle.dailyResultOpen && puzzle.dailyReturn === saved);
+			await puzzle.openDailyPantheon();
+			assert(puzzle.dailyReturn === saved && puzzle.seed === 0x20261008);
+			await puzzle.toggleScores();
+			puzzle.closeDailyResult();
+			assert(puzzle.seed === 123 && !puzzle.dailyReturn && !puzzle.dailyResultOpen);
+		} finally {
+			puzzle.stopTimer();
+		}
+	}, [{ date: 1, seed: 0x20261008, daily: "20261008", elapsed: 1000, outcome: "won" }]);
+});
+
+Deno.test("accepting or replacing a daily preview releases the suspended game", async function() {
+	await withRunHistory(async () => {
+		const puzzle = makePuzzle(6);
+		puzzle.options.hidden = puzzle.scores.hidden = true;
+		try {
+			puzzle.newGame(123);
+			await puzzle.openDaily("20261008");
+			assert(puzzle.dailyReturn);
+			await puzzle.startGame();
+			assert(!puzzle.dailyReturn && puzzle.daily === "20261008");
+			await puzzle.openDaily("20261009");
+			assert(puzzle.dailyReturn);
+			puzzle.newGame(456);
+			assert(!puzzle.dailyReturn && !puzzle.restoreDailyReturn() && puzzle.seed === 456);
+			puzzle.newGame(789, true);
+			await puzzle.openDaily("20261010");
+			assert(!puzzle.dailyReturn, "unstarted invitation was saved as an active game");
+			puzzle.closeInvitation();
+			assert(puzzle.seed === 0x20261010, "no-game decline lost the preview");
+		} finally {
+			puzzle.stopTimer();
+		}
+	});
+});
+
+Deno.test("failed and late daily lookups cannot replace a restored game", async function() {
+	const puzzle = makePuzzle(6);
+	puzzle.options.hidden = puzzle.scores.hidden = true;
+	try {
+		puzzle.newGame(123);
+		puzzle.getDailyResult = async () => null;
+		assert(!await puzzle.openDaily("20261008") && puzzle.seed === 123 && !puzzle.dailyReturn);
+		puzzle.getDailyResult = async () => undefined;
+		await puzzle.openDaily("20261008");
+		let release;
+		puzzle.getDailyResult = () => new Promise(resolve => { release = resolve; });
+		const pending = puzzle.openDaily("20261009");
+		puzzle.pageHidden = true;
+		puzzle.closeInvitation();
+		assert(puzzle.seed === 123 && puzzle.paused && puzzle.timerTimeout === null &&
+		       puzzle.resumeAfterPageHidden, "background restoration resumed the timer");
+		release(undefined);
+		assert(!await pending && puzzle.seed === 123 && !puzzle.dailyReturn);
+	} finally {
+		puzzle.stopTimer();
+	}
+});

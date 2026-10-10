@@ -502,6 +502,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.clear = function() {
+		this.dailyReturn = null;
 		this.invitationDeclined = false;
 		this.daily = null;
 		this.setInvitationResult(false);
@@ -553,12 +554,78 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.say("Gather kindred minds. Anyone may begin.");
 	}
 
+	/* One suspended solo game belongs to the whole daily browsing visit,
+	 * not to any particular date. Transient explanations are dismissed.
+	 */
+	this.saveDailyReturn = function() {
+		if (this.dailyReturn || this.actionController || this.gameOver ||
+		    this.pendingSeed !== undefined || this.seed === undefined)
+			return;
+		this.closeProof();
+		this.clearPracticeMistake();
+		this.clearHint();
+		this.stopTimer();
+		this.dailyReturn = {
+			seed: this.seed,
+			session: {
+				daily: this.daily,
+				practiceMode: this.practiceMode,
+				continuedFromLoss: this.continuedFromLoss,
+				scoreEligible: this.scoreEligible,
+				manualPaused: this.manualPaused,
+				timerElapsed: this.timerElapsed,
+				nextMilestone: this.nextMilestone,
+				pencilMarks: this.pencilMarks.map(mark => ({ ...mark })),
+			},
+			rows: this.rows.map(row => row.slots.map(slot => ({
+				single: slot.single, possible: slot.possible.slice(),
+			}))),
+			clues: this.clues.map(clue => clue.active),
+		};
+	}
+
+	this.restoreDailyReturn = function() {
+		var saved = this.dailyReturn;
+		if (!saved)
+			return false;
+		/* Regenerate clues, but never replay moves or reuse the old async
+		 * identity. Slot objects themselves remain stable across games.
+		 */
+		this.newGame(saved.seed, true);
+		Object.assign(this, saved.session);
+		for (var [row, slots] of saved.rows.entries())
+			for (var [column, state] of slots.entries()) {
+				var slot = this.rows[row].slots[column];
+				slot.possible = state.possible;
+				slot.single = state.single;
+			}
+		for (var [index, active] of saved.clues.entries()) {
+			this.clues[index].active = active;
+			if (this.clues[index].display)
+				checkClueDisplay(this.clues[index]);
+		}
+		this.restorePlayDisplay();
+		this.pendingSeed = undefined;
+		this.paused = this.manualPaused || this.pageHidden;
+		this.resumeAfterPageHidden = this.pageHidden && !this.manualPaused && !this.practiceMode;
+		this.pausedBeforePageHidden = this.manualPaused;
+		if (this.continuedFromLoss)
+			this.timer.classList.add("lost");
+		this.updateTimer(this.timerElapsed);
+		this.updateActionControls();
+		if (!this.paused && !this.practiceMode)
+			this.startTimer();
+		return true;
+	}
+
 	this.closeInvitation = function() {
 		if (this.dailyResultOpen)
 			return this.closeDailyResult();
 		if (this.invitationAnimation)
 			return;
 		this.fadeInvitation(() => {
+			if (this.restoreDailyReturn())
+				return;
 			this.invitationDeclined = true;
 			this.updateActionControls();
 			this.say("Let this mystery remain.");
@@ -600,6 +667,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		if (this.invitationAnimation)
 			return false;
 		var finish = () => {
+			this.dailyReturn = null;
 			this.pendingSeed = undefined;
 			this.invitationModal.hidden = true;
 			var modalOpen = document.querySelectorAll(".modal:not([hidden])").length > 0;
@@ -689,13 +757,15 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		}
 	}
 
-	this.newGame = function(seed, awaitStart = false) {
+	this.newGame = function(seed, awaitStart = false, dailyPreview = false) {
 		this.clearHint();
 		seed = arguments.length ? parseSeed(seed) : this.randomPuzzleSeed();
 		if (seed !== null || !arguments.length)
 			this.beforeNewGame?.();
 		if (seed === null)
 			return false;
+		if (!dailyPreview)
+			this.dailyReturn = null;
 		this.daily = null;
 		this.setInvitationResult(false);
 		this.invitation.querySelector("#invitation-title").textContent = "A puzzle awaits";
@@ -821,7 +891,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		if (result) {
 			/* Completed dates get the same unsolved preview as fresh ones. */
 			if (this.daily !== date || this.pendingSeed === undefined) {
-				this.newGame(date, true);
+				this.saveDailyReturn();
+				this.newGame(date, true, true);
 				this.daily = date;
 			}
 			this.gameOver = true;
@@ -836,7 +907,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			this.invitationDeclined = false;
 			this.updateActionControls();
 		} else {
-			this.newGame(date, true);
+			this.saveDailyReturn();
+			this.newGame(date, true, true);
 			this.daily = date;
 		}
 		this.invitation.classList.add("daily-panel");
@@ -904,7 +976,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		var result = this.displayedDailyResult;
 		if (!result || result.runId === undefined || document.querySelector("#daily-menu").hidden)
 			return;
-		this.closeDailyResult();
+		this.closeDailyResult(true);
 		this.scoresDailyReturn = { result, gameIdentity: this.gameIdentity };
 		if (this.scores.hidden)
 			this.toggleModal(this.scores, this.scoresButton, "Rejoin the mortal realm");
@@ -926,7 +998,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			return;
 		this.highlightedScore = this.highScores.find(score => result.runId !== undefined ?
 			score.id === result.runId : score.daily === result.date) || null;
-		this.closeDailyResult();
+		this.closeDailyResult(true);
 		this.scoresDailyReturn = { result, gameIdentity };
 		if (this.scores.hidden)
 			this.toggleModal(this.scores, this.scoresButton, "Rejoin the mortal realm");
@@ -934,7 +1006,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.renderHighScores();
 	}
 
-	this.closeDailyResult = function() {
+	this.closeDailyResult = function(detour = false) {
 		this.clearDailyCopyFeedback();
 		if (!this.dailyResultOpen)
 			return;
@@ -943,6 +1015,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		if (!this.invitationModal.hidden)
 			this.toggleModal(this.invitationModal, this.options.querySelector("#daily-button"), "Close");
 		this.invitation.hidden = true;
+		if (!detour)
+			this.restoreDailyReturn();
 	}
 
 	this.clearDailyCopyFeedback = function() {
@@ -1634,6 +1708,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 
 	this.setActionController = function(controller) {
 		if (controller) {
+			this.dailyReturn = null;
 			this.daily = null;
 			this.setInvitationResult(false);
 		}
