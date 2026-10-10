@@ -93,16 +93,19 @@
 						        onClick="puzzle.openDailyPantheon()">Your efforts have earned a place in the Pantheon.</button></p>
 						<p class="daily-history-error" hidden>Your run could not be saved to the Chronicle. This browser may offer the puzzle again.</p>
 						<div class="invitation-choices daily-actions">
-							<button class="invitation-choice daily-copy" type="button"
-							        title="Copy your result and the daily puzzle link"
-							        onClick="puzzle.copyDailyResult()">Share your wisdom</button>
-							<span aria-hidden="true">/</span>
+							<div class="daily-sharing-actions">
+								<button class="invitation-choice daily-copy" type="button"
+								        title="Copy your result and the daily puzzle link"
+								        onClick="puzzle.copyDailyResult()">Proclaim your wisdom</button>
+								<span aria-hidden="true">/</span>
+								<button class="invitation-choice daily-scoreboards" type="button"
+								        title="Compare daily scores in the Forum">Take your measure</button>
+							</div>
 							<button class="invitation-choice daily-close modal-close" type="button"
 							        onClick="puzzle.closeDailyResult()">Let it suffice</button>
 						</div>
 					</div>
 				</div>
-				<button class="daily-scoreboards" type="button">Visit the Forum</button>
 				<div class="invitation-footer">
 					<span class="invitation-inscription">
 						<span class="invitation-numero" aria-label="Number">№</span>

@@ -2805,6 +2805,24 @@ button.score-entry:focus-visible {
 
 .daily-actions {
 	margin-top: 0.15rem;
+	flex-direction: column;
+	gap: 0;
+}
+
+.daily-actions .invitation-choice {
+	min-height: 1.65rem;
+	padding: .2rem .4rem;
+}
+
+.daily-sharing-actions {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: .25rem;
+}
+
+.daily-sharing-actions .invitation-choice {
+	white-space: nowrap;
 }
 
 .invitation-footer {

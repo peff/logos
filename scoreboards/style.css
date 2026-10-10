@@ -1,4 +1,4 @@
-#scoreboards-button, .daily-scoreboards {
+#scoreboards-button {
 	border: 0;
 	background: none;
 	color: #70572a;
@@ -6,10 +6,7 @@
 	cursor: pointer;
 }
 #scoreboards-button { display: block; margin: .15em 0 0; padding: 0; }
-#scoreboards-button:hover, .daily-scoreboards:hover { text-decoration: underline; }
-.daily-scoreboards { display: none; font-size: .6rem; margin-top: .5rem; }
-.daily-panel .daily-scoreboards { display: block; visibility: hidden; }
-.invitation-panel:has(#daily-menu:not([hidden])) .daily-scoreboards { visibility: visible; }
+#scoreboards-button:hover { text-decoration: underline; }
 .scoreboards-panel { width: 24rem; max-width: calc(100vw - 2rem); max-height: calc(100dvh - 2rem); overflow: auto; }
 .scoreboards-panel h2 { font-family: Forum, Georgia, serif; color: #70572a; text-align: center; margin: 0 0 .6rem; }
 .scoreboards-toolbar { display: flex; justify-content: center; flex-wrap: wrap; gap: .6rem; margin: .5rem 0; }
