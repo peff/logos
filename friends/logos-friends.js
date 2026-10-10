@@ -567,7 +567,7 @@ async function readRoomLink() {
 	if (normalizePlayerName(nameInput.value, "")) {
 		joinRoom();
 	} else {
-		status.textContent = "Enter your name, then join the room.";
+		status.textContent = "Enter your name to join the room.";
 		nameInput.focus();
 	}
 }
@@ -576,6 +576,11 @@ window.addEventListener("hashchange", readRoomLink);
 
 document.querySelector("#friends-roster-button").addEventListener("click", toggleMenu);
 nameInput.addEventListener("online-name-change", function() {
+	if (!session && !roomAccept.hidden && !roomAccept.disabled &&
+		normalizePlayerName(nameInput.value, "")) {
+		joinRoom();
+		return;
+	}
 	if (!session) return;
 	const name = playerName(session.role);
 	if (transport) transport.playerName = name;

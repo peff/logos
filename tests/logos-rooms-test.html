@@ -55,11 +55,16 @@
 			doc.querySelector("#scoreboards-button").click();
 			assert(doc.querySelector("#friends-room-name").value == "", "unexpected initial room name");
 		} else {
+			/* Concurrent guest frames can take focus before we inspect it. */
+			let requestedName = false;
+			doc.querySelector("#scoreboards-name").addEventListener("focus", () => {
+				requestedName = true;
+			}, { once: true });
 			/* Read the invitation without reloading away our local test setup. */
 			app.history.replaceState(null, "", "#room=" + roomName);
 			app.dispatchEvent(new app.HashChangeEvent("hashchange"));
 			if (firstVisit) {
-				await waitFor(() => doc.activeElement == doc.querySelector("#scoreboards-name"),
+				await waitFor(() => requestedName,
 					"invitation asks for a name");
 				assert(!app.testRoom, "blank name joined automatically");
 				assert(doc.querySelector(".friends-room-editor").hidden &&
@@ -70,7 +75,6 @@
 					"invited room is not displayed");
 				doc.querySelector("#scoreboards-name").value = name;
 				await doc.querySelector("#scoreboards-name").onchange({target: doc.querySelector("#scoreboards-name")});
-				doc.querySelector("#friends-accept-room").click();
 			}
 			await waitFor(() => app.testRoom, "invitation joins without a click");
 		}
