@@ -245,6 +245,7 @@
 		highlightedGroup = null;
 		date = fromDaily ? puzzle.displayedDailyResult.date : localDate();
 		if (fromDaily) {
+			await client.reconcile(date);
 			dailyReturn = { result: puzzle.displayedDailyResult, identity: puzzle.gameIdentity };
 			puzzle.closeDailyResult(true);
 		} else {

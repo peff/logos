@@ -60,7 +60,7 @@
 					for (const key of await q(s[name].index("group").getAllKeys(id))) s[name].delete(key);
 			});
 		}
-		async queue(id, runs, makeRecord) {
+		async queue(id, runs, makeRecord, backfill = false) {
 			const name = await this.getName();
 			return this.transaction("readwrite", async (s, q) => {
 				const group = await q(s.groups.get(id));
@@ -70,7 +70,7 @@
 				for (const run of runs) {
 					if (!run.daily || run.multiplayer || first.has(run.daily)) continue;
 					first.add(run.daily);
-					if (run.daily !== group.joinDate && run.date < group.joinedAt) continue;
+					if (!backfill && run.daily !== group.joinDate && run.date < group.joinedAt) continue;
 					if (known.has(run.id)) continue;
 					s.uploads.add({ group: id, runId: run.id, record: makeRecord(run, name), sent: false });
 				}

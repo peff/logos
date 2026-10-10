@@ -70,6 +70,24 @@
 		assert(rows.get(groups[1]).length === 3, "filling name did not recover pending result"); checks++;
 		await store.leave(groups[1]);
 		assert(await store.getName() === "Grace", "leaving all groups erased name"); checks++;
+		await client.join(groups[0], "Family");
+		await client.join(groups[1], "Friends");
+		runs.push({ id: 6, date: 2, daily: "20200101", outcome: "won" });
+		runs.push({ id: 7, date: 1, daily: "20190101", outcome: "won", elapsed: 2000 });
+		const beforeBackfill = posts;
+		await client.reconcile("20200101");
+		assert(posts === beforeBackfill, "backfill reconciliation touched the network"); checks++;
+		for (const id of groups) {
+			const uploads = await store.uploads(id);
+			assert(uploads.length === 1 && uploads[0].runId === 3, "backfill did not queue only the selected day's first outcome"); checks++;
+		}
+		await client.reconcile("20200101");
+		assert((await store.uploads(groups[0])).length === 1, "repeated backfill duplicated queued result"); checks++;
+		await client.sync();
+		const afterBackfill = posts;
+		await client.reconcile("20200101");
+		await client.sync();
+		assert(posts === afterBackfill, "backfill reposted an acknowledged score"); checks++;
 		output.textContent = `PASS: ${checks} scoreboard checks`;
 	} catch (error) { output.textContent = "FAIL: " + error.stack; }
 	finally {

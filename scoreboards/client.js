@@ -15,15 +15,16 @@
 			    /[\u0000-\u001f\u007f]/.test(label)) throw new Error("Enter a valid group key and a label of up to 80 characters.");
 			return this.store.join({ id, label: label.trim(), joinedAt: Date.now(), joinDate: localDate() });
 		}
-		async reconcile() {
+		async reconcile(backfillDate) {
 			const groups = await this.store.groups();
 			if (!groups.length) return;
 			const history = await this.history();
 			if (!history) throw new Error("The Chronicle could not be loaded.");
-			for (const group of groups) await this.store.queue(group.id, history.runs, (run, name) => ({
+			const runs = backfillDate === undefined ? history.runs : history.runs.filter(run => run.daily === backfillDate);
+			for (const group of groups) await this.store.queue(group.id, runs, (run, name) => ({
 				id: crypto.randomUUID(), date: run.daily, name, outcome: run.outcome,
 				elapsed: run.elapsed ?? null, generatorVersion: run.generatorVersion || 1,
-			}));
+			}), backfillDate !== undefined);
 		}
 		async call(id, options) {
 			const unavailable = "Could not reach the scoreboard. Shared scores may be out of date.";
