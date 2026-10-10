@@ -5,6 +5,9 @@
 .online-panel label { display: flex; flex-direction: column; margin: .4rem 0; }
 .online-panel input { box-sizing: border-box; width: 100%; font: inherit; color: inherit; background: #eee8da; border: 1px solid #aa9570; padding: .2rem; }
 .online-panel p { font-size: .7rem; }
+.online-panel .online-help { font-size: .55rem; line-height: 1.2; color: #514d46; text-align: left; margin: .35rem 0; }
+#online-menu .online-toolbar { margin: .3rem 0 0; }
+#online-menu legend + .online-help { margin-top: 0; }
 .online-panel table { width: 100%; border-collapse: collapse; font-size: .75rem; }
 .online-panel th, .online-panel td { text-align: left; padding: .3rem; border-bottom: 1px solid #c8c0b2; overflow-wrap: anywhere; }
 .forum-results td:last-child { font-size: .55rem; color: #746d60; }
@@ -102,7 +105,7 @@
 .forum-groups button:disabled { cursor: default; }
 .forum-groups button:disabled:hover { background: none; }
 
-.scoreboards-groups { list-style: none; width: fit-content; max-width: 100%; margin: .1rem auto .6rem; padding: 0; }
+.scoreboards-groups { list-style: none; width: fit-content; max-width: 100%; margin: .1rem auto .35rem; padding: 0; }
 .scoreboards-groups:empty { display: none; }
 .scoreboards-groups li { display: flex; align-items: baseline; gap: .6rem; padding: .05rem 0; }
 .scoreboards-groups li > input { flex: 0 1 20ch; min-width: 0; width: 20ch; font-size: .75rem; }
@@ -120,7 +123,7 @@
 .scoreboards-groups input:focus { background: #eee8da; }
 .scoreboards-groups .scoreboards-group-highlight input { background: rgb(184 154 70 / 14%); }
 
-.scoreboards-editor { margin: .6rem 0; }
+.scoreboards-editor { margin: .35rem 0; }
 .online-actions:not([hidden]) { display: flex; align-items: baseline; justify-content: center; gap: .2rem; font-size: .65rem; }
 .online-actions input { flex: 0 1 5rem; width: 5rem; min-width: 0; border: 0; border-bottom: 1px solid #aa9570; background: transparent; }
 .online-actions button { flex-shrink: 0; white-space: nowrap; }
@@ -138,7 +141,7 @@
 	background: rgb(128 99 58 / 12%);
 }
 
-.online-panel .online-name { flex-direction: row; align-items: baseline; gap: .5rem; font-size: .7rem; margin: .6rem 0; }
+.online-panel .online-name { flex-direction: row; align-items: baseline; gap: .5rem; font-size: .7rem; margin: .4rem 0; }
 .online-name input { width: 9rem; max-width: 60%; padding: 0 .2rem; border: 0; border-bottom: 1px solid #aa9570; background: rgb(128 99 58 / 12%); }
 .scoreboards-groups .scoreboards-row-actions { font-size: .55rem; }
 

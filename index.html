@@ -281,9 +281,16 @@
 			<div id="online-menu" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="online-title">
 				<div class="modal-panel online-panel">
 					<h2 id="online-title">LOGOS Online</h2>
-					<label class="online-name">Your name<input id="online-name" maxlength="32" autocomplete="nickname"></label>
+					<p class="online-help">Most <span class="online-logos">LOGOS</span> play is entirely offline,
+					and run history is kept only in your browser. But you can also compare
+					daily efforts or solve a puzzle together. Choose a name your friends
+					will recognize; no account is needed.</p>
+					<label class="online-name">Your name: <input id="online-name" maxlength="32" autocomplete="nickname"></label>
 					<fieldset class="online-scoreboards">
 						<legend>Daily Scores</legend>
+						<p class="online-help">Create a group and invite your friends, or join one with an
+						   invitation link. Daily puzzle results are shared
+						   automatically. Visit the Forum to see how everyone fared.</p>
 						<ul class="scoreboards-groups" aria-label="Your scoreboard groups"></ul>
 						<form class="scoreboards-editor online-actions">
 							<button class="scoreboards-create" type="button">Create a group</button>
@@ -296,6 +303,9 @@
 					</fieldset>
 					<fieldset id="friends-menu" class="friends-panel online-friends">
 						<legend><span class="online-logos">LOGOS</span> with Friends</legend>
+						<p class="online-help">Work together on the same puzzle. Pick a random room or
+						   enter a room name, then invite your friends to join you (by
+						   link or room name).</p>
 						<div class="friends-room-controls">
 							<p id="friends-room-name-display" hidden></p>
 							<div class="friends-room-editor online-actions">
