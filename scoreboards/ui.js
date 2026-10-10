@@ -212,6 +212,7 @@
 		await render();
 	}
 	async function open(fromDaily = false) {
+		const destination = fromDaily && (await store.groups()).length ? forum : modal;
 		highlightedGroup = null;
 		date = fromDaily ? puzzle.displayedDailyResult.date : localDate();
 		if (fromDaily) {
@@ -222,11 +223,11 @@
 			if (!puzzle.options.hidden) puzzle.toggleOptions();
 		}
 		trail = [];
-		active = fromDaily ? forum : modal;
+		active = destination;
 		if (active.hidden) puzzle.toggleModal(active, button, "Close");
 		await render();
 		active.querySelector(".modal-close").focus();
-		if (fromDaily) await sync();
+		if (active === forum) await sync();
 	}
 	function close() {
 		if (trail.length) { show(trail.at(-1)); return; }
