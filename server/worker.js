@@ -1,3 +1,4 @@
+import { scoreboards } from "./scoreboards.js";
 import { normalizeRoomName, validRoomName } from "./rooms.js";
 export { RendezvousRoom } from "./rooms.js";
 
@@ -79,6 +80,8 @@ async function readBody(request) {
 export default {
 	async fetch(request, env) {
 		const path = new URL(request.url).pathname;
+		if (path.startsWith("/api/scoreboards/"))
+			return scoreboards(request, env, reply, readBody);
 		if (path.startsWith("/api/rooms/")) {
 			const name = normalizeRoomName(path.slice("/api/rooms/".length));
 			if (!validRoomName(name))
