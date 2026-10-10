@@ -137,12 +137,12 @@
 		if (!forum.hidden) {
 			const result = await puzzle.getDailyResult(date);
 			if (generation !== rendering) return;
-			attemptLink.disabled = true;
+			attemptLink.disabled = result === null;
+			attemptLink.title = result === null ? "" : result ? "View your daily result" : "Open the daily puzzle";
 			if (result === null) {
 				attemptLink.textContent = "Chronicle unavailable";
 			} else if (!result) {
 				attemptLink.textContent = "Your attempt awaits.";
-				attemptLink.disabled = false;
 			} else {
 				if (!result.difficulty && !difficulties.has(date)) {
 					if (difficulties.size >= 128) difficulties.delete(difficulties.keys().next().value);
