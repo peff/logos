@@ -14,19 +14,18 @@
 					const store = opening.result.createObjectStore(name, { keyPath: ["group", key] });
 					store.createIndex("group", "group");
 				}
-				opening.result.createObjectStore("settings");
 			};
 			const db = await request(opening);
 			db.onversionchange = () => db.close();
 			try {
-				const tx = db.transaction(["groups", "records", "uploads", "settings"], mode);
+				const tx = db.transaction(["groups", "records", "uploads"], mode);
 				const done = new Promise((resolve, reject) => {
 					tx.oncomplete = resolve;
 					tx.onabort = () => reject(tx.error || new Error("Storage transaction aborted"));
 				});
 				try {
 					const result = await callback(Object.fromEntries(
-						["groups", "records", "uploads", "settings"].map(name => [name, tx.objectStore(name)])), request);
+						["groups", "records", "uploads"].map(name => [name, tx.objectStore(name)])), request);
 					await done;
 					return result;
 				} catch (error) {
@@ -46,8 +45,8 @@
 				return value;
 			});
 		}
-		getName() { return this.transaction("readonly", async (s, q) => await q(s.settings.get("name")) || ""); }
-		setName(name) { return this.transaction("readwrite", s => { s.settings.put(name, "name"); }); }
+		async getName() { return localStorage.getItem("onlineName") || ""; }
+		async setName(name) { localStorage.setItem("onlineName", name); }
 		rename(id, label) {
 			return this.transaction("readwrite", async (s, q) => {
 				const group = await q(s.groups.get(id));
@@ -61,10 +60,10 @@
 					for (const key of await q(s[name].index("group").getAllKeys(id))) s[name].delete(key);
 			});
 		}
-		queue(id, runs, makeRecord) {
+		async queue(id, runs, makeRecord) {
+			const name = await this.getName();
 			return this.transaction("readwrite", async (s, q) => {
 				const group = await q(s.groups.get(id));
-				const name = await q(s.settings.get("name"));
 				if (!group || !name) return;
 				const first = new Set();
 				const known = new Set((await q(s.uploads.index("group").getAllKeys(id))).map(key => key[1]));

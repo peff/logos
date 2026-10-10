@@ -27,9 +27,11 @@
 		{ id: 3, date: 1, daily: "20200101", outcome: "won", elapsed: 1000 },
 	];
 	const client = new ScoreboardClient(store, "https://example.test/api/scoreboards", async () => ({ runs }), fetcher);
+	const originalName = await store.getName();
 	let checks = 0;
 	try {
 		await store.setName("Ada");
+		assert(await new ScoreboardStore("logos-scoreboards:other-endpoint").getName() === "Ada", "endpoint change lost shared name"); checks++;
 		await client.join(groups[0], "Family");
 		await client.join(groups[1], "Friends");
 		offline = true;
@@ -70,5 +72,8 @@
 		assert(await store.getName() === "Grace", "leaving all groups erased name"); checks++;
 		output.textContent = `PASS: ${checks} scoreboard checks`;
 	} catch (error) { output.textContent = "FAIL: " + error.stack; }
-	finally { for (const id of groups) await store.leave(id); }
+	finally {
+		for (const id of groups) await store.leave(id);
+		await store.setName(originalName);
+	}
 })();
