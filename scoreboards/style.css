@@ -73,7 +73,12 @@
 .forum-results thead { position: sticky; top: 0; background: #eee8da; }
 .forum-panel .scoreboards-status { margin: .35rem 0 0; font-size: .55rem; }
 .forum-panel .scoreboards-toolbar { margin-bottom: 0; font-size: .7rem; }
-.forum-panel h2 { font-size: 1.35rem; font-weight: normal; }
+.forum-panel h2 {
+	margin-bottom: .4rem;
+	font-family: Forum, Georgia, "Times New Roman", serif;
+	font-size: 1.35rem;
+	color: inherit;
+}
 .forum-results { scrollbar-width: thin; scrollbar-color: #aa9570 transparent; }
 .forum-results:focus { outline: none; }
 
