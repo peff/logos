@@ -236,7 +236,7 @@
 	function close() {
 		if (trail.length) { show(trail.at(-1)); return; }
 		if (!active.hidden) puzzle.toggleModal(active, button, "Close");
-		if (dailyReturn?.identity === puzzle.gameIdentity) puzzle.showDailyResult(dailyReturn.result);
+		if (dailyReturn && dailyReturn.identity === puzzle.gameIdentity) puzzle.showDailyResult(dailyReturn.result);
 		dailyReturn = null;
 	}
 	view(".forum-attempt").onclick = attempt(async () => {
