@@ -349,6 +349,7 @@
 		const params = new URLSearchParams(location.hash.slice(1));
 		const id = params.get("scoreboard");
 		if (!id) return;
+		if (validId(id) && await store.group(id)) return;
 		await open();
 		if (!validId(id)) { status("Invalid group invitation."); return; }
 		await join(id, (params.get("label") || "").slice(0, 80));
