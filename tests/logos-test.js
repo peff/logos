@@ -1903,6 +1903,49 @@ Deno.test("contradicting pencil marks show a conflict", function() {
 	       "removing the contradiction did not clear its display");
 });
 
+Deno.test("erase chalk clears every row without changing deductions", function() {
+	const puzzle = makePuzzle(2);
+	puzzle.setShowActionSelector(false);
+	assert(puzzle.eraseChalkBoard.hidden && puzzle.eraseChalkTap.hidden &&
+	       puzzle.eraseChalkFooter.hidden,
+	       "an eraser appeared without chalk");
+	const first = puzzle.rows[0].slots[0];
+	const second = puzzle.rows[1].slots[0];
+	first.pencil(first.value, false);
+	first.pencil((first.value + 1) % symbols.length, false);
+	second.pencil(second.value, true);
+	const state = () => JSON.stringify(puzzle.rows.map(row =>
+		row.slots.map(slot => [slot.single, slot.possible])));
+	const before = state();
+	assert(!puzzle.eraseChalkBoard.hidden && puzzle.eraseChalkTap.hidden &&
+	       !puzzle.eraseChalkFooter.hidden,
+	       "mouse controls did not enable the board and footer erasers");
+	puzzle.setShowActionSelector(true);
+	assert(puzzle.eraseChalkBoard.hidden && !puzzle.eraseChalkTap.hidden &&
+	       puzzle.eraseChalkFooter.hidden,
+	       "Tap controls did not take over the eraser");
+	puzzle.openSlotTray(first);
+	puzzle.eraseChalkMarks();
+	assert(puzzle.pencilMarks.length == 0 &&
+	       puzzle.eraseChalkBoard.hidden && puzzle.eraseChalkTap.hidden &&
+	       puzzle.eraseChalkFooter.hidden,
+	       "erasing did not clear marks and hide all erasers");
+	assert(before == state(),
+	       "erasing changed committed deductions");
+	for (const row of puzzle.rows) {
+		assert(!row.elem.classList.contains("pencil-conflict"),
+		       "erasing left a chalk conflict");
+		for (const slot of row.slots)
+			for (const tile of slot.possibilityElems)
+				assert(!tile.className.includes("pencil-"),
+				       "erasing left a chalk display");
+	}
+	for (const tile of puzzle.slotTrayTiles)
+		assert(!tile.className.includes("pencil-"),
+		       "erasing left chalk in the open tray");
+	puzzle.setShowActionSelector(false);
+});
+
 Deno.test("committed moves remove only affected pencil marks", function() {
 	const puzzle = makePuzzle(2);
 	const committed = puzzle.rows[0].slots[0];

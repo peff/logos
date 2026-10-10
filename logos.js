@@ -314,6 +314,9 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.slotTrayOptions.appendChild(tile);
 	}
 	this.boardActions = document.querySelector("#board-actions");
+	this.eraseChalkBoard = document.querySelector("#erase-chalk-board");
+	this.eraseChalkTap = document.querySelector("#erase-chalk-tap");
+	this.eraseChalkFooter = document.querySelector("#erase-chalk-footer");
 	this.expandedSlot = null;
 	this.coarsePointer = typeof matchMedia != "undefined" &&
 		matchMedia("(pointer: coarse)").matches;
@@ -1400,6 +1403,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.openProofDisplay = function() {
+		this.updateChalkControls();
 		this.proofControls.hidden = false;
 		document.body.classList.add("proof-active");
 		this.explainButton.disabled = false;
@@ -1438,6 +1442,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			failedValue: proof.failedValue,
 		};
 		this.proof = null;
+		this.updateChalkControls();
 		this.proofControls.hidden = true;
 		document.body.classList.remove("proof-active");
 		this.explainButton.classList.remove("active", "proof-available");
@@ -1545,10 +1550,30 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.showProofPosition();
 	}
 
+	this.updateChalkControls = function() {
+		var show = this.pencilMarks.length > 0 && !this.gameOver;
+		this.eraseChalkBoard.hidden = !show || this.showActionSelector;
+		this.eraseChalkTap.hidden = !show || !this.showActionSelector;
+		this.eraseChalkFooter.hidden = this.eraseChalkBoard.hidden;
+		for (var button of [this.eraseChalkBoard, this.eraseChalkTap,
+				   this.eraseChalkFooter])
+			button.disabled = !!(this.manualPaused || this.proof);
+	}
+
+	this.eraseChalkMarks = function() {
+		if (this.gameOver || this.paused || this.proof ||
+		    !this.pencilMarks.length)
+			return;
+		this.clearPencilMarks();
+		if (this.expandedSlot)
+			this.renderSlotTray();
+	}
+
 	this.clearPencilMarks = function() {
 		this.pencilMarks = [];
 		for (var i = 0; i < this.rows.length; i++)
 			this.rows[i].clearPencilDisplay();
+		this.updateChalkControls();
 	}
 
 	this.openSlotTray = function(slot) {
@@ -1845,6 +1870,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.renderPencilMarks = function(row) {
+		this.updateChalkControls();
 		/* Rebuild tentative domains without changing committed slot state. */
 		var domains = domainsFromRow(row);
 		var marks = [];
@@ -1934,6 +1960,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.updatePauseControl = function() {
+		this.updateChalkControls();
 		var paused = this.manualPaused;
 		document.body.classList[paused ? "add" : "remove"]("game-paused");
 		for (var element of [board, this.hClues, this.vClues, this.boardActions, this.proofControls])
