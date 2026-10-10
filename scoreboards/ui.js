@@ -15,7 +15,7 @@
 	const status = (text, panel = active) => {
 		const message = panel.querySelector(".scoreboards-status");
 		message.textContent = text;
-		if (panel === modal) message.hidden = !text;
+		message.hidden = !text;
 	};
 	const attempt = fn => async (...args) => {
 		try { await fn(...args); } catch (error) { status(error.message); }
@@ -146,9 +146,8 @@
 	}
 	async function sync() {
 		view(".scoreboards-sync").hidden = true;
-		status("Syncing…", forum);
 		try {
-			await client.sync(); status("Up to date.", forum);
+			await client.sync(); status("", forum);
 		} catch (error) {
 			status(error.message, forum);
 			view(".scoreboards-sync").hidden = false;
