@@ -123,7 +123,7 @@
 	async function moveGroup(step) {
 		const index = groupList.findIndex(group => group.id === selected);
 		const next = groupList[(index + step + groupList.length) % groupList.length];
-		if (!next || !step) return;
+		if (!next || next.id === selected || !step) return;
 		selected = next.id;
 
 		await render(0, step);
@@ -248,15 +248,19 @@
 			const index = controls.indexOf(document.activeElement);
 			if (controls.length) { event.preventDefault(); controls[(index + (event.shiftKey ? -1 : 1) + controls.length) % controls.length].focus(); }
 		}
-		if (["ArrowLeft", "ArrowRight"].includes(event.key) &&
+		if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key) &&
 		    !event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey &&
 		    !event.target.isContentEditable && !event.target.matches("input, select, textarea")) {
 			if (panel !== forum) return;
 			event.preventDefault();
 			event.stopPropagation();
 			view(".forum-results").focus({ preventScroll: true });
-			const arrow = view(event.key === "ArrowLeft" ? ".daily-previous" : ".daily-next");
-			if (arrow && !arrow.disabled) arrow.click();
+			if (event.key === "ArrowUp" || event.key === "ArrowDown") {
+				attempt(() => moveGroup(event.key === "ArrowUp" ? -1 : 1))();
+			} else {
+				const arrow = view(event.key === "ArrowLeft" ? ".daily-previous" : ".daily-next");
+				if (arrow && !arrow.disabled) arrow.click();
+			}
 		}
 	});
 	// Reconcile from the Chronicle to recover a completion interrupted before queueing.
