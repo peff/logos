@@ -202,11 +202,14 @@
 		if (event.pointerType === "touch") touch = { x: event.clientX, y: event.clientY };
 	});
 	view(".forum-results").addEventListener("pointercancel", () => { touch = null; });
-	view(".forum-results").addEventListener("pointerup", attempt(async event => {
+	view(".forum-results").addEventListener("pointerup", event => {
 		if (!touch) return;
 		const dx = event.clientX - touch.x, dy = event.clientY - touch.y; touch = null;
-		if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy)) await moveGroup(dx < 0 ? 1 : -1);
-	}));
+		if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy)) {
+			const arrow = view(dx < 0 ? ".daily-next" : ".daily-previous");
+			if (arrow && !arrow.disabled) arrow.click();
+		}
+	});
 	query(".scoreboards-sync").onclick = attempt(sync);
 	query(".scoreboards-groups").onchange = attempt(async event => { selected = event.target.value; await render(); });
 	query(".scoreboards-create").onclick = () => editor(crypto.randomUUID());
