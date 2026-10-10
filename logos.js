@@ -2170,6 +2170,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 				dailyResult.historyUnsaved = true;
 			}
 		}
+		if (saved && dailyResult)
+			this.dailyScoreSaved?.();
 		if (this.pantheonRequest !== request)
 			return saved;
 		var highScore = this.highScores.find(function(score) {

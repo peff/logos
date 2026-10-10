@@ -6,7 +6,9 @@
 		<title>Logos</title>
 		<meta name="logos-rooms-endpoint" content="https://logos.peff.workers.dev/api/rooms">
 		<link rel="stylesheet" type="text/css" href="logos.css">
+		<meta name="logos-scoreboards-endpoint" content="http://127.0.0.1:8787/api/scoreboards">
 		<script src="logos.js"></script>
+		<link rel="stylesheet" href="scoreboards/style.css">
 	</head>
 	<body>
 		<svg class="icon-definitions" width="0" height="0" aria-hidden="true" focusable="false">
@@ -100,6 +102,7 @@
 						</div>
 					</div>
 				</div>
+				<button class="daily-scoreboards" type="button">Visit the Forum</button>
 				<div class="invitation-footer">
 					<span class="invitation-inscription">
 						<span class="invitation-numero" aria-label="Number">№</span>
@@ -271,6 +274,43 @@
 					</div>
 				</div>
 			</div>
+
+			<div id="scoreboards-menu" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="scoreboards-title">
+				<div class="modal-panel scoreboards-panel">
+					<h2 id="scoreboards-title">Online</h2>
+					<p>Share daily results with your own groups of friends.</p>
+					<div class="scoreboards-toolbar"><button class="scoreboards-create">Create a group</button><button class="scoreboards-join">Join a group</button></div>
+					<form class="scoreboards-editor" hidden>
+						<label>Invitation link or group ID<input id="scoreboard-invite" required maxlength="2048"></label>
+						<label>Your label for this group<input id="scoreboard-label" required maxlength="80"></label>
+						<label>Your name on its scoreboard<input id="scoreboard-name" required maxlength="80" autocomplete="nickname"></label>
+						<p>Joining shares today's result and future daily attempts. Anyone with the invitation can view and post scores.</p>
+						<button type="submit">Save group</button> <button class="scoreboards-cancel" type="button">Cancel</button>
+					</form>
+					<div class="scoreboards-view" hidden>
+						<select class="scoreboards-groups" aria-label="Scoreboard group"></select>
+						<div class="scoreboards-toolbar"><button class="scoreboards-invite">Copy invitation</button><button class="scoreboards-key">Copy group key</button><button class="scoreboards-edit">Edit locally</button><button class="scoreboards-leave">Leave group</button></div>
+						<div class="scoreboards-toolbar"><button class="scoreboards-open-forum">Visit the Forum</button></div>
+					</div>
+					<p class="scoreboards-status" role="status" aria-live="polite"></p>
+					<div class="scoreboards-toolbar"><button class="scoreboards-sync">Sync now</button><button class="modal-close">Close</button></div>
+				</div>
+			</div>
+			<div id="forum-menu" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="forum-title">
+				<div class="modal-panel scoreboards-panel forum-panel">
+					<h2 id="forum-title">The Forum</h2>
+					<nav class="forum-groups" aria-label="Scoreboard groups" tabindex="-1"></nav>
+					<h3 class="scoreboards-date"></h3>
+					<p class="forum-difficulty"><button class="forum-attempt" type="button" disabled></button></p>
+					<div class="forum-results" tabindex="0" aria-label="Daily scores">
+						<table><thead><tr><th>Name</th><th>Outcome</th><th>Time</th><th><span class="scoreboards-sr-only">Sync status</span></th></tr></thead><tbody></tbody></table>
+						<p class="scoreboards-empty">No shared results for this day.</p>
+						<p class="forum-no-groups" hidden>Join or create a group to compare daily results.</p>
+					</div>
+					<p class="scoreboards-status" role="status" aria-live="polite"></p>
+					<div class="scoreboards-toolbar"><button class="scoreboards-sync">Sync now</button><button class="forum-manage">Manage groups</button><button class="modal-close">Close</button></div>
+				</div>
+			</div>
 			<div id="friends-menu" class="modal" hidden role="dialog"
 			     aria-modal="true" aria-labelledby="friends-title">
 				<div class="modal-panel friends-panel">
@@ -369,7 +409,8 @@
 						<div class="daily-options"><span id="daily-label">Today's puzzle </span><button
 						        id="daily-button" type="button" aria-controls="invitation-menu"
 						        aria-expanded="false" aria-label="Today's puzzle awaits."
-						        onClick="puzzle.openDaily()">awaits</button>.</div>
+						        onClick="puzzle.openDaily()">awaits</button>.
+						<button id="scoreboards-button" type="button" aria-controls="scoreboards-menu" aria-expanded="false">Online…</button></div>
 						<label>
 						       <input id="practice-mode" type="checkbox"
 						              onChange="puzzle.setPracticeMode(this.checked)">
@@ -715,5 +756,8 @@
 		<script src="friends/logos-webrtc.js"></script>
 		<script src="friends/logos-rooms.js"></script>
 		<script src="friends/logos-friends.js"></script>
+		<script src="scoreboards/store.js"></script>
+		<script src="scoreboards/client.js"></script>
+		<script src="scoreboards/ui.js"></script>
 	</body>
 </html>

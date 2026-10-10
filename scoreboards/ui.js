@@ -1,0 +1,278 @@
+(function() {
+	const { ScoreboardClient, localDate, compareScores, validId } = LogosScoreboards;
+	const modal = document.querySelector("#scoreboards-menu");
+	const button = document.querySelector("#scoreboards-button");
+	const query = selector => modal.querySelector(selector);
+	const forum = document.querySelector("#forum-menu");
+	const view = selector => forum.querySelector(selector);
+	let active = modal, trail = [], groupList = [];
+	const endpoint = document.querySelector('meta[name="logos-scoreboards-endpoint"]').content;
+	const store = new ScoreboardStore("logos-scoreboards:" + endpoint);
+	const client = new ScoreboardClient(store, endpoint,
+		() => accessRunHistory(null, true));
+	let selected, date = localDate(), dailyReturn, rendering = 0;
+	const difficulties = new Map();
+	const status = text => {
+		for (const panel of [modal, forum]) panel.querySelector(".scoreboards-status").textContent = text;
+	};
+	const attempt = fn => async (...args) => {
+		try { await fn(...args); } catch (error) { status(error.message); }
+	};
+	async function render(direction = 0, groupDirection = 0) {
+		const generation = ++rendering;
+		const groups = await store.groups();
+		if (generation !== rendering) return;
+		if (!groups.some(g => g.id === selected)) selected = groups[0]?.id;
+		const select = query(".scoreboards-groups");
+		select.replaceChildren();
+		for (const group of groups) {
+			const option = document.createElement("option");
+			option.value = group.id; option.textContent = group.label;
+			select.append(option);
+		}
+		select.value = selected || "";
+		query(".scoreboards-view").hidden = !selected;
+		groupList = groups;
+		const index = groups.findIndex(g => g.id === selected);
+		const navigation = view(".forum-groups");
+		const hadFocus = navigation.contains(document.activeElement);
+		const circular = groups.length > 3;
+		navigation.classList.toggle("forum-groups-circular", circular);
+		navigation.replaceChildren();
+		const visible = circular ? [-1, 0, 1].map(step => ({
+			group: groups[(index + step + groups.length) % groups.length], step,
+		})) : groups.map((group, position) => ({ group, step: position - index }));
+		for (const { group, step } of visible) {
+			const control = document.createElement("button");
+			control.type = "button";
+			control.dataset.step = step;
+			control.textContent = (circular && step < 0 ? "‹ " : "") + group.label + (circular && step > 0 ? " ›" : "");
+			control.disabled = groups.length === 1;
+			control.title = group.label;
+			control.setAttribute("aria-current", String(group.id === selected));
+			control.setAttribute("aria-label", (group.id === selected ? "Current group: " : "View ") + group.label);
+			control.onclick = attempt(() => moveGroup(step));
+			navigation.append(control);
+		}
+		if (hadFocus) {
+			const current = navigation.querySelector('[aria-current="true"]');
+			(current && !current.disabled ? current : navigation).focus({ preventScroll: true });
+		}
+		if (circular && groupDirection && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
+			const distance = navigation.clientWidth / 3;
+			for (const control of navigation.children) control.animate([
+				{ transform: `translateX(${groupDirection * distance}px)`, opacity: 0 },
+				{ transform: "translateX(0)", opacity: 1 },
+			], { duration: 220, easing: "ease-out" });
+		}
+		view(".forum-no-groups").hidden = !!selected;
+		view("table").hidden = !selected;
+		view(".scoreboards-date").hidden = !selected;
+		view(".forum-difficulty").hidden = !selected;
+		view(".scoreboards-empty").hidden = true;
+		if (!selected) return;
+		renderDailyTitle(view(".scoreboards-date"), date, (value, movement) => { date = value; render(movement).catch(e => status(e.message)); }, direction);
+		const attemptLink = view(".forum-attempt");
+		attemptLink.textContent = "";
+		attemptLink.disabled = true;
+		if (!forum.hidden) {
+			const result = await puzzle.getDailyResult(date);
+			if (generation !== rendering) return;
+			if (result === null) {
+				attemptLink.textContent = "Chronicle unavailable";
+			} else if (!result) {
+				attemptLink.textContent = "Your attempt awaits.";
+				attemptLink.disabled = false;
+			} else {
+				if (!result.difficulty && !difficulties.has(date)) {
+					if (difficulties.size >= 128) difficulties.delete(difficulties.keys().next().value);
+					difficulties.set(date, puzzleDifficulty(puzzleFromSeed(parseSeed(date))).level);
+				}
+				const level = result.difficulty || difficulties.get(date);
+				attemptLink.textContent = level[0].toUpperCase() + level.slice(1) + " difficulty";
+			}
+		}
+		const records = await store.records(selected);
+		const uploads = await store.uploads(selected);
+		if (generation !== rendering) return;
+		const ids = new Set(records.map(record => record.id));
+		const entries = records.concat(uploads.filter(item => !ids.has(item.record.id)).map(item => ({ ...item.record, pending: !item.sent })));
+		const body = view("tbody"); body.replaceChildren();
+		for (const record of entries.filter(r => r.date === date).sort(compareScores)) {
+			const row = document.createElement("tr");
+			for (const text of [record.name, record.outcome === "won" ? "Win" : "Loss",
+				record.elapsed === null ? "" : formatTime(record.elapsed), record.pending ? "Awaiting sync" : ""]) {
+				const cell = document.createElement("td"); cell.textContent = text; row.append(cell);
+			}
+			if (record.elapsed === null) {
+				row.children[2].title = "Untimed completion";
+				row.children[2].innerHTML = '<svg class="history-infinity" viewBox="0 0 40 20" ' +
+					'role="img" aria-label="Untimed completion" focusable="false">' +
+					'<use href="#infinity-shape"/></svg>';
+			}
+			body.append(row);
+		}
+		view(".scoreboards-empty").hidden = !!body.children.length;
+		if (groupDirection && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
+			view(".forum-results").animate([
+				{ transform: `translateX(${groupDirection * 1.5}rem)`, opacity: 0 },
+				{ transform: "translateX(0)", opacity: 1 },
+			], { duration: 220, easing: "ease-out" });
+		}
+	}
+	async function moveGroup(step) {
+		const index = groupList.findIndex(group => group.id === selected);
+		const next = groupList[(index + step + groupList.length) % groupList.length];
+		if (!next || !step) return;
+		selected = next.id;
+
+		await render(0, step);
+	}
+	function show(destination) {
+		if (active === destination) return;
+		active.hidden = true;
+		if (trail.at(-1) === destination) trail.pop();
+		else trail.push(active);
+		active = destination;
+		active.hidden = false;
+		if (active === forum) render().catch(error => status(error.message));
+		active.querySelector(".modal-close").focus();
+	}
+	async function sync() {
+		status("Syncing…");
+		try {
+			await client.sync(); status("Up to date.");
+		} catch (error) { status(error.message); }
+		await render();
+	}
+	async function open(fromDaily = false) {
+		date = fromDaily ? puzzle.displayedDailyResult.date : localDate();
+		if (fromDaily) {
+			dailyReturn = { result: puzzle.displayedDailyResult, identity: puzzle.gameIdentity };
+			puzzle.closeDailyResult(true);
+		} else {
+			dailyReturn = null;
+			if (!puzzle.options.hidden) puzzle.toggleOptions();
+		}
+		trail = [];
+		active = fromDaily ? forum : modal;
+		if (active.hidden) puzzle.toggleModal(active, button, "Close");
+		await render();
+		active.querySelector(".modal-close").focus();
+		await sync();
+	}
+	function close() {
+		if (trail.length) { show(trail.at(-1)); return; }
+		if (!active.hidden) puzzle.toggleModal(active, button, "Close");
+		if (dailyReturn?.identity === puzzle.gameIdentity) puzzle.showDailyResult(dailyReturn.result);
+		dailyReturn = null;
+	}
+	function editor(id = "", label = "", name = "") {
+		query(".scoreboards-editor").hidden = false;
+		query("#scoreboard-invite").value = id;
+		query("#scoreboard-invite").readOnly = !!id;
+		query("#scoreboard-label").value = label;
+		query("#scoreboard-name").value = name;
+		query("#scoreboard-label").focus();
+	}
+	view(".forum-attempt").onclick = attempt(async () => {
+		const identity = puzzle.gameIdentity;
+		view(".forum-attempt").disabled = true;
+		puzzle.toggleModal(forum, button, "Close");
+		if (await puzzle.openDaily(date)) {
+			trail = [];
+			dailyReturn = null;
+		} else if (puzzle.gameIdentity === identity) {
+			puzzle.toggleModal(forum, button, "Close");
+			status("The daily puzzle could not be opened.");
+			await render();
+		}
+	});
+	button.onclick = attempt(() => open());
+	document.querySelector(".daily-scoreboards").onclick = attempt(() => open(true));
+	for (const panel of [modal, forum]) {
+		panel.querySelector(".modal-close").onclick = close;
+		panel.addEventListener("click", event => { if (event.target === panel) close(); });
+	}
+	query(".scoreboards-open-forum").onclick = () => show(forum);
+	view(".forum-manage").onclick = () => show(modal);
+	view(".scoreboards-sync").onclick = attempt(sync);
+	let touch;
+	view(".forum-results").addEventListener("pointerdown", event => {
+		if (event.pointerType === "touch") touch = { x: event.clientX, y: event.clientY };
+	});
+	view(".forum-results").addEventListener("pointercancel", () => { touch = null; });
+	view(".forum-results").addEventListener("pointerup", attempt(async event => {
+		if (!touch) return;
+		const dx = event.clientX - touch.x, dy = event.clientY - touch.y; touch = null;
+		if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy)) await moveGroup(dx < 0 ? 1 : -1);
+	}));
+	query(".scoreboards-sync").onclick = attempt(sync);
+	query(".scoreboards-groups").onchange = attempt(async event => { selected = event.target.value; await render(); });
+	query(".scoreboards-create").onclick = () => editor(crypto.randomUUID());
+	query(".scoreboards-join").onclick = () => editor();
+	query(".scoreboards-edit").onclick = attempt(async () => {
+		const group = await store.group(selected); editor(group.id, group.label, group.name);
+	});
+	query(".scoreboards-cancel").onclick = () => { query(".scoreboards-editor").hidden = true; };
+	query(".scoreboards-editor").onsubmit = attempt(async event => {
+		event.preventDefault();
+		let id = query("#scoreboard-invite").value.trim();
+		if (!validId(id)) {
+			try { id = new URLSearchParams(new URL(id).hash.slice(1)).get("scoreboard"); } catch (_) { /* Validation below. */ }
+		}
+		await client.join(id, query("#scoreboard-label").value, query("#scoreboard-name").value);
+		selected = id;
+		query(".scoreboards-editor").hidden = true;
+		await render(); show(forum); await sync();
+	});
+	query(".scoreboards-leave").onclick = attempt(async () => {
+		const group = await store.group(selected);
+		if (!confirm(`Leave ${group.label}? Published scores remain, but this browser will stop sharing new results.`)) return;
+		await store.leave(selected); selected = null; await render(); status("Group left.");
+	});
+	query(".scoreboards-invite").onclick = attempt(async () => {
+		const group = await store.group(selected);
+		const url = new URL(location.href);
+		url.hash = new URLSearchParams({ scoreboard: group.id, label: group.label }).toString();
+		try { await navigator.clipboard.writeText(url.href); status("Invitation copied to clipboard."); }
+		catch (_) { window.prompt("Copy this group invitation:", url.href); }
+	});
+	query(".scoreboards-key").onclick = attempt(async () => {
+		try { await navigator.clipboard.writeText(selected); status("Group key copied to clipboard."); }
+		catch (_) { window.prompt("Copy this group key:", selected); }
+	});
+	for (const panel of [modal, forum]) panel.addEventListener("keydown", event => {
+		if (event.key === "Tab") {
+			const controls = [...panel.querySelectorAll("button, input, select, [tabindex]")].filter(c => !c.disabled && c.tabIndex !== -1 && c.getClientRects().length && getComputedStyle(c).visibility !== "hidden");
+			const index = controls.indexOf(document.activeElement);
+			if (controls.length) { event.preventDefault(); controls[(index + (event.shiftKey ? -1 : 1) + controls.length) % controls.length].focus(); }
+		}
+		if (["ArrowLeft", "ArrowRight"].includes(event.key) &&
+		    !event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey &&
+		    !event.target.isContentEditable && !event.target.matches("input, select, textarea")) {
+			if (panel !== forum) return;
+			event.preventDefault();
+			event.stopPropagation();
+			view(".forum-results").focus({ preventScroll: true });
+			const arrow = view(event.key === "ArrowLeft" ? ".daily-previous" : ".daily-next");
+			if (arrow && !arrow.disabled) arrow.click();
+		}
+	});
+	// Reconcile from the Chronicle to recover a completion interrupted before queueing.
+	puzzle.dailyScoreSaved = () => { sync().catch(e => status(e.message)); };
+	window.addEventListener("online", () => sync().catch(e => status(e.message)));
+	setInterval(() => { if (!document.hidden && navigator.onLine) sync().catch(e => status(e.message)); }, 60000);
+	async function invitation() {
+		const params = new URLSearchParams(location.hash.slice(1));
+		const id = params.get("scoreboard");
+		if (!id) return;
+		await open();
+		if (!validId(id)) { status("Invalid group invitation."); return; }
+		const existing = await store.group(id);
+		if (existing) { selected = id; await render(); }
+		else editor(id, (params.get("label") || "Shared scoreboard").slice(0, 80));
+	}
+	window.addEventListener("hashchange", () => invitation().catch(e => status(e.message)));
+	sync().then(invitation).catch(e => status(e.message));
+})();
