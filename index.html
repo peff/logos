@@ -306,27 +306,29 @@
 						<p class="online-help">Work together on the same puzzle. Pick a random room or
 						   enter a room name, then invite your friends to join you (by
 						   link or room name).</p>
-						<div class="friends-room-controls">
-							<p id="friends-room-name-display" hidden></p>
-							<div class="friends-room-editor online-actions">
-								<button id="friends-random-room" type="button">Random room</button>
-								<span aria-hidden="true">/</span>
-								<div class="online-join-field">
-									<button id="friends-join-room" type="button">Join room:</button>
-									<input id="friends-room-name" type="text" maxlength="32" aria-label="Room name"
-									       autocapitalize="none" autocomplete="off" spellcheck="false">
+						<div class="friends-room-state">
+							<div class="friends-room-controls">
+								<p id="friends-room-name-display" hidden></p>
+								<div class="friends-room-editor online-actions">
+									<button id="friends-random-room" type="button">Random room</button>
+									<span aria-hidden="true">/</span>
+									<div class="online-join-field">
+										<button id="friends-join-room" type="button">Join room:</button>
+										<input id="friends-room-name" type="text" maxlength="32" aria-label="Room name"
+										       autocapitalize="none" autocomplete="off" spellcheck="false">
+									</div>
 								</div>
 							</div>
-						</div>
-						<div class="friends-footer-actions online-actions">
-							<button id="friends-accept-room" type="button" hidden>Join room</button>
-							<span class="friends-room-sharing" hidden>
-								<button id="friends-copy-room" type="button" title="Copy invitation URL to the clipboard">Invite</button>
-								<span aria-hidden="true">/</span>
-							</span>
-							<button id="friends-renew-room" type="button" hidden>Reopen invitation</button>
-							<button id="friends-rejoin" type="button" hidden>Rejoin room</button>
-							<button id="friends-leave" type="button" hidden>Leave game</button>
+							<div class="friends-footer-actions online-actions">
+								<button id="friends-accept-room" type="button" hidden>Join room</button>
+								<span class="friends-room-sharing" hidden>
+									<button id="friends-copy-room" type="button" title="Copy invitation URL to the clipboard">Invite</button>
+									<span aria-hidden="true">/</span>
+								</span>
+								<button id="friends-renew-room" type="button" hidden>Reopen invitation</button>
+								<button id="friends-rejoin" type="button" hidden>Rejoin room</button>
+								<button id="friends-leave" type="button" hidden>Leave game</button>
+							</div>
 						</div>
 					</fieldset>
 					<p class="online-status" role="status" aria-live="polite"></p>

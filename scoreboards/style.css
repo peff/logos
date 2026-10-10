@@ -155,8 +155,9 @@
 #online-menu fieldset { min-width: 0; border: 0; border-top: 1px solid #c8c0b2; margin: .35rem 0 0; padding: .3rem 0 0; }
 #online-menu legend { padding: 0 .2rem 0 0; margin-bottom: .2rem; font-size: .75rem; font-weight: bold; text-align: left; }
 .online-logos { font-family: Forum, Georgia, "Times New Roman", serif; }
-/* Leave room for the room name and actions even before joining. */
-.online-friends { width: auto; min-height: 3.6rem; max-height: none; overflow: visible; font-size: .65rem; }
+.online-friends { width: auto; max-height: none; overflow: visible; font-size: .65rem; }
+/* Reserve the changing controls independently of the help text. */
+.friends-room-state { display: flow-root; min-height: 2.7rem; }
 .online-friends button { border: 0; box-shadow: none; border-radius: 0; background: none; padding: .12rem .2rem; margin: 0; color: #70572a; font: inherit; font-weight: normal; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: .18em; cursor: pointer; white-space: nowrap; }
 .online-friends button:not(:disabled):hover { color: #9a7d3d; }
 .online-friends button:disabled { opacity: .5; cursor: default; }
