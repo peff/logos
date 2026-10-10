@@ -1682,7 +1682,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 
 	this.tileActionForPointer = function(ev, contextMenu) {
 		var action = this.showActionSelector ? this.getTileAction() : "place";
-		var discard = contextMenu || action == "remove" ||
+		var discard = contextMenu || ev.ctrlKey || action == "remove" ||
 			action == "pencil-remove";
 		var chalk = ev.altKey || ev.shiftKey || action.indexOf("pencil-") == 0;
 		if (chalk)

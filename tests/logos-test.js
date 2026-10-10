@@ -1212,6 +1212,41 @@ Deno.test("chalk modifiers combine with Tap controls", function() {
 	puzzle.stopTimer();
 });
 
+Deno.test("Control-click fallback combines discard with chalk modifiers", function() {
+	const puzzle = makePuzzle(1);
+	const slot = puzzle.rows[0].slots[0];
+	const cell = slot.possibilityElems[slot.value];
+	const actions = [];
+	puzzle.requestTileAction = function(slot, value, action) {
+		actions.push(action);
+	};
+	for (const coarse of [false, true]) {
+		puzzle.coarsePointer = coarse;
+		for (const taps of [false, true]) {
+			puzzle.showActionSelector = taps;
+			selectTileAction(puzzle, "place");
+			for (const modifier of [null, "shiftKey", "altKey"]) {
+				const event = {
+					button: 0,
+					ctrlKey: true,
+					shiftKey: modifier == "shiftKey",
+					altKey: modifier == "altKey",
+					currentTarget: cell,
+				};
+				actions.length = 0;
+				/* Coarse input defers to click; also cover click alone. */
+				if (coarse)
+					cell.listeners.pointerdown(event);
+				cell.listeners.click(event);
+				const expected = modifier ? "pencil-remove" : "remove";
+				assert(actions.length == 1 && actions[0] == expected,
+				       `coarse=${coarse}, taps=${taps}, ${modifier}: ` +
+				       `expected ${expected}, got ${actions}`);
+			}
+		}
+	}
+});
+
 Deno.test("control-tap falls back to the context-menu event", function() {
 	const puzzle = makePuzzle(1);
 	const slot = puzzle.rows[0].slots[0];
