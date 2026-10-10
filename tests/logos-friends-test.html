@@ -30,26 +30,33 @@
 		const Peer = app.RTCPeerConnection;
 		app.RTCPeerConnection = function() { return new Peer({ iceServers: [] }); };
 		doc.querySelector('meta[name="logos-rooms-endpoint"]').content = "http://127.0.0.1:8787/api/rooms";
-		doc.querySelector("#friends-player-name").value = name;
+		await app.puzzle.onlineReady;
+		/* Each iframe represents a separate player's browser profile. */
+		const openDatabase = app.indexedDB.open.bind(app.indexedDB);
+		const profile = crypto.randomUUID();
+		app.indexedDB.open = (database, ...args) => openDatabase(
+			database.startsWith("logos-scoreboards:") ? database + ":" + profile : database, ...args);
+		doc.querySelector("#scoreboards-name").value = name;
+		await doc.querySelector("#scoreboards-name").onchange({target: doc.querySelector("#scoreboards-name")});
 		/* Read the invitation without reloading away our local test setup. */
 		app.history.replaceState(null, "", "#room=" + room);
-		app.readRoomLink();
+		app.dispatchEvent(new app.HashChangeEvent("hashchange"));
 		await waitFor(() => app.puzzle.actionController?.ready, "room connection");
 		assert(app.puzzle.actionController.role == role, "unexpected room role");
-		if (!doc.querySelector("#friends-menu").hidden)
-			doc.querySelector("#friends-menu .modal-close").click();
+		if (!doc.querySelector("#scoreboards-menu").hidden)
+			doc.querySelector("#scoreboards-menu .modal-close").click();
 		return app;
 	}
 	try {
 		const host = await open("host", "Helen");
 		const inviteStatus = host.document.querySelector('#friends-roster-status');
 		await waitFor(() => inviteStatus.textContent == "Invite friends" &&
-			host.document.querySelector('#friends-menu').hidden, "host invitation prompt");
+			host.document.querySelector('#scoreboards-menu').hidden, "host invitation prompt");
 		inviteStatus.click();
-		assert(!host.document.querySelector('#friends-menu').hidden &&
+		assert(!host.document.querySelector('#scoreboards-menu').hidden &&
 			host.document.querySelector('#friends-roster-button').getAttribute('aria-expanded') == "true",
 			"clicking Invite friends did not open the friends dialog");
-		host.document.querySelector('#friends-menu .modal-close').click();
+		host.document.querySelector('#scoreboards-menu .modal-close').click();
 		const alice = await open("guest", "Alice");
 		const bob = await open("guest", "Bob");
 		const players = app => app.document.querySelector("#friends-roster-players");
@@ -131,7 +138,7 @@
 			.getPropertyValue("--shared-hover-rings").includes("0.2rem"), "overlapping player rings");
 		alice.document.querySelector("#friends-roster-button").click();
 		await waitFor(() => !bob.document.querySelector("[data-shared-hover]"), "dialog clears hover");
-		alice.document.querySelector("#friends-menu .modal-close").click();
+		alice.document.querySelector("#scoreboards-menu .modal-close").click();
 		bob.dispatchEvent(new bob.Event("blur"));
 		await waitFor(() => !host.document.querySelector("[data-shared-hover]"), "blur clears hover");
 		const clueIndex = alice.puzzle.clues.findIndex(clue => clue.displayType == "horizontal");
@@ -283,7 +290,7 @@
 		await waitFor(() => [host, alice, bob].every(app => players(app).children.length == 3 &&
 			players(app).querySelector('[data-self="true"]')), "own player restored after departures");
 		alice.document.querySelector("#friends-roster-button").click();
-		assert(!alice.document.querySelector("#friends-menu").hidden, "the roster heading did not open the menu");
+		assert(!alice.document.querySelector("#scoreboards-menu").hidden, "the roster heading did not open the menu");
 		alice.document.querySelector("#friends-leave").click();
 		assert(alice.document.querySelector("#friends-roster").hidden, "leaving did not hide the roster");
 		await waitFor(() => players(host).children.length == 2 && players(bob).children.length == 2,
@@ -328,6 +335,10 @@
 		       "ending multiplayer did not restore solo play");
 		for (const [index, app] of [host, bob].entries()) {
 			const old = beforeDeparture[index];
+			assert(!app.document.querySelector("#scoreboards-menu").hidden &&
+			       !app.document.querySelector(".friends-room-editor").hidden,
+			       "leaving did not retain Online with room setup controls");
+			app.document.querySelector("#scoreboards-menu .modal-close").click();
 			assert(app.puzzle.seed === old.seed && app.puzzle.timerTimeout !== null &&
 			       Date.now() - app.puzzle.timerStarted >= old.elapsed && !app.puzzle.scoreEligible &&
 			       JSON.stringify(app.puzzle.rows.map(row => row.slots.map(slot => slot.possible))) === old.board,
@@ -364,7 +375,7 @@
 		host.puzzle.requestTileAction(soloSlot, soloSlot.value, "place");
 		host.puzzle.timerStarted = Date.now() - 45000;
 		const soloSeed = host.puzzle.seed;
-		host.document.querySelector("#friends-button").click();
+		host.document.querySelector("#scoreboards-button").click();
 		assert(host.puzzle.timerTimeout === null, "solo menu did not pause the timer");
 		host.document.querySelector("#friends-room-name").value = room + "-adopt";
 		host.document.querySelector("#friends-join-room").click();
@@ -374,7 +385,7 @@
 		       host.puzzle.actionController.clockState().elapsed >= 45000 &&
 		       !host.puzzle.actionController.recentActions.size,
 		       "hosting through the menu reset the solo game or its timer");
-		host.document.querySelector("#friends-menu .modal-close").click();
+		host.document.querySelector("#scoreboards-menu .modal-close").click();
 		assert(host.puzzle.timerTimeout !== null && !host.puzzle.paused,
 		       "closing hosting setup did not resume the game");
 		host.document.querySelector("#friends-roster-button").click();

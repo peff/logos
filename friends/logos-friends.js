@@ -7,15 +7,13 @@ var {
 	normalizePlayerName,
 } = globalThis.LogosFriends;
 
-var friendsButton = document.querySelector("#friends-button");
-var friendsBadgeCaption = friendsButton.querySelector(".friends-badge-caption");
-var friendsMenu = document.querySelector("#friends-menu");
-var status = friendsMenu.querySelector(".friends-status");
+var friendsMenu = document.querySelector("#scoreboards-menu");
+var status = friendsMenu.querySelector(".scoreboards-status");
 var rejoinButton = friendsMenu.querySelector("#friends-rejoin");
 var invitationNeedsAttention = false;
 var leaveButton = friendsMenu.querySelector("#friends-leave");
 var newGameButton = document.querySelector("#new-game-button");
-var nameInput = friendsMenu.querySelector("#friends-player-name");
+var nameInput = friendsMenu.querySelector("#scoreboards-name");
 var roster = document.querySelector("#friends-roster");
 var rosterPlayers = document.querySelector("#friends-roster-players");
 var rosterStatus = document.querySelector("#friends-roster-status");
@@ -28,6 +26,7 @@ var roomInput = friendsMenu.querySelector("#friends-room-name");
 var roomEditor = friendsMenu.querySelector(".friends-room-editor");
 var roomNameDisplay = friendsMenu.querySelector("#friends-room-name-display");
 var roomJoin = friendsMenu.querySelector("#friends-join-room");
+var roomAccept = friendsMenu.querySelector("#friends-accept-room");
 var roomRandom = friendsMenu.querySelector("#friends-random-room");
 var roomSharing = friendsMenu.querySelector(".friends-room-sharing");
 var roomRenew = friendsMenu.querySelector("#friends-renew-room");
@@ -159,12 +158,6 @@ for (var type of ["pointerup", "pointercancel", "lostpointercapture"])
 window.addEventListener("blur", clearHistoryHighlight);
 document.addEventListener("visibilitychange", clearHistoryHighlight);
 rosterPlayers.addEventListener("scroll", clearHistoryHighlight, true);
-
-try {
-	nameInput.value = localStorage.getItem("multiplayerPlayerName") || "";
-} catch (e) {
-	/* Multiplayer still works when browser-local storage is unavailable. */
-}
 
 function randomHex(bytes) {
 	var data = new Uint8Array(bytes);
@@ -344,7 +337,6 @@ function playerName(role) {
 
 function updateWebRTCHost(state) {
 	if (state.unexpectedDeparture) room?.renew();
-	friendsBadgeCaption.textContent = "Hosting";
 	if (state.state == "connected" && !friendsMenu.hidden)
 		toggleMenu();
 	if (state.state == "failed")
@@ -362,20 +354,16 @@ function updateWebRTCGuest(state) {
 	if (state.connected) {
 		room?.connected();
 		status.textContent = "Connected to the host.";
-		friendsBadgeCaption.textContent = "Joined";
 		if (!friendsMenu.hidden)
 			toggleMenu();
 	} else if (state.state == "disconnected") {
 		status.textContent = "The connection to the host was interrupted.";
-		friendsBadgeCaption.textContent = "Disconnected";
 	} else if (state.state == "failed" || state.state == "closed") {
 		status.textContent = "The host disconnected. Rejoin the room, or " +
 			"end multiplayer to keep playing solo.";
 		leaveButton.textContent = "End multiplayer";
-		friendsBadgeCaption.textContent = "Disconnected";
 	} else {
 		status.textContent = "Connecting to the host…";
-		friendsBadgeCaption.textContent = "Connecting";
 	}
 }
 
@@ -386,14 +374,17 @@ window.puzzle.beforeNewGame = function() {
 };
 
 function setInvitationView(enabled) {
-	roomInput.hidden = enabled;
-	roomRandom.hidden = enabled;
+	roomEditor.hidden = enabled;
+	roomAccept.hidden = !enabled;
 	roomNameDisplay.hidden = !enabled;
 	if (enabled) roomNameDisplay.textContent = roomInput.value;
 }
 
 function leave() {
+	const restoreFocus = friendsMenu.contains(document.activeElement) &&
+		document.activeElement.closest(".friends-footer-actions");
 	rejoinButton.hidden = true;
+	roomRenew.hidden = true;
 	invitationNeedsAttention = false;
 	setInvitationView(false);
 	if (room) {
@@ -406,9 +397,7 @@ function leave() {
 	roomNameDisplay.hidden = true;
 	roomInput.disabled = false;
 	roomRandom.disabled = false;
-	roomJoin.hidden = false;
-	roomRandom.hidden = false;
-	roomJoin.disabled = false;
+	roomJoin.disabled = roomAccept.disabled = false;
 	clearHistoryHighlight();
 	if (transport)
 		transport.close();
@@ -420,30 +409,21 @@ function leave() {
 	roster.hidden = true;
 	document.body.classList.remove("multiplayer");
 	rosterPlayers.replaceChildren();
-	status.textContent = "Gather kindred minds in a shared room.";
+	status.textContent = "";
 	leaveButton.hidden = true;
 	roomInput.setCustomValidity("");
 	roomInput.value = "";
-	friendsBadgeCaption.textContent = "with Friends";
 	setGameControlsDisabled(false);
 	newGameButton.onclick = function() { window.puzzle.newGame(); };
-	if (!friendsMenu.hidden)
-		toggleMenu();
+	if (restoreFocus)
+		roomRandom.focus({ preventScroll: true });
 }
 
 function toggleMenu() {
 	clearHistoryHighlight();
-	if (!window.puzzle.options.hidden)
-		window.puzzle.toggleOptions();
-	window.puzzle.toggleModal(friendsMenu, friendsButton, "Close");
-	document.querySelector("#friends-roster-button").setAttribute(
-		"aria-expanded", !friendsMenu.hidden);
-}
-
-function showCopied(button) {
-	var old = button.textContent;
-	button.textContent = "Copied";
-	setTimeout(function() { button.textContent = old; }, 1200);
+	const toggled = window.puzzle.toggleOnline();
+	document.querySelector("#friends-roster-button").setAttribute("aria-expanded", String(!friendsMenu.hidden));
+	return toggled;
 }
 
 function roomInvitationStatus(state) {
@@ -455,12 +435,11 @@ function roomInvitationStatus(state) {
 	}
 	roomRenew.hidden = !(session?.role == "host" &&
 		(state.state == "expired" || state.state == "error"));
-	roomJoin.disabled = state.state == "connecting";
+	roomJoin.disabled = roomAccept.disabled = state.state == "connecting";
 	if (state.state == "error" && !session) {
 		setInvitationView(false);
-		roomEditor.hidden = false;
 		roomNameDisplay.hidden = true;
-		roomJoin.disabled = false;
+		roomJoin.disabled = roomAccept.disabled = false;
 		roomInput.disabled = false;
 		roomRandom.disabled = false;
 		leaveButton.hidden = true;
@@ -482,7 +461,6 @@ function roomInvitationStatus(state) {
 	if (state.state == "expired" || state.state == "error") {
 		if (session?.role == "host") {
 			setInvitationView(false);
-			roomEditor.hidden = false;
 			roomNameDisplay.hidden = true;
 			roomInput.disabled = false;
 			roomRandom.disabled = false;
@@ -493,8 +471,7 @@ function roomInvitationStatus(state) {
 		roomNameDisplay.hidden = false;
 		roomEditor.hidden = true;
 		roomSharing.hidden = false;
-		roomJoin.hidden = true;
-		roomRandom.hidden = true;
+		roomAccept.hidden = true;
 		roomInput.value = room.name;
 		const url = new URL(location.href);
 		url.search = "";
@@ -555,13 +532,14 @@ roomInput.addEventListener("input", () => roomInput.setCustomValidity(""));
 roomInput.addEventListener("keydown", event => {
 	if (event.key == "Enter") {
 		event.preventDefault();
-		if (!roomJoin.hidden && !roomJoin.disabled) joinRoom();
+		if (!roomEditor.hidden && !roomJoin.disabled) joinRoom();
 	}
 });
 roomRandom.addEventListener("click", () => {
 	joinRoom(globalThis.LogosFriends.generateRoomName(), true);
 });
 roomJoin.addEventListener("click", () => joinRoom());
+roomAccept.addEventListener("click", () => joinRoom());
 roomRenew.addEventListener("click", function() {
 	if (room?.role == "host" && roomInput.value == room.name) room.renew();
 	else joinRoom();
@@ -573,19 +551,19 @@ rejoinButton.addEventListener("click", function() {
 friendsMenu.querySelector("#friends-copy-room").addEventListener("click", async function() {
 	try {
 		await navigator.clipboard.writeText(roomLink);
-		showCopied(this);
+		status.textContent = "Invitation copied to clipboard.";
 	} catch (e) {
 		window.prompt("Copy this invitation link:", roomLink);
 	}
 });
 window.addEventListener("pagehide", () => room?.close());
 
-function readRoomLink() {
+async function readRoomLink() {
 	const name = new URLSearchParams(location.hash.slice(1)).get("room");
 	if (name === null || session) return;
 	roomInput.value = globalThis.LogosFriends.normalizeRoomName(name);
 	setInvitationView(globalThis.LogosFriends.validRoomName(roomInput.value));
-	if (friendsMenu.hidden) toggleMenu();
+	if (friendsMenu.hidden) await toggleMenu();
 	if (normalizePlayerName(nameInput.value, "")) {
 		joinRoom();
 	} else {
@@ -593,27 +571,15 @@ function readRoomLink() {
 		nameInput.focus();
 	}
 }
-readRoomLink();
+window.puzzle.onlineReady.then(readRoomLink);
+window.addEventListener("hashchange", readRoomLink);
 
-friendsButton.addEventListener("click", toggleMenu);
 document.querySelector("#friends-roster-button").addEventListener("click", toggleMenu);
-friendsMenu.querySelector(".modal-close").addEventListener("click", toggleMenu);
-friendsMenu.addEventListener("click", function(event) {
-	if (event.target == friendsMenu)
-		toggleMenu();
-});
-nameInput.addEventListener("change", function() {
+nameInput.addEventListener("online-name-change", function() {
 	if (!session) return;
 	const name = playerName(session.role);
 	if (transport) transport.playerName = name;
 	session.setPlayerName(name);
-});
-nameInput.addEventListener("input", function() {
-	try {
-		localStorage.setItem("multiplayerPlayerName", nameInput.value);
-	} catch (e) {
-		/* Keep the name for this page even if it cannot be persisted. */
-	}
 });
 leaveButton.addEventListener("click", leave);
 

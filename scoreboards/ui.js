@@ -16,7 +16,7 @@
 	const status = (text, panel = active) => {
 		const message = panel.querySelector(".scoreboards-status");
 		message.textContent = text;
-		message.hidden = !text;
+		message.hidden = panel === forum && !text;
 	};
 	const attempt = fn => async (...args) => {
 		try { await fn(...args); } catch (error) { status(error.message); }
@@ -87,7 +87,6 @@
 				rows.append(row);
 			}
 		}
-		query(".scoreboards-view").hidden = !groups.length;
 		groupList = groups;
 		const index = groups.findIndex(g => g.id === selected);
 		const navigation = view(".forum-groups");
@@ -250,6 +249,14 @@
 			await render();
 		}
 	});
+	new MutationObserver(() => {
+		document.querySelector("#friends-roster-button").setAttribute("aria-expanded", String(!modal.hidden));
+	}).observe(modal, { attributes: true, attributeFilter: ["hidden"] });
+	puzzle.toggleOnline = attempt(async () => {
+		if (!modal.hidden) close();
+		else if (!forum.hidden) show(modal);
+		else await open();
+	});
 	button.onclick = attempt(() => open());
 	document.querySelector(".daily-scoreboards").onclick = attempt(() => open(true));
 	for (const panel of [modal, forum]) {
@@ -272,13 +279,14 @@
 	});
 	query("#scoreboards-name").onchange = attempt(async event => {
 		const input = event.target, name = input.value.trim();
-		if (name.length > 80 || /[\u0000-\u001f\u007f]/.test(name)) {
+		if (name.length > 32 || /[\u0000-\u001f\u007f]/.test(name)) {
 			input.value = await store.getName();
-			throw new Error("Use a name of up to 80 characters without control characters.");
+			throw new Error("Use a name of up to 32 characters without control characters.");
 		}
 		input.value = name;
 		await store.setName(name);
 		status("");
+		input.dispatchEvent(new Event("online-name-change"));
 	});
 	query("#scoreboards-name").onkeydown = event => {
 		if (event.key === "Enter") { event.preventDefault(); event.target.blur(); }
@@ -362,5 +370,7 @@
 		await join(id, (params.get("label") || "").slice(0, 80));
 	}
 	window.addEventListener("hashchange", () => invitation().catch(e => status(e.message)));
-	invitation().catch(e => status(e.message));
+	puzzle.onlineReady = store.getName().then(name => { query("#scoreboards-name").value = name; })
+		.catch(e => status(e.message, modal));
+	puzzle.onlineReady.then(invitation).catch(e => status(e.message));
 })();

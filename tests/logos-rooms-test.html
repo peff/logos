@@ -43,30 +43,38 @@
 			constructor(url) { super(url); app.testRoomSockets.push(this); }
 		};
 		doc.querySelector('meta[name="logos-rooms-endpoint"]').content = "http://127.0.0.1:8787/api/rooms";
-		doc.querySelector("#friends-player-name").value = firstVisit ? "" : name;
+		await app.puzzle.onlineReady;
+		/* Each iframe represents a separate player's browser profile. */
+		const openDatabase = app.indexedDB.open.bind(app.indexedDB);
+		const profile = crypto.randomUUID();
+		app.indexedDB.open = (database, ...args) => openDatabase(
+			database.startsWith("logos-scoreboards:") ? database + ":" + profile : database, ...args);
+		doc.querySelector("#scoreboards-name").value = firstVisit ? "" : name;
+		await doc.querySelector("#scoreboards-name").onchange({target: doc.querySelector("#scoreboards-name")});
 		if (roomName === null) {
-			doc.querySelector("#friends-button").click();
+			doc.querySelector("#scoreboards-button").click();
 			assert(doc.querySelector("#friends-room-name").value == "", "unexpected initial room name");
 		} else {
 			/* Read the invitation without reloading away our local test setup. */
 			app.history.replaceState(null, "", "#room=" + roomName);
-			app.readRoomLink();
+			app.dispatchEvent(new app.HashChangeEvent("hashchange"));
 			if (firstVisit) {
-				await waitFor(() => doc.activeElement == doc.querySelector("#friends-player-name"),
+				await waitFor(() => doc.activeElement == doc.querySelector("#scoreboards-name"),
 					"invitation asks for a name");
 				assert(!app.testRoom, "blank name joined automatically");
-				assert(doc.querySelector("#friends-random-room").hidden &&
-					doc.querySelector("#friends-room-name").hidden,
+				assert(doc.querySelector(".friends-room-editor").hidden &&
+					!doc.querySelector("#friends-accept-room").hidden,
 					"invitation offers unrelated room choices");
 				assert(doc.querySelector("#friends-room-name-display").textContent == roomName &&
 					!doc.querySelector("#friends-room-name-display").hidden,
 					"invited room is not displayed");
-				doc.querySelector("#friends-player-name").value = name;
-				doc.querySelector("#friends-join-room").click();
+				doc.querySelector("#scoreboards-name").value = name;
+				await doc.querySelector("#scoreboards-name").onchange({target: doc.querySelector("#scoreboards-name")});
+				doc.querySelector("#friends-accept-room").click();
 			}
 			await waitFor(() => app.testRoom, "invitation joins without a click");
 		}
-		assert(!doc.querySelector("#friends-menu").hidden, "room link did not open friends");
+		assert(!doc.querySelector("#scoreboards-menu").hidden, "room link did not open friends");
 		return app;
 	}
 	try {
@@ -103,9 +111,9 @@
 			assert(app.getComputedStyle(app.document.querySelector("#friends-leave")).display != "none",
 				"connected player cannot leave");
 		}
-		assert(!guests[0].document.querySelector(".friends-name-controls").hidden,
+		assert(!guests[0].document.querySelector(".scoreboards-name").hidden,
 			"joined player cannot edit name");
-		const nameField = guests[0].document.querySelector("#friends-player-name");
+		const nameField = guests[0].document.querySelector("#scoreboards-name");
 		nameField.value = "Hypatia";
 		nameField.dispatchEvent(new guests[0].Event("change"));
 		await waitFor(() => host.puzzle.actionController.players.some(player => player.name == "Hypatia") &&
@@ -162,7 +170,7 @@
 		const socketCount = host.testRoomSockets.length;
 		host.testRoomSockets.at(-1).close();
 		await waitFor(() => host.testRoomSockets.length == socketCount + 1 &&
-			host.document.querySelector(".friends-status").textContent.startsWith("You’re hosting."),
+			host.document.querySelector("#scoreboards-menu .scoreboards-status").textContent.startsWith("You’re hosting."),
 			"host signaling reconnect");
 		assert(host.puzzle.seed == seed && host.puzzle.actionController.players.length == 3,
 			"signaling reconnect changed the shared game");
@@ -178,7 +186,7 @@
 		await waitFor(() => other.puzzle.actionController?.role == "host", "another gathering");
 		const controller = host.puzzle.actionController;
 		host.testRoom.transport.drop(host.testRoom.transport.connected.get(stranded.puzzle.actionController.playerId), "failed");
-		await waitFor(() => host.document.querySelector(".friends-status").textContent.includes("another gathering"),
+		await waitFor(() => host.document.querySelector("#scoreboards-menu .scoreboards-status").textContent.includes("another gathering"),
 			"renewal name collision");
 		assert(host.puzzle.actionController === controller && host.puzzle.seed == seed,
 			"renewal joined the other game");
@@ -186,7 +194,7 @@
 			"automatic renewal failure is invisible outside the dialog");
 		host.document.querySelector("#friends-room-name").value = room + "-again";
 		host.document.querySelector("#friends-renew-room").click();
-		await waitFor(() => host.document.querySelector(".friends-status").textContent.startsWith("You’re hosting."),
+		await waitFor(() => host.document.querySelector("#scoreboards-menu .scoreboards-status").textContent.startsWith("You’re hosting."),
 			"renewal under a new name");
 		other.document.querySelector("#friends-leave").click();
 		const late = await open("Hypatia", room + "-again");
@@ -197,7 +205,7 @@
 			app.document.querySelector("#friends-roster-status").textContent == "Host disconnected"),
 			"host departure");
 		guests[0].document.querySelector("#friends-rejoin").click();
-		await waitFor(() => guests[0].document.querySelector(".friends-status").textContent.includes("Could not rejoin"),
+		await waitFor(() => guests[0].document.querySelector("#scoreboards-menu .scoreboards-status").textContent.includes("Could not rejoin"),
 			"rejoin without a host fails");
 		assert(guests[0].puzzle.actionController === null &&
 			!guests[0].document.querySelector("#friends-rejoin").hidden && guests[0].puzzle.seed == sharedSeed,

@@ -149,7 +149,7 @@
 			<section id="friends-roster" hidden aria-labelledby="friends-roster-title">
 				<h2 class="friends-roster-heading">
 					<button id="friends-roster-button" type="button"
-					        aria-controls="friends-menu" aria-expanded="false" title="Multiplayer controls">
+					        aria-controls="scoreboards-menu" aria-expanded="false" title="Multiplayer controls">
 						<span id="friends-roster-title"><span class="logo-name">LOGOS</span> with Friends</span>
 						<span id="friends-roster-status" role="status"></span>
 					</button>
@@ -280,21 +280,46 @@
 
 			<div id="scoreboards-menu" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="scoreboards-title">
 				<div class="modal-panel scoreboards-panel">
-					<h2 id="scoreboards-title">Online</h2>
-					<p>Share daily results with your own groups of friends.</p>
-					<label class="scoreboards-name">Your name<input id="scoreboards-name" maxlength="80" autocomplete="nickname"></label>
-					<div class="scoreboards-view" hidden>
+					<h2 id="scoreboards-title">LOGOS Online</h2>
+					<label class="scoreboards-name">Your name<input id="scoreboards-name" maxlength="32" autocomplete="nickname"></label>
+					<fieldset class="online-scoreboards">
+						<legend>Daily Scores</legend>
 						<ul class="scoreboards-groups" aria-label="Your scoreboard groups"></ul>
-					</div>
-					<form class="scoreboards-editor scoreboards-join-entry">
-						<button class="scoreboards-create" type="button">Create a group</button>
-						<span aria-hidden="true">/</span>
-						<div class="scoreboards-join-field">
-							<button type="submit">Join a group:</button>
-							<input id="scoreboard-invite" aria-label="Invitation link or group key" title="Paste a group key or invitation URL" required maxlength="2048" autocomplete="off" spellcheck="false">
+						<form class="scoreboards-editor online-actions">
+							<button class="scoreboards-create" type="button">Create a group</button>
+							<span aria-hidden="true">/</span>
+							<div class="online-join-field">
+								<button type="submit">Join a group:</button>
+								<input id="scoreboard-invite" aria-label="Invitation link or group key" title="Paste a group key or invitation URL" required maxlength="2048" autocomplete="off" spellcheck="false">
+							</div>
+						</form>
+					</fieldset>
+					<fieldset id="friends-menu" class="friends-panel online-friends">
+						<legend><span class="online-logos">LOGOS</span> with Friends</legend>
+						<div class="friends-room-controls">
+							<p id="friends-room-name-display" hidden></p>
+							<div class="friends-room-editor online-actions">
+								<button id="friends-random-room" type="button">Random room</button>
+								<span aria-hidden="true">/</span>
+								<div class="online-join-field">
+									<button id="friends-join-room" type="button">Join room:</button>
+									<input id="friends-room-name" type="text" maxlength="32" aria-label="Room name"
+									       autocapitalize="none" autocomplete="off" spellcheck="false">
+								</div>
+							</div>
 						</div>
-					</form>
-					<p class="scoreboards-status" role="status" aria-live="polite" hidden></p>
+						<div class="friends-footer-actions online-actions">
+							<button id="friends-accept-room" type="button" hidden>Join room</button>
+							<span class="friends-room-sharing" hidden>
+								<button id="friends-copy-room" type="button" title="Copy invitation URL to the clipboard">Invite</button>
+								<span aria-hidden="true">/</span>
+							</span>
+							<button id="friends-renew-room" type="button" hidden>Reopen invitation</button>
+							<button id="friends-rejoin" type="button" hidden>Rejoin room</button>
+							<button id="friends-leave" type="button" hidden>Leave game</button>
+						</div>
+					</fieldset>
+					<p class="scoreboards-status" role="status" aria-live="polite"></p>
 					<div class="scoreboards-toolbar"><button class="modal-close">Close</button></div>
 				</div>
 			</div>
@@ -311,49 +336,6 @@
 					</div>
 					<p class="scoreboards-status" role="status" aria-live="polite" hidden></p>
 					<div class="scoreboards-toolbar"><button class="forum-manage">Manage groups</button><button class="modal-close">Close</button></div>
-				</div>
-			</div>
-			<div id="friends-menu" class="modal" hidden role="dialog"
-			     aria-modal="true" aria-labelledby="friends-title">
-				<div class="modal-panel friends-panel">
-					<h2 id="friends-title">
-						<span class="logo-name">LOGOS</span>
-						<span class="friends-title-subtitle">with Friends</span>
-					</h2>
-					<div class="friends-name-controls">
-						<label for="friends-player-name">Your name:</label>
-						<input id="friends-player-name" type="text" maxlength="32"
-						       autocomplete="nickname">
-					</div>
-					<p class="friends-status">
-					</p>
-					<div class="friends-room-controls">
-						<p id="friends-room-name-display" hidden></p>
-						<div class="friends-room-choices">
-							<div class="friends-room-editor friends-room-choice">
-								<div class="friends-room-name-row">
-									<input id="friends-room-name" type="text" maxlength="32" aria-label="Room name" placeholder="Room name"
-									       autocapitalize="none" autocomplete="off" spellcheck="false">
-									<button id="friends-join-room" class="option-action" type="button">Join room</button>
-								</div>
-							</div>
-							<div class="friends-room-random friends-room-choice">
-								<button id="friends-random-room" class="option-action" type="button">Random room</button>
-							</div>
-						</div>
-						<div class="friends-room-sharing" hidden>
-							<div class="friends-room-link-row">
-								<button id="friends-copy-room" type="button">Copy invitation link</button>
-							</div>
-							<button id="friends-renew-room" type="button" hidden>Reopen invitation</button>
-						</div>
-					</div>
-					<div class="friends-footer-actions">
-						<button id="friends-rejoin" class="modal-done" type="button" hidden>Rejoin room</button>
-						<button id="friends-leave" class="modal-done" type="button" hidden>Leave game</button>
-						<input class="modal-done modal-close" type="button"
-						       value="Resume game">
-					</div>
 				</div>
 			</div>
 			<div id="options-menu" class="modal" hidden role="dialog"
@@ -401,18 +383,13 @@
 						       onClick="puzzle.toggleFullscreen()" value="Enter full screen">
 					</fieldset>
 					<fieldset class="game-options">
-						<legend>Game</legend>
-						<button id="friends-button" type="button" aria-expanded="false"
-						        aria-controls="friends-menu">
-							<span class="friends-badge-title">LOGOS</span>
-							<span class="friends-badge-caption">with Friends</span>
-							<small class="friends-badge-experimental">experimental!</small>
-						</button>
+						<legend><span>Game</span>
+							<button id="scoreboards-button" type="button" aria-controls="scoreboards-menu" aria-expanded="false">With friends <span aria-hidden="true">›</span></button>
+						</legend>
 						<div class="daily-options"><span id="daily-label">Today's puzzle </span><button
 						        id="daily-button" type="button" aria-controls="invitation-menu"
 						        aria-expanded="false" aria-label="Today's puzzle awaits."
-						        onClick="puzzle.openDaily()">awaits</button>.
-						<button id="scoreboards-button" type="button" aria-controls="scoreboards-menu" aria-expanded="false">Online…</button></div>
+						        onClick="puzzle.openDaily()">awaits</button>.</div>
 						<label>
 						       <input id="practice-mode" type="checkbox"
 						              onChange="puzzle.setPracticeMode(this.checked)">
@@ -757,9 +734,9 @@
 		<script src="friends/logos-multiplayer.js"></script>
 		<script src="friends/logos-webrtc.js"></script>
 		<script src="friends/logos-rooms.js"></script>
-		<script src="friends/logos-friends.js"></script>
 		<script src="scoreboards/store.js"></script>
 		<script src="scoreboards/client.js"></script>
 		<script src="scoreboards/ui.js"></script>
+		<script src="friends/logos-friends.js"></script>
 	</body>
 </html>
