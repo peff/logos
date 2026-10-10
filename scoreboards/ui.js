@@ -195,6 +195,7 @@
 		if (trail.at(-1) === destination) trail.pop();
 		else trail.push(active);
 		active = destination;
+		if (active === modal) status("", modal);
 		active.hidden = false;
 		if (active === forum) refreshForum().catch(error => status(error.message, forum));
 		active.querySelector(".modal-close").focus();
@@ -224,6 +225,7 @@
 		}
 		trail = [];
 		active = destination;
+		if (active === modal) status("", modal);
 		if (active.hidden) puzzle.toggleModal(active, button, "Close");
 		await render();
 		active.querySelector(".modal-close").focus();
