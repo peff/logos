@@ -59,14 +59,15 @@
 				row.append(input);
 				const controls = document.createElement("div");
 				controls.className = "scoreboards-row-actions";
-				for (const [label, action] of [
-					["Forum", () => { selected = group.id; show(forum); }],
-					["Invite", () => copyInvitation(group)],
-					["Leave", () => leave(group)],
+				for (const [label, title, action] of [
+					["Forum", "Visit the Forum", () => { selected = group.id; show(forum); }],
+					["Invite", "Copy invitation URL to the clipboard", () => copyInvitation(group)],
+					["Leave", "Leave this group", () => leave(group)],
 				]) {
 					const control = document.createElement("button");
 					control.type = "button";
 					control.textContent = label;
+					control.title = title;
 					control.setAttribute("aria-label", label + ": " + groupLabel(group));
 					control.onclick = attempt(async () => { await saving; await action(); });
 					if (controls.children.length) {
