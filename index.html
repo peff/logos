@@ -434,7 +434,8 @@
 						</div>
 					</fieldset>
 					<nav class="options-destinations" aria-label="Play options">
-						<button id="daily-button" type="button" aria-controls="invitation-menu" aria-expanded="false" onClick="puzzle.openDaily()"><span aria-hidden="true">‹</span> Daily puzzle</button>
+						<a id="daily-button" href="#daily" aria-controls="invitation-menu" aria-expanded="false"
+						   onClick="if (!event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey && event.button === 0) { event.preventDefault(); puzzle.openDaily(); }"><span aria-hidden="true">‹</span> Daily puzzle</a>
 						<button id="online-button" type="button" aria-controls="online-menu" aria-expanded="false">With friends <span aria-hidden="true">›</span></button>
 					</nav>
 					<input class="modal-done modal-close" type="button"

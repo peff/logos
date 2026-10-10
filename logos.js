@@ -861,7 +861,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 
 	this.updateDailyButton = function() {
 		var button = this.options.querySelector("#daily-button");
-		button.disabled = !!this.actionController;
+		button.setAttribute("aria-disabled", String(!!this.actionController));
+		button.tabIndex = this.actionController ? -1 : 0;
 		button.title = this.actionController ? "Daily attempts are played solo." : "";
 	}
 

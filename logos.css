@@ -1387,20 +1387,21 @@ body:is(.proof-active, :has(#proof-controls.hint-explanation)) :is(#logo, #frien
 
 .options-destinations #online-button { order: 2; }
 
-.options-destinations button {
+.options-destinations :is(a, button) {
 	border: 0;
 	padding: 0;
 	background: none;
 	color: inherit;
 	font: inherit;
 	font-weight: bold;
+	text-decoration: none;
 	white-space: nowrap;
 	cursor: pointer;
 }
 
-.options-destinations button:not(:disabled):hover { color: #9a7d3d; }
-.options-destinations button:focus-visible { outline: 1px solid #80633a; outline-offset: 3px; }
-.options-destinations button:disabled { opacity: .5; cursor: default; }
+.options-destinations :is(a, button):not(:disabled, [aria-disabled="true"]):hover { color: #9a7d3d; }
+.options-destinations :is(a, button):focus-visible { outline: 1px solid #80633a; outline-offset: 3px; }
+.options-destinations :is(:disabled, [aria-disabled="true"]) { opacity: .5; cursor: default; }
 
 .options-panel {
 	max-height: calc(100vh - 2rem);
