@@ -296,7 +296,8 @@
 		query(`.scoreboards-groups li[data-group="${id}"] input`).focus();
 	});
 	async function leave(group) {
-		if (group.label && !confirm(`Leave ${groupLabel(group)}? Published scores remain, but this browser will stop sharing new results.`)) return;
+		const [records, uploads] = await Promise.all([store.records(group.id), store.uploads(group.id)]);
+		if ((records.length || uploads.length) && !confirm(`Leave ${groupLabel(group)}? Published scores remain, but this browser will stop sharing new results.`)) return;
 		await store.leave(group.id);
 		await render(); status("Group left.");
 	}
