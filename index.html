@@ -94,9 +94,9 @@
 						<p class="daily-history-error" hidden>Your run could not be saved to the Chronicle. This browser may offer the puzzle again.</p>
 						<div class="invitation-choices daily-actions">
 							<div class="daily-sharing-actions">
-								<button class="invitation-choice daily-copy" type="button"
+								<a class="invitation-choice daily-copy"
 								        title="Copy your result and the daily puzzle link"
-								        onClick="puzzle.copyDailyResult()">Proclaim your wisdom</button>
+								        onClick="handleLinkClick(event, () => puzzle.copyDailyResult())">Proclaim your wisdom</a>
 								<span aria-hidden="true">/</span>
 								<button class="invitation-choice daily-scoreboards" type="button"
 								        title="Compare daily scores in the Forum">Take your measure</button>
@@ -322,7 +322,7 @@
 							<div class="friends-footer-actions online-actions">
 								<button id="friends-accept-room" type="button" hidden>Join room</button>
 								<span class="friends-room-sharing" hidden>
-									<button id="friends-copy-room" type="button" title="Copy invitation URL to the clipboard">Invite</button>
+									<a id="friends-copy-room" title="Copy invitation URL to the clipboard">Invite</a>
 									<span aria-hidden="true">/</span>
 								</span>
 								<button id="friends-renew-room" type="button" hidden>Reopen invitation</button>
@@ -435,7 +435,7 @@
 					</fieldset>
 					<nav class="options-destinations" aria-label="Play options">
 						<a id="daily-button" href="#daily" aria-controls="invitation-menu" aria-expanded="false"
-						   onClick="if (!event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey && event.button === 0) { event.preventDefault(); puzzle.openDaily(); }"><span aria-hidden="true">‹</span> Daily puzzle</a>
+						   onClick="handleLinkClick(event, () => puzzle.openDaily())"><span aria-hidden="true">‹</span> Daily puzzle</a>
 						<button id="online-button" type="button" aria-controls="online-menu" aria-expanded="false">With friends <span aria-hidden="true">›</span></button>
 					</nav>
 					<input class="modal-done modal-close" type="button"

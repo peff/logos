@@ -4,6 +4,15 @@ var puzzleGeneratorVersion = 1;
 /* Increment when the difficulty formula, route policy/count, or cutoffs change. */
 var puzzleDifficultyVersion = 1;
 
+/* Handle ordinary link activation in-page, leaving browser gestures alone. */
+function handleLinkClick(event, action) {
+	if (event.defaultPrevented || event.button !== 0 || event.ctrlKey ||
+	    event.metaKey || event.shiftKey || event.altKey)
+		return;
+	event.preventDefault();
+	action();
+}
+
 var defaultSymbols = [
 	["1", "2", "3", "4", "5", "6"],
 	["A", "B", "C", "D", "E", "F"],
@@ -937,6 +946,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.clearDailyCopyFeedback();
 		this.displayedDailyResult = result;
 		var modal = document.querySelector("#daily-menu");
+		modal.querySelector(".daily-copy").href = "#daily=" + result.date;
 		this.setInvitationResult(true);
 		this.invitationDeclined = true;
 		this.invitation.classList.add("daily-panel");
@@ -2509,9 +2519,20 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 				var link = document.createElement("a");
 				link.textContent = formatSeed(run.seed);
 				link.href = "#seed=" + formatSeed(run.seed);
-				link.target = "_blank";
-				link.rel = "noopener";
-				link.title = "Open this puzzle in a new tab";
+				link.title = "Open this puzzle";
+				link.onclick = event => {
+					/* A solo invitation must not replace a live shared game. */
+					if (puzzle.actionController) {
+						link.target = "_blank";
+						link.rel = "noopener";
+						return;
+					}
+					handleLinkClick(event, () => {
+						puzzle.scoresDailyReturn = null;
+						puzzle.toggleScores();
+						puzzle.loadURLSeed(link.href);
+					});
+				};
 				row.children[3].replaceChildren(link);
 			}
 			var difficulty = document.createElement("td");

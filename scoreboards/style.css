@@ -15,7 +15,7 @@
 .online-status { min-height: 1.3em; color: #746d60; }
 #online-menu .online-status { min-height: 1.3em; border-top: 1px solid #c8c0b2; padding-top: .3rem; margin: .2rem 0 0; font-size: .6rem; text-align: center; }
 .scoreboards-sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
-.online-toolbar button, .scoreboards-editor button, .scoreboards-row-actions button {
+.online-toolbar button, .scoreboards-editor button, .scoreboards-row-actions :is(a, button) {
 	border: 0;
 	padding: .12rem .2rem;
 	background: none;
@@ -25,7 +25,7 @@
 	text-decoration-thickness: 1px;
 	text-underline-offset: .18em;
 }
-.online-toolbar button:hover, .scoreboards-editor button:hover, .scoreboards-row-actions button:hover { color: #9a7d3d; }
+.online-toolbar button:hover, .scoreboards-editor button:hover, .scoreboards-row-actions :is(a, button):hover { color: #9a7d3d; }
 
 .forum-panel {
 	width: 26rem;
@@ -111,7 +111,7 @@
 .scoreboards-groups li > input { flex: 0 1 20ch; min-width: 0; width: 20ch; font-size: .75rem; }
 .scoreboards-row-actions { display: flex; align-items: baseline; flex-shrink: 0; gap: .15rem; }
 .scoreboards-action-separator { color: #aa9570; }
-.scoreboards-row-actions button { white-space: nowrap; }
+.scoreboards-row-actions :is(a, button) { white-space: nowrap; }
 
 .scoreboards-groups input {
 	background: transparent;
@@ -152,8 +152,8 @@
 .online-friends { width: auto; max-height: none; overflow: visible; font-size: .65rem; }
 /* Reserve the changing controls independently of the help text. */
 .friends-room-state { display: flow-root; min-height: 2.7rem; }
-.online-friends button { border: 0; box-shadow: none; border-radius: 0; background: none; padding: .12rem .2rem; margin: 0; color: #70572a; font: inherit; font-weight: normal; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: .18em; cursor: pointer; white-space: nowrap; }
-.online-friends button:not(:disabled):hover { color: #9a7d3d; }
-.online-friends button:disabled { opacity: .5; cursor: default; }
+.online-friends :is(a, button) { border: 0; box-shadow: none; border-radius: 0; background: none; padding: .12rem .2rem; margin: 0; color: #70572a; font: inherit; font-weight: normal; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: .18em; cursor: pointer; white-space: nowrap; }
+.online-friends :is(a, button):not(:disabled):hover { color: #9a7d3d; }
+.online-friends :is(a, button):disabled { opacity: .5; cursor: default; }
 .friends-room-sharing:not([hidden]) { display: flex; align-items: baseline; gap: .2rem; }
 .online-friends .friends-footer-actions:not(:has(> :not([hidden]))) { display: none; }

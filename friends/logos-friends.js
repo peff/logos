@@ -477,6 +477,7 @@ function roomInvitationStatus(state) {
 		url.search = "";
 		url.hash = "room=" + room.name;
 		roomLink = url.href;
+		friendsMenu.querySelector("#friends-copy-room").href = roomLink;
 	}
 }
 
@@ -548,14 +549,14 @@ rejoinButton.addEventListener("click", function() {
 	rejoinButton.disabled = true;
 	joinRoom(room.name, false, true);
 });
-friendsMenu.querySelector("#friends-copy-room").addEventListener("click", async function() {
+friendsMenu.querySelector("#friends-copy-room").addEventListener("click", event => handleLinkClick(event, async function() {
 	try {
 		await navigator.clipboard.writeText(roomLink);
 		status.textContent = "Invitation copied to clipboard.";
 	} catch (e) {
 		window.prompt("Copy this invitation link:", roomLink);
 	}
-});
+}));
 window.addEventListener("pagehide", () => room?.close());
 
 async function readRoomLink() {

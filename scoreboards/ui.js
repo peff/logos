@@ -54,6 +54,7 @@
 						return;
 					}
 					input.value = group.label = value;
+					row.querySelector("a").href = invitationURL(group);
 					saving = saving.then(() => store.rename(group.id, value)).then(() => status(""))
 						.catch(error => status(error.message));
 				};
@@ -63,17 +64,19 @@
 				row.append(input);
 				const controls = document.createElement("div");
 				controls.className = "scoreboards-row-actions";
-				for (const [label, title, action] of [
+				for (const [label, title, action, href] of [
 					["Forum", "Visit the Forum", () => { selected = group.id; show(forum); }],
-					["Invite", "Copy invitation URL to the clipboard", () => copyInvitation(group)],
+					["Invite", "Copy invitation URL to the clipboard", () => copyInvitation(group), invitationURL(group)],
 					["Leave", "Leave this group", () => leave(group)],
 				]) {
-					const control = document.createElement("button");
-					control.type = "button";
+					const control = document.createElement(href ? "a" : "button");
+					if (href) control.href = href;
+					else control.type = "button";
 					control.textContent = label;
 					control.title = title;
 					control.setAttribute("aria-label", label + ": " + groupLabel(group));
-					control.onclick = attempt(async () => { await saving; await action(); });
+					const activate = attempt(async () => { await saving; await action(); });
+					control.onclick = href ? event => handleLinkClick(event, activate) : activate;
 					if (controls.children.length) {
 						const separator = document.createElement("span");
 						separator.className = "scoreboards-action-separator";
@@ -325,15 +328,19 @@
 		await store.leave(group.id);
 		await render(); status("Group left.");
 	}
-	async function copyInvitation(group) {
+	function invitationURL(group) {
 		const url = new URL(location.href);
 		url.hash = new URLSearchParams({ scoreboard: group.id, label: group.label }).toString();
-		try { await navigator.clipboard.writeText(url.href); status("Invitation copied to clipboard."); }
-		catch (_) { window.prompt("Copy this group invitation:", url.href); }
+		return url.href;
+	}
+	async function copyInvitation(group) {
+		const url = invitationURL(group);
+		try { await navigator.clipboard.writeText(url); status("Invitation copied to clipboard."); }
+		catch (_) { window.prompt("Copy this group invitation:", url); }
 	}
 	for (const panel of [modal, forum]) panel.addEventListener("keydown", event => {
 		if (event.key === "Tab") {
-			const controls = [...panel.querySelectorAll("button, input, select, [tabindex]")].filter(c => !c.disabled && c.tabIndex !== -1 && c.getClientRects().length && getComputedStyle(c).visibility !== "hidden");
+			const controls = [...panel.querySelectorAll("button, a[href], input, select, [tabindex]")].filter(c => !c.disabled && c.tabIndex !== -1 && c.getClientRects().length && getComputedStyle(c).visibility !== "hidden");
 			const index = controls.indexOf(document.activeElement);
 			if (controls.length) { event.preventDefault(); controls[(index + (event.shiftKey ? -1 : 1) + controls.length) % controls.length].focus(); }
 		}
