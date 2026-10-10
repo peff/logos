@@ -12,6 +12,7 @@
 		() => accessRunHistory(null, true));
 	let selected, date = localDate(), dailyReturn, rendering = 0;
 	const difficulties = new Map();
+	const groupLabel = group => group.label || "Unnamed group";
 	const status = (text, panel = active) => {
 		const message = panel.querySelector(".scoreboards-status");
 		message.textContent = text;
@@ -22,18 +23,66 @@
 	};
 	async function render(direction = 0, groupDirection = 0) {
 		const generation = ++rendering;
-		const groups = await store.groups();
+		const groups = (await store.groups()).sort((a, b) => a.joinedAt - b.joinedAt || a.id.localeCompare(b.id));
 		if (generation !== rendering) return;
 		if (!groups.some(g => g.id === selected)) selected = groups[0]?.id;
-		const select = query(".scoreboards-groups");
-		select.replaceChildren();
-		for (const group of groups) {
-			const option = document.createElement("option");
-			option.value = group.id; option.textContent = group.label;
-			select.append(option);
+		const name = await store.getName();
+		if (generation !== rendering) return;
+		if (document.activeElement !== query("#scoreboards-name")) query("#scoreboards-name").value = name;
+		const rows = query(".scoreboards-groups");
+		// A sync finishing in the background must not replace an active editor.
+		if (!rows.contains(document.activeElement) || !document.activeElement.matches("input")) {
+			rows.replaceChildren();
+			for (const group of groups) {
+				const row = document.createElement("li");
+				row.dataset.group = group.id;
+				let saving = Promise.resolve();
+				const input = document.createElement("input");
+				input.value = group.label;
+				input.maxLength = 80;
+				input.placeholder = "Unnamed group";
+				input.setAttribute("aria-label", "Group label: " + groupLabel(group));
+				input.onchange = () => {
+					const value = input.value.trim();
+					if (/[\u0000-\u001f\u007f]/.test(value)) {
+						input.value = group.label;
+						status("Use a label without control characters.");
+						return;
+					}
+					input.value = group.label = value;
+					saving = saving.then(() => store.rename(group.id, value)).then(() => status(""))
+						.catch(error => status(error.message));
+				};
+				input.onkeydown = event => {
+					if (event.key === "Enter") { event.preventDefault(); input.blur(); }
+				};
+				row.append(input);
+				const controls = document.createElement("div");
+				controls.className = "scoreboards-row-actions";
+				for (const [label, action] of [
+					["Forum", () => { selected = group.id; show(forum); }],
+					["Invite", () => copyInvitation(group)],
+					["Leave", () => leave(group)],
+				]) {
+					const control = document.createElement("button");
+					control.type = "button";
+					control.textContent = label;
+					control.setAttribute("aria-label", label + ": " + groupLabel(group));
+					control.onclick = attempt(async () => { await saving; await action(); });
+					if (controls.children.length) {
+						const separator = document.createElement("span");
+						separator.className = "scoreboards-action-separator";
+						separator.textContent = "·";
+						separator.setAttribute("aria-hidden", "true");
+						controls.append(separator);
+					}
+					controls.append(control);
+				}
+				row.append(controls);
+				rows.append(row);
+			}
 		}
-		select.value = selected || "";
-		query(".scoreboards-view").hidden = !selected;
+		query(".scoreboards-view").hidden = !groups.length;
 		groupList = groups;
 		const index = groups.findIndex(g => g.id === selected);
 		const navigation = view(".forum-groups");
@@ -48,11 +97,11 @@
 			const control = document.createElement("button");
 			control.type = "button";
 			control.dataset.step = step;
-			control.textContent = (circular && step < 0 ? "‹ " : "") + group.label + (circular && step > 0 ? " ›" : "");
+			control.textContent = (circular && step < 0 ? "‹ " : "") + groupLabel(group) + (circular && step > 0 ? " ›" : "");
 			control.disabled = groups.length === 1;
-			control.title = group.label;
+			control.title = groupLabel(group);
 			control.setAttribute("aria-current", String(group.id === selected));
-			control.setAttribute("aria-label", (group.id === selected ? "Current group: " : "View ") + group.label);
+			control.setAttribute("aria-label", (group.id === selected ? "Current group: " : "View ") + groupLabel(group));
 			control.onclick = attempt(() => moveGroup(step));
 			navigation.append(control);
 		}
@@ -175,14 +224,6 @@
 		if (dailyReturn?.identity === puzzle.gameIdentity) puzzle.showDailyResult(dailyReturn.result);
 		dailyReturn = null;
 	}
-	function editor(id = "", label = "", name = "") {
-		query(".scoreboards-editor").hidden = false;
-		query("#scoreboard-invite").value = id;
-		query("#scoreboard-invite").readOnly = !!id;
-		query("#scoreboard-label").value = label;
-		query("#scoreboard-name").value = name;
-		query("#scoreboard-label").focus();
-	}
 	view(".forum-attempt").onclick = attempt(async () => {
 		const identity = puzzle.gameIdentity;
 		view(".forum-attempt").disabled = true;
@@ -202,7 +243,6 @@
 		panel.querySelector(".modal-close").onclick = close;
 		panel.addEventListener("click", event => { if (event.target === panel) close(); });
 	}
-	query(".scoreboards-open-forum").onclick = () => show(forum);
 	view(".forum-manage").onclick = () => show(modal);
 	let touch;
 	view(".forum-results").addEventListener("pointerdown", event => {
@@ -217,40 +257,54 @@
 			if (arrow && !arrow.disabled) arrow.click();
 		}
 	});
-	query(".scoreboards-groups").onchange = attempt(async event => { selected = event.target.value; await render(); });
-	query(".scoreboards-create").onclick = () => editor(crypto.randomUUID());
-	query(".scoreboards-join").onclick = () => editor();
-	query(".scoreboards-edit").onclick = attempt(async () => {
-		const group = await store.group(selected); editor(group.id, group.label, group.name);
+	query("#scoreboards-name").onchange = attempt(async event => {
+		const input = event.target, name = input.value.trim();
+		if (name.length > 80 || /[\u0000-\u001f\u007f]/.test(name)) {
+			input.value = await store.getName();
+			throw new Error("Use a name of up to 80 characters without control characters.");
+		}
+		input.value = name;
+		await store.setName(name);
+		status("");
 	});
-	query(".scoreboards-cancel").onclick = () => { query(".scoreboards-editor").hidden = true; };
+	query("#scoreboards-name").onkeydown = event => {
+		if (event.key === "Enter") { event.preventDefault(); event.target.blur(); }
+	};
+	query(".scoreboards-create").onclick = attempt(async () => {
+		const group = await client.join(crypto.randomUUID(), "");
+		await render();
+		query(`.scoreboards-groups li[data-group="${group.id}"] input`).focus();
+	});
 	query(".scoreboards-editor").onsubmit = attempt(async event => {
 		event.preventDefault();
-		let id = query("#scoreboard-invite").value.trim();
+		let id = query("#scoreboard-invite").value.trim(), label = "";
 		if (!validId(id)) {
-			try { id = new URLSearchParams(new URL(id).hash.slice(1)).get("scoreboard"); } catch (_) { /* Validation below. */ }
+			try {
+				const params = new URLSearchParams(new URL(id).hash.slice(1));
+				id = params.get("scoreboard");
+				label = (params.get("label") || "").slice(0, 80);
+			} catch (_) { /* Validation below. */ }
 		}
-		await client.join(id, query("#scoreboard-label").value, query("#scoreboard-name").value);
+		if (!validId(id)) throw new Error("Enter a valid group key or invitation link.");
+		const existing = await store.group(id);
+		if (!existing) await client.join(id, label);
 		selected = id;
-		query(".scoreboards-editor").hidden = true;
-		show(forum);
+		query("#scoreboard-invite").value = "";
+		status(existing ? "You already belong to this group." : "");
+		await render();
+		query(`.scoreboards-groups li[data-group="${id}"] input`).focus();
 	});
-	query(".scoreboards-leave").onclick = attempt(async () => {
-		const group = await store.group(selected);
-		if (!confirm(`Leave ${group.label}? Published scores remain, but this browser will stop sharing new results.`)) return;
-		await store.leave(selected); selected = null; await render(); status("Group left.");
-	});
-	query(".scoreboards-invite").onclick = attempt(async () => {
-		const group = await store.group(selected);
+	async function leave(group) {
+		if (group.label && !confirm(`Leave ${groupLabel(group)}? Published scores remain, but this browser will stop sharing new results.`)) return;
+		await store.leave(group.id);
+		await render(); status("Group left.");
+	}
+	async function copyInvitation(group) {
 		const url = new URL(location.href);
 		url.hash = new URLSearchParams({ scoreboard: group.id, label: group.label }).toString();
 		try { await navigator.clipboard.writeText(url.href); status("Invitation copied to clipboard."); }
 		catch (_) { window.prompt("Copy this group invitation:", url.href); }
-	});
-	query(".scoreboards-key").onclick = attempt(async () => {
-		try { await navigator.clipboard.writeText(selected); status("Group key copied to clipboard."); }
-		catch (_) { window.prompt("Copy this group key:", selected); }
-	});
+	}
 	for (const panel of [modal, forum]) panel.addEventListener("keydown", event => {
 		if (event.key === "Tab") {
 			const controls = [...panel.querySelectorAll("button, input, select, [tabindex]")].filter(c => !c.disabled && c.tabIndex !== -1 && c.getClientRects().length && getComputedStyle(c).visibility !== "hidden");
@@ -288,7 +342,10 @@
 		if (!validId(id)) { status("Invalid group invitation."); return; }
 		const existing = await store.group(id);
 		if (existing) { selected = id; await render(); }
-		else editor(id, (params.get("label") || "Shared scoreboard").slice(0, 80));
+		else {
+			query("#scoreboard-invite").value = location.href;
+			query("#scoreboard-invite").focus();
+		}
 	}
 	window.addEventListener("hashchange", () => invitation().catch(e => status(e.message)));
 	invitation().catch(e => status(e.message));

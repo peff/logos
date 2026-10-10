@@ -10,10 +10,10 @@
 			this.history = history;
 			this.fetcher = fetcher;
 		}
-		async join(id, label, name) {
-			if (!uuid.test(id) || !name.trim() || name.length > 80 || !label.trim() || label.length > 80 ||
-			    /[\u0000-\u001f\u007f]/.test(name + label)) throw new Error("Enter a group label and your name (up to 80 characters).");
-			return this.store.join({ id, label: label.trim(), name: name.trim(), joinedAt: Date.now(), joinDate: localDate() });
+		async join(id, label) {
+			if (!uuid.test(id) || label.length > 80 ||
+			    /[\u0000-\u001f\u007f]/.test(label)) throw new Error("Enter a valid group key and a label of up to 80 characters.");
+			return this.store.join({ id, label: label.trim(), joinedAt: Date.now(), joinDate: localDate() });
 		}
 		async reconcile() {
 			const groups = await this.store.groups();

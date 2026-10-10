@@ -15,15 +15,15 @@
 .scoreboards-toolbar { display: flex; justify-content: center; flex-wrap: wrap; gap: .6rem; margin: .5rem 0; }
 .scoreboards-panel button { font: inherit; }
 .scoreboards-panel label { display: flex; flex-direction: column; margin: .4rem 0; }
-.scoreboards-panel input, .scoreboards-panel select { box-sizing: border-box; width: 100%; font: inherit; color: inherit; background: #eee8da; border: 1px solid #aa9570; padding: .2rem; }
+.scoreboards-panel input { box-sizing: border-box; width: 100%; font: inherit; color: inherit; background: #eee8da; border: 1px solid #aa9570; padding: .2rem; }
 .scoreboards-panel p { font-size: .7rem; }
 .scoreboards-panel table { width: 100%; border-collapse: collapse; font-size: .75rem; }
 .scoreboards-panel th, .scoreboards-panel td { text-align: left; padding: .3rem; border-bottom: 1px solid #c8c0b2; overflow-wrap: anywhere; }
-.scoreboards-panel td:last-child { font-size: .55rem; color: #746d60; }
+.forum-results td:last-child { font-size: .55rem; color: #746d60; }
 .scoreboards-date { font: 1.4rem Forum, Georgia, serif; color: #70572a; }
 .scoreboards-status { min-height: 1.3em; color: #746d60; }
 .scoreboards-sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
-.scoreboards-toolbar button, .scoreboards-editor button {
+.scoreboards-toolbar button, .scoreboards-editor button, .scoreboards-row-actions button {
 	border: 0;
 	padding: .12rem .2rem;
 	background: none;
@@ -33,7 +33,7 @@
 	text-decoration-thickness: 1px;
 	text-underline-offset: .18em;
 }
-.scoreboards-toolbar button:hover, .scoreboards-editor button:hover { color: #9a7d3d; }
+.scoreboards-toolbar button:hover, .scoreboards-editor button:hover, .scoreboards-row-actions button:hover { color: #9a7d3d; }
 
 .forum-panel {
 	width: 26rem;
@@ -115,3 +115,41 @@
 
 .forum-groups button:disabled { cursor: default; }
 .forum-groups button:disabled:hover { background: none; }
+
+.scoreboards-groups { list-style: none; width: fit-content; max-width: 100%; margin: .6rem auto; padding: 0; }
+.scoreboards-groups li { display: flex; align-items: baseline; gap: .6rem; padding: .2rem 0; }
+.scoreboards-groups li > input { flex: 0 1 20ch; min-width: 0; width: 20ch; font-size: .75rem; }
+.scoreboards-row-actions { display: flex; align-items: baseline; flex-shrink: 0; gap: .15rem; }
+.scoreboards-action-separator { color: #aa9570; }
+.scoreboards-row-actions button { white-space: nowrap; }
+
+.scoreboards-groups input {
+	background: transparent;
+	border-color: transparent;
+	border-bottom-color: #c8c0b2;
+	padding: .2rem 0;
+}
+.scoreboards-groups input:hover { border-bottom-color: #aa9570; }
+.scoreboards-groups input:focus { background: #eee8da; }
+
+.scoreboards-editor { margin: .6rem 0; }
+.scoreboards-join-entry { display: flex; align-items: baseline; justify-content: center; gap: .2rem; font-size: .65rem; }
+.scoreboards-join-entry input { flex: 0 1 5rem; width: 5rem; min-width: 0; border: 0; border-bottom: 1px solid #aa9570; background: transparent; }
+.scoreboards-join-entry button { flex-shrink: 0; white-space: nowrap; }
+.scoreboards-join-field {
+	display: flex;
+	align-items: baseline;
+	gap: .15rem;
+	min-width: 0;
+	padding: .1rem .25rem;
+}
+.scoreboards-join-field input {
+	padding: 0 .2rem;
+	border: 0;
+	border-bottom: 1px solid #aa9570;
+	background: rgb(128 99 58 / 12%);
+}
+
+.scoreboards-panel .scoreboards-name { flex-direction: row; align-items: baseline; gap: .5rem; font-size: .7rem; margin: .6rem 0; }
+.scoreboards-name input { width: 9rem; max-width: 60%; padding: 0 .2rem; border: 0; border-bottom: 1px solid #aa9570; background: rgb(128 99 58 / 12%); }
+.scoreboards-groups .scoreboards-row-actions { font-size: .55rem; }

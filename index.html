@@ -279,19 +279,18 @@
 				<div class="modal-panel scoreboards-panel">
 					<h2 id="scoreboards-title">Online</h2>
 					<p>Share daily results with your own groups of friends.</p>
-					<div class="scoreboards-toolbar"><button class="scoreboards-create">Create a group</button><button class="scoreboards-join">Join a group</button></div>
-					<form class="scoreboards-editor" hidden>
-						<label>Invitation link or group ID<input id="scoreboard-invite" required maxlength="2048"></label>
-						<label>Your label for this group<input id="scoreboard-label" required maxlength="80"></label>
-						<label>Your name on its scoreboard<input id="scoreboard-name" required maxlength="80" autocomplete="nickname"></label>
-						<p>Joining shares today's result and future daily attempts. Anyone with the invitation can view and post scores.</p>
-						<button type="submit">Save group</button> <button class="scoreboards-cancel" type="button">Cancel</button>
-					</form>
+					<label class="scoreboards-name">Your name<input id="scoreboards-name" maxlength="80" autocomplete="nickname"></label>
 					<div class="scoreboards-view" hidden>
-						<select class="scoreboards-groups" aria-label="Scoreboard group"></select>
-						<div class="scoreboards-toolbar"><button class="scoreboards-invite">Copy invitation</button><button class="scoreboards-key">Copy group key</button><button class="scoreboards-edit">Edit locally</button><button class="scoreboards-leave">Leave group</button></div>
-						<div class="scoreboards-toolbar"><button class="scoreboards-open-forum">Visit the Forum</button></div>
+						<ul class="scoreboards-groups" aria-label="Your scoreboard groups"></ul>
 					</div>
+					<form class="scoreboards-editor scoreboards-join-entry">
+						<button class="scoreboards-create" type="button">Create a group</button>
+						<span aria-hidden="true">/</span>
+						<div class="scoreboards-join-field">
+							<button type="submit">Join a group:</button>
+							<input id="scoreboard-invite" aria-label="Invitation link or group key" required maxlength="2048" autocomplete="off" spellcheck="false">
+						</div>
+					</form>
 					<p class="scoreboards-status" role="status" aria-live="polite" hidden></p>
 					<div class="scoreboards-toolbar"><button class="modal-close">Close</button></div>
 				</div>

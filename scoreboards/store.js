@@ -14,18 +14,19 @@
 					const store = opening.result.createObjectStore(name, { keyPath: ["group", key] });
 					store.createIndex("group", "group");
 				}
+				opening.result.createObjectStore("settings");
 			};
 			const db = await request(opening);
 			db.onversionchange = () => db.close();
 			try {
-				const tx = db.transaction(["groups", "records", "uploads"], mode);
+				const tx = db.transaction(["groups", "records", "uploads", "settings"], mode);
 				const done = new Promise((resolve, reject) => {
 					tx.oncomplete = resolve;
 					tx.onabort = () => reject(tx.error || new Error("Storage transaction aborted"));
 				});
 				try {
 					const result = await callback(Object.fromEntries(
-						["groups", "records", "uploads"].map(name => [name, tx.objectStore(name)])), request);
+						["groups", "records", "uploads", "settings"].map(name => [name, tx.objectStore(name)])), request);
 					await done;
 					return result;
 				} catch (error) {
@@ -40,9 +41,17 @@
 		async join(group) {
 			return this.transaction("readwrite", async (s, q) => {
 				const old = await q(s.groups.get(group.id));
-				const value = old ? { ...old, label: group.label, name: group.name } : { ...group, cursor: 0 };
+				const value = old ? { ...old, label: group.label } : { ...group, cursor: 0 };
 				s.groups.put(value);
 				return value;
+			});
+		}
+		getName() { return this.transaction("readonly", async (s, q) => await q(s.settings.get("name")) || ""); }
+		setName(name) { return this.transaction("readwrite", s => { s.settings.put(name, "name"); }); }
+		rename(id, label) {
+			return this.transaction("readwrite", async (s, q) => {
+				const group = await q(s.groups.get(id));
+				if (group) s.groups.put({ ...group, label });
 			});
 		}
 		leave(id) {
@@ -55,7 +64,8 @@
 		queue(id, runs, makeRecord) {
 			return this.transaction("readwrite", async (s, q) => {
 				const group = await q(s.groups.get(id));
-				if (!group) return;
+				const name = await q(s.settings.get("name"));
+				if (!group || !name) return;
 				const first = new Set();
 				const known = new Set((await q(s.uploads.index("group").getAllKeys(id))).map(key => key[1]));
 				for (const run of runs) {
@@ -63,7 +73,7 @@
 					first.add(run.daily);
 					if (run.daily !== group.joinDate && run.date < group.joinedAt) continue;
 					if (known.has(run.id)) continue;
-					s.uploads.add({ group: id, runId: run.id, record: makeRecord(run, group.name), sent: false });
+					s.uploads.add({ group: id, runId: run.id, record: makeRecord(run, name), sent: false });
 				}
 			});
 		}
