@@ -10,7 +10,7 @@
 	const store = new ScoreboardStore("logos-scoreboards:" + endpoint);
 	const client = new ScoreboardClient(store, endpoint,
 		() => accessRunHistory(null, true));
-	let selected, date = localDate(), dailyReturn, rendering = 0;
+	let selected, highlightedGroup, date = localDate(), dailyReturn, rendering = 0;
 	const difficulties = new Map();
 	const groupLabel = group => group.label || "Unnamed group";
 	const status = (text, panel = active) => {
@@ -36,6 +36,10 @@
 			for (const group of groups) {
 				const row = document.createElement("li");
 				row.dataset.group = group.id;
+				if (group.id === highlightedGroup) {
+					row.classList.add("scoreboards-group-highlight");
+					row.setAttribute("aria-current", "true");
+				}
 				let saving = Promise.resolve();
 				const input = document.createElement("input");
 				input.value = group.label;
@@ -204,6 +208,7 @@
 		await render();
 	}
 	async function open(fromDaily = false) {
+		highlightedGroup = null;
 		date = fromDaily ? puzzle.displayedDailyResult.date : localDate();
 		if (fromDaily) {
 			dailyReturn = { result: puzzle.displayedDailyResult, identity: puzzle.gameIdentity };
@@ -287,14 +292,18 @@
 			} catch (_) { /* Validation below. */ }
 		}
 		if (!validId(id)) throw new Error("Enter a valid group key or invitation link.");
+		await join(id, label);
+	});
+	async function join(id, label) {
 		const existing = await store.group(id);
 		if (!existing) await client.join(id, label);
 		selected = id;
+		highlightedGroup = id;
 		query("#scoreboard-invite").value = "";
 		status(existing ? "You already belong to this group." : "");
 		await render();
-		query(`.scoreboards-groups li[data-group="${id}"] input`).focus();
-	});
+		query(`.scoreboards-groups li[data-group="${id}"]`).scrollIntoView({ block: "nearest" });
+	}
 	async function leave(group) {
 		const [records, uploads] = await Promise.all([store.records(group.id), store.uploads(group.id)]);
 		if ((records.length || uploads.length) && !confirm(`Leave ${groupLabel(group)}? Published scores remain, but this browser will stop sharing new results.`)) return;
@@ -342,12 +351,7 @@
 		if (!id) return;
 		await open();
 		if (!validId(id)) { status("Invalid group invitation."); return; }
-		const existing = await store.group(id);
-		if (existing) { selected = id; await render(); }
-		else {
-			query("#scoreboard-invite").value = location.href;
-			query("#scoreboard-invite").focus();
-		}
+		await join(id, (params.get("label") || "").slice(0, 80));
 	}
 	window.addEventListener("hashchange", () => invitation().catch(e => status(e.message)));
 	invitation().catch(e => status(e.message));

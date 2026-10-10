@@ -131,6 +131,7 @@
 }
 .scoreboards-groups input:hover { border-bottom-color: #aa9570; }
 .scoreboards-groups input:focus { background: #eee8da; }
+.scoreboards-groups .scoreboards-group-highlight input { background: rgb(184 154 70 / 14%); }
 
 .scoreboards-editor { margin: .6rem 0; }
 .scoreboards-join-entry { display: flex; align-items: baseline; justify-content: center; gap: .2rem; font-size: .65rem; }
