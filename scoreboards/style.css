@@ -145,12 +145,6 @@
 .online-name input { width: 9rem; max-width: 60%; padding: 0 .2rem; border: 0; border-bottom: 1px solid #aa9570; background: rgb(128 99 58 / 12%); }
 .scoreboards-groups .scoreboards-row-actions { font-size: .55rem; }
 
-#options-menu .game-options legend { display: flex; align-items: baseline; gap: .5rem; width: 100%; box-sizing: border-box; }
-#options-menu .game-options legend::after { content: ""; flex: 1; align-self: center; border-top: 1px solid #c8c0b2; order: 1; }
-#options-menu #online-button { order: 2; font-weight: bold; padding: 0; color: inherit; text-decoration: none; }
-#options-menu #online-button:hover { color: #9a7d3d; }
-#options-menu #online-button:focus-visible { outline: 1px solid #80633a; outline-offset: 3px; }
-#online-button { border: 0; background: none; font: inherit; cursor: pointer; }
 #online-title { color: inherit; font-size: 1.35rem; margin-bottom: .4rem; }
 #online-menu fieldset { min-width: 0; border: 0; border-top: 1px solid #c8c0b2; margin: .35rem 0 0; padding: .3rem 0 0; }
 #online-menu legend { padding: 0 .2rem 0 0; margin-bottom: .2rem; font-size: .75rem; font-weight: bold; text-align: left; }

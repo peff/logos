@@ -395,13 +395,7 @@
 						       onClick="puzzle.toggleFullscreen()" value="Enter full screen">
 					</fieldset>
 					<fieldset class="game-options">
-						<legend><span>Game</span>
-							<button id="online-button" type="button" aria-controls="online-menu" aria-expanded="false">With friends <span aria-hidden="true">›</span></button>
-						</legend>
-						<div class="daily-options"><span id="daily-label">Today's puzzle </span><button
-						        id="daily-button" type="button" aria-controls="invitation-menu"
-						        aria-expanded="false" aria-label="Today's puzzle awaits."
-						        onClick="puzzle.openDaily()">awaits</button>.</div>
+						<legend>Game</legend>
 						<label>
 						       <input id="practice-mode" type="checkbox"
 						              onChange="puzzle.setPracticeMode(this.checked)">
@@ -439,6 +433,10 @@
 							        onClick="puzzle.openAnalysis()"></button>
 						</div>
 					</fieldset>
+					<nav class="options-destinations" aria-label="Play options">
+						<button id="daily-button" type="button" aria-controls="invitation-menu" aria-expanded="false" onClick="puzzle.openDaily()"><span aria-hidden="true">‹</span> Daily puzzle</button>
+						<button id="online-button" type="button" aria-controls="online-menu" aria-expanded="false">With friends <span aria-hidden="true">›</span></button>
+					</nav>
 					<input class="modal-done modal-close" type="button"
 					       onClick="puzzle.toggleOptions()" value="Close">
 				</div>

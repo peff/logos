@@ -859,19 +859,10 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		return this.dailyResultFromRun(run, history?.highScores, level);
 	}
 
-	this.updateDailyButton = async function() {
+	this.updateDailyButton = function() {
 		var button = this.options.querySelector("#daily-button");
 		button.disabled = !!this.actionController;
 		button.title = this.actionController ? "Daily attempts are played solo." : "";
-		var request = this.dailyButtonRequest = {};
-		var result = await this.getDailyResult(dailyDate());
-		if (this.dailyButtonRequest !== request)
-			return;
-		var status = result === null ? "available" : result ? "completed" : "awaits";
-		var label = "Today's puzzle " + (result === null ? "is " : result ? "has been " : "");
-		this.options.querySelector("#daily-label").textContent = label;
-		button.textContent = status;
-		button.setAttribute("aria-label", label + status + ".");
 	}
 
 	this.openDaily = async function(date = dailyDate(), direction = 0) {
