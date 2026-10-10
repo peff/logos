@@ -146,12 +146,10 @@
 		await sync();
 	}
 	async function sync() {
-		view(".scoreboards-sync").hidden = true;
 		try {
 			await client.sync(); status("", forum);
 		} catch (error) {
 			status(error.message, forum);
-			view(".scoreboards-sync").hidden = false;
 		}
 		await render();
 	}
@@ -206,7 +204,6 @@
 	}
 	query(".scoreboards-open-forum").onclick = () => show(forum);
 	view(".forum-manage").onclick = () => show(modal);
-	view(".scoreboards-sync").onclick = attempt(sync);
 	let touch;
 	view(".forum-results").addEventListener("pointerdown", event => {
 		if (event.pointerType === "touch") touch = { x: event.clientX, y: event.clientY };

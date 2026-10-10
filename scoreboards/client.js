@@ -26,10 +26,11 @@
 			}));
 		}
 		async call(id, options) {
+			const unavailable = "Could not reach the scoreboard. Shared scores may be out of date.";
 			const response = await this.fetcher(this.endpoint + "/" + id, {
 				...options, signal: AbortSignal.timeout(15000), credentials: "omit", referrerPolicy: "no-referrer",
-			}).catch(() => { throw new Error("Scoreboard unavailable. Your results remain queued for the next sync."); });
-			if (!response.ok) throw new Error(response.status === 429 ? "Please try syncing again shortly." : "Could not reach the scoreboard. Your results remain queued.");
+			}).catch(() => { throw new Error(unavailable); });
+			if (!response.ok) throw new Error(unavailable);
 			return response.json();
 		}
 		sync() {
