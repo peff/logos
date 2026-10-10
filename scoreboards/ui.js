@@ -156,6 +156,7 @@
 		const uploads = await store.uploads(selected);
 		if (generation !== rendering) return;
 		const ids = new Set(records.map(record => record.id));
+		const localRuns = new Map(uploads.map(item => [item.record.id, item.runId]));
 		const entries = records.concat(uploads.filter(item => !ids.has(item.record.id)).map(item => ({ ...item.record, pending: !item.sent })));
 		const body = view("tbody"); body.replaceChildren();
 		for (const record of entries.filter(r => r.date === date).sort(compareScores)) {
@@ -174,6 +175,17 @@
 					'role="img" aria-label="Untimed completion" focusable="false">' +
 					'<use href="#infinity-shape"/></svg>';
 			}
+			if (localRuns.has(record.id)) {
+				const time = row.children[2];
+				const link = document.createElement("button");
+				link.type = "button";
+				link.className = "forum-chronicle";
+				link.title = "View your run in the Chronicle";
+				link.setAttribute("aria-label", "View your run in the Chronicle: " + (time.textContent || "untimed"));
+				link.append(...time.childNodes);
+				link.onclick = attempt(() => openChronicle(localRuns.get(record.id)));
+				time.append(link);
+			}
 			body.append(row);
 		}
 		view(".scoreboards-empty").hidden = !!body.children.length;
@@ -183,6 +195,19 @@
 				{ transform: "translateX(0)", opacity: 1 },
 			], { duration: 220, easing: "ease-out" });
 		}
+	}
+	async function openChronicle(runId) {
+		puzzle.toggleModal(forum, button, "Close");
+		puzzle.scoresReturn = {
+			gameIdentity: puzzle.gameIdentity,
+			show: async () => {
+				puzzle.toggleModal(forum, button, "Close");
+				await render();
+				view(".forum-chronicle")?.focus({ preventScroll: true });
+			},
+		};
+		puzzle.toggleModal(puzzle.scores, puzzle.scoresButton, "Rejoin the mortal realm");
+		await puzzle.showRunHistory(runId);
 	}
 	async function moveGroup(step) {
 		const index = groupList.findIndex(group => group.id === selected);

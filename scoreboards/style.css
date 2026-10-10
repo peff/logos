@@ -83,6 +83,8 @@
 .forum-results th:nth-child(2) { width: 24%; }
 .forum-results th:nth-child(3) { width: 30%; }
 .forum-results td:nth-child(3) { white-space: nowrap; }
+.forum-chronicle { border: 0; background: none; box-shadow: none; padding: 0; margin: 0; color: inherit; font: inherit; cursor: pointer; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: .18em; }
+.forum-chronicle:hover { color: #9a7d3d; }
 .forum-results th:last-child { width: 12%; }
 
 .forum-difficulty { min-height: 1.3em; }

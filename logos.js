@@ -2529,6 +2529,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 					}
 					handleLinkClick(event, () => {
 						puzzle.scoresDailyReturn = null;
+						puzzle.scoresReturn = null;
 						puzzle.toggleScores();
 						puzzle.loadURLSeed(link.href);
 					});
@@ -2914,12 +2915,16 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		if (!this.scores.hidden) {
 			var dailyReturn = this.scoresDailyReturn;
 			this.scoresDailyReturn = null;
+			var scoresReturn = this.scoresReturn;
+			this.scoresReturn = null;
 			this.pantheonRequest = {};
 			this.toggleModal(this.scores, this.scoresButton,
 				"Rejoin the mortal realm");
 			this.highlightedScore = null;
 			if (dailyReturn && dailyReturn.gameIdentity === this.gameIdentity)
 				this.showDailyResult(dailyReturn.result);
+			if (scoresReturn && scoresReturn.gameIdentity === this.gameIdentity)
+				await scoresReturn.show();
 			return;
 		}
 		var gameIdentity = this.gameIdentity;
