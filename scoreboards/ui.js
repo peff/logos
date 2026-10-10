@@ -11,6 +11,7 @@
 	const client = new ScoreboardClient(store, endpoint,
 		() => accessRunHistory(null, true));
 	let selected, highlightedGroup, date = localDate(), dailyReturn, rendering = 0;
+	let invitationReturn;
 	const difficulties = new Map();
 	const groupLabel = group => group.label || "Unnamed group";
 	const status = (text, panel = active) => {
@@ -238,6 +239,11 @@
 		if (!active.hidden) puzzle.toggleModal(active, button, "Close");
 		if (dailyReturn && dailyReturn.identity === puzzle.gameIdentity) puzzle.showDailyResult(dailyReturn.result);
 		dailyReturn = null;
+		if (invitationReturn) {
+			const url = invitationReturn;
+			invitationReturn = null;
+			attempt(() => puzzle.loadURLSeed(url))();
+		}
 	}
 	view(".forum-attempt").onclick = attempt(async () => {
 		const identity = puzzle.gameIdentity;
@@ -368,13 +374,23 @@
 	window.addEventListener("online", poll);
 	setInterval(poll, 5 * 60 * 1000);
 	async function invitation() {
-		const params = new URLSearchParams(location.hash.slice(1));
+		const url = location.href;
+		const params = new URLSearchParams(new URL(url).hash.slice(1));
 		const id = params.get("scoreboard");
-		if (!id) return;
-		if (validId(id) && await store.group(id)) return;
+		invitationReturn = null;
+		if (!id || (validId(id) && await store.group(id))) {
+			await puzzle.loadURLSeed(url);
+			return;
+		}
+		const label = (params.get("label") || "").slice(0, 80);
+		const daily = params.has("daily") && !params.has("room");
+		/* Finish group setup before opening the daily invitation. Otherwise
+		 * the two asynchronous flows can put both dialogs on screen.
+		 */
+		if (daily) invitationReturn = url;
 		await open();
 		if (!validId(id)) { status("Invalid group invitation."); return; }
-		await join(id, (params.get("label") || "").slice(0, 80));
+		await join(id, label);
 	}
 	window.addEventListener("hashchange", () => invitation().catch(e => status(e.message)));
 	puzzle.onlineReady = store.getName().then(name => { query("#online-name").value = name; })
