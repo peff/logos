@@ -149,7 +149,7 @@
 			<section id="friends-roster" hidden aria-labelledby="friends-roster-title">
 				<h2 class="friends-roster-heading">
 					<button id="friends-roster-button" type="button"
-					        aria-controls="scoreboards-menu" aria-expanded="false" title="Multiplayer controls">
+					        aria-controls="online-menu" aria-expanded="false" title="Multiplayer controls">
 						<span id="friends-roster-title"><span class="logo-name">LOGOS</span> with Friends</span>
 						<span id="friends-roster-status" role="status"></span>
 					</button>
@@ -278,10 +278,10 @@
 				</div>
 			</div>
 
-			<div id="scoreboards-menu" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="scoreboards-title">
-				<div class="modal-panel scoreboards-panel">
-					<h2 id="scoreboards-title">LOGOS Online</h2>
-					<label class="scoreboards-name">Your name<input id="scoreboards-name" maxlength="32" autocomplete="nickname"></label>
+			<div id="online-menu" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="online-title">
+				<div class="modal-panel online-panel">
+					<h2 id="online-title">LOGOS Online</h2>
+					<label class="online-name">Your name<input id="online-name" maxlength="32" autocomplete="nickname"></label>
 					<fieldset class="online-scoreboards">
 						<legend>Daily Scores</legend>
 						<ul class="scoreboards-groups" aria-label="Your scoreboard groups"></ul>
@@ -319,12 +319,12 @@
 							<button id="friends-leave" type="button" hidden>Leave game</button>
 						</div>
 					</fieldset>
-					<p class="scoreboards-status" role="status" aria-live="polite"></p>
-					<div class="scoreboards-toolbar"><button class="modal-close">Close</button></div>
+					<p class="online-status" role="status" aria-live="polite"></p>
+					<div class="online-toolbar"><button class="modal-close">Close</button></div>
 				</div>
 			</div>
 			<div id="forum-menu" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="forum-title">
-				<div class="modal-panel scoreboards-panel forum-panel">
+				<div class="modal-panel online-panel forum-panel">
 					<h2 id="forum-title">The Forum</h2>
 					<nav class="forum-groups" aria-label="Scoreboard groups" tabindex="-1"></nav>
 					<h3 class="scoreboards-date"></h3>
@@ -334,8 +334,8 @@
 						<p class="scoreboards-empty" hidden>No shared results for this day.</p>
 						<p class="forum-no-groups" hidden>Join or create a group to compare daily results.</p>
 					</div>
-					<p class="scoreboards-status" role="status" aria-live="polite" hidden></p>
-					<div class="scoreboards-toolbar"><button class="forum-manage">Manage groups</button><button class="modal-close">Close</button></div>
+					<p class="online-status" role="status" aria-live="polite" hidden></p>
+					<div class="online-toolbar"><button class="forum-manage">Manage groups</button><button class="modal-close">Close</button></div>
 				</div>
 			</div>
 			<div id="options-menu" class="modal" hidden role="dialog"
@@ -384,7 +384,7 @@
 					</fieldset>
 					<fieldset class="game-options">
 						<legend><span>Game</span>
-							<button id="scoreboards-button" type="button" aria-controls="scoreboards-menu" aria-expanded="false">With friends <span aria-hidden="true">›</span></button>
+							<button id="online-button" type="button" aria-controls="online-menu" aria-expanded="false">With friends <span aria-hidden="true">›</span></button>
 						</legend>
 						<div class="daily-options"><span id="daily-label">Today's puzzle </span><button
 						        id="daily-button" type="button" aria-controls="invitation-menu"

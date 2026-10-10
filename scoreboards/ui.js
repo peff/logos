@@ -1,7 +1,7 @@
 (function() {
 	const { ScoreboardClient, localDate, compareScores, validId } = LogosScoreboards;
-	const modal = document.querySelector("#scoreboards-menu");
-	const button = document.querySelector("#scoreboards-button");
+	const modal = document.querySelector("#online-menu");
+	const button = document.querySelector("#online-button");
 	const query = selector => modal.querySelector(selector);
 	const forum = document.querySelector("#forum-menu");
 	const view = selector => forum.querySelector(selector);
@@ -14,7 +14,7 @@
 	const difficulties = new Map();
 	const groupLabel = group => group.label || "Unnamed group";
 	const status = (text, panel = active) => {
-		const message = panel.querySelector(".scoreboards-status");
+		const message = panel.querySelector(".online-status");
 		message.textContent = text;
 		message.hidden = panel === forum && !text;
 	};
@@ -28,7 +28,7 @@
 		if (!groups.some(g => g.id === selected)) selected = groups[0]?.id;
 		const name = await store.getName();
 		if (generation !== rendering) return;
-		if (document.activeElement !== query("#scoreboards-name")) query("#scoreboards-name").value = name;
+		if (document.activeElement !== query("#online-name")) query("#online-name").value = name;
 		const rows = query(".scoreboards-groups");
 		// A sync finishing in the background must not replace an active editor.
 		if (!rows.contains(document.activeElement) || !document.activeElement.matches("input")) {
@@ -277,7 +277,7 @@
 			if (arrow && !arrow.disabled) arrow.click();
 		}
 	});
-	query("#scoreboards-name").onchange = attempt(async event => {
+	query("#online-name").onchange = attempt(async event => {
 		const input = event.target, name = input.value.trim();
 		if (name.length > 32 || /[\u0000-\u001f\u007f]/.test(name)) {
 			input.value = await store.getName();
@@ -288,7 +288,7 @@
 		status("");
 		input.dispatchEvent(new Event("online-name-change"));
 	});
-	query("#scoreboards-name").onkeydown = event => {
+	query("#online-name").onkeydown = event => {
 		if (event.key === "Enter") { event.preventDefault(); event.target.blur(); }
 	};
 	query(".scoreboards-create").onclick = attempt(async () => {
@@ -370,7 +370,7 @@
 		await join(id, (params.get("label") || "").slice(0, 80));
 	}
 	window.addEventListener("hashchange", () => invitation().catch(e => status(e.message)));
-	puzzle.onlineReady = store.getName().then(name => { query("#scoreboards-name").value = name; })
+	puzzle.onlineReady = store.getName().then(name => { query("#online-name").value = name; })
 		.catch(e => status(e.message, modal));
 	puzzle.onlineReady.then(invitation).catch(e => status(e.message));
 })();

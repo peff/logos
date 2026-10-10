@@ -7,13 +7,13 @@ var {
 	normalizePlayerName,
 } = globalThis.LogosFriends;
 
-var friendsMenu = document.querySelector("#scoreboards-menu");
-var status = friendsMenu.querySelector(".scoreboards-status");
+var friendsMenu = document.querySelector("#online-menu");
+var status = friendsMenu.querySelector(".online-status");
 var rejoinButton = friendsMenu.querySelector("#friends-rejoin");
 var invitationNeedsAttention = false;
 var leaveButton = friendsMenu.querySelector("#friends-leave");
 var newGameButton = document.querySelector("#new-game-button");
-var nameInput = friendsMenu.querySelector("#scoreboards-name");
+var nameInput = friendsMenu.querySelector("#online-name");
 var roster = document.querySelector("#friends-roster");
 var rosterPlayers = document.querySelector("#friends-roster-players");
 var rosterStatus = document.querySelector("#friends-roster-status");

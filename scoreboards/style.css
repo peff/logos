@@ -1,18 +1,18 @@
-.scoreboards-panel { width: 24rem; max-width: calc(100vw - 2rem); max-height: calc(100dvh - 2rem); overflow: auto; }
-.scoreboards-panel h2 { font-family: Forum, Georgia, serif; color: #70572a; text-align: center; margin: 0 0 .6rem; }
-.scoreboards-toolbar { display: flex; justify-content: center; flex-wrap: wrap; gap: .6rem; margin: .5rem 0; }
-.scoreboards-panel button { font: inherit; }
-.scoreboards-panel label { display: flex; flex-direction: column; margin: .4rem 0; }
-.scoreboards-panel input { box-sizing: border-box; width: 100%; font: inherit; color: inherit; background: #eee8da; border: 1px solid #aa9570; padding: .2rem; }
-.scoreboards-panel p { font-size: .7rem; }
-.scoreboards-panel table { width: 100%; border-collapse: collapse; font-size: .75rem; }
-.scoreboards-panel th, .scoreboards-panel td { text-align: left; padding: .3rem; border-bottom: 1px solid #c8c0b2; overflow-wrap: anywhere; }
+.online-panel { width: 24rem; max-width: calc(100vw - 2rem); max-height: calc(100dvh - 2rem); overflow: auto; }
+.online-panel h2 { font-family: Forum, Georgia, serif; color: #70572a; text-align: center; margin: 0 0 .6rem; }
+.online-toolbar { display: flex; justify-content: center; flex-wrap: wrap; gap: .6rem; margin: .5rem 0; }
+.online-panel button { font: inherit; }
+.online-panel label { display: flex; flex-direction: column; margin: .4rem 0; }
+.online-panel input { box-sizing: border-box; width: 100%; font: inherit; color: inherit; background: #eee8da; border: 1px solid #aa9570; padding: .2rem; }
+.online-panel p { font-size: .7rem; }
+.online-panel table { width: 100%; border-collapse: collapse; font-size: .75rem; }
+.online-panel th, .online-panel td { text-align: left; padding: .3rem; border-bottom: 1px solid #c8c0b2; overflow-wrap: anywhere; }
 .forum-results td:last-child { font-size: .55rem; color: #746d60; }
 .scoreboards-date { font: 1.4rem Forum, Georgia, serif; color: #70572a; }
-.scoreboards-status { min-height: 1.3em; color: #746d60; }
-#scoreboards-menu .scoreboards-status { min-height: 1.3em; border-top: 1px solid #c8c0b2; padding-top: .3rem; margin: .2rem 0 0; font-size: .6rem; text-align: center; }
+.online-status { min-height: 1.3em; color: #746d60; }
+#online-menu .online-status { min-height: 1.3em; border-top: 1px solid #c8c0b2; padding-top: .3rem; margin: .2rem 0 0; font-size: .6rem; text-align: center; }
 .scoreboards-sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
-.scoreboards-toolbar button, .scoreboards-editor button, .scoreboards-row-actions button {
+.online-toolbar button, .scoreboards-editor button, .scoreboards-row-actions button {
 	border: 0;
 	padding: .12rem .2rem;
 	background: none;
@@ -22,7 +22,7 @@
 	text-decoration-thickness: 1px;
 	text-underline-offset: .18em;
 }
-.scoreboards-toolbar button:hover, .scoreboards-editor button:hover, .scoreboards-row-actions button:hover { color: #9a7d3d; }
+.online-toolbar button:hover, .scoreboards-editor button:hover, .scoreboards-row-actions button:hover { color: #9a7d3d; }
 
 .forum-panel {
 	width: 26rem;
@@ -58,8 +58,8 @@
 .forum-results th { font-weight: normal; color: #746d60; font-variant: small-caps; }
 .forum-results td { padding: .45rem .3rem; font-variant-numeric: tabular-nums; }
 .forum-results thead { position: sticky; top: 0; background: #eee8da; }
-.forum-panel .scoreboards-status { margin: .35rem 0 0; font-size: .55rem; }
-.forum-panel .scoreboards-toolbar { margin-bottom: 0; font-size: .7rem; }
+.forum-panel .online-status { margin: .35rem 0 0; font-size: .55rem; }
+.forum-panel .online-toolbar { margin-bottom: 0; font-size: .7rem; }
 .forum-panel h2 {
 	margin-bottom: .4rem;
 	font-family: Forum, Georgia, "Times New Roman", serif;
@@ -138,19 +138,19 @@
 	background: rgb(128 99 58 / 12%);
 }
 
-.scoreboards-panel .scoreboards-name { flex-direction: row; align-items: baseline; gap: .5rem; font-size: .7rem; margin: .6rem 0; }
-.scoreboards-name input { width: 9rem; max-width: 60%; padding: 0 .2rem; border: 0; border-bottom: 1px solid #aa9570; background: rgb(128 99 58 / 12%); }
+.online-panel .online-name { flex-direction: row; align-items: baseline; gap: .5rem; font-size: .7rem; margin: .6rem 0; }
+.online-name input { width: 9rem; max-width: 60%; padding: 0 .2rem; border: 0; border-bottom: 1px solid #aa9570; background: rgb(128 99 58 / 12%); }
 .scoreboards-groups .scoreboards-row-actions { font-size: .55rem; }
 
 #options-menu .game-options legend { display: flex; align-items: baseline; gap: .5rem; width: 100%; box-sizing: border-box; }
 #options-menu .game-options legend::after { content: ""; flex: 1; align-self: center; border-top: 1px solid #c8c0b2; order: 1; }
-#options-menu #scoreboards-button { order: 2; font-weight: bold; padding: 0; color: inherit; text-decoration: none; }
-#options-menu #scoreboards-button:hover { color: #9a7d3d; }
-#options-menu #scoreboards-button:focus-visible { outline: 1px solid #80633a; outline-offset: 3px; }
-#scoreboards-button { border: 0; background: none; font: inherit; cursor: pointer; }
-#scoreboards-title { color: inherit; font-size: 1.35rem; margin-bottom: .4rem; }
-#scoreboards-menu fieldset { min-width: 0; border: 0; border-top: 1px solid #c8c0b2; margin: .35rem 0 0; padding: .3rem 0 0; }
-#scoreboards-menu legend { padding: 0 .2rem 0 0; margin-bottom: .2rem; font-size: .75rem; font-weight: bold; text-align: left; }
+#options-menu #online-button { order: 2; font-weight: bold; padding: 0; color: inherit; text-decoration: none; }
+#options-menu #online-button:hover { color: #9a7d3d; }
+#options-menu #online-button:focus-visible { outline: 1px solid #80633a; outline-offset: 3px; }
+#online-button { border: 0; background: none; font: inherit; cursor: pointer; }
+#online-title { color: inherit; font-size: 1.35rem; margin-bottom: .4rem; }
+#online-menu fieldset { min-width: 0; border: 0; border-top: 1px solid #c8c0b2; margin: .35rem 0 0; padding: .3rem 0 0; }
+#online-menu legend { padding: 0 .2rem 0 0; margin-bottom: .2rem; font-size: .75rem; font-weight: bold; text-align: left; }
 .online-logos { font-family: Forum, Georgia, "Times New Roman", serif; }
 /* Leave room for the room name and actions even before joining. */
 .online-friends { width: auto; min-height: 3.6rem; max-height: none; overflow: visible; font-size: .65rem; }
