@@ -22,6 +22,7 @@
 .forum-results td:last-child { font-size: .55rem; color: #746d60; }
 .scoreboards-date { font: 1.4rem Forum, Georgia, serif; color: #70572a; }
 .scoreboards-status { min-height: 1.3em; color: #746d60; }
+#scoreboards-menu .scoreboards-status[hidden] { display: block; visibility: hidden; }
 .scoreboards-sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 .scoreboards-toolbar button, .scoreboards-editor button, .scoreboards-row-actions button {
 	border: 0;
