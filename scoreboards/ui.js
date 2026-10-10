@@ -158,9 +158,13 @@
 		for (const record of entries.filter(r => r.date === date).sort(compareScores)) {
 			const row = document.createElement("tr");
 			for (const text of [record.name, record.outcome === "won" ? "Win" : "Loss",
-				record.elapsed === null ? "" : formatTime(record.elapsed), record.pending ? "Awaiting sync" : ""]) {
+				record.elapsed === null ? "" : formatTime(record.elapsed), ""]) {
 				const cell = document.createElement("td"); cell.textContent = text; row.append(cell);
 			}
+			const pending = document.createElement("span");
+			pending.textContent = "Awaiting sync";
+			pending.style.visibility = record.pending ? "visible" : "hidden";
+			row.lastElementChild.append(pending);
 			if (record.elapsed === null) {
 				row.children[2].title = "Untimed completion";
 				row.children[2].innerHTML = '<svg class="history-infinity" viewBox="0 0 40 20" ' +

@@ -66,8 +66,6 @@
 .forum-results table { font-size: .9rem; }
 .forum-results th { font-weight: normal; color: #746d60; font-variant: small-caps; }
 .forum-results td { padding: .45rem .3rem; font-variant-numeric: tabular-nums; }
-.forum-results th:last-child, .forum-results td:last-child { width: 0; }
-.forum-results td:last-child:not(:empty) { width: 3rem; }
 .forum-results thead { position: sticky; top: 0; background: #eee8da; }
 .forum-panel .scoreboards-status { margin: .35rem 0 0; font-size: .55rem; }
 .forum-panel .scoreboards-toolbar { margin-bottom: 0; font-size: .7rem; }
@@ -87,12 +85,11 @@
 	font: .65rem Forum, Georgia, serif;
 }
 .forum-results table { table-layout: fixed; }
-.forum-results th:nth-child(1) { width: 46%; }
+.forum-results th:nth-child(1) { width: 34%; }
 .forum-results th:nth-child(2) { width: 24%; }
 .forum-results th:nth-child(3) { width: 30%; }
 .forum-results td:nth-child(3) { white-space: nowrap; }
-.forum-results table:has(td:last-child:not(:empty)) th:nth-child(1) { width: 34%; }
-.forum-results table:has(td:last-child:not(:empty)) th:last-child { width: 12%; }
+.forum-results th:last-child { width: 12%; }
 
 .forum-difficulty { min-height: 1.3em; }
 .forum-attempt {
