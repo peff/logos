@@ -71,15 +71,16 @@
 		view("table").hidden = !selected;
 		view(".scoreboards-date").hidden = !selected;
 		view(".forum-difficulty").hidden = !selected;
-		view(".scoreboards-empty").hidden = true;
-		if (!selected) return;
+		if (!selected) {
+			view(".scoreboards-empty").hidden = true;
+			return;
+		}
 		renderDailyTitle(view(".scoreboards-date"), date, (value, movement) => { date = value; render(movement).catch(e => status(e.message)); }, direction);
 		const attemptLink = view(".forum-attempt");
-		attemptLink.textContent = "";
-		attemptLink.disabled = true;
 		if (!forum.hidden) {
 			const result = await puzzle.getDailyResult(date);
 			if (generation !== rendering) return;
+			attemptLink.disabled = true;
 			if (result === null) {
 				attemptLink.textContent = "Chronicle unavailable";
 			} else if (!result) {
