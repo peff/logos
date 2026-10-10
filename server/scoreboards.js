@@ -13,19 +13,6 @@ export function validScore(data) {
 		Number.isSafeInteger(data.generatorVersion) && data.generatorVersion > 0 && data.generatorVersion <= 1000;
 }
 
-// A bounded, best-effort per-isolate speed bump, not an identity system.
-const writers = new Map();
-function limited(request) {
-	const ip = request.headers.get("CF-Connecting-IP") || "local";
-	const minute = Math.floor(Date.now() / 60000);
-	let entry = writers.get(ip);
-	if (!entry || entry.minute !== minute) {
-		if (writers.size >= 2048) writers.delete(writers.keys().next().value);
-		writers.set(ip, entry = { minute, count: 0 });
-	}
-	return ++entry.count > 60;
-}
-
 export async function scoreboards(request, env, reply, readBody) {
 	const url = new URL(request.url);
 	const group = url.pathname.slice("/api/scoreboards/".length);
@@ -45,7 +32,6 @@ export async function scoreboards(request, env, reply, readBody) {
 			return reply(200, { records, cursor: records.at(-1)?.sequence ?? Number(after), more: results.length > 200 });
 		}
 		if (request.method !== "POST") return reply(405, { error: "Use GET or POST" });
-		if (limited(request)) return reply(429, { error: "Please try again shortly" }, { "Retry-After": "60" });
 		if (request.headers.get("Content-Type")?.split(";")[0].trim().toLowerCase() !== "application/json")
 			return reply(415, { error: "Expected application/json" });
 		const body = await readBody(request);
