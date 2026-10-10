@@ -3886,9 +3886,28 @@ body.multiplayer #logo {
 }
 
 #erase-chalk-tap svg {
+	position: relative;
 	width: 1rem;
 	height: 1rem;
 	margin: auto auto auto 0.15rem;
+}
+
+/* Center the highlight on the icon, not on its wider touch target. */
+#erase-chalk-tap:is(:hover, :focus-visible) {
+	background: transparent;
+}
+
+#erase-chalk-tap:is(:hover, :focus-visible)::before {
+	content: "";
+	position: absolute;
+	left: 0.1rem;
+	top: 50%;
+	transform: translateY(-50%);
+	width: 1.3rem;
+	height: 1.3rem;
+	border-radius: 0.2rem;
+	background: rgb(89 79 66 / 12%);
+	pointer-events: none;
 }
 
 #erase-chalk-footer {
