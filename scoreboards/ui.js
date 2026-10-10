@@ -12,8 +12,10 @@
 		() => accessRunHistory(null, true));
 	let selected, date = localDate(), dailyReturn, rendering = 0;
 	const difficulties = new Map();
-	const status = text => {
-		for (const panel of [modal, forum]) panel.querySelector(".scoreboards-status").textContent = text;
+	const status = (text, panel = active) => {
+		const message = panel.querySelector(".scoreboards-status");
+		message.textContent = text;
+		if (panel === modal) message.hidden = !text;
 	};
 	const attempt = fn => async (...args) => {
 		try { await fn(...args); } catch (error) { status(error.message); }
@@ -135,14 +137,22 @@
 		else trail.push(active);
 		active = destination;
 		active.hidden = false;
-		if (active === forum) render().catch(error => status(error.message));
+		if (active === forum) refreshForum().catch(error => status(error.message, forum));
 		active.querySelector(".modal-close").focus();
 	}
+	async function refreshForum() {
+		await render();
+		await sync();
+	}
 	async function sync() {
-		status("Syncing…");
+		view(".scoreboards-sync").hidden = true;
+		status("Syncing…", forum);
 		try {
-			await client.sync(); status("Up to date.");
-		} catch (error) { status(error.message); }
+			await client.sync(); status("Up to date.", forum);
+		} catch (error) {
+			status(error.message, forum);
+			view(".scoreboards-sync").hidden = false;
+		}
 		await render();
 	}
 	async function open(fromDaily = false) {
@@ -159,7 +169,7 @@
 		if (active.hidden) puzzle.toggleModal(active, button, "Close");
 		await render();
 		active.querySelector(".modal-close").focus();
-		await sync();
+		if (fromDaily) await sync();
 	}
 	function close() {
 		if (trail.length) { show(trail.at(-1)); return; }
@@ -210,7 +220,6 @@
 			if (arrow && !arrow.disabled) arrow.click();
 		}
 	});
-	query(".scoreboards-sync").onclick = attempt(sync);
 	query(".scoreboards-groups").onchange = attempt(async event => { selected = event.target.value; await render(); });
 	query(".scoreboards-create").onclick = () => editor(crypto.randomUUID());
 	query(".scoreboards-join").onclick = () => editor();
@@ -227,7 +236,7 @@
 		await client.join(id, query("#scoreboard-label").value, query("#scoreboard-name").value);
 		selected = id;
 		query(".scoreboards-editor").hidden = true;
-		await render(); show(forum); await sync();
+		show(forum);
 	});
 	query(".scoreboards-leave").onclick = attempt(async () => {
 		const group = await store.group(selected);
@@ -267,9 +276,13 @@
 		}
 	});
 	// Reconcile from the Chronicle to recover a completion interrupted before queueing.
-	puzzle.dailyScoreSaved = () => { sync().catch(e => status(e.message)); };
-	window.addEventListener("online", () => sync().catch(e => status(e.message)));
-	setInterval(() => { if (!document.hidden && navigator.onLine) sync().catch(e => status(e.message)); }, 60000);
+	puzzle.dailyScoreSaved = () => { sync().catch(e => status(e.message, forum)); };
+	const poll = () => {
+		if (!forum.hidden && !document.hidden && navigator.onLine)
+			sync().catch(e => status(e.message, forum));
+	};
+	window.addEventListener("online", poll);
+	setInterval(poll, 5 * 60 * 1000);
 	async function invitation() {
 		const params = new URLSearchParams(location.hash.slice(1));
 		const id = params.get("scoreboard");
@@ -281,5 +294,5 @@
 		else editor(id, (params.get("label") || "Shared scoreboard").slice(0, 80));
 	}
 	window.addEventListener("hashchange", () => invitation().catch(e => status(e.message)));
-	sync().then(invitation).catch(e => status(e.message));
+	invitation().catch(e => status(e.message));
 })();
