@@ -138,7 +138,7 @@ const source = await Deno.readTextFile(
 	new URL("../logos.js", import.meta.url));
 const Logos = eval(source +
 	"\n;({ puzzleDifficulty, difficultyRating, puzzleFromSeed, " +
-	"difficultyOpportunities, placementDifficultyChoices, nextHintStep, measureDifficulty, hasRunDifficulty, " +
+	"difficultyOpportunities, placementDifficultyChoices, nextHintStep, buildHintSteps, measureDifficulty, hasRunDifficulty, " +
 	"Puzzle: Puzzle, ExactClue: ExactClue, " +
 	"Adjacent2Clue: Adjacent2Clue, " +
 	"Adjacent3Clue: Adjacent3Clue, " +
@@ -4904,6 +4904,40 @@ Deno.test("hints preserve the live board and continue in Zen", function() {
 	assert(JSON.stringify(before) == JSON.stringify(after),
 	       "hint applied the deduction to the live board");
 	puzzle.say("");
+});
+
+Deno.test("expanded hints keep the first step while choosing a shorter continuation", function() {
+	localStorage.setItem("hintAcknowledged", "true");
+	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
+	puzzle.say = function() {};
+	puzzle.newGame("25324d52");
+	const clues = puzzle.clues.slice();
+	try {
+		puzzle.hint(2);
+		const first = puzzle.hintRequest.step;
+		const firstState = JSON.stringify([first.domains, first.placements]);
+		const original = [first];
+		let next = first;
+		while ((next = Logos.nextHintStep(puzzle, next.domains, next.placements)))
+			original.push(next);
+		puzzle.showHint(3);
+		const steps = puzzle.proof.steps;
+		assert(original.length == 94 && steps.length == 80,
+		       "expanded hint did not find the shorter continuation");
+		assert(steps[0] === first &&
+		       JSON.stringify([first.domains, first.placements]) == firstState,
+		       "expanding the hint changed its first deduction");
+		assert(steps.at(-1).placements.every(bits => bits == 63) &&
+		       steps.at(-1).conclusion,
+		       "expanded hint did not finish the puzzle");
+		const repeated = Logos.buildHintSteps(puzzle, first);
+		assert(JSON.stringify(repeated.map(step => step.message)) ==
+		       JSON.stringify(steps.map(step => step.message)) &&
+		       puzzle.clues.every((clue, i) => clue === clues[i]),
+		       "expanding again changed the route or displayed clue order");
+	} finally {
+		puzzle.stopTimer();
+	}
 });
 
 Deno.test("because reveals a hint progressively and resets after a move", function() {

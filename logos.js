@@ -1461,10 +1461,9 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			}
 			return;
 		}
-		var steps = [step];
-		var next = step;
-		while ((next = nextHintStep(this, next.domains, next.placements)))
-			steps.push(next);
+		var steps = buildHintSteps(this, step);
+		if (!steps.length)
+			return;
 		steps[steps.length - 1].conclusion = true;
 		this.clearHint();
 		this.proof = {
@@ -4853,7 +4852,7 @@ function clueProofStep(puzzle, clue, domains) {
  * symbol order. Show only the chosen step: row consequences will be explained
  * on subsequent calls, not silently applied.
  */
-function nextHintStep(puzzle, base, basePlacements) {
+function nextHintStep(puzzle, base, basePlacements, clues = puzzle.clues) {
 	var step = nextForcedProofStep(base, basePlacements);
 	if (!step) {
 		var before = difficultyPlacements(base);
@@ -4861,7 +4860,7 @@ function nextHintStep(puzzle, base, basePlacements) {
 		var full = (1 << base[0].length) - 1;
 		var anchored = base.map(row => row.map(bits =>
 			countBits(bits) == 1 ? bits : full));
-		for (var clue of puzzle.clues) {
+		for (var clue of clues) {
 			if (clue.applyInitialState)
 				continue;
 			var simple = copyDomains(anchored);
@@ -4897,6 +4896,26 @@ function nextHintStep(puzzle, base, basePlacements) {
 		proofDeductionMessage(puzzle, step, before, step.domain, domains) :
 		forcedProofMessage(puzzle, step);
 	return step;
+}
+
+/* Search only when expanding the hint, and keep the step already shown. */
+function buildHintSteps(puzzle, first) {
+	var full = (1 << puzzle.rows[0].slots.length) - 1;
+	var best = [];
+	for (var route = 0; route < 10; route++) {
+		var clues = clueRouteOrder(puzzle.clues, route);
+		var steps = [first];
+		var next = first;
+		while ((next = nextHintStep(puzzle, next.domains,
+				next.placements, clues)))
+			steps.push(next);
+		if (steps[steps.length - 1].placements.every(bits => bits == full) &&
+		    (!best.length || steps.length < best.length))
+			best = steps;
+		if (best.length == 1)
+			break;
+	}
+	return best;
 }
 
 function nextClueProofStep(puzzle, clues, domains) {
@@ -5234,6 +5253,19 @@ function combineRelatedProofSteps(puzzle, steps) {
 	return combined;
 }
 
+/* Use a local random stream and leave the displayed clue order intact. */
+function clueRouteOrder(clues, route) {
+	var order = clues.slice();
+	if (route) {
+		var random = seedRandom(Math.imul(route, 0x9e3779b9));
+		for (var i = order.length - 1; i > 0; i--) {
+			var j = Math.floor(random() * (i + 1));
+			[order[i], order[j]] = [order[j], order[i]];
+		}
+	}
+	return order;
+}
+
 /* Keep the original route on ties. Fixed shuffle seeds make alternate routes
  * reproducible without changing clue display order or the game's random stream.
  */
@@ -5241,14 +5273,7 @@ function buildProofSteps(puzzle, base, basePlacements,
 			 failedSlot, failedValue) {
 	var best = [];
 	for (var route = 0; route < 5; route++) {
-		var clues = puzzle.clues.slice();
-		if (route) {
-			var random = seedRandom(Math.imul(route, 0x9e3779b9));
-			for (var i = clues.length - 1; i > 0; i--) {
-				var j = Math.floor(random() * (i + 1));
-				[clues[i], clues[j]] = [clues[j], clues[i]];
-			}
-		}
+		var clues = clueRouteOrder(puzzle.clues, route);
 		var steps = buildProofRoute(puzzle, base, basePlacements,
 			failedSlot, failedValue, clues);
 		if (steps.length && (!best.length || steps.length < best.length))
