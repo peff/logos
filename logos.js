@@ -4974,6 +4974,12 @@ function refreshProofStep(puzzle, step, domains) {
 	var directlyPlaced = countBits(after) == 1 &&
 		clueDirectlyPlaces(step.clue, domains, step.row, step.symbol,
 			fullDomain);
+	/* A stronger deduction may need an explanation the original removal
+	 * did not. Do not promote it to a placement that replay would reject.
+	 */
+	if (directlyPlaced && !step.placement && !proofStepSupported(puzzle,
+	    Object.assign({}, step, { placement: true }), domains, []))
+		directlyPlaced = false;
 	var anchored = before & ~after & step.removed;
 	if (step.clue.constructor == Adjacent3Clue && countBits(anchored) > 1) {
 		var edges = 1 | (1 << (domains[step.row].length - 1));

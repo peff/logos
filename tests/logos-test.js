@@ -148,6 +148,7 @@ const Logos = eval(source +
 	"setHistoryStorage: storage => { accessRunHistory = storage; }, " +
 	"adjacent3DeductionMessage: adjacent3DeductionMessage, " +
 	"clueProofStep: clueProofStep, " +
+	"refreshProofStep, proofStepSupported, " +
 	"orderDeductionMessage: orderDeductionMessage, " +
 	"proofMessageText: proofMessageText, " +
 	"practiceMistakeMessage: practiceMistakeMessage, " +
@@ -2273,6 +2274,44 @@ Deno.test("three-adjacent middle deductions remove edges first", function() {
 	       "be in the first column.",
 	       "the adjacent inner deduction was not explained independently");
 });
+
+for (const test of [
+	{ name: "refresh keeps an elimination when placement needs a middle deduction",
+	  middle: 20, placement: false, removed: 16,
+	  expectedPlacement: false, expectedRemoved: 16, supported: true },
+	{ name: "refresh can promote an elimination to a supported placement",
+	  middle: 4, placement: false, removed: 16,
+	  expectedPlacement: true, expectedRemoved: 51, supported: true },
+	{ name: "refresh preserves the prerequisites of an existing placement",
+	  middle: 20, placement: true, removed: 51,
+	  expectedPlacement: true, expectedRemoved: 51, supported: false },
+]) {
+	Deno.test(test.name, function() {
+		const puzzle = makePuzzle(3);
+		const clue = new Logos.Adjacent3Clue(puzzle);
+		clue.lRow = puzzle.rows[0];
+		clue.mRow = puzzle.rows[1];
+		clue.rRow = puzzle.rows[2];
+		clue.lCol = clue.mCol = clue.rCol = 0;
+		puzzle.rows.forEach((row, index) => { row.slots[0].value = index; });
+		const domains = Array.from({ length: 3 }, () => Array(6).fill(63));
+		/* The only sequence is left=2, middle=3, right=4. A middle
+		 * candidate in column 5 must be explained before placing right,
+		 * but does not prevent eliminating right from column 5.
+		 */
+		domains[0][0] = 6;
+		domains[1][1] = test.middle;
+		domains[2][2] = 59;
+		const step = { clue, rule: "clue", row: 2, symbol: 2,
+			placement: test.placement, removed: test.removed };
+		const refreshed = Logos.refreshProofStep(puzzle, step, domains);
+		assert(refreshed && refreshed.placement === test.expectedPlacement &&
+		       refreshed.removed === test.expectedRemoved,
+		       "refresh changed the deduction's intended strength");
+		assert(Logos.proofStepSupported(puzzle, refreshed, domains, [0, 0, 0]) ===
+		       test.supported, "refresh changed the placement prerequisites");
+	});
+}
 
 Deno.test("a three-adjacent middle placement fills fixed outer symbols",
 function() {
