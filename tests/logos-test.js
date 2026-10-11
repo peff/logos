@@ -3999,6 +3999,52 @@ Deno.test("a three-adjacent middle placement explains both outer symbols", funct
 	puzzle.stopTimer();
 });
 
+Deno.test("proofs use a direct conclusion exposed by an earlier deduction", function() {
+	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
+	puzzle.say = function() {};
+	puzzle.newGame("bf84914b");
+	try {
+		puzzle.rows[5].slots[5].choose(5);
+		puzzle.explainLoss();
+		const steps = puzzle.proof.steps;
+		assert(steps.length == 2,
+		       "the proof retained a branch after die-4 ruled out square root");
+		assert(steps[0].row == 3 && steps[0].symbol == 3 &&
+		       steps[0].removed == 1 << 4,
+		       "the proof did not first rule out die-4 in column five");
+		assert(steps[1].row == 5 && steps[1].symbol == 5 &&
+		       steps[1].removed == 1 << 5 && steps[1].conclusion &&
+		       Logos.proofMessageText(puzzle, steps[1].message) ==
+		       "√ cannot be in the sixth column because ⚃ must be adjacent.",
+		       "the proof did not conclude directly from the adjacent-three clue");
+	} finally {
+		puzzle.stopTimer();
+	}
+});
+
+Deno.test("a concluding removal stays replayable while its middle is unresolved", function() {
+	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
+	puzzle.say = function() {};
+	puzzle.newGame("65eccfc1");
+	try {
+		puzzle.startProof(puzzle.rows[4].slots[4], 3);
+		const proof = puzzle.proof;
+		assert(proof.steps.length <= 23 && proof.steps.at(-1).conclusion,
+		       "the concluding removal prevented pruning the long route");
+		let domains = proof.base, placements = proof.basePlacements;
+		for (const step of proof.steps) {
+			const refreshed = Logos.refreshProofStep(puzzle, step, domains);
+			assert(refreshed && Logos.proofStepSupported(puzzle,
+			       refreshed, domains, placements),
+			       "refreshing the proof introduced an unsupported placement");
+			domains = step.domains;
+			placements = step.placements;
+		}
+	} finally {
+		puzzle.stopTimer();
+	}
+});
+
 Deno.test("outer edge proofs keep specific explanations", function() {
 	for (const [seed, row, col, symbol] of [
 		["13566515", 0, 5, 1],

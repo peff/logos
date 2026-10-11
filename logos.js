@@ -5261,6 +5261,12 @@ function buildProofSteps(puzzle, base, basePlacements,
 		if (!step && proofConcluded(puzzle, current,
 					    failedSlot, failedValue))
 			break;
+		/* Prefer a newly available conclusion over another clue branch.
+		 * Pruning can remove steps, but cannot invent this shortcut later.
+		 */
+		if (!step)
+			step = directFailedProofStep(puzzle, current,
+				failedSlot, failedValue);
 		if (!step)
 			step = nextClueProofStep(puzzle, puzzle.clues, current);
 		if (!step || steps.length > 500)
