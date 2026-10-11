@@ -373,8 +373,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.soundSamples[name].preservesPitch = false;
 	}
 	this.gameOver = true;
-	this.practiceMode = false;
 	this.practiceModePreference = false;
+	this.practiceMode = this.practiceModePreference;
 	this.continueAfterLoss = true;
 	this.scoreEligible = true;
 	this.practiceMistake = null;
@@ -3550,9 +3550,9 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.loadSampleSound(name);
 
 	var customCursor = true;
-	var showMilestones = true;
+	var showMilestones = this.showMilestones;
 	var autoDismissClues = true;
-	var practiceMode = false;
+	var practiceMode = this.practiceModePreference;
 	var randomDifficulties = ["easy", "medium", "hard"];
 	try {
 		var storedDifficulties = JSON.parse(localStorage.getItem("randomDifficulties"));
@@ -3562,7 +3562,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	} catch (e) {
 		/* Missing or invalid preferences use all difficulties. */
 	}
-	var continueAfterLoss = true;
+	var continueAfterLoss = this.continueAfterLoss;
 	var soundEffects = true;
 	var soundVolume = 1;
 	var expandTileChoices = this.expandTileChoices;
