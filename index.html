@@ -52,71 +52,69 @@
 				</svg>
 			</button>
 		</div>
-		<div id="invitation-menu" class="modal" hidden role="dialog"
-		     aria-modal="true" aria-labelledby="invitation-title">
-			<section id="game-invitation" class="invitation-panel" aria-labelledby="invitation-title">
-				<svg class="invitation-corner" viewBox="0 0 32 32" aria-hidden="true">
-					<path id="invitation-corner-detail"
-					      d="M2 30V2H30 M8 24V8H24 M8 16H16V8 M20 24l4-4 4 4-4 4Z"/>
-				</svg>
-				<svg class="invitation-corner" viewBox="0 0 32 32" aria-hidden="true">
-					<use href="#invitation-corner-detail"/>
-				</svg>
-				<svg class="invitation-corner" viewBox="0 0 32 32" aria-hidden="true">
-					<use href="#invitation-corner-detail"/>
-				</svg>
-				<svg class="invitation-corner" viewBox="0 0 32 32" aria-hidden="true">
-					<use href="#invitation-corner-detail"/>
-				</svg>
-				<div class="invitation-heading">Logos</div>
-				<svg class="invitation-ornament" viewBox="0 0 120 36" aria-hidden="true">
-					<path d="M4 18h30m52 0h30M60 3l15 15-15 15-15-15Z"/>
-					<circle cx="60" cy="18" r="5"/>
-				</svg>
-				<h2 id="invitation-title" class="invitation-title">A puzzle awaits</h2>
-				<div class="invitation-body">
-					<div class="invitation-prompt">
-						<p><span>The mystery is set.<br>Uncover the hidden order.</span></p>
-						<div class="invitation-choices">
-							<button class="invitation-choice invitation-accept" type="button"
-							        onClick="puzzle.startGame()">Accept</button>
+		<dialog id="invitation-menu" class="modal invitation-panel" hidden
+		     aria-labelledby="invitation-title">
+			<svg class="invitation-corner" viewBox="0 0 32 32" aria-hidden="true">
+				<path id="invitation-corner-detail"
+				      d="M2 30V2H30 M8 24V8H24 M8 16H16V8 M20 24l4-4 4 4-4 4Z"/>
+			</svg>
+			<svg class="invitation-corner" viewBox="0 0 32 32" aria-hidden="true">
+				<use href="#invitation-corner-detail"/>
+			</svg>
+			<svg class="invitation-corner" viewBox="0 0 32 32" aria-hidden="true">
+				<use href="#invitation-corner-detail"/>
+			</svg>
+			<svg class="invitation-corner" viewBox="0 0 32 32" aria-hidden="true">
+				<use href="#invitation-corner-detail"/>
+			</svg>
+			<div class="invitation-heading">Logos</div>
+			<svg class="invitation-ornament" viewBox="0 0 120 36" aria-hidden="true">
+				<path d="M4 18h30m52 0h30M60 3l15 15-15 15-15-15Z"/>
+				<circle cx="60" cy="18" r="5"/>
+			</svg>
+			<h2 id="invitation-title" class="invitation-title">A puzzle awaits</h2>
+			<div class="invitation-body">
+				<div class="invitation-prompt">
+					<p><span>The mystery is set.<br>Uncover the hidden order.</span></p>
+					<div class="invitation-choices">
+						<button class="invitation-choice invitation-accept" type="button"
+						        onClick="puzzle.startGame()">Accept</button>
+						<span aria-hidden="true">/</span>
+						<button class="invitation-choice modal-close" type="button"
+						        onClick="puzzle.closeInvitation()">Decline</button>
+					</div>
+				</div>
+				<div id="daily-menu" hidden inert>
+					<p class="daily-result"><button class="daily-result-link" type="button"
+					        onClick="puzzle.openDailyChronicle()"></button>
+						<small class="daily-difficulty"></small></p>
+					<p class="daily-recognition" hidden><button type="button" class="daily-pantheon-link history-open"
+					        onClick="puzzle.openDailyPantheon()">Your efforts have earned a place in the Pantheon.</button>
+						<span class="daily-completion" hidden>Later solved <svg class="history-infinity" viewBox="0 0 40 20"
+						      role="img" aria-label="untimed" focusable="false"><use href="#infinity-shape"/></svg></span></p>
+					<p class="daily-history-error" hidden>Your run could not be saved to the Chronicle. This browser may offer the puzzle again.</p>
+					<div class="invitation-choices daily-actions">
+						<div class="daily-sharing-actions">
+							<a class="invitation-choice daily-copy"
+							        title="Copy your result and the daily puzzle link"
+							        onClick="handleLinkClick(event, () => puzzle.copyDailyResult())">Proclaim your wisdom</a>
 							<span aria-hidden="true">/</span>
-							<button class="invitation-choice modal-close" type="button"
-							        onClick="puzzle.closeInvitation()">Decline</button>
+							<button class="invitation-choice daily-scoreboards" type="button"
+							        title="Compare daily scores in the Forum">Take your measure</button>
 						</div>
-					</div>
-					<div id="daily-menu" hidden inert>
-						<p class="daily-result"><button class="daily-result-link" type="button"
-						        onClick="puzzle.openDailyChronicle()"></button>
-							<small class="daily-difficulty"></small></p>
-						<p class="daily-recognition" hidden><button type="button" class="daily-pantheon-link history-open"
-						        onClick="puzzle.openDailyPantheon()">Your efforts have earned a place in the Pantheon.</button>
-							<span class="daily-completion" hidden>Later solved <svg class="history-infinity" viewBox="0 0 40 20"
-							      role="img" aria-label="untimed" focusable="false"><use href="#infinity-shape"/></svg></span></p>
-						<p class="daily-history-error" hidden>Your run could not be saved to the Chronicle. This browser may offer the puzzle again.</p>
-						<div class="invitation-choices daily-actions">
-							<div class="daily-sharing-actions">
-								<a class="invitation-choice daily-copy"
-								        title="Copy your result and the daily puzzle link"
-								        onClick="handleLinkClick(event, () => puzzle.copyDailyResult())">Proclaim your wisdom</a>
-								<span aria-hidden="true">/</span>
-								<button class="invitation-choice daily-scoreboards" type="button"
-								        title="Compare daily scores in the Forum">Take your measure</button>
-							</div>
-							<button class="invitation-choice daily-close modal-close" type="button"
-							        onClick="puzzle.closeDailyResult()">Let it suffice</button>
-						</div>
+						<button class="invitation-choice daily-close modal-close" type="button"
+						        onClick="puzzle.closeDailyResult()">Let it suffice</button>
 					</div>
 				</div>
-				<div class="invitation-footer">
-					<span class="invitation-inscription">
-						<span class="invitation-numero" aria-label="Number">№</span>
-						<span class="invitation-seed"></span>
-					</span>
-					<p class="daily-copy-status" role="status" aria-live="polite"></p>
-				</div>
-			</section>
-		</div>
+			</div>
+			<div class="invitation-footer">
+				<span class="invitation-inscription">
+					<span class="invitation-numero" aria-label="Number">№</span>
+					<span class="invitation-seed"></span>
+				</span>
+				<p class="daily-copy-status" role="status" aria-live="polite"></p>
+			</div>
+		</dialog>
 		<table id="hclues"></table>
 		<div id="controls">
 			<div id="board-actions" class="tile-action-selector" hidden
@@ -170,516 +168,499 @@
 				        onClick="puzzle.moveProof(1)"
 				        aria-label="Next deduction">→</button>
 			</div>
-			<div id="analysis-menu" class="modal" hidden role="dialog"
-			     aria-modal="true" aria-labelledby="analysis-title">
-				<div class="modal-panel analysis-panel">
-					<h2 id="analysis-title">Puzzle analysis</h2>
-					<pre class="analysis-summary"></pre>
-					<h3>Deductions from the current position (up to three)</h3>
-					<ol class="analysis-deductions"></ol>
-					<p class="analysis-empty" hidden>No clue deductions available.</p>
-					<button class="option-action analysis-copy" type="button"
-					        onClick="puzzle.copyAnalysisPosition()">Copy position</button>
-					<button class="modal-done modal-close" type="button"
-					        onClick="puzzle.closeAnalysis()">Close</button>
-				</div>
-			</div>
-			<div id="hint-notice" class="modal" hidden role="dialog"
-			     aria-modal="true" aria-labelledby="hint-notice-title"
+			<dialog id="analysis-menu" class="modal modal-panel analysis-panel" hidden
+			     aria-labelledby="analysis-title">
+				<h2 id="analysis-title">Puzzle analysis</h2>
+				<pre class="analysis-summary"></pre>
+				<h3>Deductions from the current position (up to three)</h3>
+				<ol class="analysis-deductions"></ol>
+				<p class="analysis-empty" hidden>No clue deductions available.</p>
+				<button class="option-action analysis-copy" type="button"
+				        onClick="puzzle.copyAnalysisPosition()">Copy position</button>
+				<button class="modal-done modal-close" type="button"
+				        onClick="puzzle.closeAnalysis()">Close</button>
+			</dialog>
+			<dialog id="hint-notice" class="modal modal-panel hint-notice-panel" hidden
+			     aria-labelledby="hint-notice-title"
 			     aria-describedby="hint-notice-text">
-				<div class="modal-panel hint-notice-panel">
-					<div class="hint-notice-mark" aria-hidden="true">∵</div>
-					<h2 id="hint-notice-title">A little enlightenment?</h2>
-					<p id="hint-notice-text">Hints reveal useful deductions and put
-						this game in Zen mode. You can keep solving, but your time
-						will not count toward the Pantheon.</p>
-					<div class="hint-notice-actions">
-						<button class="option-action" type="button"
-						        onClick="puzzle.finishHintNotice(true)">Show hint</button>
-						<button class="modal-done modal-close" type="button"
-						        onClick="puzzle.finishHintNotice(false)">Keep solving</button>
-					</div>
+				<div class="hint-notice-mark" aria-hidden="true">∵</div>
+				<h2 id="hint-notice-title">A little enlightenment?</h2>
+				<p id="hint-notice-text">Hints reveal useful deductions and put
+					this game in Zen mode. You can keep solving, but your time
+					will not count toward the Pantheon.</p>
+				<div class="hint-notice-actions">
+					<button class="option-action" type="button"
+					        onClick="puzzle.finishHintNotice(true)">Show hint</button>
+					<button class="modal-done modal-close" type="button"
+					        onClick="puzzle.finishHintNotice(false)" autofocus>Keep solving</button>
 				</div>
-			</div>
-			<div id="scores-menu" class="modal" hidden role="dialog"
-			     aria-modal="true" aria-labelledby="scores-title">
-				<div class="modal-panel scores-panel">
-					<h2 id="scores-title">The Pantheon of the Wise</h2>
-					<div class="pantheon-view">
-						<p class="game-stats">
-							<button type="button" class="history-open" onClick="puzzle.showRunHistory()"
-							        title="Open the Chronicle of Trials" aria-label="Open the Chronicle of Trials"
-							        aria-describedby="game-stats-text">
-								<span id="game-stats-text"><span class="games-subject">You</span> have sought wisdom <strong class="games-sought">0</strong>
-								<span class="games-sought-unit">times</span> and attained it
-								<strong class="games-won">0</strong>.</span>
-								<svg class="chronicle-icon" viewBox="0 0 24 20" aria-hidden="true" focusable="false">
-									<path d="M12 4Q7 1 2 3V17Q7 15 12 18Q17 15 22 17V3Q17 1 12 4ZM12 4V18M5 7Q8 6 10 8M14 8Q17 6 19 7M5 11Q8 10 10 12M14 12Q17 10 19 11"/>
+			</dialog>
+			<dialog id="scores-menu" class="modal modal-panel scores-panel" hidden
+			     aria-labelledby="scores-title">
+				<h2 id="scores-title">The Pantheon of the Wise</h2>
+				<div class="pantheon-view">
+					<p class="game-stats">
+						<button type="button" class="history-open" onClick="puzzle.showRunHistory()"
+						        title="Open the Chronicle of Trials" aria-label="Open the Chronicle of Trials"
+						        aria-describedby="game-stats-text">
+							<span id="game-stats-text"><span class="games-subject">You</span> have sought wisdom <strong class="games-sought">0</strong>
+							<span class="games-sought-unit">times</span> and attained it
+							<strong class="games-won">0</strong>.</span>
+							<svg class="chronicle-icon" viewBox="0 0 24 20" aria-hidden="true" focusable="false">
+								<path d="M12 4Q7 1 2 3V17Q7 15 12 18Q17 15 22 17V3Q17 1 12 4ZM12 4V18M5 7Q8 6 10 8M14 8Q17 6 19 7M5 11Q8 10 10 12M14 12Q17 10 19 11"/>
+							</svg>
+						</button>
+					</p>
+					<div class="pantheon-filters">
+						<div class="pantheon-levels" role="group" aria-label="Pantheon difficulty">
+							<button type="button" class="pantheon-all" aria-pressed="true" onClick="puzzle.selectPantheon('all')">All</button>
+							<button type="button" class="pantheon-easy" aria-pressed="false" onClick="puzzle.selectPantheon('easy')">Easy</button>
+							<button type="button" class="pantheon-medium" aria-pressed="false" onClick="puzzle.selectPantheon('medium')">Medium</button>
+							<button type="button" class="pantheon-hard" aria-pressed="false" onClick="puzzle.selectPantheon('hard')">Hard</button>
+						</div>
+						<span class="pantheon-mode" hidden>
+							<button type="button" class="pantheon-friends" aria-pressed="false"
+							        title="Show the Circle of the Wise (multiplayer)" aria-label="Show the Circle of the Wise (multiplayer)"
+							        onClick="puzzle.togglePantheonMode()">
+								<svg viewBox="0 0 24 18" aria-hidden="true" focusable="false">
+									<g fill="none" stroke="currentColor" stroke-width="1.6">
+										<circle cx="8" cy="5" r="3"/><path d="M1 17v-2a7 7 0 0 1 14 0v2 M16 2a3 3 0 0 1 0 6 M17 10a6 6 0 0 1 6 6v1"/>
+									</g>
 								</svg>
 							</button>
-						</p>
-						<div class="pantheon-filters">
-							<div class="pantheon-levels" role="group" aria-label="Pantheon difficulty">
-								<button type="button" class="pantheon-all" aria-pressed="true" onClick="puzzle.selectPantheon('all')">All</button>
-								<button type="button" class="pantheon-easy" aria-pressed="false" onClick="puzzle.selectPantheon('easy')">Easy</button>
-								<button type="button" class="pantheon-medium" aria-pressed="false" onClick="puzzle.selectPantheon('medium')">Medium</button>
-								<button type="button" class="pantheon-hard" aria-pressed="false" onClick="puzzle.selectPantheon('hard')">Hard</button>
-							</div>
-							<span class="pantheon-mode" hidden>
-								<button type="button" class="pantheon-friends" aria-pressed="false"
-								        title="Show the Circle of the Wise (multiplayer)" aria-label="Show the Circle of the Wise (multiplayer)"
-								        onClick="puzzle.togglePantheonMode()">
-									<svg viewBox="0 0 24 18" aria-hidden="true" focusable="false">
-										<g fill="none" stroke="currentColor" stroke-width="1.6">
-											<circle cx="8" cy="5" r="3"/><path d="M1 17v-2a7 7 0 0 1 14 0v2 M16 2a3 3 0 0 1 0 6 M17 10a6 6 0 0 1 6 6v1"/>
-										</g>
-									</svg>
-								</button>
-							</span>
-							<span class="pantheon-forum-link" hidden>
-								<button type="button" class="pantheon-forum" title="Visit the Forum (daily group scores)"
-								        aria-label="Visit the Forum (daily group scores)" aria-controls="forum-menu">
-									<svg viewBox="0 0 24 20" fill="none" stroke="currentColor" stroke-width="1.35"
-									     stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
-										<path d="M2 18H22M3 18V6Q12 2 21 6V18M6 17V10Q8 6 10 10V18M14 18V10Q16 6 18 10V17M3 6V3Q12 0 21 3V6"/>
-									</svg>
-								</button>
-							</span>
-						</div>
-						<div class="pantheon-tablets" tabindex="-1"></div>
+						</span>
+						<span class="pantheon-forum-link" hidden>
+							<button type="button" class="pantheon-forum" title="Visit the Forum (daily group scores)"
+							        aria-label="Visit the Forum (daily group scores)" aria-controls="forum-menu">
+								<svg viewBox="0 0 24 20" fill="none" stroke="currentColor" stroke-width="1.35"
+								     stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+									<path d="M2 18H22M3 18V6Q12 2 21 6V18M6 17V10Q8 6 10 10V18M14 18V10Q16 6 18 10V17M3 6V3Q12 0 21 3V6"/>
+								</svg>
+							</button>
+						</span>
 					</div>
-					<div class="history-view" hidden>
-						<div class="history-controls">
-							<div role="group" aria-label="Show results">
-								<label><input type="checkbox" class="history-wins" checked onChange="puzzle.renderRunHistory()"> Wins</label>
-								<label><input type="checkbox" class="history-losses" checked onChange="puzzle.renderRunHistory()"> Losses</label>
-							</div>
-							<div role="group" aria-label="Show difficulties">
-								<label><input type="checkbox" class="history-easy" checked onChange="puzzle.renderRunHistory()"> Easy</label>
-								<label><input type="checkbox" class="history-medium" checked onChange="puzzle.renderRunHistory()"> Medium</label>
-								<label><input type="checkbox" class="history-hard" checked onChange="puzzle.renderRunHistory()"> Hard</label>
-							</div>
-						</div>
-						<p class="history-status" role="status" hidden></p>
-						<div class="history-page-content">
-							<table class="history-table history-heading">
-								<thead><tr>
-									<th scope="col" class="history-date-sort" aria-sort="descending"><button type="button" onClick="puzzle.sortRunHistory('date')">Date</button></th>
-									<th scope="col">Result</th>
-									<th scope="col" class="history-time-sort" aria-sort="none"><button type="button" onClick="puzzle.sortRunHistory('time')">Time</button></th>
-									<th scope="col">Seed</th>
-									<th scope="col">Difficulty</th>
-								</tr></thead>
-							</table>
-							<div class="history-pages" tabindex="-1">
-								<table class="history-table history-current"></table>
-							</div>
-						</div>
-						<nav class="help-folio history-folio" aria-label="Chronicle leaves">
-							<button class="help-page-turn help-page-previous" type="button" onClick="puzzle.turnHistoryPage(-1)" title="Previous leaf" aria-label="Previous leaf"><span lang="la">‹ Retr</span></button>
-							<span class="help-page-number" aria-live="polite"></span>
-							<button class="help-page-turn help-page-next" type="button" onClick="puzzle.turnHistoryPage(1)" title="Next leaf" aria-label="Next leaf"><span lang="la">Prox ›</span></button>
-						</nav>
-					</div>
-					<div class="scores-actions">
-						<input class="modal-done modal-close" type="button"
-						       onClick="puzzle.toggleScores()"
-						       value="Rejoin the mortal realm">
-					</div>
+					<div class="pantheon-tablets" tabindex="-1"></div>
 				</div>
-			</div>
-
-			<div id="online-menu" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="online-title">
-				<div class="modal-panel online-panel">
-					<h2 id="online-title">LOGOS Online</h2>
-					<p class="online-help">Most <span class="online-logos">LOGOS</span> play is entirely offline,
-					and run history is kept only in your browser. But you can also compare
-					daily efforts or solve a puzzle together. Choose a name your friends
-					will recognize; no account is needed.</p>
-					<label class="online-name">Your name: <input id="online-name" maxlength="32" autocomplete="nickname"></label>
-					<fieldset class="online-scoreboards">
-						<legend>Daily Scores</legend>
-						<p class="online-help">Create a group and invite your friends, or join one with an
-						   invitation link. Daily puzzle results are shared
-						   automatically. Visit the Forum to see how everyone fared.</p>
-						<ul class="scoreboards-groups" aria-label="Your scoreboard groups"></ul>
-						<form class="scoreboards-editor online-actions">
-							<button class="scoreboards-create" type="button">Create a group</button>
-							<span aria-hidden="true">/</span>
-							<div class="online-join-field">
-								<button type="submit">Join a group:</button>
-								<input id="scoreboard-invite" aria-label="Invitation link or group key" title="Paste a group key or invitation URL" required maxlength="2048" autocomplete="off" spellcheck="false">
-							</div>
-						</form>
-					</fieldset>
-					<fieldset id="friends-menu" class="friends-panel online-friends">
-						<legend><span class="online-logos">LOGOS</span> with Friends</legend>
-						<p class="online-help">Work together on the same puzzle. Pick a random room or
-						   enter a room name, then invite your friends to join you (by
-						   link or room name).</p>
-						<div class="friends-room-state">
-							<div class="friends-room-controls">
-								<p id="friends-room-name-display" hidden></p>
-								<div class="friends-room-editor online-actions">
-									<button id="friends-random-room" type="button">Random room</button>
-									<span aria-hidden="true">/</span>
-									<div class="online-join-field">
-										<button id="friends-join-room" type="button">Join room:</button>
-										<input id="friends-room-name" type="text" maxlength="32" aria-label="Room name"
-										       autocapitalize="none" autocomplete="off" spellcheck="false">
-									</div>
-								</div>
-							</div>
-							<div class="friends-footer-actions online-actions">
-								<button id="friends-accept-room" type="button" hidden>Join room</button>
-								<span class="friends-room-sharing" hidden>
-									<a id="friends-copy-room" title="Copy invitation URL to the clipboard">Invite</a>
-									<span aria-hidden="true">/</span>
-								</span>
-								<button id="friends-renew-room" type="button" hidden>Reopen invitation</button>
-								<button id="friends-rejoin" type="button" hidden>Rejoin room</button>
-								<button id="friends-leave" type="button" hidden>Leave game</button>
-							</div>
+				<div class="history-view" hidden>
+					<div class="history-controls">
+						<div role="group" aria-label="Show results">
+							<label><input type="checkbox" class="history-wins" checked onChange="puzzle.renderRunHistory()"> Wins</label>
+							<label><input type="checkbox" class="history-losses" checked onChange="puzzle.renderRunHistory()"> Losses</label>
 						</div>
-					</fieldset>
-					<p class="online-status" role="status" aria-live="polite"></p>
-					<div class="online-toolbar"><button class="modal-close">Close</button></div>
-				</div>
-			</div>
-			<div id="forum-menu" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="forum-title">
-				<div class="modal-panel online-panel forum-panel">
-					<h2 id="forum-title">The Forum</h2>
-					<nav class="forum-groups" aria-label="Scoreboard groups" tabindex="-1"></nav>
-					<h3 class="scoreboards-date"></h3>
-					<p class="forum-difficulty"><button class="forum-attempt" type="button" disabled></button></p>
-					<div class="forum-results" tabindex="0" aria-label="Daily scores">
-						<table><thead><tr><th>Name</th><th>Outcome</th><th>Time</th><th><span class="scoreboards-sr-only">Sync status</span></th></tr></thead><tbody></tbody></table>
-						<p class="scoreboards-empty" hidden>No shared results for this day.</p>
-						<p class="forum-no-groups" hidden>Join or create a group to compare daily results.</p>
+						<div role="group" aria-label="Show difficulties">
+							<label><input type="checkbox" class="history-easy" checked onChange="puzzle.renderRunHistory()"> Easy</label>
+							<label><input type="checkbox" class="history-medium" checked onChange="puzzle.renderRunHistory()"> Medium</label>
+							<label><input type="checkbox" class="history-hard" checked onChange="puzzle.renderRunHistory()"> Hard</label>
+						</div>
 					</div>
-					<p class="online-status" role="status" aria-live="polite" hidden></p>
-					<div class="online-toolbar"><button class="forum-manage">Manage groups</button><button class="modal-close">Close</button></div>
-				</div>
-			</div>
-			<div id="options-menu" class="modal" hidden role="dialog"
-			     aria-modal="true" aria-label="Options">
-				<div class="modal-panel options-panel">
-					<fieldset>
-						<legend>Interface</legend>
-						<label>
-						       <input id="custom-cursor" type="checkbox" checked
-						              onChange="puzzle.setCustomCursor(this.checked)">
-						       <span>Custom cursor
-						             <small>Use a bronze stylus pointer.</small></span></label>
-						<label>
-						       <input id="show-milestones" type="checkbox" checked
-						              onChange="puzzle.setMilestones(this.checked)">
-						       <span>Milestone messages
-						             <small>Show progress messages while solving. Disable for deep focus.</small></span></label>
-						<div class="sound-options">
-							<label>
-							       <input id="sound-effects" type="checkbox"
-							              onChange="puzzle.setSoundEffects(this.checked)">
-							       <span>Sound effects
-							             <small>Play sounds for moves and results.</small></span></label>
-							<input id="sound-volume" type="range" min="0" max="100" value="100"
-							       aria-label="Sound effects volume"
-							       onInput="puzzle.setSoundVolume(this.value / 100)"
-							       onChange="puzzle.playSound('place')">
+					<p class="history-status" role="status" hidden></p>
+					<div class="history-page-content">
+						<table class="history-table history-heading">
+							<thead><tr>
+								<th scope="col" class="history-date-sort" aria-sort="descending"><button type="button" onClick="puzzle.sortRunHistory('date')">Date</button></th>
+								<th scope="col">Result</th>
+								<th scope="col" class="history-time-sort" aria-sort="none"><button type="button" onClick="puzzle.sortRunHistory('time')">Time</button></th>
+								<th scope="col">Seed</th>
+								<th scope="col">Difficulty</th>
+							</tr></thead>
+						</table>
+						<div class="history-pages" tabindex="-1">
+							<table class="history-table history-current"></table>
 						</div>
-						<label>
-						       <input id="expand-tile-choices" type="checkbox"
-						              onChange="puzzle.setExpandTileChoices(this.checked)">
-						       <span>Expanded tiles
-						             <small>Enlarge tile choices before selecting. For small screens or large fingers.</small></span></label>
-						<label>
-						       <input id="show-action-selector" type="checkbox"
-						              onChange="puzzle.setShowActionSelector(this.checked)">
-						       <span>Tap controls
-						             <small>Select tap action on touchscreens.</small></span></label>
-						<label>
-						       <input id="auto-dismiss-clues" type="checkbox" checked
-						              onChange="puzzle.setAutoDismissClues(this.checked)">
-						       <span>Dismiss exhausted clues
-						             <small>Hide clues after all symbols are placed.</small></span></label>
-						<input id="fullscreen-button" class="option-action" type="button"
-						       onClick="puzzle.toggleFullscreen()" value="Enter full screen">
-					</fieldset>
-					<fieldset class="game-options">
-						<legend>Game</legend>
-						<label>
-						       <input id="practice-mode" type="checkbox"
-						              onChange="puzzle.setPracticeMode(this.checked)">
-						       <span>Zen mode
-						             <small>No timer, no losses. Pure logic.</small></span></label>
-						<label>
-						       <input id="continue-after-loss" type="checkbox"
-						              onChange="puzzle.setContinueAfterLoss(this.checked)">
-						       <span>Continue after loss
-						             <small>Enter Zen mode instead of revealing the solution.</small></span></label>
-						<div class="seed-options">
-							<div class="random-difficulties" role="group" aria-label="Random puzzle difficulties"
-							     title="New random games use these difficulty levels. Entering a seed always plays that exact puzzle.">
-								<div class="random-difficulties-heading">Difficulty
-									<small>For new random puzzles.</small></div>
-								<div class="random-difficulty-choices">
-									<label><input id="random-easy" type="checkbox" checked onChange="puzzle.changeRandomDifficulties()">Easy</label>
-									<label><input id="random-medium" type="checkbox" checked onChange="puzzle.changeRandomDifficulties()">Medium</label>
-									<label><input id="random-hard" type="checkbox" checked onChange="puzzle.changeRandomDifficulties()">Hard</label>
-								</div>
-							</div>
-							<label for="game-seed">Puzzle seed
-							       <small id="seed-help">Replay or share a particular puzzle.</small></label>
-							<div class="seed-controls">
-								<input id="game-seed" type="text" maxlength="8"
-								       autocapitalize="none" autocomplete="off" spellcheck="false"
-								       aria-describedby="seed-help"
-								       onKeyDown="if (event.key == 'Enter') puzzle.playSeed()">
-								<input id="start-game-button" class="option-action" type="button"
-								       onClick="puzzle.playSeed()" value="Random">
-								<input id="copy-seed-link" class="option-action" type="button" disabled
-								       onClick="puzzle.copySeedLink()" value="Copy link">
-							</div>
-							<button id="seed-difficulty" type="button" disabled
-							        onClick="puzzle.openAnalysis()"></button>
-						</div>
-					</fieldset>
-					<nav class="options-destinations" aria-label="Play options">
-						<a id="daily-button" href="#daily" aria-controls="invitation-menu" aria-expanded="false"
-						   onClick="handleLinkClick(event, () => puzzle.openDaily())"><span aria-hidden="true">‹</span> Daily puzzle</a>
-						<button id="online-button" type="button" aria-controls="online-menu" aria-expanded="false">With friends <span aria-hidden="true">›</span></button>
+					</div>
+					<nav class="help-folio history-folio" aria-label="Chronicle leaves">
+						<button class="help-page-turn help-page-previous" type="button" onClick="puzzle.turnHistoryPage(-1)" title="Previous leaf" aria-label="Previous leaf"><span lang="la">‹ Retr</span></button>
+						<span class="help-page-number" aria-live="polite"></span>
+						<button class="help-page-turn help-page-next" type="button" onClick="puzzle.turnHistoryPage(1)" title="Next leaf" aria-label="Next leaf"><span lang="la">Prox ›</span></button>
 					</nav>
-					<input class="modal-done modal-close" type="button"
-					       onClick="puzzle.toggleOptions()" value="Close">
 				</div>
-			</div>
-			<div id="help-menu" class="modal" hidden role="dialog"
-			     aria-modal="true" aria-labelledby="help-title">
-				<div class="modal-panel help-panel">
-					<h2 id="help-title">How to play</h2>
-					<div class="help-pages" tabindex="-1">
-					<section class="help-page help-page-rules">
-						<div class="help-page-content">
-						<h3>Objective</h3>
-						<p>
-							The board has six rows, each containing a family of six
-							symbols. Use the clues to place each family's symbols in
-							the correct order, with every symbol appearing once in its
-							row.
-						</p>
+				<div class="scores-actions">
+					<input class="modal-done modal-close" type="button"
+					       onClick="puzzle.toggleScores()"
+					       value="Rejoin the mortal realm">
+				</div>
+			</dialog>
 
-						<p>
-							Place every symbol correctly to prove your wisdom. But
-							beware! One false move will bring your tower of deductions
-							tumbling to the ground.
-						</p>
-
-						<h3>Example</h3>
-						<table class="board help-example-row family-0" role="img"
-						     aria-label="A partially solved row: the second slot contains 5, while the other slots show their remaining possibilities.">
-							<tr>
-							<td class="slot"><table>
-								<tr><td class="possibility">1</td><td class="possibility">2</td><td class="possibility dead-possibility">3</td></tr>
-								<tr><td class="possibility">4</td><td class="possibility dead-possibility">5</td><td class="possibility">6</td></tr>
-							</table></td>
-							<td class="slot">
-								<span class="single">5</span>
-							</td>
-							<td class="slot"><table>
-								<tr><td class="possibility">1</td><td class="possibility">2</td><td class="possibility">3</td></tr>
-								<tr><td class="possibility">4</td><td class="possibility dead-possibility">5</td><td class="possibility">6</td></tr>
-							</table></td>
-							<td class="slot"><table>
-								<tr><td class="possibility">1</td><td class="possibility">2</td><td class="possibility dead-possibility">3</td></tr>
-								<tr><td class="possibility">4</td><td class="possibility dead-possibility">5</td><td class="possibility">6</td></tr>
-							</table></td>
-							<td class="slot"><table>
-								<tr><td class="possibility">1</td><td class="possibility">2</td><td class="possibility">3</td></tr>
-								<tr><td class="possibility">4</td><td class="possibility dead-possibility">5</td><td class="possibility">6</td></tr>
-							</table></td>
-							<td class="slot"><table>
-								<tr><td class="possibility">1</td><td class="possibility">2</td><td class="possibility">3</td></tr>
-								<tr><td class="possibility">4</td><td class="possibility dead-possibility">5</td><td class="possibility">6</td></tr>
-							</table></td>
-							</tr>
-						</table>
-
-						<p>
-							Each of the six positions in a row shows either a large
-							symbol that has been placed, or smaller tiles
-							representing the remaining possibilities. Here,
-							<span class="help-tile family-0">5</span>
-							is fixed in the second position and eliminated from the
-							other five. The <span class="help-tile family-0">3</span> has
-							also been eliminated from the first and fourth positions.
-						</p>
+			<dialog id="online-menu" class="modal modal-panel online-panel" hidden aria-labelledby="online-title">
+				<h2 id="online-title">LOGOS Online</h2>
+				<p class="online-help">Most <span class="online-logos">LOGOS</span> play is entirely offline,
+				and run history is kept only in your browser. But you can also compare
+				daily efforts or solve a puzzle together. Choose a name your friends
+				will recognize; no account is needed.</p>
+				<label class="online-name">Your name: <input id="online-name" maxlength="32" autocomplete="nickname"></label>
+				<fieldset class="online-scoreboards">
+					<legend>Daily Scores</legend>
+					<p class="online-help">Create a group and invite your friends, or join one with an
+					   invitation link. Daily puzzle results are shared
+					   automatically. Visit the Forum to see how everyone fared.</p>
+					<ul class="scoreboards-groups" aria-label="Your scoreboard groups"></ul>
+					<form class="scoreboards-editor online-actions">
+						<button class="scoreboards-create" type="button">Create a group</button>
+						<span aria-hidden="true">/</span>
+						<div class="online-join-field">
+							<button type="submit">Join a group:</button>
+							<input id="scoreboard-invite" aria-label="Invitation link or group key" title="Paste a group key or invitation URL" required maxlength="2048" autocomplete="off" spellcheck="false">
 						</div>
-					</section>
-
-					<section class="help-page help-page-clues" inert aria-hidden="true">
-						<div class="help-page-content">
-						<h3>Clues</h3>
-						<table class="help-clues">
-						<tr>
-							<th>Example</th>
-							<th>Meaning</th>
-						</tr>
-						<tr>
-							<td><span class="help-example">
-								<span class="help-tile family-1">A</span>
-							</span></td>
-							<td>A large symbol on the board is fixed in its current column.</td>
-						</tr>
-						<tr>
-							<td><span class="help-example"><span class="help-stack">
-								<span class="help-tile family-1">A</span>
-								<span class="help-tile family-4">△</span>
-							</span></span></td>
-							<td>The two symbols are in the same column.</td>
-						</tr>
-						<tr>
-							<td><span class="help-example">
-								<span class="help-tile family-1">A</span>
-								<span class="arrow" aria-hidden="true">↔</span>
-								<span class="help-tile family-4">△</span>
-							</span></td>
-							<td>The symbols are in neighboring columns, in either order.</td>
-						</tr>
-						<tr>
-							<td><span class="help-example">
-								<span class="help-tile family-1">A</span>
-								<strong class="dots">...</strong>
-								<span class="help-tile family-4">△</span>
-							</span></td>
-							<td><span class="help-tile family-1">A</span> is somewhere to
-								the left of <span class="help-tile family-4">△</span>, but not
-								necessarily adjacent.</td>
-						</tr>
-						<tr>
-							<td><span class="help-example">
-								<span class="help-tile family-1">A</span>
-								<span class="help-tile family-4">△</span>
-								<span class="help-tile family-2">II</span>
-							</span></td>
-							<td>These symbols occupy three consecutive columns, with
-								<span class="help-tile family-4">△</span> in the middle and
-								<span class="help-tile family-1">A</span> and
-								<span class="help-tile family-2">II</span> on
-								opposite sides. The symbols may appear
-								in the order shown or in reverse order.</td>
-						</tr>
-						</table>
-
-						<p>
-							Pressing a clue will dismiss (or restore) it. This is
-							not required for solving the puzzle, but may keep
-							clear the path to wisdom. Press and hold a large
-							symbol on the board to highlight its clues.
-						</p>
+					</form>
+				</fieldset>
+				<fieldset id="friends-menu" class="friends-panel online-friends">
+					<legend><span class="online-logos">LOGOS</span> with Friends</legend>
+					<p class="online-help">Work together on the same puzzle. Pick a random room or
+					   enter a room name, then invite your friends to join you (by
+					   link or room name).</p>
+					<div class="friends-room-state">
+						<div class="friends-room-controls">
+							<p id="friends-room-name-display" hidden></p>
+							<div class="friends-room-editor online-actions">
+								<button id="friends-random-room" type="button">Random room</button>
+								<span aria-hidden="true">/</span>
+								<div class="online-join-field">
+									<button id="friends-join-room" type="button">Join room:</button>
+									<input id="friends-room-name" type="text" maxlength="32" aria-label="Room name"
+									       autocapitalize="none" autocomplete="off" spellcheck="false">
+								</div>
+							</div>
 						</div>
-					</section>
-
-					<section class="help-page help-page-controls" inert aria-hidden="true">
-						<div class="help-page-content">
-						<h3>Controls</h3>
-						<ul>
-							<li><strong>Left-click</strong> a possibility to choose it.</li>
-							<li><strong>Right-click</strong> (or <strong>Control-click</strong>) a possibility to discard it.</li>
-							<li>Choosing or discarding the wrong possibility ends the game.</li>
-							<li>When a row’s remaining possibilities force a choice, it falls into place automatically.
-						</ul>
-						<h3>Chalk Marks</h3>
-						<p>
-							Hold <strong>Shift</strong> while clicking to make
-							tentative chalk marks:
-						</p>
-						<ul>
-							<li><strong>Left-click</strong> to mark a possibility as chosen.</li>
-							<li><strong>Right-click</strong> to mark a possibility as discarded.</li>
-							<li>Chalk marks automatically affect other possibilities in the same row, but are not checked against clues or the solution.</li>
-						</ul>
-						<h3>Touchscreens</h3>
-						<ul>
-							<li>The <span class="help-option">Tap controls</span>
-							option allows you to select the action performed by a
-							single tap.
-							<li>The <span class="help-option">Expanded tiles</span>
-							option makes it easier to select tiles on small
-							screens.
-						</ul>
+						<div class="friends-footer-actions online-actions">
+							<button id="friends-accept-room" type="button" hidden>Join room</button>
+							<span class="friends-room-sharing" hidden>
+								<a id="friends-copy-room" title="Copy invitation URL to the clipboard">Invite</a>
+								<span aria-hidden="true">/</span>
+							</span>
+							<button id="friends-renew-room" type="button" hidden>Reopen invitation</button>
+							<button id="friends-rejoin" type="button" hidden>Rejoin room</button>
+							<button id="friends-leave" type="button" hidden>Leave game</button>
 						</div>
-					</section>
-					<section class="help-page help-page-hints" inert aria-hidden="true">
-						<div class="help-page-content">
-						<h3>Hints</h3>
-						<p>Press
-							<span class="help-explain-button" role="img" aria-label="Hint or explain">∵</span>
-							for a hint: once to highlight a useful clue, again to
-							explain the deduction, and a third time to explore a
-							step-by-step proof. You can keep playing while the
-							single explanation is visible; making a move clears
-							it.
-						<p>Hints put the current game into <strong>Zen mode</strong>:
-							the timer becomes ∞, mistakes will no longer end the
-							game, and your run will not be eligible for the
-							Pantheon.
-						<h3>Mistakes</h3>
-						<p>After a mistake, a clue that directly contradicts your move
-							is highlighted, if one exists. Press
-							<span class="help-explain-button" role="img" aria-label="Hint or explain">∵</span>
-							to enter a step-by-step proof explaining why the move
-							was wrong.
-						<h3>Proofs</h3>
-						<p>Proof mode shows how each step would affect the board,
-							but does not permanently apply its moves. Dismiss the
-							proof by pressing the Hint button again, restoring
-							the board state.
-						</div>
-					</section>
 					</div>
-					<div class="help-navigation"></div>
-					<button class="help-page-turn modal-close" type="button"
-					        onClick="puzzle.toggleHelp()">Close</button>
+				</fieldset>
+				<p class="online-status" role="status" aria-live="polite"></p>
+				<div class="online-toolbar"><button class="modal-close">Close</button></div>
+			</dialog>
+			<dialog id="forum-menu" class="modal modal-panel online-panel forum-panel" hidden aria-labelledby="forum-title">
+				<h2 id="forum-title">The Forum</h2>
+				<nav class="forum-groups" aria-label="Scoreboard groups" tabindex="-1"></nav>
+				<h3 class="scoreboards-date"></h3>
+				<p class="forum-difficulty"><button class="forum-attempt" type="button" disabled></button></p>
+				<div class="forum-results" tabindex="0" aria-label="Daily scores">
+					<table><thead><tr><th>Name</th><th>Outcome</th><th>Time</th><th><span class="scoreboards-sr-only">Sync status</span></th></tr></thead><tbody></tbody></table>
+					<p class="scoreboards-empty" hidden>No shared results for this day.</p>
+					<p class="forum-no-groups" hidden>Join or create a group to compare daily results.</p>
 				</div>
-			</div>
-			<div id="about-menu" class="modal" hidden role="dialog"
-			     aria-modal="true" aria-labelledby="about-title">
-				<div class="modal-panel about-panel">
-					<h2 id="about-title">About Logos</h2>
+				<p class="online-status" role="status" aria-live="polite" hidden></p>
+				<div class="online-toolbar"><button class="forum-manage">Manage groups</button><button class="modal-close">Close</button></div>
+			</dialog>
+			<dialog id="options-menu" class="modal modal-panel options-panel" hidden aria-label="Options">
+				<fieldset>
+					<legend>Interface</legend>
+					<label>
+					       <input id="custom-cursor" type="checkbox" checked
+					              onChange="puzzle.setCustomCursor(this.checked)">
+					       <span>Custom cursor
+					             <small>Use a bronze stylus pointer.</small></span></label>
+					<label>
+					       <input id="show-milestones" type="checkbox" checked
+					              onChange="puzzle.setMilestones(this.checked)">
+					       <span>Milestone messages
+					             <small>Show progress messages while solving. Disable for deep focus.</small></span></label>
+					<div class="sound-options">
+						<label>
+						       <input id="sound-effects" type="checkbox"
+						              onChange="puzzle.setSoundEffects(this.checked)">
+						       <span>Sound effects
+						             <small>Play sounds for moves and results.</small></span></label>
+						<input id="sound-volume" type="range" min="0" max="100" value="100"
+						       aria-label="Sound effects volume"
+						       onInput="puzzle.setSoundVolume(this.value / 100)"
+						       onChange="puzzle.playSound('place')">
+					</div>
+					<label>
+					       <input id="expand-tile-choices" type="checkbox"
+					              onChange="puzzle.setExpandTileChoices(this.checked)">
+					       <span>Expanded tiles
+					             <small>Enlarge tile choices before selecting. For small screens or large fingers.</small></span></label>
+					<label>
+					       <input id="show-action-selector" type="checkbox"
+					              onChange="puzzle.setShowActionSelector(this.checked)">
+					       <span>Tap controls
+					             <small>Select tap action on touchscreens.</small></span></label>
+					<label>
+					       <input id="auto-dismiss-clues" type="checkbox" checked
+					              onChange="puzzle.setAutoDismissClues(this.checked)">
+					       <span>Dismiss exhausted clues
+					             <small>Hide clues after all symbols are placed.</small></span></label>
+					<input id="fullscreen-button" class="option-action" type="button"
+					       onClick="puzzle.toggleFullscreen()" value="Enter full screen">
+				</fieldset>
+				<fieldset class="game-options">
+					<legend>Game</legend>
+					<label>
+					       <input id="practice-mode" type="checkbox"
+					              onChange="puzzle.setPracticeMode(this.checked)">
+					       <span>Zen mode
+					             <small>No timer, no losses. Pure logic.</small></span></label>
+					<label>
+					       <input id="continue-after-loss" type="checkbox"
+					              onChange="puzzle.setContinueAfterLoss(this.checked)">
+					       <span>Continue after loss
+					             <small>Enter Zen mode instead of revealing the solution.</small></span></label>
+					<div class="seed-options">
+						<div class="random-difficulties" role="group" aria-label="Random puzzle difficulties"
+						     title="New random games use these difficulty levels. Entering a seed always plays that exact puzzle.">
+							<div class="random-difficulties-heading">Difficulty
+								<small>For new random puzzles.</small></div>
+							<div class="random-difficulty-choices">
+								<label><input id="random-easy" type="checkbox" checked onChange="puzzle.changeRandomDifficulties()">Easy</label>
+								<label><input id="random-medium" type="checkbox" checked onChange="puzzle.changeRandomDifficulties()">Medium</label>
+								<label><input id="random-hard" type="checkbox" checked onChange="puzzle.changeRandomDifficulties()">Hard</label>
+							</div>
+						</div>
+						<label for="game-seed">Puzzle seed
+						       <small id="seed-help">Replay or share a particular puzzle.</small></label>
+						<div class="seed-controls">
+							<input id="game-seed" type="text" maxlength="8"
+							       autocapitalize="none" autocomplete="off" spellcheck="false"
+							       aria-describedby="seed-help"
+							       onKeyDown="if (event.key == 'Enter') puzzle.playSeed()">
+							<input id="start-game-button" class="option-action" type="button"
+							       onClick="puzzle.playSeed()" value="Random">
+							<input id="copy-seed-link" class="option-action" type="button" disabled
+							       onClick="puzzle.copySeedLink()" value="Copy link">
+						</div>
+						<button id="seed-difficulty" type="button" disabled
+						        onClick="puzzle.openAnalysis()"></button>
+					</div>
+				</fieldset>
+				<nav class="options-destinations" aria-label="Play options">
+					<a id="daily-button" href="#daily" aria-controls="invitation-menu" aria-expanded="false"
+					   onClick="handleLinkClick(event, () => puzzle.openDaily())"><span aria-hidden="true">‹</span> Daily puzzle</a>
+					<button id="online-button" type="button" aria-controls="online-menu" aria-expanded="false">With friends <span aria-hidden="true">›</span></button>
+				</nav>
+				<input class="modal-done modal-close" type="button"
+				       onClick="puzzle.toggleOptions()" value="Close" autofocus>
+			</dialog>
+			<dialog id="help-menu" class="modal modal-panel help-panel" hidden
+			     aria-labelledby="help-title">
+				<h2 id="help-title">How to play</h2>
+				<div class="help-pages" tabindex="-1">
+				<section class="help-page help-page-rules">
+					<div class="help-page-content">
+					<h3>Objective</h3>
 					<p>
-						Logos was inspired by the
-						<a href="https://web.archive.org/web/20120928074117/http://games.flowix.com/en/index.html"
-						   target="_blank">"Einstein puzzle"</a>
-						game published by Flowix Games (which in turn was inspired by the DOS
-						<a href="https://dosgames.com/game/sherlock/"
-						   target="_blank">"Sherlock"</a>
-						game, though I never played that).
+						The board has six rows, each containing a family of six
+						symbols. Use the clues to place each family's symbols in
+						the correct order, with every symbol appearing once in its
+						row.
 					</p>
+
 					<p>
-						This type of puzzle is known as the
-						<a href="https://en.wikipedia.org/wiki/Zebra_Puzzle"
-						   target="_blank">Zebra Puzzle</a>
-						and sometimes credited to Albert Einstein, though the veracity
-						of that connection is unclear.
+						Place every symbol correctly to prove your wisdom. But
+						beware! One false move will bring your tower of deductions
+						tumbling to the ground.
 					</p>
+
+					<h3>Example</h3>
+					<table class="board help-example-row family-0" role="img"
+					     aria-label="A partially solved row: the second slot contains 5, while the other slots show their remaining possibilities.">
+						<tr>
+						<td class="slot"><table>
+							<tr><td class="possibility">1</td><td class="possibility">2</td><td class="possibility dead-possibility">3</td></tr>
+							<tr><td class="possibility">4</td><td class="possibility dead-possibility">5</td><td class="possibility">6</td></tr>
+						</table></td>
+						<td class="slot">
+							<span class="single">5</span>
+						</td>
+						<td class="slot"><table>
+							<tr><td class="possibility">1</td><td class="possibility">2</td><td class="possibility">3</td></tr>
+							<tr><td class="possibility">4</td><td class="possibility dead-possibility">5</td><td class="possibility">6</td></tr>
+						</table></td>
+						<td class="slot"><table>
+							<tr><td class="possibility">1</td><td class="possibility">2</td><td class="possibility dead-possibility">3</td></tr>
+							<tr><td class="possibility">4</td><td class="possibility dead-possibility">5</td><td class="possibility">6</td></tr>
+						</table></td>
+						<td class="slot"><table>
+							<tr><td class="possibility">1</td><td class="possibility">2</td><td class="possibility">3</td></tr>
+							<tr><td class="possibility">4</td><td class="possibility dead-possibility">5</td><td class="possibility">6</td></tr>
+						</table></td>
+						<td class="slot"><table>
+							<tr><td class="possibility">1</td><td class="possibility">2</td><td class="possibility">3</td></tr>
+							<tr><td class="possibility">4</td><td class="possibility dead-possibility">5</td><td class="possibility">6</td></tr>
+						</table></td>
+						</tr>
+					</table>
+
 					<p>
-						The Forum typeface is by Denis Masharov and is distributed under
-						the <a href="https://openfontlicense.org/open-font-license-official-text/"
-						       target="_blank">SIL Open Font License</a>. Text on the
-						puzzle tiles is derived from
-						<a href="https://tug.ctan.org/fonts/tex-gyre/opentype/texgyrepagella-bold.otf"
-						   target="_blank">TeX Gyre Pagella Bold 2.501</a>,
-						distributed under the <a href="https://www.tug.org/fonts/licenses/gfl.html"
-						                       target="_blank">GUST Font License</a>.
+						Each of the six positions in a row shows either a large
+						symbol that has been placed, or smaller tiles
+						representing the remaining possibilities. Here,
+						<span class="help-tile family-0">5</span>
+						is fixed in the second position and eliminated from the
+						other five. The <span class="help-tile family-0">3</span> has
+						also been eliminated from the first and fourth positions.
 					</p>
+					</div>
+				</section>
+
+				<section class="help-page help-page-clues" inert aria-hidden="true">
+					<div class="help-page-content">
+					<h3>Clues</h3>
+					<table class="help-clues">
+					<tr>
+						<th>Example</th>
+						<th>Meaning</th>
+					</tr>
+					<tr>
+						<td><span class="help-example">
+							<span class="help-tile family-1">A</span>
+						</span></td>
+						<td>A large symbol on the board is fixed in its current column.</td>
+					</tr>
+					<tr>
+						<td><span class="help-example"><span class="help-stack">
+							<span class="help-tile family-1">A</span>
+							<span class="help-tile family-4">△</span>
+						</span></span></td>
+						<td>The two symbols are in the same column.</td>
+					</tr>
+					<tr>
+						<td><span class="help-example">
+							<span class="help-tile family-1">A</span>
+							<span class="arrow" aria-hidden="true">↔</span>
+							<span class="help-tile family-4">△</span>
+						</span></td>
+						<td>The symbols are in neighboring columns, in either order.</td>
+					</tr>
+					<tr>
+						<td><span class="help-example">
+							<span class="help-tile family-1">A</span>
+							<strong class="dots">...</strong>
+							<span class="help-tile family-4">△</span>
+						</span></td>
+						<td><span class="help-tile family-1">A</span> is somewhere to
+							the left of <span class="help-tile family-4">△</span>, but not
+							necessarily adjacent.</td>
+					</tr>
+					<tr>
+						<td><span class="help-example">
+							<span class="help-tile family-1">A</span>
+							<span class="help-tile family-4">△</span>
+							<span class="help-tile family-2">II</span>
+						</span></td>
+						<td>These symbols occupy three consecutive columns, with
+							<span class="help-tile family-4">△</span> in the middle and
+							<span class="help-tile family-1">A</span> and
+							<span class="help-tile family-2">II</span> on
+							opposite sides. The symbols may appear
+							in the order shown or in reverse order.</td>
+					</tr>
+					</table>
+
 					<p>
-						The <a href="https://github.com/peff/logos"
-						       target="_blank">source code for Logos</a> is available on GitHub.
+						Pressing a clue will dismiss (or restore) it. This is
+						not required for solving the puzzle, but may keep
+						clear the path to wisdom. Press and hold a large
+						symbol on the board to highlight its clues.
 					</p>
-					<input class="modal-done modal-close" type="button"
-					       onClick="puzzle.toggleAbout()" value="Close">
+					</div>
+				</section>
+
+				<section class="help-page help-page-controls" inert aria-hidden="true">
+					<div class="help-page-content">
+					<h3>Controls</h3>
+					<ul>
+						<li><strong>Left-click</strong> a possibility to choose it.</li>
+						<li><strong>Right-click</strong> (or <strong>Control-click</strong>) a possibility to discard it.</li>
+						<li>Choosing or discarding the wrong possibility ends the game.</li>
+						<li>When a row’s remaining possibilities force a choice, it falls into place automatically.
+					</ul>
+					<h3>Chalk Marks</h3>
+					<p>
+						Hold <strong>Shift</strong> while clicking to make
+						tentative chalk marks:
+					</p>
+					<ul>
+						<li><strong>Left-click</strong> to mark a possibility as chosen.</li>
+						<li><strong>Right-click</strong> to mark a possibility as discarded.</li>
+						<li>Chalk marks automatically affect other possibilities in the same row, but are not checked against clues or the solution.</li>
+					</ul>
+					<h3>Touchscreens</h3>
+					<ul>
+						<li>The <span class="help-option">Tap controls</span>
+						option allows you to select the action performed by a
+						single tap.
+						<li>The <span class="help-option">Expanded tiles</span>
+						option makes it easier to select tiles on small
+						screens.
+					</ul>
+					</div>
+				</section>
+				<section class="help-page help-page-hints" inert aria-hidden="true">
+					<div class="help-page-content">
+					<h3>Hints</h3>
+					<p>Press
+						<span class="help-explain-button" role="img" aria-label="Hint or explain">∵</span>
+						for a hint: once to highlight a useful clue, again to
+						explain the deduction, and a third time to explore a
+						step-by-step proof. You can keep playing while the
+						single explanation is visible; making a move clears
+						it.
+					<p>Hints put the current game into <strong>Zen mode</strong>:
+						the timer becomes ∞, mistakes will no longer end the
+						game, and your run will not be eligible for the
+						Pantheon.
+					<h3>Mistakes</h3>
+					<p>After a mistake, a clue that directly contradicts your move
+						is highlighted, if one exists. Press
+						<span class="help-explain-button" role="img" aria-label="Hint or explain">∵</span>
+						to enter a step-by-step proof explaining why the move
+						was wrong.
+					<h3>Proofs</h3>
+					<p>Proof mode shows how each step would affect the board,
+						but does not permanently apply its moves. Dismiss the
+						proof by pressing the Hint button again, restoring
+						the board state.
+					</div>
+				</section>
 				</div>
-			</div>
+				<div class="help-navigation"></div>
+				<button class="help-page-turn modal-close" type="button"
+				        onClick="puzzle.toggleHelp()" autofocus>Close</button>
+			</dialog>
+			<dialog id="about-menu" class="modal modal-panel about-panel" hidden
+			     aria-labelledby="about-title">
+				<h2 id="about-title">About Logos</h2>
+				<p>
+					Logos was inspired by the
+					<a href="https://web.archive.org/web/20120928074117/http://games.flowix.com/en/index.html"
+					   target="_blank">"Einstein puzzle"</a>
+					game published by Flowix Games (which in turn was inspired by the DOS
+					<a href="https://dosgames.com/game/sherlock/"
+					   target="_blank">"Sherlock"</a>
+					game, though I never played that).
+				</p>
+				<p>
+					This type of puzzle is known as the
+					<a href="https://en.wikipedia.org/wiki/Zebra_Puzzle"
+					   target="_blank">Zebra Puzzle</a>
+					and sometimes credited to Albert Einstein, though the veracity
+					of that connection is unclear.
+				</p>
+				<p>
+					The Forum typeface is by Denis Masharov and is distributed under
+					the <a href="https://openfontlicense.org/open-font-license-official-text/"
+					       target="_blank">SIL Open Font License</a>. Text on the
+					puzzle tiles is derived from
+					<a href="https://tug.ctan.org/fonts/tex-gyre/opentype/texgyrepagella-bold.otf"
+					   target="_blank">TeX Gyre Pagella Bold 2.501</a>,
+					distributed under the <a href="https://www.tug.org/fonts/licenses/gfl.html"
+					                       target="_blank">GUST Font License</a>.
+				</p>
+				<p>
+					The <a href="https://github.com/peff/logos"
+					       target="_blank">source code for Logos</a> is available on GitHub.
+				</p>
+				<input class="modal-done modal-close" type="button"
+				       onClick="puzzle.toggleAbout()" value="Close" autofocus>
+			</dialog>
 			<div id="application-footer">
 				<div class="control-buttons">
 					<input id="new-game-button" type="button"
@@ -715,17 +696,15 @@
 			</div>
 		</div>
 		<table id="vclues"></table>
-		<div id="slot-tray" hidden role="dialog" aria-modal="true"
+		<dialog id="slot-tray" class="slot-tray-panel" hidden
 		     aria-label="Expanded tile choices">
-			<div class="slot-tray-panel">
-				<div class="slot-tray-body">
-					<div id="slot-tray-action" aria-hidden="true">
-						<span class="slot-tray-action-sample"></span>
-					</div>
-					<div id="slot-tray-options"></div>
+			<div class="slot-tray-body">
+				<div id="slot-tray-action" aria-hidden="true">
+					<span class="slot-tray-action-sample"></span>
 				</div>
+				<div id="slot-tray-options"></div>
 			</div>
-		</div>
+		</dialog>
 
 		<script>
 		window.addEventListener("hashchange", function(event) {

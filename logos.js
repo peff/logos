@@ -299,6 +299,30 @@ function readOption(name, fallback) {
 	return fallback;
 }
 
+function setDialogOpen(dialog, open) {
+	dialog.hidden = !open;
+	if (open && !dialog.open)
+		dialog.showModal();
+	else if (!open)
+		dialog.close();
+}
+
+function initializeDialog(dialog, close) {
+	dialog.addEventListener("cancel", function(event) {
+		/* Keep timer and navigation cleanup on the application's close path. */
+		event.preventDefault();
+		close();
+	});
+	dialog.addEventListener("click", function(event) {
+		if (event.target != dialog)
+			return;
+		var rect = dialog.getBoundingClientRect();
+		if (event.clientX < rect.left || event.clientX >= rect.right ||
+		    event.clientY < rect.top || event.clientY >= rect.bottom)
+			close();
+	});
+}
+
 function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		options, optionsButton, help, helpButton, scores, scoresButton,
 		about, logoButton) {
@@ -312,8 +336,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.options = options;
 	this.optionsButton = optionsButton;
 	this.newGameButton = document.querySelector("#new-game-button");
-	this.invitation = document.querySelector("#game-invitation");
-	this.invitationModal = document.querySelector("#invitation-menu");
+	this.invitation = document.querySelector("#invitation-menu");
 	this.help = help;
 	this.helpButton = helpButton;
 	this.scores = scores;
@@ -485,7 +508,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.explainButton.disabled = true;
 	this.proofControls = document.querySelector("#proof-controls");
 	this.analysis = document.querySelector("#analysis-menu");
-	this.analysis.hidden = true;
+	setDialogOpen(this.analysis, false);
 	this.analysisClicks = 0;
 	this.analysisUnlocked = false;
 	try {
@@ -689,7 +712,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		var finish = () => {
 			this.dailyReturn = null;
 			this.pendingSeed = undefined;
-			this.invitationModal.hidden = true;
+			setDialogOpen(this.invitation, false);
 			var modalOpen = document.querySelectorAll(".modal:not([hidden])").length > 0;
 			this.paused = this.pageHidden || modalOpen;
 			this.pausedBeforePageHidden = modalOpen;
@@ -714,13 +737,12 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		}
 		if (reveal)
 			this.invitation.classList.add("revealing");
-		this.invitationModal.classList.add("invitation-exiting");
+		this.invitation.classList.add("invitation-exiting");
 		var timing = { duration: duration, easing: "ease-in-out", fill: "forwards" };
-		this.invitationBackgroundAnimations = [];
-		if (typeof this.invitationModal.animate == "function")
-			this.invitationBackgroundAnimations.push(this.invitationModal.animate(
-				[{ backgroundColor: "rgb(20 25 25 / 45%)" },
-				 { backgroundColor: "rgb(20 25 25 / 0%)" }], timing));
+		this.invitationBackdropAnimation = this.invitation.animate(
+			[{ backgroundColor: "rgb(20 25 25 / 45%)" },
+			 { backgroundColor: "rgb(20 25 25 / 0%)" }],
+			{ ...timing, pseudoElement: "::backdrop" });
 		var animation = this.invitationAnimation = this.invitation.animate(
 			[{ opacity: 1 }, { opacity: 0 }], timing);
 		animation.finished.then(() => {
@@ -735,10 +757,9 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.clearInvitationTransition = function() {
-		this.invitationModal.classList.remove("invitation-exiting");
-		for (var animation of this.invitationBackgroundAnimations || [])
-			animation.cancel();
-		this.invitationBackgroundAnimations = [];
+		this.invitation.classList.remove("invitation-exiting");
+		this.invitationBackdropAnimation?.cancel();
+		this.invitationBackdropAnimation = null;
 		if (this.invitationAnimation) {
 			this.invitationAnimation.cancel();
 			this.invitationAnimation = null;
@@ -987,9 +1008,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		completion.hidden = result.completionRunId === undefined;
 		modal.querySelector(".daily-recognition").hidden = pantheon.hidden && completion.hidden;
 		modal.querySelector(".daily-history-error").hidden = !result.historyUnsaved;
-		this.invitation.hidden = false;
-		if (this.invitationModal.hidden)
-			this.toggleModal(this.invitationModal, this.options.querySelector("#daily-button"), "Close");
+		if (this.invitation.hidden)
+			this.toggleModal(this.invitation, this.options.querySelector("#daily-button"), "Close");
 		var close = modal.querySelector(".modal-close");
 		close.classList.add("invitation-initial-focus");
 		close.focus();
@@ -1035,9 +1055,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			return;
 		this.setInvitationResult(false);
 		this.invitationDeclined = true;
-		if (!this.invitationModal.hidden)
-			this.toggleModal(this.invitationModal, this.options.querySelector("#daily-button"), "Close");
-		this.invitation.hidden = true;
+		if (!this.invitation.hidden)
+			this.toggleModal(this.invitation, this.options.querySelector("#daily-button"), "Close");
 		if (!detour)
 			this.restoreDailyReturn();
 	}
@@ -1157,8 +1176,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		}
 		this.analysis.querySelector(".analysis-empty").hidden = count != 0;
 		this.analysis.querySelector(".analysis-copy").textContent = "Copy position";
-		this.options.hidden = true;
-		this.analysis.hidden = false;
+		setDialogOpen(this.options, false);
+		setDialogOpen(this.analysis, true);
 		this.analysis.querySelector(".modal-close").focus();
 	}
 
@@ -1679,16 +1698,17 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.expandedSlot = slot;
 		this.animateSlotTray = true;
 		slot.elem.classList.add("expanded");
-		this.slotTray.hidden = false;
+		setDialogOpen(this.slotTray, true);
 		this.renderSlotTray();
+		this.slotTrayTiles.find(tile => !tile.disabled)?.focus({ preventScroll: true });
 	}
 
 	this.closeSlotTray = function() {
 		if (this.expandedSlot)
 			this.expandedSlot.elem.classList.remove("expanded");
 		this.expandedSlot = null;
-		this.slotTray.hidden = true;
-		this.slotTray.querySelector(".slot-tray-panel").classList.remove(
+		setDialogOpen(this.slotTray, false);
+		this.slotTray.classList.remove(
 			"opening");
 	}
 
@@ -1698,7 +1718,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		if (!this.expandedSlot || typeof innerWidth == "undefined")
 			return;
 		var target = this.expandedSlot.elem;
-		var panel = this.slotTray.querySelector(".slot-tray-panel");
+		var panel = this.slotTray;
 		if (!target.getBoundingClientRect || !panel.getBoundingClientRect)
 			return;
 		var targetRect = target.getBoundingClientRect();
@@ -1712,7 +1732,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			Math.min(left, innerWidth - panelRect.width - margin));
 		top = Math.max(margin,
 			Math.min(top, innerHeight - panelRect.height - margin));
-		panel.style.position = "fixed";
 		panel.style.left = left + "px";
 		panel.style.top = top + "px";
 		if (animate && panel.style.setProperty) {
@@ -1884,10 +1903,10 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		else if (action == "pencil-remove")
 			this.slotTrayActionSample.className +=
 				" pencil-removed pencil-explicit";
-		this.slotTray.querySelector(".slot-tray-panel").classList.remove(
+		this.slotTray.classList.remove(
 			"pencil-conflict");
 		if (slot.row.elem.classList.contains("pencil-conflict"))
-			this.slotTray.querySelector(".slot-tray-panel").classList.add(
+			this.slotTray.classList.add(
 				"pencil-conflict");
 
 		for (var value = 0; value < this.slotTrayTiles.length; value++) {
@@ -2836,13 +2855,13 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 				this.paused = true;
 			if (this.resumeAfterModal)
 				this.stopTimer();
-			modal.hidden = false;
+			setDialogOpen(modal, true);
 		} else {
 			if (modal === this.scores && this.pantheonLoading) {
 				this.pantheonRequest = {};
 				this.pantheonLoading = false;
 			}
-			modal.hidden = true;
+			setDialogOpen(modal, false);
 			this.paused = this.manualPaused ||
 				(this.pageHidden && !this.actionController) || this.pendingSeed !== undefined;
 			if (!this.gameOver && !this.practiceMode && !this.paused &&
@@ -2932,22 +2951,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.toggleModal(this.about, this.logoButton, "Close");
 	}
 
-	this.dismissTransientUi = function() {
-		if (!this.slotTray.hidden) {
-			this.closeSlotTray();
-			return true;
-		}
-		var modals = document.querySelectorAll(".modal:not([hidden])");
-		if (!modals.length)
-			return false;
-		var modal = modals[modals.length - 1];
-		var close = modal.querySelector(modal === this.invitationModal && this.dailyResultOpen ?
-			".daily-close" : ".modal-close");
-		if (!close)
-			return false;
-		close.click();
-		return true;
-	}
 
 	this.setPageHidden = function(hidden) {
 		if (hidden == this.pageHidden)
@@ -2983,6 +2986,17 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	var puzzle = this;
+	for (var [dialog, close] of [
+		[this.analysis, () => this.closeAnalysis()],
+		[this.options, () => this.toggleOptions()],
+		[this.hintNotice, () => this.finishHintNotice(false)],
+		[this.help, () => this.toggleHelp()],
+		[this.invitation, () => this.closeInvitation()],
+		[this.scores, () => this.toggleScores()],
+		[this.about, () => this.toggleAbout()],
+		[this.slotTray, () => this.closeSlotTray()],
+	])
+		initializeDialog(dialog, close);
 	this.options.querySelector("#game-seed").addEventListener("paste", function(ev) {
 		if (!ev.clipboardData)
 			return;
@@ -2994,22 +3008,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.options.querySelector("#game-seed").addEventListener("input", function() {
 		puzzle.updateSeedControls();
 		puzzle.updateSeedDifficulty();
-	});
-	this.analysis.addEventListener("click", function(ev) {
-		if (ev.target == puzzle.analysis)
-			puzzle.closeAnalysis();
-	});
-	this.options.addEventListener("click", function(ev) {
-		if (ev.target == puzzle.options)
-			puzzle.toggleOptions();
-	});
-	this.hintNotice.addEventListener("click", function(ev) {
-		if (ev.target == puzzle.hintNotice)
-			puzzle.finishHintNotice(false);
-	});
-	this.help.addEventListener("click", function(ev) {
-		if (ev.target == puzzle.help)
-			puzzle.toggleHelp();
 	});
 	this.pantheonViewport.addEventListener("scroll", function() {
 		if (puzzle.scores.hidden || puzzle.scores.querySelector(".pantheon-view").hidden ||
@@ -3049,27 +3047,11 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		puzzle.selectHelpPage(Math.round(puzzle.helpViewport.scrollLeft /
 			puzzle.helpViewport.clientWidth));
 	});
-	this.invitationModal.addEventListener("click", function(ev) {
-		if (ev.target == puzzle.invitationModal)
-			puzzle.closeInvitation();
-	});
 	this.invitation.querySelector(".invitation-accept").addEventListener("blur", function() {
 		this.classList.remove("invitation-initial-focus");
 	});
 	document.querySelector("#daily-menu .modal-close").addEventListener("blur", function() {
 		this.classList.remove("invitation-initial-focus");
-	});
-	this.scores.addEventListener("click", function(ev) {
-		if (ev.target == puzzle.scores)
-			puzzle.toggleScores();
-	});
-	this.about.addEventListener("click", function(ev) {
-		if (ev.target == puzzle.about)
-			puzzle.toggleAbout();
-	});
-	this.slotTray.addEventListener("click", function(ev) {
-		if (ev.target == puzzle.slotTray)
-			puzzle.closeSlotTray();
 	});
 	document.addEventListener("fullscreenchange", function() {
 		puzzle.updateFullscreenButton();
@@ -3079,22 +3061,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			puzzle.invitation.querySelector(".invitation-accept").classList.remove("invitation-initial-focus");
 			document.querySelector("#daily-menu .modal-close").classList.remove("invitation-initial-focus");
 		}
-		if (ev.key == "Tab") {
-			var modal = !puzzle.invitationModal.hidden ? puzzle.invitationModal : null;
-			if (modal) {
-				var controls = Array.from(modal.querySelectorAll("button, input, a[href]"))
-					.filter(control => !control.disabled && control.tabIndex !== -1 &&
-						control.getClientRects().length && getComputedStyle(control).visibility !== "hidden");
-				var index = controls.indexOf(document.activeElement);
-				if (controls.length) {
-					ev.preventDefault();
-					var next = index < 0 ? (ev.shiftKey ? controls.length - 1 : 0) :
-						(index + (ev.shiftKey ? controls.length - 1 : 1)) % controls.length;
-					controls[next].focus();
-				}
-			}
-			return;
-		}
 		if (ev.key == "Control" || ev.key == "Shift" || ev.key == "Alt") {
 			if (ev.key == "Control")
 				puzzle.controlHeld = true;
@@ -3103,11 +3069,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			else
 				puzzle.altHeld = true;
 			puzzle.updateActionCursor();
-		}
-		if (ev.key == "Escape" && !ev.altKey && !ev.ctrlKey &&
-		    !ev.metaKey && !ev.shiftKey && puzzle.dismissTransientUi()) {
-			ev.preventDefault();
-			return;
 		}
 		if (ev.altKey || ev.ctrlKey || ev.metaKey || ev.shiftKey)
 			return;
@@ -3127,7 +3088,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			     !["button", "submit", "reset", "checkbox"].includes(target.type))))
 				return;
 			var modal = modals[modals.length - 1];
-			if (modal == puzzle.invitationModal && (puzzle.daily || puzzle.dailyResultOpen)) {
+			if (modal == puzzle.invitation && (puzzle.daily || puzzle.dailyResultOpen)) {
 				ev.preventDefault();
 				var arrow = modal.querySelector(direction < 0 ? ".daily-previous" : ".daily-next");
 				if (arrow && !arrow.disabled) {
@@ -3314,10 +3275,10 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		else
 			document.body.classList.add("game-started");
 		this.boardActions.hidden = !show;
-		this.invitation.hidden = !this.dailyResultOpen &&
-			(this.pendingSeed === undefined || this.invitationDeclined);
-		var openingInvitation = this.invitationModal.hidden && !this.invitation.hidden;
-		this.invitationModal.hidden = this.invitation.hidden;
+		var showInvitation = this.dailyResultOpen ||
+			(this.pendingSeed !== undefined && !this.invitationDeclined);
+		var openingInvitation = this.invitation.hidden && showInvitation;
+		setDialogOpen(this.invitation, showInvitation);
 		if (openingInvitation && !this.dailyResultOpen) {
 			var accept = this.invitation.querySelector(".invitation-accept");
 			accept.classList.add("invitation-initial-focus");

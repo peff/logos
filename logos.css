@@ -572,7 +572,7 @@ body[data-chalk-cursor="true"][data-discard-cursor="true"]:not([data-custom-curs
 	--action-cursor: url("images/cursor-chalk-discard-active.svg") 2 2, crosshair;
 }
 
-:is(#board tr, #slot-tray .slot-tray-panel).pencil-conflict {
+:is(#board tr, #slot-tray).pencil-conflict {
 	--chalk-mark: rgb(229 167 74 / 95%);
 }
 
@@ -1031,31 +1031,19 @@ body:is(.proof-active, :has(#proof-controls.hint-explanation)) :is(#logo, #frien
 }
 
 .modal {
-	position: fixed;
-	inset: 0;
-	z-index: 10;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	background-color: rgb(20 25 25 / 45%);
 	font-family: Georgia, "Times New Roman", serif;
 	font-size: 0.72rem;
+}
+
+.modal::backdrop {
+	background-color: rgb(20 25 25 / 45%);
 }
 
 .modal[hidden] {
 	display: none;
 }
 
-#slot-tray {
-	--chalk-mark: rgb(240 232 211 / 88%);
-	position: fixed;
-	inset: 0;
-	z-index: 20;
-	display: none;
-	align-items: center;
-	justify-content: center;
-	box-sizing: border-box;
-	padding: 8px;
+#slot-tray::backdrop {
 	background-color: rgb(20 25 25 / 55%);
 }
 
@@ -1064,6 +1052,8 @@ body:is(.proof-active, :has(#proof-controls.hint-explanation)) :is(#logo, #frien
 }
 
 .slot-tray-panel {
+	--chalk-mark: rgb(240 232 211 / 88%);
+	margin: 0;
 	box-sizing: border-box;
 	width: min(284px, calc(100vw - 16px));
 	max-height: calc(100vh - 16px);
@@ -1186,8 +1176,7 @@ body:is(.proof-active, :has(#proof-controls.hint-explanation)) :is(#logo, #frien
 	box-shadow: 0 0 0 2px rgb(240 232 211 / 85%);
 }
 
-#slot-tray:not([hidden]) {
-	display: flex;
+#slot-tray::backdrop {
 	animation: slot-tray-backdrop-in 160ms ease-out both;
 }
 
@@ -1215,7 +1204,7 @@ body:is(.proof-active, :has(#proof-controls.hint-explanation)) :is(#logo, #frien
 }
 
 @media (prefers-reduced-motion: reduce) {
-	#slot-tray:not([hidden]),
+	#slot-tray::backdrop,
 	.slot-tray-panel.opening,
 	.board .single.placing {
 		animation: none !important;
@@ -1404,6 +1393,7 @@ body:is(.proof-active, :has(#proof-controls.hint-explanation)) :is(#logo, #frien
 .options-destinations :is(:disabled, [aria-disabled="true"]) { opacity: .5; cursor: default; }
 
 .options-panel {
+	max-width: calc(100vw - 1rem);
 	max-height: calc(100vh - 2rem);
 	overflow-y: auto;
 }
@@ -1674,7 +1664,6 @@ input[type="text"] {
 }
 
 .help-panel {
-	position: relative;
 	display: flex;
 	flex-direction: column;
 	width: min(34rem, calc(100vw - 2rem));
@@ -2479,16 +2468,15 @@ button.score-entry:focus-visible {
 	margin-top: 0.25rem;
 }
 
-#game-invitation {
+#invitation-menu {
 	animation: invitation-arrive 450ms ease-out both;
 }
 
 .invitation-panel {
-	position: relative;
+	color: inherit;
 	width: 20rem;
 	max-width: calc(100vw - 2rem);
 	min-height: 16rem;
-	margin: 0;
 	box-sizing: border-box;
 	border: 1px solid #9b8969;
 	border-radius: 0.25rem 0.4rem 0.3rem 0.35rem;
@@ -2503,7 +2491,7 @@ button.score-entry:focus-visible {
 	font-family: Forum, Georgia, "Times New Roman", serif;
 }
 
-#game-invitation:not([hidden]),
+#invitation-menu:not([hidden]),
 .daily-panel {
 	display: flex;
 	flex-direction: column;
@@ -2615,7 +2603,7 @@ button.score-entry:focus-visible {
 	text-transform: none;
 }
 
-#game-invitation.daily-panel {
+#invitation-menu.daily-panel {
 	animation: none;
 	justify-content: flex-start;
 }
@@ -2804,8 +2792,8 @@ button.score-entry:focus-visible {
 	to { opacity: 1; transform: translateY(0); }
 }
 
-#game-invitation.revealing > *,
-#game-invitation.revealing::before {
+#invitation-menu.revealing > *,
+#invitation-menu.revealing::before {
 	animation: invitation-inscription-fade 300ms ease-in forwards;
 }
 
@@ -2815,7 +2803,7 @@ button.score-entry:focus-visible {
 }
 
 @media (prefers-reduced-motion: reduce) {
-	#game-invitation { animation: none; }
+	#invitation-menu { animation: none; }
 }
 
 #logo {
@@ -3286,7 +3274,6 @@ body.proof-active :is(#hclues, #vclues) .clue.proof-current {
 }
 
 .hint-notice-panel {
-	position: relative;
 	width: min(22rem, 90vw);
 	padding: 1rem 1.4rem 1.2rem;
 	text-align: center;

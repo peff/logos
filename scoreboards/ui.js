@@ -231,12 +231,12 @@
 	}
 	function show(destination) {
 		if (active === destination) return;
-		active.hidden = true;
+		setDialogOpen(active, false);
 		if (trail.at(-1) === destination) trail.pop();
 		else trail.push(active);
 		active = destination;
 		if (active === modal) status("", modal);
-		active.hidden = false;
+		setDialogOpen(active, true);
 		if (active === forum) refreshForum().catch(error => status(error.message, forum));
 		active.querySelector(".modal-close").focus();
 	}
@@ -325,7 +325,7 @@
 	document.querySelector(".daily-scoreboards").onclick = attempt(() => open(true));
 	for (const panel of [modal, forum]) {
 		panel.querySelector(".modal-close").onclick = close;
-		panel.addEventListener("click", event => { if (event.target === panel) close(); });
+		initializeDialog(panel, close);
 	}
 	view(".forum-manage").onclick = () => show(modal);
 	let touch;
@@ -400,11 +400,6 @@
 		catch (_) { window.prompt("Copy this group invitation:", url); }
 	}
 	for (const panel of [modal, forum]) panel.addEventListener("keydown", event => {
-		if (event.key === "Tab") {
-			const controls = [...panel.querySelectorAll("button, a[href], input, select, [tabindex]")].filter(c => !c.disabled && c.tabIndex !== -1 && c.getClientRects().length && getComputedStyle(c).visibility !== "hidden");
-			const index = controls.indexOf(document.activeElement);
-			if (controls.length) { event.preventDefault(); controls[(index + (event.shiftKey ? -1 : 1) + controls.length) % controls.length].focus(); }
-		}
 		if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key) &&
 		    !event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey &&
 		    !event.target.isContentEditable && !event.target.matches("input, select, textarea")) {

@@ -57,6 +57,9 @@ class FakeElement {
 	setCustomValidity(message) {
 		this.validationMessage = message;
 	}
+	showModal() { this.open = true; }
+	close() { this.open = false; }
+
 	reportValidity() {}
 	querySelector(selector) {
 		const match = selector.match(/^input\[name=([^\]]+)\]:checked$/);
@@ -527,7 +530,7 @@ Deno.test("the invitation keeps play paused until its reveal finishes", async fu
 		return { finished: new Promise(resolve => { reveal = resolve; }), cancel() {} };
 	};
 	assert(puzzle.startGame() && !puzzle.startGame(), "a second click started another reveal");
-	assert(puzzle.invitationModal.classList.contains("invitation-exiting"),
+	assert(puzzle.invitation.classList.contains("invitation-exiting"),
 	       "exit fade did not release the static blur");
 	assert(puzzle.paused && puzzle.timerTimeout === null && !puzzle.invitation.hidden,
 	       "the clock started before the reveal completed");
@@ -536,7 +539,7 @@ Deno.test("the invitation keeps play paused until its reveal finishes", async fu
 	await Promise.resolve();
 	assert(puzzle.invitation.hidden && puzzle.paused && puzzle.timerTimeout === null,
 	       "a reveal in a hidden tab started the clock");
-	assert(!puzzle.invitationModal.classList.contains("invitation-exiting"),
+	assert(!puzzle.invitation.classList.contains("invitation-exiting"),
 	       "completed reveal retained its exit state");
 	puzzle.setPageHidden(false);
 	assert(!puzzle.paused && puzzle.timerTimeout !== null && !puzzle.hClues.inert,
@@ -593,7 +596,7 @@ Deno.test("an invitation reveal cannot restart a replacement game", async functi
 	assert(cancelled && puzzle.seed == 7 && puzzle.invitation.hidden &&
 	       puzzle.timerTimeout === null && puzzle.pendingSeed === undefined,
 	       "an obsolete reveal changed the replacement game");
-	assert(!puzzle.invitationModal.classList.contains("invitation-exiting"),
+	assert(!puzzle.invitation.classList.contains("invitation-exiting"),
 	       "cancelled reveal retained its exit state");
 	delete puzzle.invitation.animate;
 });
@@ -603,12 +606,12 @@ Deno.test("declining an invitation preserves the unstarted puzzle for Options", 
 	let message;
 	puzzle.say = function(text) { message = text; };
 	puzzle.loadURLSeed("https://example.com/#seed=21");
-	assert(!puzzle.invitationModal.hidden, "invitation lacked a modal backdrop");
+	assert(!puzzle.invitation.hidden, "invitation lacked a modal backdrop");
 	const before = puzzleSignature(puzzle);
 	const identity = puzzle.gameIdentity;
 	puzzle.closeInvitation();
 	puzzle.updateActionControls();
-	assert(puzzle.invitationModal.hidden && puzzle.invitation.hidden &&
+	assert(puzzle.invitation.hidden &&
 	       puzzle.seed === 0x21 && puzzle.pendingSeed === 0x21 &&
 	       puzzle.paused && puzzle.hClues.inert && puzzle.vClues.inert &&
 	       puzzle.timerTimeout === null && puzzleSignature(puzzle) === before,
@@ -628,10 +631,10 @@ Deno.test("declining an invitation preserves the unstarted puzzle for Options", 
 	puzzle.stopTimer();
 	puzzle.loadURLSeed("https://example.com/#seed=21");
 	const modals = document.modals;
-	document.modals = [puzzle.invitationModal];
+	document.modals = [puzzle.invitation];
 	try {
 		puzzle.startGame();
-		assert(puzzle.invitationModal.hidden && !puzzle.paused && puzzle.timerTimeout !== null,
+		assert(puzzle.invitation.hidden && !puzzle.paused && puzzle.timerTimeout !== null,
 		       "the invitation's own backdrop kept the started game paused");
 	} finally {
 		document.modals = modals;
@@ -836,7 +839,7 @@ Deno.test("daily attempts remember the first result and share a fixed date", asy
 			picker.value = "2026-10-08";
 			picker.validity = { valid: true };
 			await picker.onchange();
-			assert(!modal.hidden && !puzzle.invitationModal.hidden &&
+			assert(!modal.hidden && !puzzle.invitation.hidden &&
 			       puzzle.invitation.querySelector(".invitation-prompt").hidden &&
 			       puzzle.displayedDailyResult.date === "20261008" &&
 			       puzzle.seed === 0x20261008 && puzzle.pendingSeed === puzzle.seed,
@@ -845,7 +848,7 @@ Deno.test("daily attempts remember the first result and share a fixed date", asy
 			resultPicker.value = "2026-10-07";
 			resultPicker.validity = { valid: true };
 			await resultPicker.onchange();
-			assert(modal.hidden && !puzzle.invitationModal.hidden && puzzle.daily === "20261007" &&
+			assert(modal.hidden && !puzzle.invitation.hidden && puzzle.daily === "20261007" &&
 			       puzzle.pendingSeed === 0x20261007,
 			       "choosing an unplayed date did not show only its board invitation");
 			await puzzle.invitation.querySelector("#invitation-title").children.at(-1).children[0].onclick();
@@ -1300,7 +1303,7 @@ Deno.test("coarse pointers use an expanded slot tray", function() {
 	const slot = puzzle.rows[0].slots[0];
 	const wrong = (slot.value + 1) % symbols.length;
 	puzzle.expandTileChoices = true;
-	const panel = puzzle.slotTray.querySelector(".slot-tray-panel");
+	const panel = puzzle.slotTray;
 	slot.elem.getBoundingClientRect = function() {
 		return { left: 100, top: 100, width: 30, height: 30 };
 	};
@@ -3147,8 +3150,8 @@ Deno.test("run history sorts and filters without hiding unknown dates", async fu
 		await puzzle.showRunHistory();
 		assert(puzzle.scores.querySelector(".modal-close").value == "Claude librum",
 		       "Chronicle did not retain its compact close label during play");
-		puzzle.scores.listeners.click({ target: puzzle.scores });
-		assert(puzzle.scores.hidden, "outside click did not dismiss the Chronicle");
+		puzzle.scores.listeners.cancel({ preventDefault() {} });
+		assert(puzzle.scores.hidden, "cancellation did not dismiss the Chronicle");
 	}, [
 		{ date: 1, elapsed: 300, seed: 1, outcome: "won" },
 		{ date: 2, elapsed: 100, seed: 2, outcome: "lost" },
@@ -3620,30 +3623,36 @@ Deno.test("arrow keys navigate proof steps", function() {
 	puzzle.stopTimer();
 });
 
-Deno.test("Escape dismisses transient interfaces", function() {
+Deno.test("native dialog cancellation uses the application close path", function() {
 	const puzzle = makePuzzle(1);
-	const keydown = document.listeners.keydown;
 	let prevented = 0;
-	puzzle.slotTray.hidden = false;
-	keydown({
-		key: "Escape",
-		preventDefault() { prevented++; },
-	});
-	assert(puzzle.slotTray.hidden && prevented == 1,
-	       "Escape did not close the expanded tile tray");
+	const cancel = { preventDefault() { prevented++; } };
+	puzzle.openSlotTray(puzzle.rows[0].slots[0]);
+	assert(puzzle.slotTray.open);
+	puzzle.slotTray.listeners.cancel(cancel);
+	assert(puzzle.slotTray.hidden && !puzzle.slotTray.open && !puzzle.expandedSlot && prevented == 1,
+	       "cancellation did not close the expanded tile tray");
 
-	const modal = new FakeElement();
-	modal.hidden = false;
-	const close = modal.querySelector(".modal-close");
-	close.click = function() { modal.hidden = true; };
-	document.modals = [modal];
-	keydown({
-		key: "Escape",
-		preventDefault() { prevented++; },
-	});
-	document.modals = [];
-	assert(modal.hidden && prevented == 2,
-	       "Escape did not use the visible modal's close action");
+	puzzle.options.hidden = true;
+	puzzle.toggleOptions();
+	assert(puzzle.options.open && puzzle.paused);
+	puzzle.options.listeners.cancel(cancel);
+	assert(puzzle.options.hidden && !puzzle.options.open && !puzzle.paused && prevented == 2,
+	       "cancellation did not close Options and resume play");
+	puzzle.stopTimer();
+});
+
+Deno.test("dialog backdrop dismissal ignores panel padding", function() {
+	const puzzle = makePuzzle(1);
+	puzzle.options.hidden = true;
+	puzzle.toggleOptions();
+	puzzle.options.getBoundingClientRect = () => ({ left: 10, top: 10, right: 100, bottom: 100 });
+	puzzle.options.listeners.click({ target: puzzle.options, clientX: 12, clientY: 12 });
+	assert(puzzle.options.open, "a padding click closed the dialog");
+	puzzle.options.listeners.click({ target: puzzle.options, clientX: 2, clientY: 2 });
+	assert(!puzzle.options.open && !puzzle.paused, "a backdrop click did not resume play");
+	delete puzzle.options.getBoundingClientRect;
+	puzzle.stopTimer();
 });
 
 Deno.test("timer pause survives dialogs and page visibility without charging paused time", function() {
