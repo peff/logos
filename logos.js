@@ -4473,34 +4473,16 @@ function adjacent3DeductionMessage(puzzle, step, before, after, domains) {
 		});
 	}
 	if (countBits(removed) > 1) {
-		var middleCannotFit = true;
-		var otherCannotFit = true;
-		for (var col = 0; col < rowSize; col++) {
-			if (!(removed & (1 << col)))
-				continue;
-			var adjacent = 0;
-			var twoAway = 0;
-			if (col > 0)
-				adjacent |= 1 << (col - 1);
-			if (col + 1 < rowSize)
-				adjacent |= 1 << (col + 1);
-			if (col > 1)
-				twoAway |= 1 << (col - 2);
-			if (col + 2 < rowSize)
-				twoAway |= 1 << (col + 2);
-			if (domains[middleRow][middleSymbol] & adjacent)
-				middleCannotFit = false;
-			if (domains[otherRow][otherSymbol] & twoAway)
-				otherCannotFit = false;
-		}
-		if (otherCannotFit)
+		var cause = adjacent3OuterCommonCause(removed, rowSize,
+			domains[middleRow][middleSymbol], domains[otherRow][otherSymbol]);
+		if (cause.otherCannotFit)
 			return identifiedDeduction(step,
 				"adjacent3.outer.other-not-two-away", {
 					subject: name,
 					positions: positionList(removed),
 					other: otherName,
 				});
-		if (middleCannotFit)
+		if (cause.middleCannotFit)
 			return identifiedDeduction(step,
 				"adjacent3.outer.middle-not-adjacent", {
 					subject: name,
@@ -4677,6 +4659,31 @@ function positionList(bits) {
 		positions[positions.length - 1] + " columns";
 }
 
+/* Which neighbor rules out every removed position of an outer symbol? */
+function adjacent3OuterCommonCause(removed, rowSize, middleDomain, otherDomain) {
+	var middleCannotFit = true;
+	var otherCannotFit = true;
+	for (var col = 0; col < rowSize; col++) {
+		if (!(removed & (1 << col)))
+			continue;
+		var adjacent = 0;
+		var twoAway = 0;
+		if (col > 0)
+			adjacent |= 1 << (col - 1);
+		if (col + 1 < rowSize)
+			adjacent |= 1 << (col + 1);
+		if (col > 1)
+			twoAway |= 1 << (col - 2);
+		if (col + 2 < rowSize)
+			twoAway |= 1 << (col + 2);
+		if (middleDomain & adjacent)
+			middleCannotFit = false;
+		if (otherDomain & twoAway)
+			otherCannotFit = false;
+	}
+	return { middleCannotFit, otherCannotFit };
+}
+
 function adjacent3OuterHasCommonCause(puzzle, step, removed, domains) {
 	var clue = step.clue;
 	var middleRow = puzzle.rows.indexOf(clue.mRow);
@@ -4691,27 +4698,9 @@ function adjacent3OuterHasCommonCause(puzzle, step, removed, domains) {
 		rightRow : leftRow;
 	var otherSymbol = step.row == leftRow && step.symbol == leftSymbol ?
 		rightSymbol : leftSymbol;
-	var middleCannotFit = true;
-	var otherCannotFit = true;
-	for (var col = 0; col < domains[step.row].length; col++) {
-		if (!(removed & (1 << col)))
-			continue;
-		var adjacent = 0;
-		var twoAway = 0;
-		if (col > 0)
-			adjacent |= 1 << (col - 1);
-		if (col + 1 < domains[step.row].length)
-			adjacent |= 1 << (col + 1);
-		if (col > 1)
-			twoAway |= 1 << (col - 2);
-		if (col + 2 < domains[step.row].length)
-			twoAway |= 1 << (col + 2);
-		if (domains[middleRow][middleSymbol] & adjacent)
-			middleCannotFit = false;
-		if (domains[otherRow][otherSymbol] & twoAway)
-			otherCannotFit = false;
-	}
-	return middleCannotFit || otherCannotFit;
+	var cause = adjacent3OuterCommonCause(removed, domains[step.row].length,
+		domains[middleRow][middleSymbol], domains[otherRow][otherSymbol]);
+	return cause.middleCannotFit || cause.otherCannotFit;
 }
 
 function adjacent3OuterCommonCauseGroup(puzzle, step, removed, domains) {
