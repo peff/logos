@@ -65,14 +65,28 @@
 			return this.transaction("readwrite", async (s, q) => {
 				const group = await q(s.groups.get(id));
 				if (!group || !name) return;
-				const first = new Set();
-				const known = new Set((await q(s.uploads.index("group").getAllKeys(id))).map(key => key[1]));
+				const first = new Map(), completed = new Set();
+				const known = new Map((await q(s.uploads.index("group").getAll(id))).map(item => [item.runId, item.record]));
 				for (const run of runs) {
-					if (!run.daily || run.multiplayer || first.has(run.daily)) continue;
-					first.add(run.daily);
-					if (!backfill && run.daily !== group.joinDate && run.date < group.joinedAt) continue;
+					if (!run.daily || run.multiplayer) continue;
+					const original = first.get(run.daily);
+					let continuationOf;
+					if (original) {
+						if (original.outcome !== "lost" || run.outcome !== "won" ||
+							run.elapsed !== undefined || completed.has(run.daily)) continue;
+						completed.add(run.daily);
+						continuationOf = known.get(original.id)?.id;
+						/* Only share a continuation if we have shared its loss. */
+						if (!continuationOf) continue;
+					} else {
+						first.set(run.daily, run);
+						if (!backfill && run.daily !== group.joinDate && run.date < group.joinedAt) continue;
+					}
 					if (known.has(run.id)) continue;
-					s.uploads.add({ group: id, runId: run.id, record: makeRecord(run, name), sent: false });
+					const record = makeRecord(run, name);
+					if (continuationOf) record.continuationOf = continuationOf;
+					s.uploads.add({ group: id, runId: run.id, record, sent: false });
+					known.set(run.id, record);
 				}
 			});
 		}

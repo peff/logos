@@ -24,6 +24,20 @@ Deno.test("scoreboards bound reads and return an incremental cursor", async () =
 	assert(JSON.stringify(args) === JSON.stringify([group, 9]));
 	assert((await worker.fetch(req("GET", undefined, "?after=-1"), { DB })).status === 400);
 });
+Deno.test("scoreboards accept only untimed wins as linked continuations", async () => {
+	const completion = { ...score, elapsed: null, continuationOf: group };
+	assert(validScore(completion));
+	for (const patch of [{ continuationOf: score.id }, { continuationOf: null },
+		{ continuationOf: "not-a-uuid" }, { continuationOf: [group] },
+		{ outcome: "lost" }, { elapsed: 123000 }, { extra: true }])
+		assert(!validScore({ ...completion, ...patch }), JSON.stringify(patch));
+	let stored;
+	const DB = { prepare() { return { bind(_group, _id, payload) {
+		stored = JSON.parse(payload); return { run: async () => {} };
+	} }; } };
+	assert((await worker.fetch(req("POST", completion), { DB })).status === 200);
+	assert(stored.continuationOf === group && stored.elapsed === null);
+});
 Deno.test("scoreboard writes are parameterized and idempotent", async () => {
 	let values;
 	const DB = { prepare(sql) { assert(sql.includes("ON CONFLICT(group_id, id) DO NOTHING")); return {

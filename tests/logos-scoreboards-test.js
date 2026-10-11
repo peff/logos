@@ -1,7 +1,7 @@
 (async function() {
 	const output = document.querySelector("#results");
 	const assert = (value, message) => { if (!value) throw new Error(message); };
-	const { ScoreboardClient, localDate, compareScores } = LogosScoreboards;
+	const { ScoreboardClient, localDate, compareScores, groupScores } = LogosScoreboards;
 	const store = new ScoreboardStore();
 	const groups = [crypto.randomUUID(), crypto.randomUUID()];
 	const rows = new Map(); let sequence = 0, offline = false, lostReply = false, posts = 0;
@@ -23,7 +23,7 @@
 	};
 	const runs = [
 		{ id: 1, date: 1, daily: localDate(), outcome: "lost", elapsed: 123000 },
-		{ id: 2, date: 2, daily: localDate(), outcome: "won" },
+		{ id: 2, date: 2, daily: localDate(), outcome: "won", elapsed: 130000 },
 		{ id: 3, date: 1, daily: "20200101", outcome: "won", elapsed: 1000 },
 	];
 	const client = new ScoreboardClient(store, "https://example.test/api/scoreboards", async () => ({ runs }), fetcher);
@@ -88,6 +88,57 @@
 		await client.reconcile("20200101");
 		await client.sync();
 		assert(posts === afterBackfill, "backfill reposted an acknowledged score"); checks++;
+		for (const id of groups) await store.leave(id);
+		const continuationGroups = [crypto.randomUUID(), crypto.randomUUID()];
+		groups.push(...continuationGroups);
+		const continuedRuns = [{ id: 10, date: 1, daily: "20200102", outcome: "lost", elapsed: 123000 }];
+		const continuedClient = new ScoreboardClient(store, client.endpoint, async () => ({ runs: continuedRuns }), fetcher);
+		for (const id of continuationGroups) await continuedClient.join(id, "New group");
+		await continuedClient.reconcile("20200102");
+		await continuedClient.sync();
+		await store.setName("Renamed");
+		continuedRuns.push({ id: 11, date: 2, daily: "20200102", outcome: "won" });
+		continuedRuns.push({ id: 12, date: 3, daily: "20200102", outcome: "won" });
+		offline = true;
+		await continuedClient.sync().catch(() => {});
+		for (const id of continuationGroups) {
+			const uploads = await store.uploads(id);
+			assert(uploads.length === 2 && uploads[0].sent && !uploads[1].sent &&
+			       uploads[1].record.continuationOf === uploads[0].record.id,
+			       "continuation did not reference the already shared loss"); checks++;
+			const grouped = groupScores(uploads.map(item => ({ ...item.record, pending: !item.sent })));
+			assert(grouped.length === 1 && grouped[0].completed && grouped[0].pending &&
+			       grouped[0].outcome === "lost" && grouped[0].elapsed === 123000 && grouped[0].name === "Grace",
+			       "pending completion changed the original score or was not grouped"); checks++;
+		}
+		offline = false; lostReply = true;
+		await continuedClient.sync().catch(() => {});
+		await continuedClient.sync();
+		for (const id of continuationGroups) {
+			assert(rows.get(id).length === 2, "continuation retry duplicated the record"); checks++;
+			const records = await store.records(id);
+			const original = records.find(record => !record.continuationOf);
+			const completion = records.find(record => record.continuationOf);
+			assert(!groupScores([original])[0].completed && groupScores(records)[0].completed,
+			       "incremental completion did not update the displayed loss"); checks++;
+			assert(groupScores([completion]).length === 0, "orphan continuation became a standalone win"); checks++;
+			const stranger = { ...original, id: crypto.randomUUID() };
+			assert(!groupScores([stranger, completion])[0].completed, "same-name score matched another player's completion"); checks++;
+			assert(!groupScores([original, { ...completion, date: "19990101" }])[0].completed,
+			       "completion matched a different daily"); checks++;
+		}
+		const sent = posts;
+		await continuedClient.sync();
+		assert(posts === sent, "acknowledged continuation was reposted"); checks++;
+		const lateGroup = crypto.randomUUID();
+		groups.push(lateGroup);
+		await continuedClient.join(lateGroup, "Joined later");
+		await continuedClient.reconcile();
+		assert(!(await store.uploads(lateGroup)).length, "old completion bypassed joining boundary without its loss"); checks++;
+		await continuedClient.reconcile("20200102");
+		const backfilled = await store.uploads(lateGroup);
+		assert(backfilled.length === 2 && backfilled[1].record.continuationOf === backfilled[0].record.id,
+		       "explicit backfill did not queue the loss and its completion together"); checks++;
 		output.textContent = `PASS: ${checks} scoreboard checks`;
 	} catch (error) { output.textContent = "FAIL: " + error.stack; }
 	finally {

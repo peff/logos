@@ -2182,7 +2182,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 				dailyResult.historyUnsaved = true;
 			}
 		}
-		if (saved && dailyResult?.runId === run.id)
+		if (saved && dailyResult)
 			this.dailyScoreSaved?.();
 		if (this.pantheonRequest !== request)
 			return saved;
@@ -2202,7 +2202,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			this.say("Your result could not be saved.");
 		if (!this.scores.hidden)
 			this.renderHighScores();
-		if (dailyResult && this.gameIdentity === gameIdentity)
+		if (dailyResult && this.gameIdentity === gameIdentity &&
+		    !(outcome === "lost" && this.continuedFromLoss && !this.gameOver))
 			this.showDailyResult(dailyResult);
 		return saved;
 	}

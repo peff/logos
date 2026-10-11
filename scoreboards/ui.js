@@ -1,5 +1,5 @@
 (function() {
-	const { ScoreboardClient, localDate, compareScores, validId } = LogosScoreboards;
+	const { ScoreboardClient, localDate, compareScores, groupScores, validId } = LogosScoreboards;
 	const modal = document.querySelector("#online-menu");
 	const button = document.querySelector("#online-button");
 	const query = selector => modal.querySelector(selector);
@@ -162,11 +162,20 @@
 		const localRuns = new Map(uploads.map(item => [item.record.id, item.runId]));
 		const entries = records.concat(uploads.filter(item => !ids.has(item.record.id)).map(item => ({ ...item.record, pending: !item.sent })));
 		const body = view("tbody"); body.replaceChildren();
-		for (const record of entries.filter(r => r.date === date).sort(compareScores)) {
+		for (const record of groupScores(entries.filter(r => r.date === date)).sort(compareScores)) {
 			const row = document.createElement("tr");
 			for (const text of [record.name, record.outcome === "won" ? "Win" : "Loss",
 				record.elapsed === null ? "" : formatTime(record.elapsed), ""]) {
 				const cell = document.createElement("td"); cell.textContent = text; row.append(cell);
+			}
+			if (record.completed) {
+				const completion = document.createElement("span");
+				completion.className = "forum-completion";
+				completion.title = "Completed afterward in Zen mode";
+				completion.innerHTML = '<svg class="history-infinity" viewBox="0 0 40 20" ' +
+					'role="img" aria-label="Completed afterward in Zen mode" focusable="false">' +
+					'<use href="#infinity-shape"/></svg>';
+				row.children[1].append(completion);
 			}
 			const pending = document.createElement("span");
 			pending.textContent = "Awaiting sync";

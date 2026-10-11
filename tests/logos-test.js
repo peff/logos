@@ -2874,6 +2874,32 @@ Deno.test("continued losses record the first mistake and an untimed completion",
 	});
 });
 
+Deno.test("daily continuations share each outcome but defer the loss dialog", async function() {
+	await withRunHistory(async function(runs) {
+		const puzzle = makePuzzle(1, true);
+		puzzle.seed = 0x20261010;
+		puzzle.daily = "20261010";
+		puzzle.timerElapsed = 700;
+		puzzle.continueAfterLoss = true;
+		let shared = 0, saving;
+		const shown = [];
+		puzzle.dailyScoreSaved = () => { shared++; };
+		puzzle.showDailyResult = result => shown.push(result);
+		puzzle.finishRun = outcome => saving = puzzle.recordOutcome(outcome);
+		puzzle.lose("first loss");
+		await saving;
+		assert(runs.length === 1 && shared === 1 && !shown.length &&
+		       !puzzle.gameOver && puzzle.practiceMode,
+		       "continued daily loss was not shared silently");
+		for (const slot of puzzle.rows[0].slots) slot.displaySingle();
+		await puzzle.checkWin();
+		assert(runs.length === 2 && shared === 2 && shown.length === 1 &&
+		       shown[0].outcome === "lost" && shown[0].elapsed === 700 &&
+		       shown[0].completionRunId === runs[1].id,
+		       "daily completion was not shared and shown alongside the loss");
+	});
+});
+
 Deno.test("Zen completions appear in the Chronicle without affecting rankings", async function() {
 	await withRunHistory(async function(runs) {
 		const puzzle = makePuzzle(6, true);

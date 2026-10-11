@@ -3,7 +3,11 @@ const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{1
 export function validScore(data) {
 	if (!data || typeof data !== "object" || Array.isArray(data)) return false;
 	const fields = ["id", "date", "name", "outcome", "elapsed", "generatorVersion"];
-	if (Object.keys(data).length !== fields.length || !fields.every(k => Object.hasOwn(data, k))) return false;
+	if (!fields.every(k => Object.hasOwn(data, k)) ||
+		Object.keys(data).some(k => !fields.includes(k) && k !== "continuationOf")) return false;
+	if (Object.hasOwn(data, "continuationOf") &&
+		(typeof data.continuationOf !== "string" || !uuid.test(data.continuationOf) ||
+		 data.continuationOf === data.id || data.outcome !== "won" || data.elapsed !== null)) return false;
 	if (typeof data.id !== "string" || !uuid.test(data.id) || typeof data.date !== "string" || !/^\d{8}$/.test(data.date)) return false;
 	const date = new Date(`${data.date.slice(0, 4)}-${data.date.slice(4, 6)}-${data.date.slice(6)}T12:00:00Z`);
 	return Number.isFinite(+date) && date.toISOString().slice(0, 10).replaceAll("-", "") === data.date &&

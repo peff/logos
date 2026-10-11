@@ -72,5 +72,18 @@
 		const rank = r => r.outcome === "won" ? r.elapsed === null ? 1 : 0 : 2;
 		return rank(a) - rank(b) || (rank(a) === 0 ? a.elapsed - b.elapsed : 0) || a.name.localeCompare(b.name) || a.id.localeCompare(b.id);
 	}
-	root.LogosScoreboards = { ScoreboardClient, localDate, compareScores, validId: id => uuid.test(id) };
+	function groupScores(records) {
+		const scores = new Map(records.filter(record => !record.continuationOf)
+			.map(record => [record.id, { ...record }]));
+		for (const record of records) {
+			const original = scores.get(record.continuationOf);
+			if (!original || original.outcome !== "lost" || record.outcome !== "won" ||
+				record.elapsed !== null || record.date !== original.date ||
+				record.generatorVersion !== original.generatorVersion) continue;
+			original.completed = true;
+			original.pending ||= record.pending;
+		}
+		return [...scores.values()];
+	}
+	root.LogosScoreboards = { ScoreboardClient, localDate, compareScores, groupScores, validId: id => uuid.test(id) };
 })(globalThis);
