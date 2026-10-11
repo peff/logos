@@ -3581,8 +3581,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			"expandTileChoices");
 		var storedShowActionSelector = localStorage.getItem(
 			"showActionSelector");
-		var oldSelectionActionMenu = localStorage.getItem(
-			"selectionActionMenu");
 		if (storedCustomCursor !== null)
 			customCursor = storedCustomCursor == "true";
 		if (storedMilestones !== null)
@@ -3599,8 +3597,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			soundVolume = Number(storedSoundVolume);
 		if (storedExpandTileChoices !== null)
 			expandTileChoices = storedExpandTileChoices == "true";
-		else if (oldSelectionActionMenu !== null)
-			expandTileChoices = oldSelectionActionMenu == "true";
 		if (storedShowActionSelector !== null)
 			showActionSelector = storedShowActionSelector == "true";
 	} catch (e) {

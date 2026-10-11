@@ -1392,7 +1392,6 @@ Deno.test("touch options use independent defaults and saved settings",
 		function() {
 	localStorage.removeItem("expandTileChoices");
 	localStorage.removeItem("showActionSelector");
-	localStorage.removeItem("selectionActionMenu");
 	let mediaQuery;
 	globalThis.matchMedia = function(query) {
 		mediaQuery = query;
@@ -1415,7 +1414,6 @@ Deno.test("touch options use independent defaults and saved settings",
 	delete globalThis.innerHeight;
 	localStorage.removeItem("expandTileChoices");
 	localStorage.removeItem("showActionSelector");
-	localStorage.removeItem("selectionActionMenu");
 });
 
 Deno.test("the persistent selector applies actions directly", function() {
