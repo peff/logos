@@ -1916,16 +1916,18 @@ input[type="text"] {
 	margin: 0.3rem 0 0.65rem;
 }
 
-.pantheon-mode {
+.pantheon-mode, .pantheon-forum-link {
 	border-left: 1px solid rgb(128 99 58 / 30%);
 	padding-left: 0.65em;
 }
 
-.pantheon-friends svg {
+.pantheon-friends svg, .pantheon-forum svg {
 	display: block;
 	width: 1.1em;
 	height: 0.825em;
 }
+
+.pantheon-forum svg { height: .917em; }
 
 .pantheon-levels {
 	display: flex;
@@ -1933,7 +1935,7 @@ input[type="text"] {
 	gap: 0.65em;
 }
 
-:is(.pantheon-levels button, .pantheon-friends) {
+:is(.pantheon-levels button, .pantheon-friends, .pantheon-forum) {
 	border: 0;
 	border-bottom: 1px solid transparent;
 	padding: 0.15em 0.25em;
@@ -1945,17 +1947,17 @@ input[type="text"] {
 	cursor: var(--action-cursor);
 }
 
-:is(.pantheon-levels button, .pantheon-friends)[aria-pressed="true"] {
+:is(.pantheon-levels button, .pantheon-friends, .pantheon-forum)[aria-pressed="true"] {
 	color: #71552f;
 	border-bottom-color: #a98c58;
 }
 
-:is(.pantheon-levels button, .pantheon-friends):hover {
+:is(.pantheon-levels button, .pantheon-friends, .pantheon-forum):hover {
 	color: #71552f;
 	background: rgb(128 99 58 / 6%);
 }
 
-:is(.pantheon-levels button, .pantheon-friends):focus-visible {
+:is(.pantheon-levels button, .pantheon-friends, .pantheon-forum):focus-visible {
 	outline: 2px solid #80633a;
 	outline-offset: 0.1rem;
 }

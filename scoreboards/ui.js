@@ -5,6 +5,7 @@
 	const query = selector => modal.querySelector(selector);
 	const forum = document.querySelector("#forum-menu");
 	const view = selector => forum.querySelector(selector);
+	const forumLink = document.querySelector(".pantheon-forum-link");
 	let active = modal, trail = [], groupList = [];
 	const endpoint = document.querySelector('meta[name="logos-scoreboards-endpoint"]').content;
 	const store = new ScoreboardStore("logos-scoreboards:" + endpoint);
@@ -12,6 +13,7 @@
 		() => accessRunHistory(null, true));
 	let selected, highlightedGroup, date = localDate(), dailyReturn, rendering = 0;
 	let invitationReturn;
+	let pantheonReturn;
 	const difficulties = new Map();
 	const groupLabel = group => group.label || "Unnamed group";
 	const status = (text, panel = active) => {
@@ -26,6 +28,7 @@
 		const generation = ++rendering;
 		const groups = (await store.groups()).sort((a, b) => a.joinedAt - b.joinedAt || a.id.localeCompare(b.id));
 		if (generation !== rendering) return;
+		forumLink.hidden = !groups.length;
 		if (!groups.some(g => g.id === selected)) selected = groups[0]?.id;
 		const name = await store.getName();
 		if (generation !== rendering) return;
@@ -240,8 +243,15 @@
 		}
 		await render();
 	}
-	async function open(fromDaily = false) {
-		const destination = fromDaily && (await store.groups()).length ? forum : modal;
+	async function open(fromDaily = false, fromPantheon = false) {
+		const destination = fromPantheon || fromDaily && (await store.groups()).length ? forum : modal;
+		pantheonReturn = null;
+		if (fromPantheon) {
+			pantheonReturn = { identity: puzzle.gameIdentity,
+				daily: puzzle.scoresDailyReturn, scores: puzzle.scoresReturn };
+			puzzle.scoresDailyReturn = puzzle.scoresReturn = null;
+			puzzle.toggleModal(puzzle.scores, puzzle.scoresButton, "Rejoin the mortal realm");
+		}
 		highlightedGroup = null;
 		date = fromDaily ? puzzle.displayedDailyResult.date : localDate();
 		if (fromDaily) {
@@ -265,6 +275,14 @@
 		if (!active.hidden) puzzle.toggleModal(active, button, "Close");
 		if (dailyReturn && dailyReturn.identity === puzzle.gameIdentity) puzzle.showDailyResult(dailyReturn.result);
 		dailyReturn = null;
+		if (pantheonReturn && pantheonReturn.identity === puzzle.gameIdentity) {
+			puzzle.scoresDailyReturn = pantheonReturn.daily;
+			puzzle.scoresReturn = pantheonReturn.scores;
+			puzzle.toggleModal(puzzle.scores, puzzle.scoresButton, "Rejoin the mortal realm");
+			puzzle.showPantheon();
+			if (!forumLink.hidden) forumLink.querySelector("button").focus({ preventScroll: true });
+		}
+		pantheonReturn = null;
 		if (invitationReturn) {
 			const url = invitationReturn;
 			invitationReturn = null;
@@ -278,6 +296,7 @@
 		if (await puzzle.openDaily(date)) {
 			trail = [];
 			dailyReturn = null;
+			pantheonReturn = null;
 		} else if (puzzle.gameIdentity === identity) {
 			puzzle.toggleModal(forum, button, "Close");
 			status("The daily puzzle could not be opened.");
@@ -293,6 +312,7 @@
 		else await open();
 	});
 	button.onclick = attempt(() => open());
+	forumLink.querySelector("button").onclick = attempt(() => open(false, true));
 	document.querySelector(".daily-scoreboards").onclick = attempt(() => open(true));
 	for (const panel of [modal, forum]) {
 		panel.querySelector(".modal-close").onclick = close;
@@ -419,7 +439,10 @@
 		await join(id, label);
 	}
 	window.addEventListener("hashchange", () => invitation().catch(e => status(e.message)));
-	puzzle.onlineReady = store.getName().then(name => { query("#online-name").value = name; })
+	puzzle.onlineReady = Promise.all([
+		store.getName().then(name => { query("#online-name").value = name; }),
+		store.groups().then(groups => { forumLink.hidden = !groups.length; }),
+	])
 		.catch(e => status(e.message, modal));
 	puzzle.onlineReady.then(invitation).catch(e => status(e.message));
 })();
