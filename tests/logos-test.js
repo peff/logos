@@ -153,6 +153,7 @@ const Logos = eval(source +
 	"proofMessageText: proofMessageText, " +
 	"practiceMistakeMessage: practiceMistakeMessage, " +
 	"proofDeductionMessage: proofDeductionMessage, " +
+	"proofDeductionCatalog, " +
 	"combineRelatedProofSteps: combineRelatedProofSteps, " +
 	"drainForcedProofSteps: drainForcedProofSteps, " +
 	"nextForcedProofStep: nextForcedProofStep, " +
@@ -2171,6 +2172,23 @@ Deno.test("multi-clue contradictions are not highlighted", function() {
 	       "the detailed proof was not offered without highlighted clues");
 	assert(puzzle.explainButton.classList.contains("proof-available"),
 	       "the Because button was not highlighted without a direct clue");
+});
+
+Deno.test("every referenced proof deduction has a catalog entry", function() {
+	const ids = new Set(Logos.proofDeductionCatalog.map(entry => entry.id));
+	const families = new Set([...ids].map(id => id.split(".")[0]));
+	const referenced = new Set();
+	/* Direct calls also catch newly introduced families. Other literals
+	 * include IDs selected dynamically for conclusions or used to combine
+	 * related steps.
+	 */
+	for (const match of source.matchAll(/identifiedDeduction\(\s*step,\s*"([^"]+)"/g))
+		referenced.add(match[1]);
+	for (const match of source.matchAll(/"([a-z][a-z0-9]*(?:\.[a-z][a-z0-9-]*)+)"/g))
+		if (families.has(match[1].split(".")[0]))
+			referenced.add(match[1]);
+	for (const id of referenced)
+		assert(ids.has(id), "missing proof deduction: " + id);
 });
 
 Deno.test("proof traces prune deductions unrelated to the mistake", function() {
