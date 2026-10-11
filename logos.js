@@ -283,6 +283,19 @@ function initializeHistoryTable(table) {
 	table.appendChild(document.createElement("tbody"));
 }
 
+/* Read a boolean or numeric preference, using the fallback's type. */
+function readOption(name, fallback) {
+	try {
+		var stored = localStorage.getItem(name);
+		if (stored !== null)
+			return typeof fallback == "boolean" ?
+				stored == "true" : Number(stored);
+	} catch (e) {
+		/* Storage may be unavailable for local files. */
+	}
+	return fallback;
+}
+
 function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		options, optionsButton, help, helpButton, scores, scoresButton,
 		about, logoButton) {
@@ -3549,10 +3562,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	for (var name in this.soundSamples)
 		this.loadSampleSound(name);
 
-	var customCursor = true;
-	var showMilestones = this.showMilestones;
-	var autoDismissClues = true;
-	var practiceMode = this.practiceModePreference;
 	var randomDifficulties = ["easy", "medium", "hard"];
 	try {
 		var storedDifficulties = JSON.parse(localStorage.getItem("randomDifficulties"));
@@ -3561,46 +3570,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			randomDifficulties = storedDifficulties;
 	} catch (e) {
 		/* Missing or invalid preferences use all difficulties. */
-	}
-	var continueAfterLoss = this.continueAfterLoss;
-	var soundEffects = true;
-	var soundVolume = 1;
-	var expandTileChoices = this.expandTileChoices;
-	var showActionSelector = this.showActionSelector;
-	try {
-		var storedCustomCursor = localStorage.getItem("customCursor");
-		var storedMilestones = localStorage.getItem("showMilestones");
-		var storedAutoDismissClues = localStorage.getItem(
-			"autoDismissClues");
-		var storedPracticeMode = localStorage.getItem("practiceMode");
-		var storedContinueAfterLoss = localStorage.getItem(
-			"continueAfterLoss");
-		var storedSoundEffects = localStorage.getItem("soundEffects");
-		var storedSoundVolume = localStorage.getItem("soundVolume");
-		var storedExpandTileChoices = localStorage.getItem(
-			"expandTileChoices");
-		var storedShowActionSelector = localStorage.getItem(
-			"showActionSelector");
-		if (storedCustomCursor !== null)
-			customCursor = storedCustomCursor == "true";
-		if (storedMilestones !== null)
-			showMilestones = storedMilestones == "true";
-		if (storedAutoDismissClues !== null)
-			autoDismissClues = storedAutoDismissClues == "true";
-		if (storedPracticeMode !== null)
-			practiceMode = storedPracticeMode == "true";
-		if (storedContinueAfterLoss !== null)
-			continueAfterLoss = storedContinueAfterLoss == "true";
-		if (storedSoundEffects !== null)
-			soundEffects = storedSoundEffects == "true";
-		if (storedSoundVolume !== null)
-			soundVolume = Number(storedSoundVolume);
-		if (storedExpandTileChoices !== null)
-			expandTileChoices = storedExpandTileChoices == "true";
-		if (storedShowActionSelector !== null)
-			showActionSelector = storedShowActionSelector == "true";
-	} catch (e) {
-		/* Storage may be unavailable for local files. */
 	}
 	this.highScores = [];
 	this.pantheonLevel = "all";
@@ -3611,15 +3580,20 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	/* Applying saved preferences must not write a stale snapshot back. */
 	this.loadingOptions = true;
 	this.setRandomDifficulties(randomDifficulties);
-	this.setCustomCursor(customCursor);
-	this.setMilestones(showMilestones);
-	this.setAutoDismissClues(autoDismissClues);
-	this.setPracticeMode(practiceMode);
-	this.setContinueAfterLoss(continueAfterLoss);
-	this.setSoundEffects(soundEffects);
-	this.setSoundVolume(soundVolume);
-	this.setExpandTileChoices(expandTileChoices);
-	this.setShowActionSelector(showActionSelector);
+	this.setCustomCursor(readOption("customCursor", true));
+	this.setMilestones(readOption(
+		"showMilestones", this.showMilestones));
+	this.setAutoDismissClues(readOption("autoDismissClues", true));
+	this.setPracticeMode(readOption(
+		"practiceMode", this.practiceModePreference));
+	this.setContinueAfterLoss(readOption(
+		"continueAfterLoss", this.continueAfterLoss));
+	this.setSoundEffects(readOption("soundEffects", true));
+	this.setSoundVolume(readOption("soundVolume", 1));
+	this.setExpandTileChoices(readOption(
+		"expandTileChoices", this.expandTileChoices));
+	this.setShowActionSelector(readOption(
+		"showActionSelector", this.showActionSelector));
 	this.loadingOptions = false;
 	this.updateFullscreenButton();
 
