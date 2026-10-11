@@ -4135,6 +4135,16 @@ function countBits(bits) {
 	return count;
 }
 
+/* Return the zero-based index of a single set bit, or null otherwise. */
+function singleBitIndex(bits) {
+	if (!bits || (bits & (bits - 1)))
+		return null;
+	var index = 0;
+	while (!(bits & (1 << index)))
+		index++;
+	return index;
+}
+
 function proofSymbolReference(puzzle, row, symbol) {
 	return "\ue000" + row + ":" + symbol + "\ue001";
 }
@@ -4255,10 +4265,8 @@ function deductionMessage(puzzle, step, before, after) {
 	var removed = before & ~after;
 	var rowSize = puzzle.rows[row].slots.length;
 	var fullDomain = (1 << rowSize) - 1;
-	if (step.placement && countBits(after) == 1) {
-		var col = 0;
-		while (!(after & (1 << col)))
-			col++;
+	var col = singleBitIndex(after);
+	if (step.placement && col !== null) {
 		return identifiedDeduction(step, "clue.placement", {
 			subject: name,
 			position: ordinalName(col),
@@ -4268,10 +4276,8 @@ function deductionMessage(puzzle, step, before, after) {
 		return identifiedDeduction(step, "clue.remove-edges", {
 			subject: name,
 		});
-	if (countBits(removed) == 1) {
-		var col = 0;
-		while (!(removed & (1 << col)))
-			col++;
+	col = singleBitIndex(removed);
+	if (col !== null) {
 		return identifiedDeduction(step, "clue.remove-position", {
 			subject: name,
 			position: ordinalName(col),
@@ -4287,11 +4293,9 @@ function deductionMessage(puzzle, step, before, after) {
 }
 
 function adjacent3InwardPosition(outerDomain, rowSize, distance) {
-	if (countBits(outerDomain) != 1)
+	var col = singleBitIndex(outerDomain);
+	if (col === null)
 		return 0;
-	var col = 0;
-	while (!(outerDomain & (1 << col)))
-		col++;
 	if (col < 2)
 		return 1 << (col + distance);
 	if (col >= rowSize - 2)
@@ -4304,6 +4308,8 @@ function adjacent3DeductionMessage(puzzle, step, before, after, domains) {
 	var row = step.row;
 	var symbol = step.symbol;
 	var removed = before & ~after;
+	var placedCol = singleBitIndex(after);
+	var removedCol = singleBitIndex(removed);
 	var rowSize = domains[row].length;
 	var middleRow = puzzle.rows.indexOf(clue.mRow);
 	var middleSymbol = clue.mRow.slots[clue.mCol].value;
@@ -4317,16 +4323,13 @@ function adjacent3DeductionMessage(puzzle, step, before, after, domains) {
 	var rightName = proofSymbolReference(puzzle, rightRow, rightSymbol);
 	var edges = 1 | (1 << (rowSize - 1));
 	if (row == middleRow && symbol == middleSymbol) {
-		if (step.placement && countBits(after) == 1) {
-			var col = 0;
-			while (!(after & (1 << col)))
-				col++;
+		if (step.placement && placedCol !== null) {
 			if (countBits(domains[leftRow][leftSymbol]) == 1 &&
 			    countBits(domains[rightRow][rightSymbol]) == 1)
 				return identifiedDeduction(step,
 					"adjacent3.middle.placement-between", {
 						subject: name,
-						position: ordinalName(col),
+						position: ordinalName(placedCol),
 						left: leftName,
 						right: rightName,
 					});
@@ -4335,7 +4338,7 @@ function adjacent3DeductionMessage(puzzle, step, before, after, domains) {
 				return identifiedDeduction(step,
 					"adjacent3.placement.inward-from-edge", {
 						subject: name,
-						position: ordinalName(col),
+						position: ordinalName(placedCol),
 						outer: leftName,
 					});
 			if (adjacent3InwardPosition(
@@ -4343,13 +4346,13 @@ function adjacent3DeductionMessage(puzzle, step, before, after, domains) {
 				return identifiedDeduction(step,
 					"adjacent3.placement.inward-from-edge", {
 						subject: name,
-						position: ordinalName(col),
+						position: ordinalName(placedCol),
 						outer: rightName,
 					});
 			return identifiedDeduction(step,
 				"adjacent3.middle.placement", {
 					subject: name,
-					position: ordinalName(col),
+					position: ordinalName(placedCol),
 					left: leftName,
 					right: rightName,
 				});
@@ -4357,10 +4360,8 @@ function adjacent3DeductionMessage(puzzle, step, before, after, domains) {
 		if (removed == edges)
 			return identifiedDeduction(step,
 				"adjacent3.middle.remove-edges", { subject: name });
-		if (countBits(removed) == 1) {
-			var col = 0;
-			while (!(removed & (1 << col)))
-				col++;
+		if (removedCol !== null) {
+			var col = removedCol;
 			if (col == 0 || col == rowSize - 1)
 				return identifiedDeduction(step,
 					"adjacent3.middle.remove-edges", {
@@ -4435,44 +4436,35 @@ function adjacent3DeductionMessage(puzzle, step, before, after, domains) {
 	var otherSymbol = row == leftRow && symbol == leftSymbol ?
 		rightSymbol : leftSymbol;
 	var otherName = proofSymbolReference(puzzle, otherRow, otherSymbol);
-	if (step.placement && countBits(after) == 1 &&
+	if (step.placement && placedCol !== null &&
 	    adjacent3InwardPosition(domains[otherRow][otherSymbol],
 		rowSize, 2) == after) {
-		var col = 0;
-		while (!(after & (1 << col)))
-			col++;
 		return identifiedDeduction(step,
 			"adjacent3.placement.inward-from-edge", {
 				subject: name,
-				position: ordinalName(col),
+				position: ordinalName(placedCol),
 				outer: otherName,
 			});
 	}
-	if (step.placement && countBits(after) == 1 &&
+	if (step.placement && placedCol !== null &&
 	    countBits(domains[middleRow][middleSymbol]) == 1 &&
 	    countBits(domains[otherRow][otherSymbol]) == 1) {
-		var col = 0;
-		while (!(after & (1 << col)))
-			col++;
 		return identifiedDeduction(step, "adjacent3.outer.placement", {
 			subject: name,
-			position: ordinalName(col),
+			position: ordinalName(placedCol),
 			middle: middleName,
 			other: otherName,
 		});
 	}
-	if (step.placement && countBits(after) == 1) {
-		var col = 0;
-		while (!(after & (1 << col)))
-			col++;
+	if (step.placement && placedCol !== null) {
 		return identifiedDeduction(step, "adjacent3.outer.only-position", {
 			subject: name,
-			position: ordinalName(col),
+			position: ordinalName(placedCol),
 			middle: middleName,
 			other: otherName,
 		});
 	}
-	if (countBits(removed) > 1) {
+	if (removed && removedCol === null) {
 		var cause = adjacent3OuterCommonCause(removed, rowSize,
 			domains[middleRow][middleSymbol], domains[otherRow][otherSymbol]);
 		if (cause.otherCannotFit)
@@ -4491,10 +4483,8 @@ function adjacent3DeductionMessage(puzzle, step, before, after, domains) {
 				});
 	}
 
-	if (countBits(removed) == 1) {
-		var col = 0;
-		while (!(removed & (1 << col)))
-			col++;
+	if (removedCol !== null) {
+		var col = removedCol;
 		var adjacent = 0;
 		var twoAway = 0;
 		if (col > 0)
@@ -4582,10 +4572,8 @@ function columnDeductionMessage(puzzle, step, before, after) {
 		puzzle.rows.indexOf(clue.bRow) : topRow;
 	var otherSymbol = step.row == topRow && step.symbol == topSymbol ?
 		clue.bRow.slots[clue.col].value : topSymbol;
-	if (step.placement && countBits(after) == 1) {
-		var col = 0;
-		while (!(after & (1 << col)))
-			col++;
+	var col = singleBitIndex(after);
+	if (step.placement && col !== null) {
 		return identifiedDeduction(step, "column.placement", {
 			subject: proofSymbolReference(puzzle, step.row, step.symbol),
 			position: ordinalName(col),
@@ -4751,12 +4739,9 @@ function proofStepDomain(before, after, rowSize, groupEdges) {
 function nextForcedProofStep(domains, placements) {
 	for (var row = 0; row < domains.length; row++) {
 		for (var symbol = 0; symbol < domains[row].length; symbol++) {
-			var domain = domains[row][symbol];
-			if (domain && !(domain & (domain - 1)) &&
+			var col = singleBitIndex(domains[row][symbol]);
+			if (col !== null &&
 			    !(placements[row] & (1 << symbol))) {
-				var col = 0;
-				while (!(domain & (1 << col)))
-					col++;
 				return {
 					clues: [],
 					rule: "only-position",
