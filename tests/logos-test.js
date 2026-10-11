@@ -2357,6 +2357,44 @@ function() {
 	       "the middle symbol was not explained as filling a fixed gap");
 });
 
+Deno.test("outer edge removals need a shared cause to stay grouped", function() {
+	const puzzle = makePuzzle(3);
+	const clue = new Logos.Adjacent3Clue(puzzle);
+	clue.lRow = puzzle.rows[0];
+	clue.mRow = puzzle.rows[1];
+	clue.rRow = puzzle.rows[2];
+	clue.lCol = clue.mCol = clue.rCol = 0;
+	puzzle.rows.forEach((row, index) => { row.slots[0].value = index; });
+	const step = { clue, rule: "clue", row: 0, symbol: 0,
+		placement: false, removed: 33 };
+	const domains = Array.from({ length: 3 }, () => Array(6).fill(63));
+	/* At the first edge the middle cannot fit; at the sixth edge the
+	 * other outer symbol cannot fit. These need separate explanations.
+	 */
+	domains[1][1] = 56;
+	domains[2][2] = 20;
+	for (const [removed, reason] of [
+		[1, "adjacent3.outer.middle-not-adjacent"],
+		[32, "adjacent3.outer.other-not-two-away"],
+	]) {
+		const refreshed = Logos.refreshProofStep(puzzle, step, domains);
+		assert(refreshed && refreshed.removed == removed,
+		       "outer edge removals with different causes stayed grouped");
+		const before = domains[0][0];
+		domains[0][0] &= ~refreshed.removed;
+		Logos.proofDeductionMessage(puzzle, refreshed, before,
+			domains[0][0], domains);
+		assert(refreshed.deduction == reason,
+		       "the edge removal did not explain its own cause");
+	}
+	/* Neither edge is adjacent to a middle in column 3 or 4. */
+	domains[0][0] = domains[2][2] = 63;
+	domains[1][1] = 12;
+	const grouped = Logos.refreshProofStep(puzzle, step, domains);
+	assert(grouped && grouped.removed == 33,
+	       "outer edge removals with a shared cause were split");
+});
+
 Deno.test("related middle adjacency removals share one proof step", function() {
 	const puzzle = makePuzzle(3);
 	puzzle.rows[0].slots[0].value = 0;
@@ -3930,6 +3968,27 @@ Deno.test("a three-adjacent middle placement explains both outer symbols", funct
 	       step.row == 2 && step.symbol == 2),
 	       "the proof retained unused die-3 or III deduction branches");
 	puzzle.stopTimer();
+});
+
+Deno.test("outer edge proofs keep specific explanations", function() {
+	for (const [seed, row, col, symbol] of [
+		["13566515", 0, 5, 1],
+		["91c86c3e", 3, 0, 1],
+	]) {
+		const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
+		puzzle.say = function() {};
+		puzzle.newGame(seed);
+		try {
+			puzzle.startProof(puzzle.rows[row].slots[col], symbol);
+			assert(puzzle.proof && puzzle.proof.steps.at(-1).conclusion,
+			       "the edge removals prevented completing the proof");
+			assert(puzzle.proof.steps.every(step =>
+			       step.deduction != "clue.remove-edges"),
+			       "edge removals lost their separate explanations");
+		} finally {
+			puzzle.stopTimer();
+		}
+	}
 });
 
 Deno.test("a near-edge outer symbol orients a three-adjacent sequence", function() {

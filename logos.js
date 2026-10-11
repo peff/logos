@@ -4993,7 +4993,13 @@ function refreshProofStep(puzzle, step, domains) {
 	var anchored = before & ~after & step.removed;
 	if (step.clue.constructor == Adjacent3Clue && countBits(anchored) > 1) {
 		var edges = 1 | (1 << (domains[step.row].length - 1));
-		if (anchored != edges && !adjacent3OuterHasCommonCause(puzzle,
+		var middleEdges = anchored == edges &&
+			step.row == puzzle.rows.indexOf(step.clue.mRow) &&
+			step.symbol == step.clue.mRow.slots[step.clue.mCol].value;
+		/* Only the middle has an unconditional reason to exclude both
+		 * edges. An outer symbol still needs a shared cause.
+		 */
+		if (!middleEdges && !adjacent3OuterHasCommonCause(puzzle,
 			    step, anchored, domains))
 			anchored &= -anchored;
 	}
