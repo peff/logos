@@ -3229,27 +3229,26 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		});
 	}
 
-	this.setCustomCursor = function(enabled) {
-		document.body.dataset.customCursor = enabled;
-		this.options.querySelector("#custom-cursor").checked = enabled;
+	this.saveOption = function(name, value) {
+		if (this.loadingOptions)
+			return;
 		try {
-			if (!this.loadingOptions)
-				localStorage.setItem("customCursor", enabled);
+			localStorage.setItem(name, value);
 		} catch (e) {
 			/* The choice still applies for the current page. */
 		}
 	}
 
+	this.setCustomCursor = function(enabled) {
+		document.body.dataset.customCursor = enabled;
+		this.options.querySelector("#custom-cursor").checked = enabled;
+		this.saveOption("customCursor", enabled);
+	}
 
 	this.setMilestones = function(show) {
 		this.showMilestones = show;
 		this.options.querySelector("#show-milestones").checked = show;
-		try {
-			if (!this.loadingOptions)
-				localStorage.setItem("showMilestones", show);
-		} catch (e) {
-			/* The choice still applies for the current page. */
-		}
+		this.saveOption("showMilestones", show);
 	}
 
 	this.setAutoDismissClues = function(enabled) {
@@ -3257,24 +3256,14 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.options.querySelector("#auto-dismiss-clues").checked = enabled;
 		if (enabled)
 			this.dismissExhaustedClues();
-		try {
-			if (!this.loadingOptions)
-				localStorage.setItem("autoDismissClues", enabled);
-		} catch (e) {
-			/* The choice still applies for the current page. */
-		}
+		this.saveOption("autoDismissClues", enabled);
 	}
 
 	this.setRandomDifficulties = function(levels) {
 		this.randomDifficulties = ["easy", "medium", "hard"].filter(level => levels.includes(level));
 		for (var level of ["easy", "medium", "hard"])
 			this.options.querySelector("#random-" + level).checked = this.randomDifficulties.includes(level);
-		try {
-			if (!this.loadingOptions)
-				localStorage.setItem("randomDifficulties", JSON.stringify(this.randomDifficulties));
-		} catch (e) {
-			/* The choice still applies for the current page. */
-		}
+		this.saveOption("randomDifficulties", JSON.stringify(this.randomDifficulties));
 	}
 
 	this.changeRandomDifficulties = function() {
@@ -3285,12 +3274,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.setPracticeMode = function(enabled) {
 		this.practiceModePreference = enabled;
 		this.options.querySelector("#practice-mode").checked = enabled;
-		try {
-			if (!this.loadingOptions)
-				localStorage.setItem("practiceMode", enabled);
-		} catch (e) {
-			/* The choice still applies for the current page. */
-		}
+		this.saveOption("practiceMode", enabled);
 		if (!enabled && this.practiceMode && !this.gameOver) {
 			this.say("Accepting enlightenment is a one-way door. " +
 				"Your next journey will not be so calm.");
@@ -3313,12 +3297,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.setContinueAfterLoss = function(enabled) {
 		this.continueAfterLoss = enabled;
 		this.options.querySelector("#continue-after-loss").checked = enabled;
-		try {
-			if (!this.loadingOptions)
-				localStorage.setItem("continueAfterLoss", enabled);
-		} catch (e) {
-			/* The choice still applies for the current page. */
-		}
+		this.saveOption("continueAfterLoss", enabled);
 	}
 
 	this.setSoundEffects = function(enabled) {
@@ -3329,12 +3308,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			this.soundGain.gain.value = enabled ? this.soundVolume : 0;
 		for (var name in this.soundSamples)
 			this.soundSamples[name].muted = !enabled;
-		try {
-			if (!this.loadingOptions)
-				localStorage.setItem("soundEffects", enabled);
-		} catch (e) {
-			/* The choice still applies for the current page. */
-		}
+		this.saveOption("soundEffects", enabled);
 	}
 
 	this.setSoundVolume = function(volume) {
@@ -3348,12 +3322,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			this.soundGain.gain.value = this.soundEffects ? this.soundVolume : 0;
 		for (var name in this.soundSamples)
 			this.soundSamples[name].volume = this.soundVolumes[name] * this.soundVolume;
-		try {
-			if (!this.loadingOptions)
-				localStorage.setItem("soundVolume", this.soundVolume);
-		} catch (e) {
-			/* The choice still applies for the current page. */
-		}
+		this.saveOption("soundVolume", this.soundVolume);
 	}
 
 	this.setExpandTileChoices = function(enabled) {
@@ -3361,12 +3330,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.options.querySelector("#expand-tile-choices").checked = enabled;
 		if (!enabled)
 			this.closeSlotTray();
-		try {
-			if (!this.loadingOptions)
-				localStorage.setItem("expandTileChoices", enabled);
-		} catch (e) {
-			/* The choice still applies for the current page. */
-		}
+		this.saveOption("expandTileChoices", enabled);
 	}
 
 	this.setShowActionSelector = function(enabled) {
@@ -3374,12 +3338,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.options.querySelector("#show-action-selector").checked = enabled;
 		this.updateActionCursor();
 		this.updateActionControls();
-		try {
-			if (!this.loadingOptions)
-				localStorage.setItem("showActionSelector", enabled);
-		} catch (e) {
-			/* The choice still applies for the current page. */
-		}
+		this.saveOption("showActionSelector", enabled);
 	}
 
 	this.updateActionControls = function() {
