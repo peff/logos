@@ -2713,10 +2713,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		}
 	}
 
-	this.sufficientClues = function() {
-		return cluesSolve(this, this.clues);
-	}
-
 	this.getHClueSlot = function() { return this.hClueSlots[this.numHClues++]; }
 	this.getVClueSlot = function() { return this.vClueSlots[this.numVClues++]; }
 
