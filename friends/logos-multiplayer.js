@@ -107,7 +107,6 @@ class MultiplayerSession {
 			continueAfterLoss: options.continueAfterLoss === undefined ?
 				!!puzzle.continueAfterLoss : !!options.continueAfterLoss,
 		};
-		this.startedAt = null;
 		this.clock = null;
 		this.updatingTimer = false;
 		this.lastClockBroadcast = null;
@@ -164,7 +163,6 @@ class MultiplayerSession {
 		this.lastPaused = puzzle.manualPaused;
 		if (!puzzle.paused && !puzzle.practiceMode && puzzle.timerTimeout === null)
 			puzzle.startTimer();
-		this.startedAt = puzzle.timerStarted || Date.now();
 		puzzle.updatePauseControl();
 	}
 
@@ -211,7 +209,6 @@ class MultiplayerSession {
 		this.participatingRunId = this.runId;
 		this.result = null;
 		this.gamePlayers = new Map(this.players.map(player => [player.id, player.name]));
-		this.startedAt = this.puzzle.timerStarted || Date.now();
 		this.revision = 0;
 		this.history = [];
 		this.initialPosition = null;
@@ -569,7 +566,6 @@ class MultiplayerSession {
 		this.result = copyMessage(message.result || null);
 		if (this.seed !== null && !this.result)
 			this.participatingRunId = this.runId;
-		this.startedAt = message.startedAt;
 		this.revision = message.revision;
 		this.history = copyMessage(message.history);
 		this.initialPosition = copyMessage(message.initialPosition || null);
@@ -618,7 +614,6 @@ class MultiplayerSession {
 			gameId: this.gameId,
 			seed: this.seed,
 			rules: copyMessage(this.rules),
-			startedAt: this.startedAt,
 			revision: this.revision,
 			history: copyMessage(this.history),
 			initialPosition: copyMessage(this.initialPosition),
