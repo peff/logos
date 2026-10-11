@@ -3983,7 +3983,7 @@ Deno.test("outer edge proofs keep specific explanations", function() {
 			assert(puzzle.proof && puzzle.proof.steps.at(-1).conclusion,
 			       "the edge removals prevented completing the proof");
 			assert(puzzle.proof.steps.every(step =>
-			       step.deduction != "clue.remove-edges"),
+			       step.deduction != "clue.remove-position"),
 			       "edge removals lost their separate explanations");
 		} finally {
 			puzzle.stopTimer();

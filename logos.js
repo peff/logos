@@ -4220,16 +4220,10 @@ var proofDeductionCatalog = [
 	  message: "{subject} cannot be in the {position} column because {middle} and {other} cannot fit beside it in either orientation." },
 	{ id: "adjacent3.outer.other-not-two-away",
 	  message: "{subject} cannot be in {positions} because {other} must be two positions away." },
-	{ id: "clue.fewer-positions",
-	  message: "{subject} has fewer possible columns." },
-	{ id: "clue.narrow-positions",
-	  message: "The possible columns for {subject} are narrowed." },
 	{ id: "clue.placement",
 	  message: "{subject} must be in the {position} column." },
-	{ id: "clue.remove-edges",
-	  message: "{subject} cannot be on either edge." },
 	{ id: "clue.remove-position",
-	  message: "{subject} cannot be in the {position} column." },
+	  message: "{subject} cannot be in {positions}." },
 	{ id: "column.placement",
 	  message: "{subject} must be in the {position} column with {other}." },
 	{ id: "column.other-not-position",
@@ -4269,12 +4263,7 @@ function identifiedDeduction(step, id, values) {
 }
 
 function deductionMessage(puzzle, step, before, after) {
-	var row = step.row;
-	var symbol = step.symbol;
-	var name = proofSymbolReference(puzzle, row, symbol);
-	var removed = before & ~after;
-	var rowSize = puzzle.rows[row].slots.length;
-	var fullDomain = (1 << rowSize) - 1;
+	var name = proofSymbolReference(puzzle, step.row, step.symbol);
 	var col = singleBitIndex(after);
 	if (step.placement && col !== null) {
 		return identifiedDeduction(step, "clue.placement", {
@@ -4282,23 +4271,9 @@ function deductionMessage(puzzle, step, before, after) {
 			position: ordinalName(col),
 		});
 	}
-	if (removed == ((1 << 0) | (1 << (rowSize - 1))))
-		return identifiedDeduction(step, "clue.remove-edges", {
-			subject: name,
-		});
-	col = singleBitIndex(removed);
-	if (col !== null) {
-		return identifiedDeduction(step, "clue.remove-position", {
-			subject: name,
-			position: ordinalName(col),
-		});
-	}
-	if (after != fullDomain)
-		return identifiedDeduction(step, "clue.narrow-positions", {
-			subject: name,
-		});
-	return identifiedDeduction(step, "clue.fewer-positions", {
+	return identifiedDeduction(step, "clue.remove-position", {
 		subject: name,
+		positions: positionList(before & ~after),
 	});
 }
 
