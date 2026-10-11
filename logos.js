@@ -563,13 +563,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.clear();
 		this.scoreEligible = false;
 		this.clues = [];
-		for (var slot of [...this.hClueSlots, ...this.vClueSlots]) {
-			slot.replaceChildren();
-			slot.className = "clue";
-			for (var event of ["onclick", "oncontextmenu", "onpointerdown",
-				"onpointerup", "onpointercancel", "onpointermove"])
-				slot[event] = null;
-		}
+		for (var slot of [...this.hClueSlots, ...this.vClueSlots])
+			clearClueSlot(slot);
 		this.options.querySelector("#game-seed").value = "";
 		this.updateSeedControls();
 		this.updateSeedDifficulty();
@@ -2700,26 +2695,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.vClues.classList.remove("solution");
 		generatePuzzleClues(this, this.hClueSlots.length, this.vClueSlots.length);
 
-		for (var i = 0; i < this.hClueSlots.length; i++) {
-			this.hClueSlots[i].innerHTML = "";
-			this.hClueSlots[i].className = "clue";
-			this.hClueSlots[i].onclick = null;
-			this.hClueSlots[i].oncontextmenu = null;
-			this.hClueSlots[i].onpointerdown = null;
-			this.hClueSlots[i].onpointerup = null;
-			this.hClueSlots[i].onpointercancel = null;
-			this.hClueSlots[i].onpointermove = null;
-		}
-		for (var i = 0; i < this.vClueSlots.length; i++) {
-			this.vClueSlots[i].innerHTML = "";
-			this.vClueSlots[i].className = "clue";
-			this.vClueSlots[i].onclick = null;
-			this.vClueSlots[i].oncontextmenu = null;
-			this.vClueSlots[i].onpointerdown = null;
-			this.vClueSlots[i].onpointerup = null;
-			this.vClueSlots[i].onpointercancel = null;
-			this.vClueSlots[i].onpointermove = null;
-		}
+		for (var slot of [...this.hClueSlots, ...this.vClueSlots])
+			clearClueSlot(slot);
 
 		this.numHClues = 0;
 		this.numVClues = 0;
@@ -2841,16 +2818,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			to--;
 		to = Math.max(0, Math.min(to, ordered.length));
 		ordered.splice(to, 0, clue);
-		for (var i = 0; i < slots.length; i++) {
-			slots[i].innerHTML = "";
-			slots[i].className = "clue";
-			slots[i].onclick = null;
-			slots[i].oncontextmenu = null;
-			slots[i].onpointerdown = null;
-			slots[i].onpointerup = null;
-			slots[i].onpointercancel = null;
-			slots[i].onpointermove = null;
-		}
+		for (var slot of slots)
+			clearClueSlot(slot);
 		for (var i = 0; i < ordered.length; i++) {
 			ordered[i].display = slots[i];
 			ordered[i].render();
@@ -6021,6 +5990,17 @@ function Slot(row, symbols, display) {
 
 	this.elem.appendChild(this.singleElem);
 	this.elem.appendChild(this.possibleElem);
+}
+
+function clearClueSlot(slot) {
+	slot.replaceChildren();
+	slot.className = "clue";
+	slot.onclick = null;
+	slot.oncontextmenu = null;
+	slot.onpointerdown = null;
+	slot.onpointerup = null;
+	slot.onpointercancel = null;
+	slot.onpointermove = null;
 }
 
 function checkClueDisplay(clue) {
