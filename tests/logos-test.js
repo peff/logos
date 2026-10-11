@@ -2251,6 +2251,35 @@ Deno.test("ordering deductions name the obstructing tile", function() {
 	       "an edge ordering deduction did not name the other tile");
 });
 
+Deno.test("ordering placements explain both directions", function() {
+	const puzzle = makePuzzle(2);
+	const clue = new Logos.OrderClue(puzzle);
+	clue.lRow = puzzle.rows[0];
+	clue.lCol = 0;
+	clue.rRow = puzzle.rows[1];
+	clue.rCol = 0;
+	clue.lRow.slots[0].value = 0;
+	clue.rRow.slots[0].value = 1;
+	for (const [row, symbol, otherCol, col, direction] of [
+		[1, 1, 4, 5, "right"],
+		[0, 0, 1, 0, "left"],
+	]) {
+		const domains = Array.from({ length: 2 }, () => Array(6).fill(63));
+		domains[1 - row][1 - symbol] = 1 << otherCol;
+		const step = Logos.clueProofStep(puzzle, clue, domains);
+		assert(step.placement && step.row == row && step.symbol == symbol,
+		       "the ordering clue did not directly place the target");
+		const message = Logos.proofDeductionMessage(puzzle, step, 63,
+			63 & ~step.removed, domains);
+		assert(step.deduction == "order.placement" &&
+		       Logos.proofMessageText(puzzle, message) ==
+		       symbol + " must be in the " + (col == 0 ? "first" : "sixth") +
+		       " column because it must be to the " + direction + " of " +
+		       (1 - symbol) + ".",
+		       "the placement did not explain the ordering relation");
+	}
+});
+
 Deno.test("three-adjacent middle deductions remove edges first", function() {
 	const puzzle = makePuzzle(3);
 	const middle = puzzle.rows[0];

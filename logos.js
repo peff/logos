@@ -4232,6 +4232,8 @@ var proofDeductionCatalog = [
 	  message: "{subject} must be in the {position} column because it is the only remaining option." },
 	{ id: "conclusion.remove-position",
 	  message: "{subject} cannot be in the {position} column." },
+	{ id: "order.placement",
+	  message: "{subject} must be in the {position} column because it must be to the {direction} of {other}." },
 	{ id: "order.other-not-beyond",
 	  message: "{subject} cannot be in {positions} because {other} must be to its {otherDirection}." },
 	{ id: "row.only-candidate",
@@ -4531,8 +4533,6 @@ function adjacent2DeductionMessage(puzzle, step, before, after) {
 
 function orderDeductionMessage(puzzle, step, before, after) {
 	var removed = before & ~after;
-	if (step.placement && countBits(after) == 1)
-		return deductionMessage(puzzle, step, before, after);
 	var leftRow = puzzle.rows.indexOf(step.clue.lRow);
 	var leftSymbol = step.clue.lRow.slots[step.clue.lCol].value;
 	var isLeft = step.row == leftRow && step.symbol == leftSymbol;
@@ -4540,6 +4540,13 @@ function orderDeductionMessage(puzzle, step, before, after) {
 	var otherRow = isLeft ? puzzle.rows.indexOf(step.clue.rRow) : leftRow;
 	var otherSymbol = isLeft ? step.clue.rRow.slots[step.clue.rCol].value :
 		leftSymbol;
+	if (step.placement && countBits(after) == 1)
+		return identifiedDeduction(step, "order.placement", {
+			subject: subject,
+			position: ordinalName(singleBitIndex(after)),
+			other: proofSymbolReference(puzzle, otherRow, otherSymbol),
+			direction: isLeft ? "left" : "right",
+		});
 	return identifiedDeduction(step, "order.other-not-beyond", {
 		subject: subject,
 		positions: positionList(removed),
