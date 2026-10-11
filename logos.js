@@ -5299,6 +5299,15 @@ function buildProofSteps(puzzle, base, basePlacements,
 	current = copyDomains(base);
 	placements = basePlacements.slice();
 	var replay = [];
+	function recordStep(step, before) {
+		step.domain = current[step.row][step.symbol];
+		step.domains = copyDomains(current);
+		step.placements = placements.slice();
+		step.message = step.rule == "clue" ?
+			proofDeductionMessage(puzzle, step, before, step.domain, current) :
+			forcedProofMessage(puzzle, step);
+		replay.push(step);
+	}
 	for (var i = 0; i < steps.length; i++) {
 		var step = refreshProofStep(puzzle, steps[i], current);
 		/* Ordering may expose another deduction as redundant. */
@@ -5331,48 +5340,17 @@ function buildProofSteps(puzzle, base, basePlacements,
 					removed: group,
 				});
 				applyProofStep(current, placements, split);
-				split.domain = current[split.row][split.symbol];
-				split.domains = copyDomains(current);
-				split.placements = placements.slice();
-				split.message = proofDeductionMessage(puzzle, split,
-					domain, split.domain, current);
-				replay.push(split);
+				recordStep(split, domain);
 			}
-			drainForcedProofSteps(current, placements,
-				function(forced, forcedBefore) {
-					forced.domain = current[forced.row][forced.symbol];
-					forced.domains = copyDomains(current);
-					forced.placements = placements.slice();
-					forced.message = forcedProofMessage(puzzle, forced,
-						forcedBefore);
-					replay.push(forced);
-				}, function() {
-					return proofConclusionPresented(puzzle, current,
-						placements, failedSlot, failedValue);
-				});
-			continue;
+		} else {
+			applyProofStep(current, placements, step);
+			recordStep(step, before);
 		}
-		applyProofStep(current, placements, step);
-		step.domain = current[step.row][step.symbol];
-		step.domains = copyDomains(current);
-		step.placements = placements.slice();
-		step.message = proofDeductionMessage(puzzle, step, before,
-			step.domain, current);
-		replay.push(step);
-		drainForcedProofSteps(current, placements,
-			function(forced, forcedBefore) {
-				forced.domain = current[forced.row][forced.symbol];
-				forced.domains = copyDomains(current);
-				forced.placements = placements.slice();
-				forced.message = forcedProofMessage(puzzle, forced,
-					forcedBefore);
-				replay.push(forced);
-			}, function() {
-				return proofConclusionPresented(puzzle, current,
-					placements, failedSlot, failedValue);
-			});
+		drainForcedProofSteps(current, placements, recordStep, function() {
+			return proofConclusionPresented(puzzle, current,
+				placements, failedSlot, failedValue);
+		});
 	}
-	steps = replay;
 	if (!proofConcluded(puzzle, current, failedSlot, failedValue)) {
 		var step = directFailedProofStep(puzzle, current,
 			failedSlot, failedValue);
@@ -5380,13 +5358,9 @@ function buildProofSteps(puzzle, base, basePlacements,
 			return [];
 		var before = current[step.row][step.symbol];
 		applyProofStep(current, placements, step);
-		step.domain = current[step.row][step.symbol];
-		step.domains = copyDomains(current);
-		step.placements = placements.slice();
-		step.message = proofDeductionMessage(puzzle, step, before,
-			step.domain, current);
-		steps.push(step);
+		recordStep(step, before);
 	}
+	steps = replay;
 	var conclusion = proofConclusionMessage(puzzle, failedSlot, failedValue);
 	if (steps.length && failedSlot.value != failedValue)
 		steps[steps.length - 1].conclusion = true;
