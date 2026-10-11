@@ -2657,8 +2657,8 @@ button.score-entry:focus-visible {
 	pointer-events: none;
 }
 
-.daily-panel .daily-pantheon[hidden] {
-	display: block;
+.daily-panel .daily-recognition[hidden] {
+	display: grid;
 	visibility: hidden;
 }
 
@@ -2698,9 +2698,13 @@ button.score-entry:focus-visible {
 	font: 0.6rem/1.3 Forum, Georgia, "Times New Roman", serif;
 }
 
-.daily-panel .daily-pantheon {
+.daily-panel .daily-recognition {
+	display: grid;
 	margin-bottom: 0.5rem;
 }
+
+.daily-recognition > * { grid-area: 1 / 1; }
+.daily-recognition > [hidden] { display: block; visibility: hidden; }
 
 .daily-actions {
 	margin-top: 0.15rem;
@@ -3760,3 +3764,5 @@ body.multiplayer #logo {
 		display: none;
 	}
 }
+
+.daily-completion { color: #746d60; font-family: Forum, Georgia, serif; }

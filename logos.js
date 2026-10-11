@@ -862,10 +862,16 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		var run = history.runs.find(run => run.daily === date && !run.multiplayer);
 		if (!run)
 			return undefined;
+		var completion = run.outcome === "lost" ? history.runs.slice(history.runs.indexOf(run) + 1)
+			.find(later => later.daily === date && !later.multiplayer &&
+				later.outcome === "won" && later.elapsed === undefined) : undefined;
 		var level = run.difficulty?.level || "all";
 		if (level != "all")
 			history = await accessRunHistory(null, false, level);
-		return this.dailyResultFromRun(run, history?.highScores, level);
+		var result = this.dailyResultFromRun(run, history?.highScores, level);
+		if (completion)
+			result.completionRunId = completion.id;
+		return result;
 	}
 
 	this.updateDailyButton = function() {
@@ -931,7 +937,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		return "Logos daily · " + dailyDateLabel(result.date) + "\n" +
 			(result.outcome == "won" ? "Solved" : "Lost") +
 			(result.assisted ? " · Assisted / Zen (untimed)" :
-				" · " + formatTime(result.elapsed));
+				" · " + formatTime(result.elapsed)) +
+			(result.completionRunId !== undefined ? "\nLater solved ∞" : "");
 	}
 
 	this.setInvitationResult = function(show) {
@@ -961,10 +968,13 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		modal.querySelector(".daily-difficulty").textContent =
 			["easy", "medium", "hard"].includes(result.difficulty) ?
 				result.difficulty[0].toUpperCase() + result.difficulty.slice(1) + " difficulty" : "";
-		var pantheon = modal.querySelector(".daily-pantheon");
+		var pantheon = modal.querySelector(".daily-pantheon-link");
 		pantheon.hidden = !(Number.isInteger(result.pantheonPlace) &&
 			result.pantheonPlace >= 1 && result.pantheonPlace <= 10 &&
 			["all", "easy", "medium", "hard"].includes(result.pantheonLevel));
+		var completion = modal.querySelector(".daily-completion");
+		completion.hidden = result.completionRunId === undefined;
+		modal.querySelector(".daily-recognition").hidden = pantheon.hidden && completion.hidden;
 		modal.querySelector(".daily-history-error").hidden = !result.historyUnsaved;
 		this.invitation.hidden = false;
 		if (this.invitationModal.hidden)
@@ -2165,14 +2175,14 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		if (run.daily) {
 			if (saved) {
 				dailyResult = await this.getDailyResult(run.daily);
-				if (dailyResult?.runId !== run.id)
+				if (dailyResult?.runId !== run.id && dailyResult?.completionRunId !== run.id)
 					dailyResult = null;
 			} else {
 				dailyResult = this.dailyResultFromRun(run);
 				dailyResult.historyUnsaved = true;
 			}
 		}
-		if (saved && dailyResult)
+		if (saved && dailyResult?.runId === run.id)
 			this.dailyScoreSaved?.();
 		if (this.pantheonRequest !== request)
 			return saved;

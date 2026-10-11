@@ -788,8 +788,11 @@ Deno.test("daily attempts remember the first result and share a fixed date", asy
 			puzzle.scoreEligible = false;
 			await puzzle.finishRun("won");
 			assert((await puzzle.getDailyResult("20261008")).outcome === "lost", "continuation replaced result");
+			assert(puzzle.displayedDailyResult.completionRunId === runs[1].id &&
+			       !modal.querySelector(".daily-completion").hidden,
+			       "daily result did not acknowledge the Zen completion");
 			await puzzle.copyDailyResult();
-			assert(copied[0] === "Logos daily · 2026-10-08\nLost · 1:23\nhttps://example.com/#daily=20261008");
+			assert(copied[0] === "Logos daily · 2026-10-08\nLost · 1:23\nLater solved ∞\nhttps://example.com/#daily=20261008");
 			const original = (await puzzle.getDailyResult("20261008")).runId;
 			await puzzle.openDailyChronicle();
 			assert(modal.hidden && puzzle.selectedRun === original &&
@@ -910,15 +913,15 @@ Deno.test("daily results wait for history and report earned Pantheon places", as
 			if (scenario == "placed") {
 				assert(result.pantheonPlace == 2 &&
 				       result.pantheonLevel == puzzle.pantheonLevel &&
-				       !modal.querySelector(".daily-pantheon").hidden &&
+				       !modal.querySelector(".daily-pantheon-link").hidden &&
 				       result.runId === 2,
 				       "daily result omitted its earned place");
 				puzzle.closeDailyResult();
 				await puzzle.openDaily(date);
-				assert(!modal.querySelector(".daily-pantheon").hidden,
+				assert(!modal.querySelector(".daily-pantheon-link").hidden,
 				       "reopening the saved result lost its placement");
 			} else {
-				assert(modal.querySelector(".daily-pantheon").hidden,
+				assert(modal.querySelector(".daily-pantheon-link").hidden,
 				       "unranked result claimed a Pantheon place");
 			}
 			assert(modal.querySelector(".daily-history-error").hidden == (scenario != "failed"),
