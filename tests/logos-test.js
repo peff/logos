@@ -1098,6 +1098,7 @@ Deno.test("chalk cursors combine modifiers, Tap controls, and blur", function() 
 
 Deno.test("a false placement loses the game", function() {
 	const puzzle = makePuzzle(1);
+	puzzle.continueAfterLoss = false;
 	const slot = puzzle.rows[0].slots[0];
 	const wrong = (slot.value + 1) % symbols.length;
 
@@ -3596,6 +3597,7 @@ Deno.test("page visibility pauses and resumes active play", function() {
 
 Deno.test("7998093c gives a coherent clue set for discarding III", function() {
 	const puzzle = makePuzzle(6);
+	puzzle.continueAfterLoss = false;
 	puzzle.say = function() {};
 	puzzle.newGame("7998093c");
 	for (const row of puzzle.rows)
@@ -4115,11 +4117,13 @@ Deno.test("practice mistakes can be explained and play can continue", function()
 	localStorage.removeItem("practiceMode");
 });
 
-Deno.test("a loss can continue as a Zen game", function() {
+Deno.test("a loss continues as a Zen game by default", function() {
 	localStorage.removeItem("continueAfterLoss");
 	localStorage.removeItem("practiceMode");
 	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
-	puzzle.setContinueAfterLoss(true);
+	assert(puzzle.continueAfterLoss &&
+	       puzzle.options.querySelector("#continue-after-loss").checked,
+	       "continuing after loss was not enabled by default");
 	puzzle.newGame("9ed0fb2b");
 	const slot = puzzle.rows[1].slots[4];
 	slot.discard(4);
@@ -4131,7 +4135,7 @@ Deno.test("a loss can continue as a Zen game", function() {
 	       puzzle.pendingProof && puzzle.pendingProof.continueGame &&
 	       slot.possibleElem.className != "solution" &&
 	       slot.possibilityElems[4].classList.contains("failed-action") &&
-	       localStorage.getItem("continueAfterLoss") == "true",
+	       localStorage.getItem("continueAfterLoss") === null,
 	       "a continued loss did not retain a live Zen game");
 	assert(puzzle.sounds.length == 1 && puzzle.sounds[0] == "mistake",
 	       "a continued loss did not use the normal loss sound");

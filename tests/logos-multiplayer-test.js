@@ -160,6 +160,7 @@ Deno.test("stale multiplayer commands are rejected and resynchronized", function
 
 Deno.test("an accepted mistake loses the multiplayer game for everyone", function() {
 	const host = makeSession("host", "host");
+	host.session.rules.continueAfterLoss = false;
 	const guest = makeSession("guest", "alice");
 	const network = new InMemoryMultiplayerNetwork(host.session);
 	host.session.start(0x10203040);
@@ -191,6 +192,7 @@ Deno.test("multiplayer pencil marks remain local", function() {
 
 Deno.test("the host's multiplayer rules override guest preferences", function() {
 	const host = makeSession("host", "host");
+	host.session.rules.continueAfterLoss = false;
 	const guestPuzzle = makePuzzle(6, true, Logos.defaultSymbols);
 	guestPuzzle.practiceModePreference = true;
 	guestPuzzle.continueAfterLoss = true;
@@ -218,6 +220,7 @@ Deno.test("the host's multiplayer rules override guest preferences", function() 
 
 Deno.test("the host can start a new shared game", function() {
 	const host = makeSession("host", "host");
+	host.session.rules.continueAfterLoss = false;
 	const guest = makeSession("guest", "alice");
 	const network = new InMemoryMultiplayerNetwork(host.session);
 	host.session.start(0x11111111);

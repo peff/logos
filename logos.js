@@ -375,7 +375,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.gameOver = true;
 	this.practiceMode = false;
 	this.practiceModePreference = false;
-	this.continueAfterLoss = false;
+	this.continueAfterLoss = true;
 	this.scoreEligible = true;
 	this.practiceMistake = null;
 	this.paused = false;
@@ -3562,7 +3562,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	} catch (e) {
 		/* Missing or invalid preferences use all difficulties. */
 	}
-	var continueAfterLoss = false;
+	var continueAfterLoss = true;
 	var soundEffects = true;
 	var soundVolume = 1;
 	var expandTileChoices = this.expandTileChoices;
