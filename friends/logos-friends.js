@@ -48,18 +48,21 @@ const board = document.querySelector("#board");
 const hoverAreas = [board, document.querySelector("#hclues"), document.querySelector("#vclues")];
 
 function renderSharedHover() {
-	for (const elem of hoverElements) {
-		delete elem.dataset.sharedHover;
-		elem.style.removeProperty("--shared-hover-rings");
-		elem.style.removeProperty("--shared-hover-tint");
-	}
-	hoverElements.clear();
 	const targets = new Map();
+	function addTarget(elem, color, tint) {
+		if (!elem) return;
+		if (!targets.has(elem)) targets.set(elem, { colors: [], tints: [] });
+		const target = targets.get(elem);
+		target.colors.push(color);
+		if (tint) target.tints.push(tint);
+	}
 	for (const player of session?.players || []) {
 		if (player.id == session.playerId) continue;
 		const target = session.hovers.get(player.id);
 		if (!target) continue;
+		const color = playerColor(player);
 		let elem;
+		let tint = color;
 		if (Object.hasOwn(target, "clue")) {
 			elem = puzzle.clues[target.clue]?.display;
 		} else {
@@ -67,24 +70,44 @@ function renderSharedHover() {
 			if (!slot) continue;
 			elem = target.value !== null && !slot.single && slot.possible[target.value] ?
 				slot.possibilityElems[target.value] : slot.elem;
+			/* Locate the slot without losing the precise possibility target. */
+			if (elem !== slot.elem) {
+				addTarget(slot.elem, color, color);
+				tint = null;
+			}
 		}
-		if (!elem) continue;
-		if (!targets.has(elem)) targets.set(elem, []);
-		targets.get(elem).push(playerColor(player));
+		addTarget(elem, color, tint);
 	}
-	for (const [elem, colors] of targets) {
+	/* Keep existing highlights when only the possibility changes. */
+	for (const elem of hoverElements) {
+		if (targets.has(elem)) continue;
+		delete elem.dataset.sharedHover;
+		elem.style.removeProperty("--shared-hover-rings");
+		elem.style.removeProperty("--shared-hover-tint");
+		elem.style.removeProperty("--shared-hover-glow");
+		hoverElements.delete(elem);
+	}
+	for (const [elem, { colors, tints }] of targets) {
 		elem.dataset.sharedHover = "true";
 		const rings = colors.map((color, i) =>
 			`inset 0 0 0 ${(i + 1) * 0.1}rem ${color}`);
-		if (elem.classList.contains("clue")) {
-			for (const color of colors)
-				rings.push(`0 0 0.35rem color-mix(in srgb, ${color} 70%, transparent)`);
-			/* Give each player a band rather than muddying overlapping colors. */
-			elem.style.setProperty("--shared-hover-tint", `linear-gradient(to right, ${
-				colors.map((color, i) => `color-mix(in srgb, ${color} 22%, transparent) ${
-					i * 100 / colors.length}% ${(i + 1) * 100 / colors.length}%`).join(", ")})`);
-		}
+		/* Broad targets get a halo; possibilities retain a precise outline. */
+		const glow = tints.map(color =>
+			`0 0 0.35rem color-mix(in srgb, ${color} 70%, transparent)`);
+		if (elem.classList.contains("slot"))
+			elem.style.setProperty("--shared-hover-glow", tints.map(color =>
+				`0 0 0.45rem 0.12rem color-mix(in srgb, ${color} 90%, transparent)`
+			).join(", ") || "none");
+		else
+			rings.push(...glow);
 		elem.style.setProperty("--shared-hover-rings", rings.join(", "));
+		/* Give each player a band rather than muddying overlapping colors. */
+		if (tints.length && elem.classList.contains("clue"))
+			elem.style.setProperty("--shared-hover-tint", `linear-gradient(to right, ${
+				tints.map((color, i) => `color-mix(in srgb, ${color} 22%, transparent) ${
+					i * 100 / tints.length}% ${(i + 1) * 100 / tints.length}%`).join(", ")})`);
+		else
+			elem.style.setProperty("--shared-hover-tint", "none");
 		hoverElements.add(elem);
 	}
 }

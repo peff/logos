@@ -3632,6 +3632,18 @@ body.multiplayer #logo {
 	z-index: 2;
 }
 
+/* A broad halo makes the slot visible without tinting its symbols. */
+#board .slot[data-shared-hover]::before {
+	content: "";
+	position: absolute;
+	/* Start at the outline so no pale gutter separates it from the halo. */
+	inset: 0;
+	border-radius: 3px;
+	box-shadow: var(--shared-hover-glow);
+	pointer-events: none;
+	z-index: 2;
+}
+
 /* Definitions stay available to every layout without occupying a grid cell. */
 .icon-definitions {
 	position: absolute;
