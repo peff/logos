@@ -51,6 +51,7 @@ function renderSharedHover() {
 	for (const elem of hoverElements) {
 		delete elem.dataset.sharedHover;
 		elem.style.removeProperty("--shared-hover-rings");
+		elem.style.removeProperty("--shared-hover-tint");
 	}
 	hoverElements.clear();
 	const targets = new Map();
@@ -73,8 +74,17 @@ function renderSharedHover() {
 	}
 	for (const [elem, colors] of targets) {
 		elem.dataset.sharedHover = "true";
-		elem.style.setProperty("--shared-hover-rings", colors.map((color, i) =>
-			`inset 0 0 0 ${(i + 1) * 0.1}rem ${color}`).join(", "));
+		const rings = colors.map((color, i) =>
+			`inset 0 0 0 ${(i + 1) * 0.1}rem ${color}`);
+		if (elem.classList.contains("clue")) {
+			for (const color of colors)
+				rings.push(`0 0 0.35rem color-mix(in srgb, ${color} 70%, transparent)`);
+			/* Give each player a band rather than muddying overlapping colors. */
+			elem.style.setProperty("--shared-hover-tint", `linear-gradient(to right, ${
+				colors.map((color, i) => `color-mix(in srgb, ${color} 22%, transparent) ${
+					i * 100 / colors.length}% ${(i + 1) * 100 / colors.length}%`).join(", ")})`);
+		}
+		elem.style.setProperty("--shared-hover-rings", rings.join(", "));
 		hoverElements.add(elem);
 	}
 }

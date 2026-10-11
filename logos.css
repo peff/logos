@@ -2968,6 +2968,7 @@ button.score-entry:focus-visible {
 	border: 1px solid #b6afa0;
 	background-color: #f6f2e9;
 	background-image:
+		var(--shared-hover-tint, linear-gradient(transparent, transparent)),
 		radial-gradient(ellipse at 16% 22%,
 			rgb(255 255 255 / 48%), transparent 38%),
 		radial-gradient(ellipse at 76% 72%,
