@@ -1289,66 +1289,38 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.lose = function(msg, clues, failedSlot, failedValue) {
 		if (this.gameOver)
 			return;
-		var continuingAfterLoss = !this.practiceMode &&
-			this.continueAfterLoss;
-		if (continuingAfterLoss) {
-			this.continuedFromLoss = true;
+		if (this.practiceMode) {
+			this.playSound("practice-mistake");
+		} else {
+			if (this.continueAfterLoss) {
+				this.continuedFromLoss = true;
+			} else {
+				this.gameOver = true;
+				this.explainButton.disabled = true;
+				this.updateActionControls();
+				this.revealSolution();
+			}
 			this.playSound("mistake");
 			this.stopTimer();
 			this.finishRun("lost");
-			this.scoreEligible = false;
 			this.timer.classList.add("lost");
-			this.practiceMode = true;
-			this.updatePauseControl();
+			if (this.continueAfterLoss) {
+				/* These must come after finishRun() so that we score the game
+				 * correctly in its original mode. */
+				this.scoreEligible = false;
+				this.practiceMode = true;
+				this.updatePauseControl();
+			}
 		}
+		/* This includes Zen games, but also continue-after-loss from above. */
 		if (this.practiceMode) {
 			this.clearPracticeMistake();
-			if (!continuingAfterLoss)
-				this.playSound("practice-mistake");
-			this.closeSlotTray();
-			var clueStates = [];
-			if (clues && clues.length) {
-				this.hClues.classList.add("solution");
-				this.vClues.classList.add("solution");
-				for (var i = 0; i < clues.length; i++) {
-					clueStates.push({
-						clue: clues[i],
-						active: clues[i].active,
-					});
-					clues[i].active = true;
-					clues[i].display.classList.remove("clue-hidden");
-					clues[i].display.classList.add("contradiction");
-				}
-			}
 			this.practiceMistake = {
-				clueStates: clueStates,
+				clueStates: (clues || []).map(clue => ({ clue, active: clue.active })),
 				failedSlot: failedSlot,
 				failedValue: failedValue,
 			};
-			if (failedSlot) {
-				this.pendingProof = {
-					continueGame: true,
-					emphasizeButton: !clues || !clues.length,
-					failedSlot: failedSlot,
-					failedValue: failedValue,
-				};
-				this.explainButton.disabled = false;
-				if (!clues || !clues.length)
-					this.explainButton.classList.add("proof-available");
-				failedSlot.possibilityElems[failedValue].classList.add(
-					"failed-action");
-			}
-			this.messages.classList.add("lost");
-			this.say(msg);
-			return;
 		}
-		this.gameOver = true;
-		this.explainButton.disabled = true;
-		this.updateActionControls();
-		this.playSound("mistake");
-		this.stopTimer();
-		this.finishRun("lost");
-		this.timer.classList.add("lost");
 		this.messages.classList.add("lost");
 		this.closeSlotTray();
 		if (clues && clues.length) {
@@ -1360,9 +1332,9 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 				clues[i].display.classList.add("contradiction");
 			}
 		}
-		this.revealSolution();
 		if (failedSlot) {
 			this.pendingProof = {
+				continueGame: this.practiceMode,
 				emphasizeButton: !clues || !clues.length,
 				failedSlot: failedSlot,
 				failedValue: failedValue,
@@ -1370,10 +1342,9 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			this.explainButton.disabled = false;
 			if (!clues || !clues.length)
 				this.explainButton.classList.add("proof-available");
-		}
-		if (failedSlot)
 			failedSlot.possibilityElems[failedValue].classList.add(
 				"failed-action");
+		}
 		this.say(msg);
 	}
 
