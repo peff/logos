@@ -4,6 +4,9 @@ var puzzleGeneratorVersion = 1;
 /* Increment when the difficulty formula, route policy/count, or cutoffs change. */
 var puzzleDifficultyVersion = 1;
 
+const difficultyLevels = ["easy", "medium", "hard"];
+const pantheonLevels = ["all", ...difficultyLevels];
+
 /* Handle ordinary link activation in-page, leaving browser gestures alone. */
 function handleLinkClick(event, action) {
 	if (event.defaultPrevented || event.button !== 0 || event.ctrlKey ||
@@ -402,10 +405,10 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.pantheonScroll = new NativeScroll(this.pantheonViewport);
 	this.pantheonModeTablets = [{}, {}];
 	for (var [mode, tablets] of this.pantheonModeTablets.entries()) {
-		for (var level of ["all", "easy", "medium", "hard"]) {
+		for (var level of pantheonLevels) {
 			var tablet = document.createElement("div");
 			tablet.className = "pantheon-tablet";
-			tablet.style.gridColumn = ["all", "easy", "medium", "hard"].indexOf(level) + 1;
+			tablet.style.gridColumn = pantheonLevels.indexOf(level) + 1;
 			tablet.style.visibility = mode ? "hidden" : "";
 			tablet.setAttribute("aria-label", level == "all" ? "All victories" : level + " victories");
 			var status = document.createElement("p");
@@ -974,12 +977,12 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		link.disabled = result.runId === undefined;
 		link.title = link.disabled ? "" : "View this attempt in the Chronicle";
 		modal.querySelector(".daily-difficulty").textContent =
-			["easy", "medium", "hard"].includes(result.difficulty) ?
+			difficultyLevels.includes(result.difficulty) ?
 				result.difficulty[0].toUpperCase() + result.difficulty.slice(1) + " difficulty" : "";
 		var pantheon = modal.querySelector(".daily-pantheon-link");
 		pantheon.hidden = !(Number.isInteger(result.pantheonPlace) &&
 			result.pantheonPlace >= 1 && result.pantheonPlace <= 10 &&
-			["all", "easy", "medium", "hard"].includes(result.pantheonLevel));
+			pantheonLevels.includes(result.pantheonLevel));
 		var completion = modal.querySelector(".daily-completion");
 		completion.hidden = result.completionRunId === undefined;
 		modal.querySelector(".daily-recognition").hidden = pantheon.hidden && completion.hidden;
@@ -1007,7 +1010,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		var result = this.displayedDailyResult;
 		var modal = document.querySelector("#daily-menu");
 		if (!result || modal.hidden ||
-		    !["all", "easy", "medium", "hard"].includes(result.pantheonLevel))
+		    !pantheonLevels.includes(result.pantheonLevel))
 			return;
 		var gameIdentity = this.gameIdentity;
 		var loading = this.loadHistory(undefined, result.pantheonLevel, false);
@@ -2222,7 +2225,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.pantheonTablets = this.pantheonModeTablets[this.pantheonMultiplayer ? 1 : 0];
 		var tablet = this.pantheonTablets[this.pantheonLevel];
 		for (var [mode, tablets] of this.pantheonModeTablets.entries()) {
-			for (var level of ["all", "easy", "medium", "hard"]) {
+			for (var level of pantheonLevels) {
 				var inactive = !!mode != this.pantheonMultiplayer || level != this.pantheonLevel;
 				tablets[level].inert = inactive;
 				tablets[level].setAttribute("aria-hidden", inactive);
@@ -2232,7 +2235,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		var status = tablet.querySelector(".scores-status");
 		tablet.setAttribute(
 			"aria-busy", String(!!this.pantheonLoading));
-		for (var level of ["all", "easy", "medium", "hard"])
+		for (var level of pantheonLevels)
 			this.scores.querySelector(".pantheon-" + level).setAttribute(
 				"aria-pressed", String(level == this.pantheonLevel));
 		/* Keep the current tablet in place until its replacement is ready. */
@@ -2301,11 +2304,10 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.selectPantheon = async function(level, fromScroll = false, multiplayer = this.pantheonMultiplayer) {
-		var levels = ["all", "easy", "medium", "hard"];
-		if (!levels.includes(level))
+		if (!pantheonLevels.includes(level))
 			return;
 		if (!fromScroll) {
-			var left = levels.indexOf(level) * this.pantheonViewport.clientWidth;
+			var left = pantheonLevels.indexOf(level) * this.pantheonViewport.clientWidth;
 			this.pantheonScroll.to(left);
 		}
 		if (level == this.pantheonLevel && multiplayer == this.pantheonMultiplayer && !this.historyError)
@@ -2355,7 +2357,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		close.title = close.value;
 		close.setAttribute("aria-label", close.value);
 		this.scores.querySelector(".scores-actions").appendChild(close);
-		this.pantheonViewport.scrollLeft = ["all", "easy", "medium", "hard"].indexOf(
+		this.pantheonViewport.scrollLeft = pantheonLevels.indexOf(
 			this.pantheonLevel) * this.pantheonViewport.clientWidth;
 		this.pantheonViewport.focus({ preventScroll: true });
 	}
@@ -2373,7 +2375,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.historySort = "newest";
 		this.scores.querySelector(".history-wins").checked = true;
 		this.scores.querySelector(".history-losses").checked = true;
-		for (var level of ["easy", "medium", "hard"])
+		for (var level of difficultyLevels)
 			this.scores.querySelector(".history-" + level).checked = true;
 		this.scores.querySelector(".pantheon-view").hidden = true;
 		this.scores.querySelector(".history-view").hidden = false;
@@ -2454,7 +2456,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		var request = this.historyDifficultyRequest = {};
 		var wins = this.scores.querySelector(".history-wins").checked;
 		var losses = this.scores.querySelector(".history-losses").checked;
-		var levels = ["easy", "medium", "hard"].filter(level =>
+		var levels = difficultyLevels.filter(level =>
 			this.scores.querySelector(".history-" + level).checked);
 		var filteringDifficulty = levels.length > 0 && levels.length < 3;
 		var pendingDifficulty = [];
@@ -3018,7 +3020,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			return;
 		var index = Math.round(puzzle.pantheonViewport.scrollLeft /
 			puzzle.pantheonViewport.clientWidth);
-		var level = ["all", "easy", "medium", "hard"][index];
+		var level = pantheonLevels[index];
 		if (level && level != puzzle.pantheonLevel)
 			return puzzle.selectPantheon(level, true);
 	});
@@ -3147,8 +3149,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			           !puzzle.scores.querySelector(".pantheon-view").hidden) {
 				ev.preventDefault();
 				puzzle.pantheonViewport.focus({ preventScroll: true });
-				var levels = ["all", "easy", "medium", "hard"];
-				var level = levels[levels.indexOf(puzzle.pantheonLevel) + direction];
+				var level = pantheonLevels[pantheonLevels.indexOf(puzzle.pantheonLevel) + direction];
 				if (level)
 					puzzle.selectPantheon(level);
 			}
@@ -3180,7 +3181,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 				puzzle.showHelpPage(puzzle.helpPage);
 			if (!puzzle.scores.hidden && !puzzle.scores.querySelector(".pantheon-view").hidden) {
 				puzzle.pantheonScroll.cancel();
-				puzzle.pantheonViewport.scrollLeft = ["all", "easy", "medium", "hard"].indexOf(
+				puzzle.pantheonViewport.scrollLeft = pantheonLevels.indexOf(
 					puzzle.pantheonLevel) * puzzle.pantheonViewport.clientWidth;
 			}
 			if (!puzzle.scores.hidden && !puzzle.scores.querySelector(".history-view").hidden)
@@ -3225,14 +3226,14 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.setRandomDifficulties = function(levels) {
-		this.randomDifficulties = ["easy", "medium", "hard"].filter(level => levels.includes(level));
-		for (var level of ["easy", "medium", "hard"])
+		this.randomDifficulties = difficultyLevels.filter(level => levels.includes(level));
+		for (var level of difficultyLevels)
 			this.options.querySelector("#random-" + level).checked = this.randomDifficulties.includes(level);
 		this.saveOption("randomDifficulties", JSON.stringify(this.randomDifficulties));
 	}
 
 	this.changeRandomDifficulties = function() {
-		this.setRandomDifficulties(["easy", "medium", "hard"].filter(level =>
+		this.setRandomDifficulties(difficultyLevels.filter(level =>
 			this.options.querySelector("#random-" + level).checked));
 	}
 
@@ -3486,7 +3487,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	for (var name in this.soundSamples)
 		this.loadSampleSound(name);
 
-	var randomDifficulties = ["easy", "medium", "hard"];
+	var randomDifficulties = difficultyLevels;
 	try {
 		var storedDifficulties = JSON.parse(localStorage.getItem("randomDifficulties"));
 		if (Array.isArray(storedDifficulties) &&
@@ -3881,7 +3882,7 @@ function canRateRun(run) {
 
 function hasRunDifficulty(run) {
 	return run.difficulty && run.difficulty.version === puzzleDifficultyVersion &&
-		["easy", "medium", "hard"].includes(run.difficulty.level);
+		difficultyLevels.includes(run.difficulty.level);
 }
 
 function showRunDifficulty(element, run) {
