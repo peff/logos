@@ -148,7 +148,7 @@ const Logos = eval(source +
 	"setHistoryStorage: storage => { accessRunHistory = storage; }, " +
 	"adjacent3DeductionMessage: adjacent3DeductionMessage, " +
 	"clueProofStep: clueProofStep, " +
-	"refreshProofStep, proofStepSupported, " +
+	"refreshProofStep, proofStepSupported, buildProofSteps, buildProofRoute, " +
 	"orderDeductionMessage: orderDeductionMessage, " +
 	"proofMessageText: proofMessageText, " +
 	"practiceMistakeMessage: practiceMistakeMessage, " +
@@ -3871,6 +3871,18 @@ Deno.test("proof reconstruction reaches a wrong placement", function() {
 	puzzle.stopTimer();
 });
 
+/* These presentation fixtures need a particular route's deductions even when
+ * another route now produces a shorter explanation of the same failed move.
+ */
+function useOriginalProofRoute(puzzle) {
+	const proof = puzzle.proof;
+	proof.steps = Logos.buildProofRoute(puzzle, proof.base,
+		proof.basePlacements, proof.failedSlot, proof.failedValue,
+		puzzle.clues);
+	proof.position = 1;
+	puzzle.showProofPosition();
+}
+
 Deno.test("a column clue presents a forced placement as one proof step", function() {
 	const puzzle = makePuzzle(6);
 	puzzle.say = function() {};
@@ -3880,6 +3892,7 @@ Deno.test("a column clue presents a forced placement as one proof step", functio
 	const target = puzzle.rows[5].slots[4];
 	target.discard(0);
 	puzzle.explainLoss();
+	useOriginalProofRoute(puzzle);
 	const diamondSteps = puzzle.proof.steps.filter(step =>
 		step.row == 4 && step.symbol == 3);
 	assert(diamondSteps.length == 1 && diamondSteps[0].domain == 1 << 5 &&
@@ -3985,6 +3998,7 @@ Deno.test("a three-adjacent middle placement explains both outer symbols", funct
 	puzzle.say = function() {};
 	puzzle.newGame("2030c01c");
 	puzzle.startProof(puzzle.rows[5].slots[3], 1);
+	useOriginalProofRoute(puzzle);
 	const triangle = puzzle.proof.steps.find(step =>
 		step.row == 4 && step.symbol == 0 && step.domain == 1 << 4);
 	assert(triangle && triangle.deduction == "adjacent3.middle.placement" &&
@@ -4028,6 +4042,7 @@ Deno.test("a concluding removal stays replayable while its middle is unresolved"
 	puzzle.newGame("65eccfc1");
 	try {
 		puzzle.startProof(puzzle.rows[4].slots[4], 3);
+		useOriginalProofRoute(puzzle);
 		const proof = puzzle.proof;
 		assert(proof.steps.length <= 23 && proof.steps.at(-1).conclusion,
 		       "the concluding removal prevented pruning the long route");
@@ -4040,6 +4055,34 @@ Deno.test("a concluding removal stays replayable while its middle is unresolved"
 			domains = step.domains;
 			placements = step.placements;
 		}
+	} finally {
+		puzzle.stopTimer();
+	}
+});
+
+Deno.test("alternate proof routes recover a shorter explanation deterministically", function() {
+	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
+	puzzle.say = function() {};
+	puzzle.newGame("65eccfc1");
+	const clues = puzzle.clues.slice();
+	try {
+		const target = puzzle.rows[4].slots[4];
+		puzzle.startProof(target, 3);
+		const proof = puzzle.proof;
+		const base = JSON.stringify([proof.base, proof.basePlacements]);
+		const original = Logos.buildProofRoute(puzzle, proof.base,
+			proof.basePlacements, target, 3, clues);
+		assert(original.length == 23 && proof.steps.length == 8 &&
+		       proof.steps.at(-1).conclusion,
+		       "alternate routes did not recover the short proof");
+		const repeated = Logos.buildProofSteps(puzzle, proof.base,
+			proof.basePlacements, target, 3);
+		assert(JSON.stringify(repeated.map(step => step.message)) ==
+		       JSON.stringify(proof.steps.map(step => step.message)),
+		       "repeating the proof changed its explanation");
+		assert(puzzle.clues.every((clue, i) => clue === clues[i]) &&
+		       JSON.stringify([proof.base, proof.basePlacements]) == base,
+		       "trying alternate routes changed the clue order or starting board");
 	} finally {
 		puzzle.stopTimer();
 	}
@@ -4126,6 +4169,7 @@ Deno.test("a final clue elimination remains separate from its placement", functi
 	puzzle.newGame("fd628e5e");
 	puzzle.rows[5].slots[1].choose(4);
 	puzzle.explainLoss();
+	useOriginalProofRoute(puzzle);
 	const removal = puzzle.proof.steps.findIndex(step =>
 		step.deduction == "order.other-not-beyond" &&
 		step.row == 0 && step.symbol == 2 && step.removed == 1);
@@ -4204,6 +4248,7 @@ Deno.test("a conflicting placement contrasts the attempted tile", function() {
 	puzzle.newGame(0);
 	puzzle.rows[0].slots[1].choose(1);
 	puzzle.explainLoss();
+	useOriginalProofRoute(puzzle);
 	const step = puzzle.proof.steps[puzzle.proof.steps.length - 1];
 	assert(step.conclusion && step.deduction == "adjacent2.placement" &&
 	       step.row == 0 && step.symbol == 0 && step.domain == 1 << 1 &&

@@ -5171,15 +5171,15 @@ function proofConclusionMessage(puzzle, failedSlot, failedValue) {
 		" column.";
 }
 
-function directFailedProofStep(puzzle, domains, failedSlot, failedValue) {
+function directFailedProofStep(puzzle, domains, failedSlot, failedValue, clues) {
 	var row = puzzle.rows.indexOf(failedSlot.row);
 	var col = failedSlot.row.slots.indexOf(failedSlot);
 	var bit = 1 << col;
 	if (!(domains[row][failedValue] & bit))
 		return null;
 	var fullDomain = (1 << domains[row].length) - 1;
-	for (var i = 0; i < puzzle.clues.length; i++) {
-		var clue = puzzle.clues[i];
+	for (var i = 0; i < clues.length; i++) {
+		var clue = clues[i];
 		var trial = copyDomains(domains);
 		clue.constrain(trial, fullDomain);
 		if (trial[row][failedValue] & bit)
@@ -5234,10 +5234,35 @@ function combineRelatedProofSteps(puzzle, steps) {
 	return combined;
 }
 
+/* Keep the original route on ties. Fixed shuffle seeds make alternate routes
+ * reproducible without changing clue display order or the game's random stream.
+ */
 function buildProofSteps(puzzle, base, basePlacements,
 			 failedSlot, failedValue) {
+	var best = [];
+	for (var route = 0; route < 5; route++) {
+		var clues = puzzle.clues.slice();
+		if (route) {
+			var random = seedRandom(Math.imul(route, 0x9e3779b9));
+			for (var i = clues.length - 1; i > 0; i--) {
+				var j = Math.floor(random() * (i + 1));
+				[clues[i], clues[j]] = [clues[j], clues[i]];
+			}
+		}
+		var steps = buildProofRoute(puzzle, base, basePlacements,
+			failedSlot, failedValue, clues);
+		if (steps.length && (!best.length || steps.length < best.length))
+			best = steps;
+		if (best.length == 1)
+			break;
+	}
+	return best;
+}
+
+function buildProofRoute(puzzle, base, basePlacements,
+			 failedSlot, failedValue, clues) {
 	var direct = directFailedProofStep(puzzle, base, failedSlot,
-		failedValue);
+		failedValue, clues);
 	if (direct) {
 		var directDomains = copyDomains(base);
 		var directPlacements = basePlacements.slice();
@@ -5266,9 +5291,9 @@ function buildProofSteps(puzzle, base, basePlacements,
 		 */
 		if (!step)
 			step = directFailedProofStep(puzzle, current,
-				failedSlot, failedValue);
+				failedSlot, failedValue, clues);
 		if (!step)
-			step = nextClueProofStep(puzzle, puzzle.clues, current);
+			step = nextClueProofStep(puzzle, clues, current);
 		if (!step || steps.length > 500)
 			return [];
 		applyProofStep(current, placements, step);
@@ -5337,7 +5362,7 @@ function buildProofSteps(puzzle, base, basePlacements,
 	}
 	if (!proofConcluded(puzzle, current, failedSlot, failedValue)) {
 		var step = directFailedProofStep(puzzle, current,
-			failedSlot, failedValue);
+			failedSlot, failedValue, clues);
 		if (!step)
 			return [];
 		var before = current[step.row][step.symbol];
