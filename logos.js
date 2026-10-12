@@ -25,6 +25,40 @@ var defaultSymbols = [
 	["+", "‒", "÷", "x", "=", "√"],
 ];
 
+/* Symbols are presentation only; puzzle state uses row and value indices. */
+function halloweenSymbol(name, label) {
+	return { label: label, src: "images/tiles/halloween/" + name + ".svg" };
+}
+
+var tileSets = {
+	classic: defaultSymbols,
+	halloween: defaultSymbols.map(function(row, family) {
+		if (family != 3)
+			return row;
+		return [
+			["ghost", "Ghost"],
+			["cat", "Black cat"],
+			["candy", "Candy corn"],
+			["bat", "Bat"],
+			["skull", "Skull"],
+			["pumpkin", "Jack-o’-lantern"],
+		].map(function(picture) {
+			return halloweenSymbol(picture[0], picture[1]);
+		});
+	}),
+};
+
+function symbolsForDate(date = new Date()) {
+	if (date.getMonth() != 9 || date.getDate() < 26)
+		return defaultSymbols;
+	var revealed = date.getDate() - 25;
+	return defaultSymbols.map(function(row, family) {
+		return family == 3 ? row.map(function(symbol, value) {
+			return value < revealed ? tileSets.halloween[family][value] : symbol;
+		}) : row;
+	});
+}
+
 function tileSymbolLabel(symbol) {
 	return typeof symbol == "string" ? symbol : symbol.label;
 }
@@ -370,7 +404,9 @@ function initializeDialog(dialog, close) {
 function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		options, optionsButton, help, helpButton, scores, scoresButton,
 		about, logoButton) {
-	symbols = symbols || defaultSymbols;
+	var symbolSource = typeof symbols == "function" ? symbols : null;
+	symbols = symbolSource ? symbolSource() : symbols || defaultSymbols;
+	this.symbols = symbols;
 
 	this.messages = messages;
 	this.timer = timer;
@@ -591,6 +627,34 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		}
 	}
 
+	/* Changing artwork must preserve slots, bindings, and row/value identities. */
+	this.setSymbols = function(next) {
+		if (next.every((row, family) => row.every((symbol, value) =>
+		    symbol === this.symbols[family][value])))
+			return;
+		this.symbols = next;
+		for (var [family, row] of this.rows.entries()) {
+			for (var slot of row.slots) {
+				slot.symbols = next[family];
+				for (var value = 0; value < slot.symbols.length; value++)
+					renderTileSymbol(slot.possibilityElems[value].querySelector(
+						".possibility-symbol"), slot.symbols[value]);
+				if (slot.value !== undefined)
+					renderTileSymbol(slot.singleElem, slot.symbol());
+			}
+		}
+		for (var clue of this.clues) {
+			clue.rendered = false;
+			if (clue.display)
+				checkClueDisplay(clue);
+		}
+	}
+
+	this.refreshSymbols = function() {
+		if (symbolSource)
+			this.setSymbols(symbolSource());
+	}
+
 	this.clear = function() {
 		this.dailyReturn = null;
 		this.invitationDeclined = false;
@@ -652,6 +716,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.stopTimer();
 		this.dailyReturn = {
 			seed: this.seed,
+			symbols: this.symbols,
 			session: {
 				daily: this.daily,
 				practiceMode: this.practiceMode,
@@ -677,6 +742,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		 * identity. Slot objects themselves remain stable across games.
 		 */
 		this.newGame(saved.seed, true);
+		this.setSymbols(saved.symbols);
 		Object.assign(this, saved.session);
 		for (var [row, slots] of saved.rows.entries())
 			for (var [column, state] of slots.entries()) {
@@ -751,6 +817,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.startInvitedGame = function() {
 		if (this.invitationAnimation)
 			return false;
+		this.refreshSymbols();
 		var finish = () => {
 			this.dailyReturn = null;
 			this.pendingSeed = undefined;
@@ -885,6 +952,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.clearOutcome();
 		this.updateTimer(0);
 		var puzzle = this;
+		this.refreshSymbols();
 		withPuzzleRandom(seed, function() {
 			for (var i = 0; i < puzzle.rows.length; i++)
 				puzzle.rows[i].newGame();
@@ -5495,7 +5563,7 @@ function Row(puzzle, symbols, display, family) {
 
 	this.clear = function() {
 		for (var i = 0; i < this.slots.length; i++) {
-			renderTileSymbol(this.slots[i].singleElem, symbols[i]);
+			renderTileSymbol(this.slots[i].singleElem, this.slots[i].symbols[i]);
 			this.slots[i].displaySingle();
 		}
 	}

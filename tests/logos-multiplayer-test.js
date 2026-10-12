@@ -27,8 +27,8 @@ function boardState(puzzle) {
 	});
 }
 
-function makeSession(role, playerId) {
-	const puzzle = makePuzzle(6, true, Logos.defaultSymbols);
+function makeSession(role, playerId, symbols = Logos.defaultSymbols) {
+	const puzzle = makePuzzle(6, true, symbols);
 	const session = new MultiplayerSession(puzzle, { role, playerId });
 	return { puzzle, session };
 }
@@ -54,6 +54,35 @@ function wrongMove(puzzle, rowStart = 0) {
 	}
 	throw new Error("no wrong move is available");
 }
+
+Deno.test("multiplayer resync preserves seasonal symbols until the next game", function() {
+	let date = new Date(2026, 9, 26);
+	const symbols = () => Logos.symbolsForDate(date);
+	const host = makeSession("host", "host", symbols);
+	const guest = makeSession("guest", "guest", symbols);
+	const network = new InMemoryMultiplayerNetwork(host.session);
+	const revealed = game => game.puzzle.symbols[3]
+		.filter(symbol => typeof symbol != "string").length;
+	try {
+		host.session.start(0x12345678);
+		network.addGuest(guest.session);
+		assert(revealed(host) == 1 && revealed(guest) == 1);
+		date = new Date(2026, 9, 31);
+		guest.session.receiveSync(host.session.syncMessage());
+		assert(revealed(guest) == 1, "resync changed an existing game's artwork");
+		host.session.start(0x12345678);
+		assert(revealed(host) == 6 && revealed(guest) == 6,
+		       "restarting the same seed did not refresh both players' symbols");
+		date = new Date(2026, 10, 1);
+		guest.session.receiveSync(host.session.syncMessage());
+		assert(revealed(guest) == 6, "midnight resync removed active artwork");
+		host.session.start(42);
+		assert(revealed(host) == 0 && revealed(guest) == 0,
+		       "new multiplayer game did not restore classic symbols");
+	} finally {
+		stopAll(host, guest);
+	}
+});
 
 Deno.test("multiplayer routes host and guest actions through the host", function() {
 	const host = makeSession("host", "host");

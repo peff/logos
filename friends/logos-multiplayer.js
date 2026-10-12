@@ -547,10 +547,15 @@ class MultiplayerSession {
 			continueAfterLoss: !!message.rules.continueAfterLoss,
 		};
 		this.applyRoomRules();
+		/* A resync of the same game must not change its seasonal artwork. */
+		var symbols = message.gameId === this.gameId && message.seed === this.seed ?
+			this.puzzle.symbols : null;
 		if (message.seed === null)
 			this.puzzle.showMultiplayerLobby();
 		else if (!this.puzzle.newGame(message.seed))
 			return;
+		if (symbols)
+			this.puzzle.setSymbols(symbols);
 		this.applyRoomRules();
 		this.puzzle.scoreEligible = false;
 		this.puzzle.withEffectsSuppressed(function() {

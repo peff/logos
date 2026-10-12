@@ -148,7 +148,7 @@ const Logos = eval(source +
 	"ColumnClue: ColumnClue, " +
 	"OrderClue: OrderClue, " +
 	"defaultSymbols: defaultSymbols, accessRunHistory: accessRunHistory, " +
-	"renderProofMessage, " +
+	"renderProofMessage, symbolsForDate, " +
 	"setHistoryStorage: storage => { accessRunHistory = storage; }, " +
 	"adjacent3DeductionMessage: adjacent3DeductionMessage, " +
 	"clueProofStep: clueProofStep, " +
@@ -222,6 +222,83 @@ function resetPuzzle(puzzle) {
 	for (const row of puzzle.rows)
 		row.newGame();
 }
+
+function revealedTiles(puzzle) {
+	return puzzle.rows[3].slots[0].symbols.filter(symbol => typeof symbol != "string").length;
+}
+
+Deno.test("seasonal symbols reveal left to right on October 26–31 in local time", function() {
+	const expected = ["Ghost", "Black cat", "Candy corn", "Bat", "Skull", "Jack-o’-lantern"];
+	for (const year of [2026, 2027]) {
+		for (const date of [new Date(year, 9, 25, 23, 59, 59),
+			new Date(year, 10, 1), new Date(year, 0, 31)])
+			assert(Logos.symbolsForDate(date) === Logos.defaultSymbols,
+			       "seasonal symbols appeared outside the reveal window");
+		for (let day = 26; day <= 31; day++) {
+			const selected = Logos.symbolsForDate(new Date(year, 9, day));
+			for (let family = 0; family < 6; family++)
+				for (let value = 0; value < 6; value++) {
+					if (family == 3 && value < day - 25)
+						assert(selected[family][value].label == expected[value],
+						       "wrong reveal order or midnight boundary");
+					else
+						assert(selected[family][value] === Logos.defaultSymbols[family][value],
+						       "an unrevealed symbol changed");
+				}
+		}
+	}
+	assert(Logos.defaultSymbols[3].every(symbol => typeof symbol == "string"),
+	       "selection mutated the classic symbols");
+});
+
+Deno.test("seasonal symbols refresh on load, new games, and accepting invitations", function() {
+	let date = new Date(2026, 9, 26);
+	const puzzle = makePuzzle(6, false, () => Logos.symbolsForDate(date));
+	const slots = puzzle.rows.flatMap(row => row.slots);
+	assert(revealedTiles(puzzle) == 1, "initial board did not select today's symbols");
+	try {
+		puzzle.newGame(42);
+		date = new Date(2026, 9, 27);
+		puzzle.restorePlayDisplay();
+		assert(revealedTiles(puzzle) == 1, "a running game's artwork changed");
+		puzzle.newGame(42);
+		assert(revealedTiles(puzzle) == 2, "new game did not refresh the date");
+		assert(puzzle.rows.flatMap(row => row.slots).every((slot, i) => slot === slots[i]),
+		       "refresh replaced slots or their event bindings");
+		assert(puzzle.rows[3].slots[0].possibilityElems[1].children[0].children[0].alt == "Black cat",
+		       "cached possibilities did not refresh");
+		date = new Date(2026, 9, 31);
+		puzzle.newGame("20250101", true);
+		assert(revealedTiles(puzzle) == 6, "a historical puzzle used its seed as the date");
+		date = new Date(2026, 10, 1);
+		assert(puzzle.startInvitedGame(), "invitation did not start");
+		assert(revealedTiles(puzzle) == 0, "overnight invitation retained Halloween tiles");
+		puzzle.showMultiplayerLobby();
+		assert(puzzle.rows[3].slots.every((slot, value) =>
+		       slot.singleElem.textContent == Logos.defaultSymbols[3][value]),
+		       "clearing the board restored stale artwork");
+	} finally {
+		puzzle.stopTimer();
+	}
+});
+
+Deno.test("returning from a daily preview preserves the suspended game's symbols", function() {
+	let date = new Date(2026, 9, 26);
+	const puzzle = makePuzzle(6, false, () => Logos.symbolsForDate(date));
+	try {
+		puzzle.newGame(42);
+		puzzle.saveDailyReturn();
+		date = new Date(2026, 10, 1);
+		puzzle.newGame("20261031", true, true);
+		assert(revealedTiles(puzzle) == 0, "daily preview did not use the current date");
+		assert(puzzle.restoreDailyReturn() && revealedTiles(puzzle) == 1,
+		       "returning to an existing game changed its artwork");
+		puzzle.newGame(42);
+		assert(revealedTiles(puzzle) == 0, "a subsequent new game did not refresh");
+	} finally {
+		puzzle.stopTimer();
+	}
+});
 
 function imageTestSymbols() {
 	const symbols = Logos.defaultSymbols.map(row => row.slice());
