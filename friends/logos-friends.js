@@ -93,11 +93,9 @@ function renderSharedHover() {
 			`inset 0 0 0 ${(i + 1) * 0.1}rem ${color}`);
 		/* Broad targets get a halo; possibilities retain a precise outline. */
 		const glow = tints.map(color =>
-			`0 0 0.35rem color-mix(in srgb, ${color} 70%, transparent)`);
+			`0 0 0.45rem 0.12rem color-mix(in srgb, ${color} 90%, transparent)`);
 		if (elem.classList.contains("slot"))
-			elem.style.setProperty("--shared-hover-glow", tints.map(color =>
-				`0 0 0.45rem 0.12rem color-mix(in srgb, ${color} 90%, transparent)`
-			).join(", ") || "none");
+			elem.style.setProperty("--shared-hover-glow", glow.join(", ") || "none");
 		else
 			rings.push(...glow);
 		elem.style.setProperty("--shared-hover-rings", rings.join(", "));
