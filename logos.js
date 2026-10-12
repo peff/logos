@@ -2681,6 +2681,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.generateClues = function() {
+		this.lastClueTap = null;
 		this.hClues.classList.remove("solution");
 		this.vClues.classList.remove("solution");
 		generatePuzzleClues(this, this.hClueSlots.length, this.vClueSlots.length);
@@ -5885,9 +5886,11 @@ function renderClue(puzzle, clue, slot, type, elements, horizontal) {
 		elem.innerHTML = elements[i][1];
 		content.appendChild(elem);
 	}
+	var press = null;
 	var pointerType = null;
 	var dismissed = false;
 	function dismiss() {
+		puzzle.lastClueTap = null;
 		puzzle.requestClueAction(clue, !clue.active);
 	}
 	slot.onclick = function(ev) {
@@ -5905,12 +5908,19 @@ function renderClue(puzzle, clue, slot, type, elements, horizontal) {
 			dismiss();
 	};
 	slot.onpointerdown = function(ev) {
-		if (ev.isPrimary === false)
+		if (ev.isPrimary === false) {
+			if (press)
+				press.cancelled = true;
+			puzzle.lastClueTap = null;
 			return;
+		}
 		pointerType = ev.pointerType;
 		dismissed = false;
-		if (puzzle.proof)
+		press = null;
+		if (puzzle.proof) {
+			puzzle.lastClueTap = null;
 			return;
+		}
 		if (pointerType != "touch" && (ev.button == 2 || ev.ctrlKey)) {
 			ev.preventDefault();
 			dismiss();
@@ -5920,17 +5930,45 @@ function renderClue(puzzle, clue, slot, type, elements, horizontal) {
 		if (ev.button !== undefined && ev.button != 0)
 			return;
 		ev.preventDefault();
+		if (pointerType != "touch" || puzzle.lastClueTap?.clue != clue)
+			puzzle.lastClueTap = null;
+		press = {
+			id: ev.pointerId,
+			time: ev.timeStamp,
+			touch: pointerType == "touch",
+			cancelled: false,
+		};
 		highlightRelatedClues(puzzle, clue);
 		if (slot.setPointerCapture)
 			slot.setPointerCapture(ev.pointerId);
 	};
 	slot.onlostpointercapture = function() {
-		clearClueHighlights(puzzle);
+		if (press)
+			slot.onpointercancel();
 	};
 	slot.onpointerup = function(ev) {
+		if (!press || press.id != ev.pointerId)
+			return;
 		clearClueHighlights(puzzle);
+		var tap = press;
+		press = null;
+		/* Only touch taps need a clock. Highlighting never waits for it.
+		 * Count both completed taps within 400ms, excluding holds.
+		 */
+		if (!tap.touch || tap.cancelled || ev.timeStamp - tap.time > 400) {
+			puzzle.lastClueTap = null;
+			return;
+		}
+		var previous = puzzle.lastClueTap;
+		if (previous?.clue == clue && ev.timeStamp - previous.time <= 400) {
+			dismiss();
+		} else {
+			puzzle.lastClueTap = { clue: clue, time: tap.time };
+		}
 	};
-	slot.onpointercancel = function(ev) {
+	slot.onpointercancel = function() {
+		press = null;
+		puzzle.lastClueTap = null;
 		clearClueHighlights(puzzle);
 	};
 }

@@ -1598,6 +1598,83 @@ Deno.test("touch holds highlight clues without dismissing them", function() {
 	       "touch release dismissed the clue or left highlights behind");
 });
 
+Deno.test("touch double-taps toggle clues without delaying highlighting", function() {
+	const puzzle = makePuzzle(2);
+	const clue = new ColumnClue(puzzle);
+	clue.display = new FakeElement();
+	clue.active = true;
+	clue.render();
+	clue.rendered = true;
+	puzzle.clues = [clue];
+	const display = clue.display;
+	function event(time) {
+		return {
+			button: 0, pointerType: "touch", pointerId: 7,
+			timeStamp: time,
+			preventDefault() {},
+		};
+	}
+	function tap(time, duration = 40, cancel = false) {
+		display.onpointerdown(event(time));
+		assert(display.classList.contains("clue-highlight-source"),
+		       "touch highlighting waited for release");
+		if (cancel)
+			display.onpointercancel(event(time + duration));
+		else
+			display.onpointerup(event(time + duration));
+		display.onlostpointercapture(event(time + duration));
+		display.onclick(event(time + duration));
+		assert(!display.classList.contains("clue-highlight-source"),
+		       "touch highlights survived release");
+	}
+	tap(0);
+	assert(clue.active, "a single touch dismissed the clue");
+	tap(150);
+	assert(!clue.active, "double-tap did not dismiss the clue");
+	tap(300);
+	assert(!clue.active, "third tap restored the clue");
+	tap(450);
+	assert(clue.active, "another double-tap did not restore the clue");
+
+	tap(1000, 800);
+	display.oncontextmenu(event(1800));
+	tap(1850);
+	assert(clue.active, "holding then tapping dismissed the clue");
+	tap(3000);
+	tap(3150, 800);
+	assert(clue.active, "tap then hold dismissed the clue");
+	tap(7000, 40, true);
+	tap(7150);
+	assert(clue.active, "a cancelled touch counted as a tap");
+	tap(8000);
+	tap(8600);
+	assert(clue.active, "separate taps dismissed the clue");
+
+	const other = new ColumnClue(puzzle);
+	other.display = new FakeElement();
+	other.active = true;
+	other.render();
+	puzzle.clues.push(other);
+	tap(9000);
+	other.display.onpointerdown(event(9100));
+	other.display.onpointerup(event(9140));
+	tap(9200);
+	assert(clue.active && other.active, "taps across different clues dismissed one");
+
+	display.onpointerdown(event(11000));
+	display.onpointerdown({ ...event(11010), pointerId: 8, isPrimary: false });
+	display.onpointerup(event(11040));
+	tap(11150);
+	assert(clue.active && !display.classList.contains("clue-highlight-source"),
+	       "multi-touch dismissed a clue or left highlights behind");
+
+	puzzle.proof = {};
+	display.onpointerdown(event(11200));
+	display.onpointerup(event(11240));
+	assert(clue.active && !display.classList.contains("clue-highlight-source"),
+	       "touch changed clues during a proof");
+});
+
 Deno.test("pressing a clue highlights clues with shared symbols", function() {
 	const puzzle = makePuzzle(3);
 	function column(top, bottom, column) {

@@ -1,1 +1,2 @@
- - add touchscreen clue dismissal; try double-tap or swipe.
+ - evaluate double-tap clue dismissal on touchscreens; consider swipe
+   if double-tap feels awkward alongside press-and-hold highlighting.
