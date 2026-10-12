@@ -353,11 +353,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	for (var i = 0; i < symbols[0].length; i++) {
 		var tile = document.createElement("button");
 		tile.type = "button";
-		tile.addEventListener("click", function(puzzle, value) {
-			return function() {
-				puzzle.applySlotTrayAction(value);
-			};
-		}(this, i));
+		bindTileActions(this, tile, null, i);
 		this.slotTrayTiles.push(tile);
 		this.slotTrayOptions.appendChild(tile);
 	}
@@ -1782,17 +1778,18 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			this.dismissExhaustedClues();
 	}
 
-	this.applySlotTrayAction = function(value) {
+	this.applySlotTrayAction = function(value, ev, contextMenu) {
 		var slot = this.expandedSlot;
 		if (!slot || !slot.possible[value])
 			return;
-		var action = this.getTileAction();
+		var action = this.tileActionForPointer(ev || {}, contextMenu, this.getTileAction());
 		this.closeSlotTray();
 		this.requestTileAction(slot, value, action);
 	}
 
-	this.tileActionForPointer = function(ev, contextMenu) {
-		var action = this.showActionSelector ? this.getTileAction() : "place";
+	this.tileActionForPointer = function(ev, contextMenu, action) {
+		if (action === undefined)
+			action = this.showActionSelector ? this.getTileAction() : "place";
 		var discard = contextMenu || ev.ctrlKey || action == "remove" ||
 			action == "pencil-remove";
 		var chalk = ev.altKey || ev.shiftKey || action.indexOf("pencil-") == 0;
@@ -5534,6 +5531,53 @@ function Row(puzzle, symbols, display, family) {
 	}
 }
 
+/* A null slot uses the tray's currently expanded slot and action selector. */
+function bindTileActions(puzzle, elem, slot, value) {
+	var touchPress = false;
+	function act(ev, contextMenu) {
+		if (!slot)
+			puzzle.applySlotTrayAction(value, ev, contextMenu);
+		else if (contextMenu || !puzzle.expandTileChoices)
+			puzzle.requestTileAction(slot, value,
+				puzzle.tileActionForPointer(ev, contextMenu));
+	}
+	elem.addEventListener("pointerdown", function(ev) {
+		touchPress = ev.pointerType == "touch";
+		if (slot)
+			puzzle.pressTile(elem, ev, slot, value);
+	});
+	elem.addEventListener("click", function(ev) {
+		if (puzzle.suppressTileClick == elem) {
+			puzzle.suppressTileClick = null;
+			return;
+		}
+		act(ev, false);
+	});
+	elem.addEventListener("contextmenu", function(ev) {
+		ev.preventDefault();
+		if (puzzle.suppressTileContextMenu == elem) {
+			puzzle.suppressTileContextMenu = null;
+			return;
+		}
+		if (!slot && puzzle.expandedSlot && (touchPress || ev.pointerType == "touch")) {
+			/* Closing the tray can retarget the release click to the board. */
+			var controller = new AbortController();
+			var options = { capture: true, signal: controller.signal };
+			document.addEventListener("pointerdown", function() {
+				controller.abort();
+			}, options);
+			document.addEventListener("click", function(click) {
+				controller.abort();
+				if (click.detail) {
+					click.preventDefault();
+					click.stopImmediatePropagation();
+				}
+			}, options);
+		}
+		act(ev, true);
+	});
+}
+
 function Slot(row, symbols, display) {
 	this.row = row;
 	this.symbols = symbols;
@@ -5785,35 +5829,7 @@ function Slot(row, symbols, display) {
 			symbol.textContent = this.symbols[j];
 			cell.appendChild(symbol);
 			cell.className = "possibility";
-			cell.addEventListener('pointerdown',
-				function(s, j) { return function(ev) {
-					s.row.puzzle.pressTile(
-						ev.currentTarget, ev, s, j);
-				}}(this, j));
-			cell.addEventListener('click',
-				function(s, j) { return function(ev) {
-					if (s.row.puzzle.suppressTileClick &&
-					    s.row.puzzle.suppressTileClick ==
-					    ev.currentTarget) {
-						s.row.puzzle.suppressTileClick = null;
-						return;
-					}
-					if (!s.row.puzzle.expandTileChoices)
-						s.row.puzzle.requestTileAction(s, j,
-							s.row.puzzle.tileActionForPointer(
-								ev, false));
-				}}(this, j));
-			cell.addEventListener('contextmenu',
-				function(s, j) { return function(ev) {
-					ev.preventDefault();
-					if (s.row.puzzle.suppressTileContextMenu ==
-						ev.currentTarget) {
-						s.row.puzzle.suppressTileContextMenu = null;
-						return;
-					}
-					s.row.puzzle.requestTileAction(s, j,
-						s.row.puzzle.tileActionForPointer(ev, true));
-				}}(this, j));
+			bindTileActions(this.row.puzzle, cell, this, j);
 		}
 	}
 

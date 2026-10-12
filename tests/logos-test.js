@@ -1393,6 +1393,59 @@ Deno.test("coarse pointers use an expanded slot tray", function() {
 	delete globalThis.innerHeight;
 });
 
+Deno.test("tray long-press and modified clicks discard with the selected mark", function() {
+	for (const mark of ["place", "pencil-select"]) {
+		for (const gesture of ["long-press", "right-click", "control-click", "context-only"]) {
+			const puzzle = makePuzzle(1);
+			const slot = puzzle.rows[0].slots[0];
+			const wrong = (slot.value + 1) % symbols.length;
+			puzzle.expandTileChoices = true;
+			/* The tray always uses its selector, even if the board's is hidden. */
+			puzzle.showActionSelector = false;
+			selectTileAction(puzzle, mark);
+			puzzle.openSlotTray(slot);
+			const tile = puzzle.slotTrayTiles[wrong];
+			let actions = 0;
+			const request = puzzle.requestTileAction;
+			puzzle.requestTileAction = function(slot, value, action) {
+				assert(this.expandedSlot === null && this.slotTray.hidden,
+				       "tray was not closed before committing");
+				actions++;
+				return request.call(this, slot, value, action);
+			};
+			let prevented = false;
+			const event = {
+				button: gesture == "right-click" ? 2 : 0,
+				ctrlKey: gesture == "control-click",
+				pointerType: gesture == "long-press" ? "touch" : "mouse",
+				currentTarget: tile,
+				preventDefault() { prevented = true; },
+			};
+			if (gesture != "context-only")
+				tile.listeners.pointerdown(event);
+			assert(actions == 0, "tray acted before click or context menu");
+			if (gesture == "control-click")
+				tile.listeners.click(event);
+			else {
+				tile.listeners.contextmenu(event);
+				assert(prevented, "tray context menu was not suppressed");
+			}
+			assert(actions == 1, "tray did not apply one discard");
+			if (mark == "place")
+				assert(!slot.possible[wrong], "tray did not discard the possibility");
+			else
+				assert(slot.possible[wrong] && puzzle.pencilMarks.length == 1 &&
+				       puzzle.pencilMarks[0].discard,
+				       "tray did not use chalk discard");
+			/* A follow-up event on the closed tray must not apply another action. */
+			tile.listeners.contextmenu(event);
+			tile.listeners.click(event);
+			assert(actions == 1, "follow-up event applied another tray action");
+			puzzle.stopTimer();
+		}
+	}
+});
+
 Deno.test("touch options use independent defaults and saved settings",
 		function() {
 	localStorage.removeItem("expandTileChoices");
