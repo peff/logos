@@ -3139,6 +3139,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		else
 			document.body.classList.add("game-started");
 		this.boardActions.hidden = !show;
+		this.slotTrayAction.hidden = !this.showActionSelector;
 		var showInvitation = this.dailyResultOpen ||
 			(this.pendingSeed !== undefined && !this.invitationDeclined);
 		var openingInvitation = this.invitation.hidden && showInvitation;
