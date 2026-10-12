@@ -1799,7 +1799,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.pressTile = function(cell, ev, slot, value) {
-		if (this.coarsePointer || (this.expandTileChoices && ev.button == 0) ||
+		if (ev.pointerType == "touch" || this.coarsePointer ||
+		    (this.expandTileChoices && ev.button == 0) ||
 		    (ev.button != 0 && ev.button != 2))
 			return;
 		this.suppressTileClick = null;
@@ -5534,6 +5535,42 @@ function Row(puzzle, symbols, display, family) {
 /* A null slot uses the tray's currently expanded slot and action selector. */
 function bindTileActions(puzzle, elem, slot, value) {
 	var touchPress = false;
+	var press = null;
+	function suppressReleaseClick() {
+		/* Closing the tray can retarget the release click to the board. */
+		var controller = new AbortController();
+		var options = { capture: true, signal: controller.signal };
+		document.addEventListener("pointerdown", function() {
+			controller.abort();
+		}, options);
+		document.addEventListener("click", function(click) {
+			controller.abort();
+			if (click.detail) {
+				click.preventDefault();
+				click.stopImmediatePropagation();
+			}
+		}, options);
+	}
+	function resetSwipe() {
+		elem.style.transform = "";
+		elem.style.opacity = "";
+		elem.classList.remove("tile-swiping");
+		press = null;
+	}
+	function move(ev) {
+		if (!press || press.id != ev.pointerId)
+			return;
+		var dx = ev.clientX - press.x;
+		var dy = ev.clientY - press.y;
+		if (!press.swiping && Math.max(Math.abs(dx), Math.abs(dy)) < 6)
+			return;
+		press.swiping = true;
+		press.distance = Math.max(Math.abs(dx), Math.abs(dy));
+		elem.classList.add("tile-swiping");
+		elem.style.transform = "translate(" + dx + "px," + dy + "px)";
+		elem.style.opacity = Math.max(0.15, 1 - press.distance / 100);
+	}
+
 	function act(ev, contextMenu) {
 		if (!slot)
 			puzzle.applySlotTrayAction(value, ev, contextMenu);
@@ -5542,10 +5579,39 @@ function bindTileActions(puzzle, elem, slot, value) {
 				puzzle.tileActionForPointer(ev, contextMenu));
 	}
 	elem.addEventListener("pointerdown", function(ev) {
+		resetSwipe();
 		touchPress = ev.pointerType == "touch";
+		if (touchPress) {
+			press = { id: ev.pointerId, x: ev.clientX, y: ev.clientY,
+				slot: slot || puzzle.expandedSlot };
+			if (elem.setPointerCapture)
+				elem.setPointerCapture(ev.pointerId);
+		}
 		if (slot)
 			puzzle.pressTile(elem, ev, slot, value);
 	});
+	elem.addEventListener("pointermove", move);
+	elem.addEventListener("pointerup", function(ev) {
+		if (!press || press.id != ev.pointerId)
+			return;
+		move(ev);
+		var swipe = press;
+		resetSwipe();
+		if (!swipe.swiping)
+			return;
+		suppressReleaseClick();
+		if (swipe.distance >= 30 && swipe.slot &&
+		    (slot || puzzle.expandedSlot == swipe.slot) &&
+		    swipe.slot.possible[value])
+			act(ev, true);
+	});
+	function cancelSwipe() {
+		if (press && press.swiping)
+			suppressReleaseClick();
+		resetSwipe();
+	}
+	elem.addEventListener("pointercancel", cancelSwipe);
+	elem.addEventListener("lostpointercapture", cancelSwipe);
 	elem.addEventListener("click", function(ev) {
 		if (puzzle.suppressTileClick == elem) {
 			puzzle.suppressTileClick = null;
@@ -5559,21 +5625,11 @@ function bindTileActions(puzzle, elem, slot, value) {
 			puzzle.suppressTileContextMenu = null;
 			return;
 		}
-		if (!slot && puzzle.expandedSlot && (touchPress || ev.pointerType == "touch")) {
-			/* Closing the tray can retarget the release click to the board. */
-			var controller = new AbortController();
-			var options = { capture: true, signal: controller.signal };
-			document.addEventListener("pointerdown", function() {
-				controller.abort();
-			}, options);
-			document.addEventListener("click", function(click) {
-				controller.abort();
-				if (click.detail) {
-					click.preventDefault();
-					click.stopImmediatePropagation();
-				}
-			}, options);
-		}
+		if (press && press.swiping)
+			return;
+		resetSwipe();
+		if (!slot && puzzle.expandedSlot && (touchPress || ev.pointerType == "touch"))
+			suppressReleaseClick();
 		act(ev, true);
 	});
 }

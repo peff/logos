@@ -3761,3 +3761,14 @@ body.multiplayer #logo {
 }
 
 .daily-completion { color: #746d60; font-family: Forum, Georgia, serif; }
+
+/* Keep touch motion available for discarding in either direction. */
+.board .possibility, .slot-tray-symbol {
+	touch-action: pinch-zoom;
+}
+
+.tile-swiping {
+	position: relative;
+	z-index: 1;
+	pointer-events: none;
+}

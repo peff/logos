@@ -1298,6 +1298,69 @@ Deno.test("Tap controls apply the mark selector to right-click", function() {
 	puzzle.stopTimer();
 });
 
+Deno.test("touch swipes discard board and tray possibilities", function() {
+	for (const tray of [false, true]) {
+		for (const chalk of [false, true]) {
+			for (const direction of [[45, 0], [-45, 0], [0, 45], [0, -45]]) {
+				const puzzle = makePuzzle(1);
+				const slot = puzzle.rows[0].slots[0];
+				const value = (slot.value + 1) % symbols.length;
+				puzzle.coarsePointer = false;
+				puzzle.expandTileChoices = tray;
+				puzzle.showActionSelector = true;
+				selectTileAction(puzzle, chalk ? "pencil-select" : "place");
+				if (tray)
+					puzzle.expandedSlot = slot;
+				const tile = tray ? puzzle.slotTrayTiles[value] :
+					slot.possibilityElems[value];
+				const ev = { pointerType: "touch", pointerId: 1,
+					button: 0, clientX: 100, clientY: 100 };
+				tile.listeners.pointerdown(ev);
+				assert(!slot.single && slot.possible[value],
+				       "touch down acted on a fine-pointer device");
+				const end = { ...ev, clientX: 100 + direction[0],
+					clientY: 100 + direction[1] };
+				tile.listeners.pointermove(end);
+				tile.listeners.contextmenu({ preventDefault() {} });
+				assert(slot.possible[value] && !puzzle.pencilMarks.length,
+				       "swiping triggered a long-press action");
+				tile.listeners.pointerup(end);
+				assert(chalk ? puzzle.pencilMarks.length == 1 &&
+				       puzzle.pencilMarks[0].discard : !slot.possible[value],
+				       "swipe did not discard with the selected mark");
+				assert(!tile.style.transform && !tile.style.opacity,
+				       "swipe left its preview on a reused tile");
+				selectTileAction(puzzle, "place");
+				puzzle.stopTimer();
+			}
+		}
+	}
+});
+
+Deno.test("reversed and cancelled tile swipes do not act", function() {
+	for (const cancel of ["return", "pointercancel", "lostpointercapture"]) {
+		const puzzle = makePuzzle(1);
+		const slot = puzzle.rows[0].slots[0];
+		const tile = slot.possibilityElems[slot.value];
+		const ev = { pointerType: "touch", pointerId: 1,
+			button: 0, clientX: 100, clientY: 100 };
+		tile.listeners.pointerdown(ev);
+		tile.listeners.pointermove({ ...ev, clientX: 145 });
+		if (cancel == "return")
+			tile.listeners.pointerup(ev);
+		else
+			tile.listeners[cancel](ev);
+		assert(!slot.single && !puzzle.losses,
+		       "cancelled swipe acted on the tile");
+		let suppressed = false;
+		document.listeners.click({ detail: 1, preventDefault() {},
+			stopImmediatePropagation() { suppressed = true; } });
+		assert(suppressed, "cancelled swipe allowed a release tap");
+		assert(!tile.style.transform, "cancelled swipe left a preview");
+		puzzle.stopTimer();
+	}
+});
+
 Deno.test("coarse pointers use an expanded slot tray", function() {
 	const puzzle = makePuzzle(1);
 	const slot = puzzle.rows[0].slots[0];
