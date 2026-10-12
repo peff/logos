@@ -820,6 +820,13 @@ body[data-chalk-cursor="true"][data-discard-cursor="true"]:not([data-custom-curs
 	font: 0.56rem/1 "Logos Tiles";
 }
 
+/* Use a hidden glyph to supply the same baseline as a text tile. */
+.proof-tile:has(> .tile-image)::before {
+	content: "I";
+	width: 0;
+	visibility: hidden;
+}
+
 body:is(.proof-active, :has(#proof-controls.hint-explanation)) :is(#logo, #friends-roster) {
 	display: none;
 }
