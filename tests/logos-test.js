@@ -1382,7 +1382,7 @@ Deno.test("coarse pointers use an expanded slot tray", function() {
 	assert(!puzzle.slotTray.hidden &&
 	       puzzle.slotTrayOptions.children.length == symbols.length,
 	       "expanded tray did not show all possibilities");
-	assert(puzzle.slotTrayOptions.children.every(function(tile, i) {
+	assert(puzzle.slotTrayTiles.every(function(tile, i) {
 		return !slot.possible[i] ||
 		       tile.attributes["aria-label"] == "Choose " + symbols[i];
 	}), "expanded tray did not decorate its Choose action");
@@ -1395,23 +1395,23 @@ Deno.test("coarse pointers use an expanded slot tray", function() {
 	       panel.style["--tray-start-x"] == "92px" &&
 	       panel.style["--tray-start-scale-x"] == String(30 / 260),
 	       "expanded tray did not animate from its source slot");
-	const trayTiles = puzzle.slotTrayOptions.children.slice();
+	const trayTiles = puzzle.slotTrayTiles.slice();
 
 	selectTileAction(puzzle, "remove");
-	let tile = puzzle.slotTrayOptions.children[wrong];
+	let tile = puzzle.slotTrayTiles[wrong];
 	tile.listeners.click({});
 	assert(!slot.possible[wrong], "tray removal did not commit");
 	assert(puzzle.expandedSlot === null && puzzle.slotTray.hidden,
 	       "tray removal did not close the slot");
 
 	puzzle.openSlotTray(slot);
-	assert(puzzle.slotTrayOptions.children.every(function(tile, i) {
+	assert(puzzle.slotTrayTiles.every(function(tile, i) {
 		return tile === trayTiles[i];
 	}), "expanded tray did not reuse its tiles");
 	puzzle.applySlotTrayAction(wrong);
 	assert(puzzle.expandedSlot == slot && puzzle.losses == 0,
 	       "an eliminated tray tile applied an action");
-	assert(puzzle.slotTrayOptions.children.every(function(tile, i) {
+	assert(puzzle.slotTrayTiles.every(function(tile, i) {
 		return !slot.possible[i] ||
 		       tile.attributes["aria-label"] == "Discard " + symbols[i];
 	}), "expanded tray did not decorate its Discard action");
@@ -1419,7 +1419,7 @@ Deno.test("coarse pointers use an expanded slot tray", function() {
 	       puzzle.slotTrayAction.className.includes(slot.row.familyClass),
 	       "expanded tray did not identify its Discard action");
 	selectTileAction(puzzle, "pencil-select");
-	tile = puzzle.slotTrayOptions.children[slot.value];
+	tile = puzzle.slotTrayTiles[slot.value];
 	let rerendered = false;
 	const renderSlotTray = puzzle.renderSlotTray;
 	puzzle.renderSlotTray = function() {
@@ -1445,7 +1445,7 @@ Deno.test("coarse pointers use an expanded slot tray", function() {
 	       puzzle.slotTrayActionSample.className.includes("pencil-removed"),
 	       "expanded tray did not identify its chalk Discard action");
 	selectTileAction(puzzle, "place");
-	tile = puzzle.slotTrayOptions.children[slot.value];
+	tile = puzzle.slotTrayTiles[slot.value];
 	tile.listeners.click({});
 	assert(slot.single && puzzle.expandedSlot === null &&
 	       puzzle.slotTray.hidden,

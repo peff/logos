@@ -536,9 +536,15 @@ body[data-custom-cursor="false"] {
 	font-size: 0.85rem;
 	line-height: 1;
 
+	width: 100%;
+	height: 100%;
+}
+
+.board .tile-recess {
 	/* hack based on 2x3 display */
 	width: 33%;
 	height: 50%;
+	padding: 0;
 }
 
 .board .dead-possibility {
@@ -1125,9 +1131,21 @@ body:is(.proof-active, :has(#proof-controls.hint-explanation)) :is(#logo, #frien
 }
 
 .slot-tray-symbol.eliminated {
-	background-color: rgb(115 123 122 / 35%);
-	background-image: none;
-	border-color: transparent;
+	visibility: hidden;
+}
+
+.tile-recess {
+	background: rgb(115 123 122 / 35%);
+	border-radius: 3px;
+	box-shadow:
+		inset 0 0 0.18rem rgb(0 0 0 / 32%),
+		inset 0 0.05rem 0.12rem rgb(255 255 255 / 5%);
+}
+
+#slot-tray-options > .tile-recess {
+	width: 80px;
+	height: 80px;
+	border-radius: 4px;
 }
 
 
@@ -3173,10 +3191,10 @@ body.proof-active :is(#hclues, #vclues) .clue.proof-current {
 	--slate-slot-y: -1.2rem;
 }
 
-.board .possibility:nth-child(2) {
+.board .tile-recess:nth-child(2) {
 	--slate-tile-x: -0.35rem;
 }
-.board .possibility:nth-child(3) {
+.board .tile-recess:nth-child(3) {
 	--slate-tile-x: -0.7rem;
 }
 .board .slot table tr:nth-child(2) .possibility {

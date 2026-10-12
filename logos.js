@@ -355,7 +355,10 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		tile.type = "button";
 		bindTileActions(this, tile, null, i);
 		this.slotTrayTiles.push(tile);
-		this.slotTrayOptions.appendChild(tile);
+		var recess = document.createElement("div");
+		recess.className = "tile-recess";
+		recess.appendChild(tile);
+		this.slotTrayOptions.appendChild(recess);
 	}
 	this.boardActions = document.querySelector("#board-actions");
 	this.eraseChalkBoard = document.querySelector("#erase-chalk-board");
@@ -5878,8 +5881,10 @@ function Slot(row, symbols, display) {
 		if (hi > this.symbols.length)
 			hi = this.symbols.length;
 		for (var j = lo; j < hi; j++) {
-			var cell = this.possibilityElems[j] =
-				possibleRow.insertCell();
+			var recess = possibleRow.insertCell();
+			recess.className = "tile-recess";
+			var cell = this.possibilityElems[j] = document.createElement("div");
+			recess.appendChild(cell);
 			var symbol = document.createElement("span");
 			symbol.className = "possibility-symbol";
 			symbol.textContent = this.symbols[j];
