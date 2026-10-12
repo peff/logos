@@ -1576,7 +1576,7 @@ Deno.test("right and control presses toggle clues exactly once", function() {
 	}
 });
 
-Deno.test("touch holds highlight clues without dismissing them", function() {
+Deno.test("touch holds highlight clues without dismissing them", async function() {
 	const puzzle = makePuzzle(2);
 	const clue = new ColumnClue(puzzle);
 	clue.display = new FakeElement();
@@ -1584,12 +1584,15 @@ Deno.test("touch holds highlight clues without dismissing them", function() {
 	clue.render();
 	puzzle.clues = [clue];
 	const event = {
-		button: 0, pointerType: "touch", pointerId: 7,
+		button: 0, pointerType: "touch", pointerId: 7, clientX: 100, clientY: 100,
 		preventDefault() {},
 	};
 	clue.display.onpointerdown(event);
+	assert(!clue.display.classList.contains("clue-highlight-source"),
+	       "touch highlighted before the swipe grace period");
+	await new Promise(resolve => setTimeout(resolve, 100));
 	assert(clue.display.classList.contains("clue-highlight-source"),
-	       "touch did not highlight immediately");
+	       "holding a clue did not highlight it");
 	clue.display.oncontextmenu(event);
 	assert(clue.active, "touch context menu dismissed the clue");
 	clue.display.onpointerup(event);
@@ -1598,7 +1601,7 @@ Deno.test("touch holds highlight clues without dismissing them", function() {
 	       "touch release dismissed the clue or left highlights behind");
 });
 
-Deno.test("touch double-taps toggle clues without delaying highlighting", function() {
+Deno.test("touch swipes slide a cover along either axis", async function() {
 	const puzzle = makePuzzle(2);
 	const clue = new ColumnClue(puzzle);
 	clue.display = new FakeElement();
@@ -1607,70 +1610,83 @@ Deno.test("touch double-taps toggle clues without delaying highlighting", functi
 	clue.rendered = true;
 	puzzle.clues = [clue];
 	const display = clue.display;
-	function event(time) {
+	display.clientWidth = 100;
+	display.clientHeight = 80;
+	function event(x = 100, y = 100, pointerType = "touch") {
 		return {
-			button: 0, pointerType: "touch", pointerId: 7,
-			timeStamp: time,
-			preventDefault() {},
+			button: 0, pointerType, pointerId: 7,
+			clientX: x, clientY: y, preventDefault() {},
 		};
 	}
-	function tap(time, duration = 40, cancel = false) {
-		display.onpointerdown(event(time));
-		assert(display.classList.contains("clue-highlight-source"),
-		       "touch highlighting waited for release");
-		if (cancel)
-			display.onpointercancel(event(time + duration));
-		else
-			display.onpointerup(event(time + duration));
-		display.onlostpointercapture(event(time + duration));
-		display.onclick(event(time + duration));
-		assert(!display.classList.contains("clue-highlight-source"),
-		       "touch highlights survived release");
+	function swipe(dx, dy = 0, options = {}) {
+		const before = clue.active;
+		display.onpointerdown(event(100, 100, options.pointerType));
+		assert(clue.active == before &&
+		       display.classList.contains("clue-highlight-source") == (options.pointerType == "mouse"),
+		       "press did not distinguish immediate mouse and delayed touch highlighting");
+		if (options.multi)
+			display.onpointerdown({ ...event(), pointerId: 8, isPrimary: false });
+		if (options.cancel)
+			display.onpointercancel(event());
+		if (options.lostCapture)
+			display.onlostpointercapture();
+		const release = event(100 + dx, 100 + dy, options.pointerType);
+		display.onpointerup(release);
+		const active = clue.active;
+		display.onlostpointercapture();
+		display.onclick(release);
+		assert(clue.active == active &&
+		       !display.classList.contains("clue-highlight-source"),
+		       "follow-up events toggled dismissal or left highlights behind");
 	}
-	tap(0);
-	assert(clue.active, "a single touch dismissed the clue");
-	tap(150);
-	assert(!clue.active, "double-tap did not dismiss the clue");
-	tap(300);
-	assert(!clue.active, "third tap restored the clue");
-	tap(450);
-	assert(clue.active, "another double-tap did not restore the clue");
-
-	tap(1000, 800);
-	display.oncontextmenu(event(1800));
-	tap(1850);
-	assert(clue.active, "holding then tapping dismissed the clue");
-	tap(3000);
-	tap(3150, 800);
-	assert(clue.active, "tap then hold dismissed the clue");
-	tap(7000, 40, true);
-	tap(7150);
-	assert(clue.active, "a cancelled touch counted as a tap");
-	tap(8000);
-	tap(8600);
-	assert(clue.active, "separate taps dismissed the clue");
-
-	const other = new ColumnClue(puzzle);
-	other.display = new FakeElement();
-	other.active = true;
-	other.render();
-	puzzle.clues.push(other);
-	tap(9000);
-	other.display.onpointerdown(event(9100));
-	other.display.onpointerup(event(9140));
-	tap(9200);
-	assert(clue.active && other.active, "taps across different clues dismissed one");
-
-	display.onpointerdown(event(11000));
-	display.onpointerdown({ ...event(11010), pointerId: 8, isPrimary: false });
-	display.onpointerup(event(11040));
-	tap(11150);
-	assert(clue.active && !display.classList.contains("clue-highlight-source"),
-	       "multi-touch dismissed a clue or left highlights behind");
-
+	display.onpointerdown(event());
+	display.onpointermove(event(115));
+	assert(clue.active && !display.classList.contains("clue-highlight-source") &&
+	       display.classList.contains("clue-swiping") &&
+	       display.children.at(-1).className == "clue-swipe-cover" &&
+	       display.children.at(-1).style.transform == "translateX(-85px)" &&
+	       !display.children[0].style.transform,
+	       "swipe did not slide a cover over the stationary symbols");
+	display.onpointermove(event(145));
+	display.onpointerup(event(105));
+	assert(clue.active && !display.classList.contains("clue-swiping"),
+	       "returning before release did not cancel dismissal");
+	display.onpointerdown(event());
+	display.onpointermove(event(145));
+	display.onpointercancel();
+	assert(clue.active && !display.classList.contains("clue-swiping") &&
+	       !display.children.some(child => child.className == "clue-swipe-cover"),
+	       "cancellation left a swipe preview behind");
+	swipe(0);
+	swipe(0);
+	assert(clue.active, "taps dismissed the clue");
+	swipe(15);
+	assert(clue.active, "a small finger movement dismissed the clue");
+	swipe(0, -40);
+	assert(!clue.active, "upward swipe did not dismiss the clue");
+	swipe(0, 40);
+	assert(clue.active, "downward swipe did not restore the clue");
+	swipe(40, 60);
+	assert(!clue.active, "diagonal swipe did not use its dominant axis");
+	swipe(-40, -60);
+	assert(clue.active, "reverse diagonal swipe did not restore the clue");
+	swipe(-40, 5);
+	assert(!clue.active, "left swipe did not dismiss the clue");
+	swipe(40, -5);
+	assert(clue.active, "right swipe did not restore the clue");
+	for (const options of [
+		{ cancel: true }, { lostCapture: true }, { multi: true },
+		{ pointerType: "mouse" },
+	]) {
+		swipe(60, 0, options);
+		assert(clue.active, "cancelled gesture or mouse drag dismissed the clue");
+	}
+	await new Promise(resolve => setTimeout(resolve, 100));
+	assert(!display.classList.contains("clue-highlight-source"),
+	       "a released or cancelled touch left a highlight timer running");
 	puzzle.proof = {};
-	display.onpointerdown(event(11200));
-	display.onpointerup(event(11240));
+	display.onpointerdown(event());
+	display.onpointerup(event(160));
 	assert(clue.active && !display.classList.contains("clue-highlight-source"),
 	       "touch changed clues during a proof");
 });

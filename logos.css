@@ -2960,6 +2960,8 @@ button.score-entry:focus-visible {
 }
 
 .clue {
+	/* Swipes toggle clues in either direction; keep pinch zoom available. */
+	touch-action: pinch-zoom;
 	position: relative;
 	border: 1px solid #b6afa0;
 	background-color: #f6f2e9;
@@ -2985,6 +2987,23 @@ button.score-entry:focus-visible {
 
 .clue-hidden:not(.proof-current):not(.hint-current) > * {
 	opacity: 0.2;
+}
+
+/* Slide a translucent paper cover over stationary symbols. */
+.clue.clue-swiping {
+	clip-path: inset(0 round 0.18rem);
+}
+
+.clue.clue-swiping > :not(.clue-swipe-cover) {
+	opacity: 1;
+}
+
+.clue.clue-swiping > .clue-swipe-cover {
+	position: absolute;
+	inset: 0;
+	background: inherit;
+	opacity: 0.8;
+	pointer-events: none;
 }
 
 body:not(.proof-active) .board .single.clue-highlight-source {

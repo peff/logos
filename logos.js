@@ -2681,7 +2681,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.generateClues = function() {
-		this.lastClueTap = null;
 		this.hClues.classList.remove("solution");
 		this.vClues.classList.remove("solution");
 		generatePuzzleClues(this, this.hClueSlots.length, this.vClueSlots.length);
@@ -5823,6 +5822,8 @@ function Slot(row, symbols, display) {
 }
 
 function clearClueSlot(slot) {
+	slot.cancelCluePress?.();
+	slot.cancelCluePress = null;
 	slot.replaceChildren();
 	slot.className = "clue";
 	slot.onclick = null;
@@ -5830,6 +5831,7 @@ function clearClueSlot(slot) {
 	slot.onpointerdown = null;
 	slot.onpointerup = null;
 	slot.onpointercancel = null;
+	slot.onpointermove = null;
 	slot.onlostpointercapture = null;
 }
 
@@ -5872,8 +5874,11 @@ function clearClueHighlights(puzzle) {
 	}
 }
 
+var clueTouchHighlightDelay = 80;
+
 function renderClue(puzzle, clue, slot, type, elements, horizontal) {
-	slot.innerHTML = "";
+	slot.cancelCluePress?.();
+	slot.replaceChildren();
 	var content = slot;
 	if (horizontal) {
 		content = document.createElement("div");
@@ -5887,12 +5892,56 @@ function renderClue(puzzle, clue, slot, type, elements, horizontal) {
 		content.appendChild(elem);
 	}
 	var press = null;
+	var highlightTimer = null;
 	var pointerType = null;
 	var dismissed = false;
+	var swipeCover = null;
+	var swipeAnimation = null;
+	var originalChildren = null;
+	function clearHighlightDelay() {
+		clearTimeout(highlightTimer);
+		highlightTimer = null;
+	}
+	function resetSwipe() {
+		swipeAnimation?.cancel();
+		swipeAnimation = null;
+		if (originalChildren)
+			slot.replaceChildren(...originalChildren);
+		originalChildren = null;
+		swipeCover = null;
+		slot.classList.remove("clue-swiping");
+	}
+	function coverPosition(swipe, offset) {
+		/* Dismissal pulls a cover in; restoration pushes the existing cover out. */
+		if (swipe.active)
+			offset -= swipe.direction * swipe.size;
+		return "translate" + swipe.axis + "(" + offset + "px)";
+	}
+	function finishSwipe(swipe, committed) {
+		if (!swipe?.axis || !swipeCover)
+			return;
+		if (!swipeCover.animate || (typeof matchMedia == "function" &&
+		    matchMedia("(prefers-reduced-motion: reduce)").matches)) {
+			resetSwipe();
+			return;
+		}
+		var end = committed ? swipe.direction * swipe.size : 0;
+		swipeAnimation = swipeCover.animate([
+			{ transform: coverPosition(swipe, swipe.offset) },
+			{ transform: coverPosition(swipe, end) },
+		], { duration: 160, easing: "ease-out", fill: "forwards" });
+		swipeAnimation.onfinish = resetSwipe;
+	}
 	function dismiss() {
-		puzzle.lastClueTap = null;
 		puzzle.requestClueAction(clue, !clue.active);
 	}
+	slot.cancelCluePress = function() {
+		clearHighlightDelay();
+		if (press)
+			clearClueHighlights(puzzle);
+		press = null;
+		resetSwipe();
+	};
 	slot.onclick = function(ev) {
 		ev.preventDefault();
 		/* Pointer-down already handles physical control-clicks. */
@@ -5909,18 +5958,16 @@ function renderClue(puzzle, clue, slot, type, elements, horizontal) {
 	};
 	slot.onpointerdown = function(ev) {
 		if (ev.isPrimary === false) {
+			clearHighlightDelay();
 			if (press)
 				press.cancelled = true;
-			puzzle.lastClueTap = null;
 			return;
 		}
+		slot.cancelCluePress();
 		pointerType = ev.pointerType;
 		dismissed = false;
-		press = null;
-		if (puzzle.proof) {
-			puzzle.lastClueTap = null;
+		if (puzzle.proof)
 			return;
-		}
 		if (pointerType != "touch" && (ev.button == 2 || ev.ctrlKey)) {
 			ev.preventDefault();
 			dismiss();
@@ -5930,17 +5977,50 @@ function renderClue(puzzle, clue, slot, type, elements, horizontal) {
 		if (ev.button !== undefined && ev.button != 0)
 			return;
 		ev.preventDefault();
-		if (pointerType != "touch" || puzzle.lastClueTap?.clue != clue)
-			puzzle.lastClueTap = null;
 		press = {
 			id: ev.pointerId,
-			time: ev.timeStamp,
+			x: ev.clientX,
+			y: ev.clientY,
 			touch: pointerType == "touch",
 			cancelled: false,
 		};
-		highlightRelatedClues(puzzle, clue);
+		if (press.touch) {
+			/* Let the start of a swipe suppress highlighting without timing a hold. */
+			highlightTimer = setTimeout(function() {
+				highlightTimer = null;
+				if (press && !press.axis && !press.cancelled && !puzzle.proof)
+					highlightRelatedClues(puzzle, clue);
+			}, clueTouchHighlightDelay);
+		} else {
+			highlightRelatedClues(puzzle, clue);
+		}
 		if (slot.setPointerCapture)
 			slot.setPointerCapture(ev.pointerId);
+	};
+	slot.onpointermove = function(ev) {
+		if (!press || press.id != ev.pointerId || !press.touch || press.cancelled)
+			return;
+		var dx = ev.clientX - press.x;
+		var dy = ev.clientY - press.y;
+		if (!press.axis) {
+			if (Math.max(Math.abs(dx), Math.abs(dy)) < 6)
+				return;
+			press.axis = Math.abs(dx) >= Math.abs(dy) ? "X" : "Y";
+			press.size = Math.max(1, press.axis == "X" ? slot.clientWidth : slot.clientHeight);
+			clearHighlightDelay();
+			clearClueHighlights(puzzle);
+			originalChildren = Array.from(slot.children);
+			press.active = clue.active;
+			swipeCover = document.createElement("div");
+			swipeCover.className = "clue-swipe-cover";
+			swipeCover.setAttribute("aria-hidden", "true");
+			slot.appendChild(swipeCover);
+			slot.classList.add("clue-swiping");
+		}
+		var distance = press.axis == "X" ? dx : dy;
+		press.direction = distance < 0 ? -1 : 1;
+		press.offset = Math.max(-press.size, Math.min(press.size, distance));
+		swipeCover.style.transform = coverPosition(press, press.offset);
 	};
 	slot.onlostpointercapture = function() {
 		if (press)
@@ -5949,26 +6029,22 @@ function renderClue(puzzle, clue, slot, type, elements, horizontal) {
 	slot.onpointerup = function(ev) {
 		if (!press || press.id != ev.pointerId)
 			return;
+		slot.onpointermove(ev);
+		clearHighlightDelay();
 		clearClueHighlights(puzzle);
-		var tap = press;
+		var swipe = press;
 		press = null;
-		/* Only touch taps need a clock. Highlighting never waits for it.
-		 * Count both completed taps within 400ms, excluding holds.
-		 */
-		if (!tap.touch || tap.cancelled || ev.timeStamp - tap.time > 400) {
-			puzzle.lastClueTap = null;
-			return;
-		}
-		var previous = puzzle.lastClueTap;
-		if (previous?.clue == clue && ev.timeStamp - previous.time <= 400) {
+		var distance = swipe.axis == "X" ? ev.clientX - swipe.x : ev.clientY - swipe.y;
+		var committed = swipe.touch && !swipe.cancelled && swipe.axis &&
+			Math.abs(distance) >= 30;
+		if (committed)
 			dismiss();
-		} else {
-			puzzle.lastClueTap = { clue: clue, time: tap.time };
-		}
+		finishSwipe(swipe, committed);
 	};
 	slot.onpointercancel = function() {
+		clearHighlightDelay();
+		finishSwipe(press, false);
 		press = null;
-		puzzle.lastClueTap = null;
 		clearClueHighlights(puzzle);
 	};
 }
