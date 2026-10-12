@@ -5991,11 +5991,14 @@ function renderClue(puzzle, clue, slot, type, elements, horizontal) {
 	}
 	for (var i = 0; i < elements.length; i++) {
 		var elem = document.createElement(type);
-		elem.className = elements[i][0];
-		if (elements[i][0].split(" ").includes("tile"))
-			renderTileSymbol(elem, elements[i][1]);
-		else
-			elem.innerHTML = elements[i][1];
+		var entry = elements[i];
+		if (entry.slot) {
+			elem.className = "tile " + entry.slot.row.familyClass;
+			renderTileSymbol(elem, entry.slot.symbol());
+		} else {
+			elem.className = entry.className;
+			elem.innerHTML = entry.html;
+		}
 		content.appendChild(elem);
 	}
 	var press = null;
@@ -6199,11 +6202,9 @@ function OrderClue(puzzle) {
 
 	this.render = function() {
 		renderClue(puzzle, this, this.display, "span", [
-			    ["tile " + this.lRow.familyClass,
-			     this.lRow.slots[this.lCol].symbol()],
-			    ["dots", "..."],
-			    ["tile " + this.rRow.familyClass,
-			     this.rRow.slots[this.rCol].symbol()]
+			    { slot: this.lRow.slots[this.lCol] },
+			    { className: "dots", html: "..." },
+			    { slot: this.rRow.slots[this.rCol] }
 		], true);
 	}
 }
@@ -6237,11 +6238,9 @@ function Adjacent2Clue(puzzle) {
 
 	this.render = function() {
 		renderClue(puzzle, this, this.display, "span", [
-			    ["tile " + this.lRow.familyClass,
-			     this.lRow.slots[this.lCol].symbol()],
-			    ["arrow", clueArrow],
-			    ["tile " + this.rRow.familyClass,
-			     this.rRow.slots[this.rCol].symbol()]
+			    { slot: this.lRow.slots[this.lCol] },
+			    { className: "arrow", html: clueArrow },
+			    { slot: this.rRow.slots[this.rCol] }
 		], true);
 	}
 }
@@ -6296,12 +6295,9 @@ function Adjacent3Clue(puzzle) {
 
 	this.render = function() {
 		renderClue(puzzle, this, this.display, "span", [
-			    ["tile " + this.lRow.familyClass,
-			     this.lRow.slots[this.lCol].symbol()],
-			    ["tile " + this.mRow.familyClass,
-			     this.mRow.slots[this.mCol].symbol()],
-			    ["tile " + this.rRow.familyClass,
-			     this.rRow.slots[this.rCol].symbol()]
+			    { slot: this.lRow.slots[this.lCol] },
+			    { slot: this.mRow.slots[this.mCol] },
+			    { slot: this.rRow.slots[this.rCol] }
 		], true);
 	}
 }
@@ -6328,10 +6324,8 @@ function ColumnClue(puzzle) {
 
 	this.render = function() {
 		renderClue(puzzle, this, this.display, "div", [
-			    ["tile " + this.tRow.familyClass,
-			     this.tRow.slots[this.col].symbol()],
-			    ["tile " + this.bRow.familyClass,
-			     this.bRow.slots[this.col].symbol()]
+			    { slot: this.tRow.slots[this.col] },
+			    { slot: this.bRow.slots[this.col] }
 		]);
 	}
 }
