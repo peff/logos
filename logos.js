@@ -5885,24 +5885,41 @@ function renderClue(puzzle, clue, slot, type, elements, horizontal) {
 		elem.innerHTML = elements[i][1];
 		content.appendChild(elem);
 	}
-	if (!clue.listener) {
-		clue.listener = function(ev) {
-			ev.preventDefault();
-			if (clue.suppressClick) {
-				clue.suppressClick = false;
-				return;
-			}
-			puzzle.requestClueAction(clue, !clue.active);
-		};
+	var pointerType = null;
+	var dismissed = false;
+	function dismiss() {
+		puzzle.requestClueAction(clue, !clue.active);
 	}
-	slot.onclick = clue.listener;
-	slot.oncontextmenu = clue.listener;
+	slot.onclick = function(ev) {
+		ev.preventDefault();
+		/* Pointer-down already handles physical control-clicks. */
+		if (ev.ctrlKey && !dismissed && pointerType != "touch")
+			dismiss();
+	};
+	slot.oncontextmenu = function(ev) {
+		ev.preventDefault();
+		/* A touch hold is for highlighting, even if it opens a menu. */
+		if (ev.pointerType == "touch" || pointerType == "touch")
+			return;
+		if (!dismissed)
+			dismiss();
+	};
 	slot.onpointerdown = function(ev) {
-		if (!ev.shiftKey || (ev.button !== undefined && ev.button != 0) ||
-		    puzzle.proof)
+		if (ev.isPrimary === false)
+			return;
+		pointerType = ev.pointerType;
+		dismissed = false;
+		if (puzzle.proof)
+			return;
+		if (pointerType != "touch" && (ev.button == 2 || ev.ctrlKey)) {
+			ev.preventDefault();
+			dismiss();
+			dismissed = true;
+			return;
+		}
+		if (ev.button !== undefined && ev.button != 0)
 			return;
 		ev.preventDefault();
-		clue.suppressClick = true;
 		highlightRelatedClues(puzzle, clue);
 		if (slot.setPointerCapture)
 			slot.setPointerCapture(ev.pointerId);
@@ -5912,11 +5929,8 @@ function renderClue(puzzle, clue, slot, type, elements, horizontal) {
 	};
 	slot.onpointerup = function(ev) {
 		clearClueHighlights(puzzle);
-		/* A click normally follows; do not suppress some later click if it doesn't. */
-		setTimeout(function() { clue.suppressClick = false; }, 0);
 	};
 	slot.onpointercancel = function(ev) {
-		clue.suppressClick = false;
 		clearClueHighlights(puzzle);
 	};
 }

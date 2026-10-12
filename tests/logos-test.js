@@ -1550,27 +1550,55 @@ Deno.test("clues do not propagate pencil marks", function() {
 	       "clue propagated a pencil selection to another row");
 });
 
-Deno.test("left clicks toggle clue dismissal", function() {
+Deno.test("right and control presses toggle clues exactly once", function() {
+	for (const control of [false, true]) {
+		const puzzle = makePuzzle(2);
+		const clue = new ColumnClue(puzzle);
+		clue.display = new FakeElement();
+		clue.active = true;
+		clue.render();
+		clue.rendered = true;
+		puzzle.clues = [clue];
+		const event = {
+			button: control ? 0 : 2, ctrlKey: control,
+			pointerType: "mouse", preventDefault() {},
+		};
+		for (const active of [false, true]) {
+			clue.display.onpointerdown(event);
+			assert(clue.active == active, "press did not toggle immediately");
+			assert(!clue.display.classList.contains("clue-highlight-source"),
+			       "dismissal flashed clue highlights");
+			clue.display.onpointerup(event);
+			clue.display.oncontextmenu(event);
+			clue.display.onclick(event);
+			assert(clue.active == active, "follow-up event toggled the clue again");
+		}
+	}
+});
+
+Deno.test("touch holds highlight clues without dismissing them", function() {
 	const puzzle = makePuzzle(2);
 	const clue = new ColumnClue(puzzle);
 	clue.display = new FakeElement();
 	clue.active = true;
 	clue.render();
-	let prevented = false;
-
-	clue.display.onclick({
-		preventDefault() { prevented = true; },
-	});
-	assert(prevented && !clue.active &&
-	       clue.display.classList.contains("clue-hidden"),
-	       "left click did not dismiss the clue");
-	clue.display.onclick({ preventDefault() {} });
-	assert(clue.active &&
-	       !clue.display.classList.contains("clue-hidden"),
-	       "second left click did not restore the clue");
+	puzzle.clues = [clue];
+	const event = {
+		button: 0, pointerType: "touch", pointerId: 7,
+		preventDefault() {},
+	};
+	clue.display.onpointerdown(event);
+	assert(clue.display.classList.contains("clue-highlight-source"),
+	       "touch did not highlight immediately");
+	clue.display.oncontextmenu(event);
+	assert(clue.active, "touch context menu dismissed the clue");
+	clue.display.onpointerup(event);
+	clue.display.onclick(event);
+	assert(clue.active && !clue.display.classList.contains("clue-highlight-source"),
+	       "touch release dismissed the clue or left highlights behind");
 });
 
-Deno.test("shift-press highlights clues with shared symbols", async function() {
+Deno.test("pressing a clue highlights clues with shared symbols", function() {
 	const puzzle = makePuzzle(3);
 	function column(top, bottom, column) {
 		const clue = new ColumnClue(puzzle);
@@ -1591,14 +1619,13 @@ Deno.test("shift-press highlights clues with shared symbols", async function() {
 	let prevented = false;
 	selected.display.onpointerdown({
 		button: 0,
-		shiftKey: true,
 		preventDefault() { prevented = true; },
 	});
 	assert(prevented &&
 	       selected.display.classList.contains("clue-highlight-source") &&
 	       related.display.classList.contains("clue-highlight-related") &&
 	       !unrelated.display.classList.contains("clue-highlight-related"),
-	       "shift-press did not distinguish related clues");
+	       "press did not distinguish related clues");
 	selected.display.onpointerup({});
 	selected.display.onlostpointercapture();
 	assert(!selected.display.classList.contains("clue-highlight-source") &&
@@ -1608,11 +1635,10 @@ Deno.test("shift-press highlights clues with shared symbols", async function() {
 
 	selected.display.onclick({ preventDefault() {} });
 	assert(selected.active,
-	       "the click following a shift-press dismissed the clue");
+	       "the click following a press dismissed the clue");
 	selected.display.onclick({ preventDefault() {} });
-	assert(!selected.active,
-	       "an ordinary click no longer dismissed the clue");
-	await new Promise(resolve => setTimeout(resolve, 0));
+	assert(selected.active,
+	       "repeated mouse clicks dismissed the clue");
 });
 
 Deno.test("losing clue pointer capture clears highlights", function() {

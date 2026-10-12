@@ -1,4 +1,1 @@
- - evaluate clue interactions
-   - is highlighting clues that refer to a symbol useful?
-   - what UI should expose highlighting? Current experiments use
-     shift-click on a clue and pressing a filled board slot.
+ - add touchscreen clue dismissal; try double-tap or swipe.

@@ -521,7 +521,9 @@ Deno.test("manual clue choices reach all guests and survive replay", function() 
 	network.addGuest(alice.session);
 	network.addGuest(bob.session);
 	const index = host.puzzle.clues.findIndex(clue => clue.display);
-	alice.puzzle.clues[index].listener({ preventDefault() {} });
+	alice.puzzle.clues[index].display.onpointerdown({
+		button: 2, pointerType: "mouse", preventDefault() {},
+	});
 	for (const game of [host, alice, bob])
 		assert(!game.puzzle.clues[index].active,
 		       "a guest dismissal was not shared");
