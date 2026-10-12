@@ -5829,6 +5829,7 @@ function clearClueSlot(slot) {
 	slot.onpointerdown = null;
 	slot.onpointerup = null;
 	slot.onpointercancel = null;
+	slot.onlostpointercapture = null;
 }
 
 function checkClueDisplay(clue) {
@@ -5905,6 +5906,9 @@ function renderClue(puzzle, clue, slot, type, elements, horizontal) {
 		highlightRelatedClues(puzzle, clue);
 		if (slot.setPointerCapture)
 			slot.setPointerCapture(ev.pointerId);
+	};
+	slot.onlostpointercapture = function() {
+		clearClueHighlights(puzzle);
 	};
 	slot.onpointerup = function(ev) {
 		clearClueHighlights(puzzle);

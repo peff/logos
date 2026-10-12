@@ -1600,6 +1600,7 @@ Deno.test("shift-press highlights clues with shared symbols", async function() {
 	       !unrelated.display.classList.contains("clue-highlight-related"),
 	       "shift-press did not distinguish related clues");
 	selected.display.onpointerup({});
+	selected.display.onlostpointercapture();
 	assert(!selected.display.classList.contains("clue-highlight-source") &&
 	       !related.display.classList.contains("clue-highlight-related") &&
 	       !unrelated.display.classList.contains("clue-highlight-related"),
@@ -1612,6 +1613,23 @@ Deno.test("shift-press highlights clues with shared symbols", async function() {
 	assert(!selected.active,
 	       "an ordinary click no longer dismissed the clue");
 	await new Promise(resolve => setTimeout(resolve, 0));
+});
+
+Deno.test("losing clue pointer capture clears highlights", function() {
+	const puzzle = makePuzzle(2);
+	const clue = new ColumnClue(puzzle);
+	clue.display = new FakeElement();
+	clue.active = true;
+	clue.render();
+	puzzle.clues = [clue];
+	clue.display.onpointerdown({
+		button: 0, shiftKey: true, preventDefault() {},
+	});
+	assert(clue.display.classList.contains("clue-highlight-source"),
+	       "press did not highlight the clue");
+	clue.display.onlostpointercapture();
+	assert(!clue.display.classList.contains("clue-highlight-source") && clue.active,
+	       "losing capture left highlights behind or dismissed the clue");
 });
 
 Deno.test("pressing a filled slot highlights its clues", function() {
