@@ -2064,6 +2064,8 @@ button.score-entry:focus-visible {
 }
 
 .history-pages {
+	/* Keep each leaf's hidden column labels inside the scrolling strip. */
+	position: relative;
 	display: grid;
 	grid-auto-flow: column;
 	grid-auto-columns: 100%;
