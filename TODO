@@ -3,10 +3,3 @@
    - is highlighting clues that refer to a symbol useful?
    - what UI should expose highlighting? Current experiments use
      shift-click on a clue and pressing a filled board slot.
- - revisit difficulty backfill once beta players' older runs are rated
-   - we only have a few players with a few days of legacy data; we can
-     give them a week or two to visit the chronicle and backfill, and
-     then drop the backfill code
-   - this will also let us add an index on [outcome, difficulty.level,
-     elapsed] so each Pantheon can read its first ten wins directly
-     instead of filtering the elapsed-time cursor
