@@ -227,6 +227,33 @@ function renderDailyTitle(heading, date, selectDate, direction = 0) {
 		], { duration: 240, easing: "ease-out" });
 }
 
+/* Undocumented debugging override: #today=YYYY-MM-DD. */
+function loadURLDate(url) {
+	const today = new URLSearchParams(new URL(url).hash.slice(1)).get("today");
+	if (!today || !/^\d{4}-\d{2}-\d{2}$/.test(today))
+		return;
+	const NativeDate = window.Date;
+	const start = new NativeDate();
+	const shifted = new NativeDate(start.getTime());
+	const [year, month, day] = today.split("-").map(Number);
+	shifted.setFullYear(year, month - 1, day);
+	if (shifted.getFullYear() !== year || shifted.getMonth() !== month - 1 ||
+	    shifted.getDate() !== day)
+		return;
+	const offset = shifted.getTime() - start.getTime();
+	/* Keep elapsed time ticking, and leave explicitly supplied dates alone. */
+	function DebugDate(...args) {
+		if (!new.target)
+			return new NativeDate(DebugDate.now()).toString();
+		return Reflect.construct(NativeDate,
+			args.length ? args : [DebugDate.now()], new.target);
+	}
+	Object.setPrototypeOf(DebugDate, NativeDate);
+	DebugDate.prototype = NativeDate.prototype;
+	DebugDate.now = () => NativeDate.now() + offset;
+	window.Date = DebugDate;
+}
+
 function parseSeed(seed) {
 	if (typeof seed == "number")
 		return Number.isInteger(seed) && seed >= 0 && seed <= 0xffffffff ?

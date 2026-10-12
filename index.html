@@ -715,9 +715,10 @@
 			var before = new URLSearchParams(new URL(event.oldURL).hash.slice(1));
 			var after = new URLSearchParams(new URL(event.newURL).hash.slice(1));
 			/* Reinitialize puzzles and rooms just as when following a fresh link. */
-			if (["seed", "room", "daily"].some(key => before.get(key) !== after.get(key)))
+			if (["seed", "room", "daily", "today"].some(key => before.get(key) !== after.get(key)))
 				window.location.reload();
 		});
+		loadURLDate(window.location.href);
 		var puzzle = new Puzzle(
 				document.getElementById("board"),
 				document.getElementById("hclues"),
