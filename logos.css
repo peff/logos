@@ -551,6 +551,26 @@ body[data-custom-cursor="false"] {
 	visibility: hidden;
 }
 
+.board .dead-possibility.discarding {
+	position: relative;
+	z-index: 1;
+	pointer-events: none;
+	animation: tile-toss 140ms ease-out;
+}
+
+@keyframes tile-toss {
+	from {
+		visibility: visible;
+		opacity: 1;
+		transform: translate(0, 0) rotate(0);
+	}
+	to {
+		visibility: visible;
+		opacity: 0;
+		transform: translate(80%, -20%) rotate(10deg);
+	}
+}
+
 .possibility-symbol {
 	display: flex;
 	align-items: center;
@@ -1224,7 +1244,8 @@ body:is(.proof-active, :has(#proof-controls.hint-explanation)) :is(#logo, #frien
 @media (prefers-reduced-motion: reduce) {
 	#slot-tray::backdrop,
 	.slot-tray-panel.opening,
-	.board .single.placing {
+	.board .single.placing,
+	.board .dead-possibility.discarding {
 		animation: none !important;
 	}
 

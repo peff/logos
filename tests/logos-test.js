@@ -2742,9 +2742,8 @@ Deno.test("revealing a slot preserves its deductions", function() {
 	       "possibility table was not marked as a solution");
 	assert(slot.possibilityElems[slot.value].className ==
 	       "possibility answer", "a discarded answer was not restored");
-	assert(slot.possibilityElems[discarded].className ==
-	       "possibility dead-possibility",
-	       "reveal restored a discarded possibility");
+	assert(slot.possibilityElems[discarded].className.split(" ").includes(
+	       "dead-possibility"), "reveal restored a discarded possibility");
 
 	slot.displayPossible();
 	assert(slot.possibleElem.className == "",

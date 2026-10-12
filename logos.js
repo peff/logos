@@ -5606,8 +5606,14 @@ function bindTileActions(puzzle, elem, slot, value) {
 		suppressReleaseClick();
 		if (swipe.distance >= 30 && swipe.slot &&
 		    (slot || puzzle.expandedSlot == swipe.slot) &&
-		    swipe.slot.possible[value])
-			act(ev, true);
+		    swipe.slot.possible[value]) {
+			swipe.slot.swiping = true;
+			try {
+				act(ev, true);
+			} finally {
+				swipe.slot.swiping = false;
+			}
+		}
 	});
 	function cancelSwipe() {
 		if (press && press.swiping)
@@ -5764,9 +5770,12 @@ function Slot(row, symbols, display) {
 	this.clearPencilDisplay = function() {
 		if (!this.possible)
 			return;
-		for (var i = 0; i < this.possibilityElems.length; i++)
-			this.possibilityElems[i].className = this.possible[i] ?
-				"possibility" : "possibility dead-possibility";
+		for (var i = 0; i < this.possibilityElems.length; i++) {
+			var elem = this.possibilityElems[i];
+			var discarding = elem.classList.contains("discarding");
+			elem.className = this.possible[i] ? "possibility" :
+				"possibility dead-possibility" + (discarding ? " discarding" : "");
+		}
 	}
 
 	this.choose = function(value, playerAction) {
@@ -5825,9 +5834,11 @@ function Slot(row, symbols, display) {
 	}
 
 	this.removePossible = function(value, deferCheck) {
+		var animate = this.possible[value] && !this.single && !this.swiping &&
+			!this.row.puzzle.effectsSuppressed;
 		this.possible[value] = false;
 		this.possibilityElems[value].className =
-			"possibility dead-possibility";
+			"possibility dead-possibility" + (animate ? " discarding" : "");
 		if (!deferCheck)
 			this.checkSingleton();
 	}
@@ -5891,6 +5902,10 @@ function Slot(row, symbols, display) {
 			symbol.textContent = this.symbols[j];
 			cell.appendChild(symbol);
 			cell.className = "possibility";
+			cell.addEventListener("animationend", function(ev) {
+				if (ev.animationName == "tile-toss")
+					ev.currentTarget.classList.remove("discarding");
+			});
 			bindTileActions(this.row.puzzle, cell, this, j);
 		}
 	}
