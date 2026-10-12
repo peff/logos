@@ -26,11 +26,20 @@ var defaultSymbols = [
 ];
 
 function tileSymbolLabel(symbol) {
-	return symbol;
+	return typeof symbol == "string" ? symbol : symbol.label;
 }
 
 function renderTileSymbol(elem, symbol) {
-	elem.textContent = symbol;
+	if (typeof symbol == "string") {
+		elem.textContent = symbol;
+		return;
+	}
+	var image = document.createElement("img");
+	image.className = "tile-image";
+	image.src = symbol.src;
+	image.alt = symbol.label;
+	image.draggable = false;
+	elem.replaceChildren(image);
 }
 
 var clueArrow = '<span aria-hidden="true">↔</span>';

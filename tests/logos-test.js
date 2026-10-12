@@ -148,6 +148,7 @@ const Logos = eval(source +
 	"ColumnClue: ColumnClue, " +
 	"OrderClue: OrderClue, " +
 	"defaultSymbols: defaultSymbols, accessRunHistory: accessRunHistory, " +
+	"renderProofMessage, " +
 	"setHistoryStorage: storage => { accessRunHistory = storage; }, " +
 	"adjacent3DeductionMessage: adjacent3DeductionMessage, " +
 	"clueProofStep: clueProofStep, " +
@@ -221,6 +222,78 @@ function resetPuzzle(puzzle) {
 	for (const row of puzzle.rows)
 		row.newGame();
 }
+
+function imageTestSymbols() {
+	const symbols = Logos.defaultSymbols.map(row => row.slice());
+	for (const [value, label, drawing] of [
+		[0, "Red circle", '<circle cx="50" cy="50" r="40" fill="red"/>'],
+		[1, "Blue square", '<rect x="10" y="10" width="80" height="80" fill="blue"/>'],
+	]) {
+		symbols[3][value] = {
+			label,
+			src: "data:image/svg+xml," + encodeURIComponent(
+				'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">' +
+				drawing + '</svg>'),
+		};
+	}
+	return symbols;
+}
+
+Deno.test("image symbols preserve seeded puzzles and positions", function() {
+	const classic = makePuzzle(6, false, Logos.defaultSymbols);
+	const images = makePuzzle(6, false, imageTestSymbols());
+	try {
+		for (const seed of [0x12345678, 0x5be42607]) {
+			classic.newGame(seed);
+			images.newGame(seed);
+			assert(puzzleSignature(classic) == puzzleSignature(images),
+			       "artwork changed the seeded solution or clues");
+			assert(JSON.stringify(classic.positionSnapshot()) ==
+			       JSON.stringify(images.positionSnapshot()),
+			       "artwork changed the initial position");
+		}
+	} finally {
+		classic.stopTimer();
+		images.stopTimer();
+	}
+});
+
+Deno.test("image symbols render on the board, in clues, proofs, and the picker", function() {
+	const symbols = imageTestSymbols();
+	const puzzle = makePuzzle(6, false, symbols);
+	const slot = puzzle.rows[3].slots[0];
+	slot.newGame(0);
+	assert(slot.singleElem.children[0].alt == "Red circle" &&
+	       slot.singleElem.children[0].src == symbols[3][0].src &&
+	       slot.singleElem.children[0].draggable === false &&
+	       slot.possibilityElems[1].children[0].children[0].alt == "Blue square",
+	       "board symbols did not render as named, non-draggable images");
+	const clue = new ColumnClue(puzzle);
+	clue.tRow = puzzle.rows[3];
+	clue.bRow = puzzle.rows[4];
+	clue.col = 0;
+	clue.bRow.slots[0].newGame(0);
+	clue.display = new FakeElement();
+	clue.render();
+	assert(clue.display.children[0].children[0].alt == "Red circle" &&
+	       clue.display.children[1].textContent == "△",
+	       "clues did not mix image and text symbols");
+	const message = "\ue0003:0\ue001 is above \ue0004:0\ue001.";
+	assert(Logos.proofMessageText(puzzle, message) == "Red circle is above △.",
+	       "proof text did not use symbol names");
+	const display = new FakeElement();
+	Logos.renderProofMessage(puzzle, display, message, false);
+	assert(display.children[0].children[1].children[0].alt == "Red circle" &&
+	       display.children[0].children[3].textContent == "△",
+	       "proof tiles did not mix image and text symbols");
+	selectTileAction(puzzle, "place");
+	puzzle.expandedSlot = slot;
+	puzzle.renderSlotTray();
+	assert(puzzle.slotTrayTiles[0].children[0].src == symbols[3][0].src &&
+	       puzzle.slotTrayTiles[0].attributes["aria-label"] == "Choose Red circle" &&
+	       puzzle.slotTrayTiles[2].textContent == symbols[3][2],
+	       "picker did not render images with descriptive action labels");
+});
 
 function withRandom(seed, callback) {
 	const oldRandom = Math.random;
