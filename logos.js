@@ -25,6 +25,14 @@ var defaultSymbols = [
 	["+", "‒", "÷", "x", "=", "√"],
 ];
 
+function tileSymbolLabel(symbol) {
+	return symbol;
+}
+
+function renderTileSymbol(elem, symbol) {
+	elem.textContent = symbol;
+}
+
 var clueArrow = '<span aria-hidden="true">↔</span>';
 
 var startMessages = [
@@ -1896,7 +1904,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			for (var i = 0; i < boardClasses.length; i++)
 				if (boardClasses[i].indexOf("pencil-") == 0)
 					tile.className += " " + boardClasses[i];
-			tile.textContent = slot.symbols[value];
+			renderTileSymbol(tile, slot.symbols[value]);
 			var label;
 			if (action == "place")
 				label = "Choose ";
@@ -1906,7 +1914,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 				label = "Mark as chosen: ";
 			else
 				label = "Mark as discarded: ";
-			tile.setAttribute("aria-label", label + slot.symbols[value]);
+			tile.setAttribute("aria-label", label + tileSymbolLabel(slot.symbols[value]));
 		}
 		this.positionSlotTray();
 	}
@@ -3977,7 +3985,7 @@ function proofSymbolReference(puzzle, row, symbol) {
 function proofMessageText(puzzle, message) {
 	return message.replace(/\ue000(\d+):(\d+)\ue001/g,
 		function(match, row, symbol) {
-			return puzzle.rows[row].slots[0].symbols[symbol];
+			return tileSymbolLabel(puzzle.rows[row].slots[0].symbols[symbol]);
 		});
 }
 
@@ -4003,7 +4011,7 @@ function renderProofMessage(puzzle, elem, message, qed, contradicts) {
 		var symbol = Number(match[2]);
 		var tile = document.createElement("span");
 		tile.className = "proof-tile " + puzzle.rows[row].familyClass;
-		tile.textContent = puzzle.rows[row].slots[0].symbols[symbol];
+		renderTileSymbol(tile, puzzle.rows[row].slots[0].symbols[symbol]);
 		wrapper.appendChild(tile);
 		offset = pattern.lastIndex;
 	}
@@ -5451,7 +5459,7 @@ function Row(puzzle, symbols, display, family) {
 
 	this.clear = function() {
 		for (var i = 0; i < this.slots.length; i++) {
-			this.slots[i].singleElem.textContent = symbols[i];
+			renderTileSymbol(this.slots[i].singleElem, symbols[i]);
 			this.slots[i].displaySingle();
 		}
 	}
@@ -5662,7 +5670,7 @@ function Slot(row, symbols, display) {
 
 	this.newGame = function(value) {
 		this.value = value;
-		this.singleElem.textContent = this.symbols[value];
+		renderTileSymbol(this.singleElem, this.symbols[value]);
 		this.possible = [];
 		for (var i = 0; i < this.symbols.length; i++)
 			this.possible.push(true);
@@ -5740,7 +5748,7 @@ function Slot(row, symbols, display) {
 		}
 		this.singleElem.classList.remove("failed-action", "proof-change");
 		if (placed >= 0) {
-			this.singleElem.textContent = this.symbols[placed];
+			renderTileSymbol(this.singleElem, this.symbols[placed]);
 			if (change && change.placement && change.symbol == placed)
 				this.singleElem.classList.add("proof-change");
 			if (this.row.puzzle.proof &&
@@ -5899,7 +5907,7 @@ function Slot(row, symbols, display) {
 			recess.appendChild(cell);
 			var symbol = document.createElement("span");
 			symbol.className = "possibility-symbol";
-			symbol.textContent = this.symbols[j];
+			renderTileSymbol(symbol, this.symbols[j]);
 			cell.appendChild(symbol);
 			cell.className = "possibility";
 			cell.addEventListener("animationend", function(ev) {
@@ -5984,7 +5992,10 @@ function renderClue(puzzle, clue, slot, type, elements, horizontal) {
 	for (var i = 0; i < elements.length; i++) {
 		var elem = document.createElement(type);
 		elem.className = elements[i][0];
-		elem.innerHTML = elements[i][1];
+		if (elements[i][0].split(" ").includes("tile"))
+			renderTileSymbol(elem, elements[i][1]);
+		else
+			elem.innerHTML = elements[i][1];
 		content.appendChild(elem);
 	}
 	var press = null;
