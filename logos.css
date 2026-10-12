@@ -2983,19 +2983,6 @@ button.score-entry:focus-visible {
 	user-select: none;
 }
 
-.clue.clue-dragging {
-	opacity: 0.55;
-	transform: scale(1.03);
-	z-index: 1;
-}
-
-.clue.clue-drop-target {
-	background-color: #f4dfb2;
-	box-shadow:
-		inset 0 0 0 3px #a36b25,
-		0 0 0.35rem rgb(163 107 37 / 70%);
-}
-
 .clue-hidden:not(.proof-current):not(.hint-current) > * {
 	opacity: 0.2;
 }
@@ -3271,7 +3258,7 @@ body.proof-active :is(#hclues, #vclues) .clue.proof-current {
 	filter: brightness(0.94);
 }
 
-.clue:hover:not(.clue-drop-target) {
+.clue:hover {
 	background-color: #e6dfd2;
 }
 

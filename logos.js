@@ -503,7 +503,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.effectsSuppressed = false;
 	this.proof = null;
 	this.pendingProof = null;
-	this.clueDrag = null;
 	this.explainButton = document.querySelector("#explain-button");
 	this.explainButton.disabled = true;
 	this.proofControls = document.querySelector("#proof-controls");
@@ -2706,113 +2705,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 
 	this.getHClueSlot = function() { return this.hClueSlots[this.numHClues++]; }
 	this.getVClueSlot = function() { return this.vClueSlots[this.numVClues++]; }
-
-	this.clueSlotsForType = function(type) {
-		return type == "horizontal" ? this.hClueSlots : this.vClueSlots;
-	}
-
-	this.clearClueDropMarker = function() {
-		if (!this.clueDrag || !this.clueDrag.target)
-			return;
-		this.clueDrag.target.classList.remove("clue-drop-target");
-		this.clueDrag.target = null;
-	}
-
-	this.beginClueDrag = function(clue, slot, ev) {
-		if (ev.shiftKey || (ev.button !== undefined && ev.button != 0) ||
-		    this.gameOver || this.paused || this.proof)
-			return;
-		this.clueDrag = {
-			clue: clue,
-			slot: slot,
-			pointerId: ev.pointerId,
-			startX: ev.clientX,
-			startY: ev.clientY,
-			active: false,
-			target: null,
-		};
-		if (slot.setPointerCapture)
-			slot.setPointerCapture(ev.pointerId);
-	}
-
-	this.updateClueDrag = function(ev) {
-		var drag = this.clueDrag;
-		if (!drag || drag.pointerId != ev.pointerId)
-			return;
-		var dx = ev.clientX - drag.startX;
-		var dy = ev.clientY - drag.startY;
-		if (!drag.active) {
-			if (dx * dx + dy * dy < 64)
-				return;
-			drag.active = true;
-			drag.clue.suppressClick = true;
-			drag.slot.classList.add("clue-dragging");
-			clearClueHighlights(this);
-		}
-		ev.preventDefault();
-		this.clearClueDropMarker();
-		if (!document.elementFromPoint)
-			return;
-		var elem = document.elementFromPoint(ev.clientX, ev.clientY);
-		var slots = this.clueSlotsForType(drag.clue.displayType);
-		var target = null;
-		for (var i = 0; i < slots.length; i++) {
-			if (slots[i] == elem ||
-			    (slots[i].contains && slots[i].contains(elem))) {
-				target = slots[i];
-				break;
-			}
-		}
-		if (!target)
-			return;
-		drag.target = target;
-		target.classList.add("clue-drop-target");
-	}
-
-	this.endClueDrag = function(ev, cancel) {
-		var drag = this.clueDrag;
-		if (!drag || drag.pointerId != ev.pointerId)
-			return;
-		if (!cancel && drag.active)
-			this.updateClueDrag(ev);
-		var target = drag.target;
-		this.clearClueDropMarker();
-		drag.slot.classList.remove("clue-dragging");
-		this.clueDrag = null;
-		if (!cancel && drag.active && target)
-			this.moveClueToSlot(drag.clue, target);
-		if (drag.active) {
-			this.suppressClueClick = drag.slot;
-			var puzzle = this;
-			setTimeout(function() {
-				drag.clue.suppressClick = false;
-				puzzle.suppressClueClick = null;
-			}, 0);
-		}
-	}
-
-	this.moveClueToSlot = function(clue, target) {
-		var slots = this.clueSlotsForType(clue.displayType);
-		var ordered = this.clues.filter(function(item) {
-			return item.displayType == clue.displayType && item.display;
-		}).sort(function(a, b) {
-			return slots.indexOf(a.display) - slots.indexOf(b.display);
-		});
-		var from = ordered.indexOf(clue);
-		var to = slots.indexOf(target);
-		ordered.splice(from, 1);
-		if (from < to)
-			to--;
-		to = Math.max(0, Math.min(to, ordered.length));
-		ordered.splice(to, 0, clue);
-		for (var slot of slots)
-			clearClueSlot(slot);
-		for (var i = 0; i < ordered.length; i++) {
-			ordered[i].display = slots[i];
-			ordered[i].render();
-			checkClueDisplay(ordered[i]);
-		}
-	}
 
 	this.toggleModal = function(modal, button, closeText) {
 		if (modal.hidden) {
@@ -5937,7 +5829,6 @@ function clearClueSlot(slot) {
 	slot.onpointerdown = null;
 	slot.onpointerup = null;
 	slot.onpointercancel = null;
-	slot.onpointermove = null;
 }
 
 function checkClueDisplay(clue) {
@@ -6003,40 +5894,26 @@ function renderClue(puzzle, clue, slot, type, elements, horizontal) {
 			puzzle.requestClueAction(clue, !clue.active);
 		};
 	}
-	slot.onclick = function(ev) {
-		if (puzzle.suppressClueClick == slot) {
-			ev.preventDefault();
-			puzzle.suppressClueClick = null;
-			return;
-		}
-		clue.listener(ev);
-	};
+	slot.onclick = clue.listener;
 	slot.oncontextmenu = clue.listener;
 	slot.onpointerdown = function(ev) {
 		if (!ev.shiftKey || (ev.button !== undefined && ev.button != 0) ||
-		    puzzle.proof) {
-			puzzle.beginClueDrag(clue, slot, ev);
+		    puzzle.proof)
 			return;
-		}
 		ev.preventDefault();
 		clue.suppressClick = true;
 		highlightRelatedClues(puzzle, clue);
 		if (slot.setPointerCapture)
 			slot.setPointerCapture(ev.pointerId);
 	};
-	slot.onpointermove = function(ev) {
-		puzzle.updateClueDrag(ev);
-	};
 	slot.onpointerup = function(ev) {
 		clearClueHighlights(puzzle);
-		puzzle.endClueDrag(ev, false);
 		/* A click normally follows; do not suppress some later click if it doesn't. */
 		setTimeout(function() { clue.suppressClick = false; }, 0);
 	};
 	slot.onpointercancel = function(ev) {
 		clue.suppressClick = false;
 		clearClueHighlights(puzzle);
-		puzzle.endClueDrag(ev, true);
 	};
 }
 

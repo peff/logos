@@ -146,10 +146,6 @@ for (const area of hoverAreas) {
 	});
 	area.addEventListener("pointercancel", clearLocalHover);
 }
-/* Local clue reordering changes display elements, but not clue identities. */
-const clueObserver = new MutationObserver(renderSharedHover);
-for (const area of hoverAreas.slice(1))
-	clueObserver.observe(area, { childList: true, subtree: true });
 window.addEventListener("blur", clearLocalHover);
 document.addEventListener("visibilitychange", () => {
 	if (document.hidden) clearLocalHover();

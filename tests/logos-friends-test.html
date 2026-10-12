@@ -147,11 +147,6 @@
 		await waitFor(() => hostClue.display.dataset.sharedHover &&
 			bob.puzzle.clues[clueIndex].display.dataset.sharedHover, "clue hover relayed");
 		assert(!alice.puzzle.clues[clueIndex].display.dataset.sharedHover, "local clue hover drawn");
-		const oldClueDisplay = hostClue.display;
-		host.puzzle.moveClueToSlot(hostClue, host.puzzle.hClueSlots.at(-1));
-		await waitFor(() => hostClue.display !== oldClueDisplay && hostClue.display.dataset.sharedHover,
-			"highlight follows locally reordered clue");
-		assert(!oldClueDisplay.dataset.sharedHover, "highlight stuck on old clue position");
 		host.puzzle.applyClueAction(hostClue, false);
 		assert(hostClue.display.dataset.sharedHover, "local clue dismissal lost shared highlight");
 		alice.puzzle.clues[clueIndex].display.dispatchEvent(new alice.PointerEvent("pointerout", {

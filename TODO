@@ -1,5 +1,4 @@
  - evaluate clue interactions
-   - is rearranging / dragging clues useful?
    - is highlighting clues that refer to a symbol useful?
    - what UI should expose highlighting? Current experiments use
      shift-click on a clue and pressing a filled board slot.
