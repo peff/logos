@@ -1754,7 +1754,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 				if (state.clue == clue)
 					state.active = active;
 		clue.active = active;
-		checkClueDisplay(clue);
+		checkClueDisplay(clue, true);
 	}
 
 	this.withEffectsSuppressed = function(callback) {
@@ -1952,7 +1952,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			if (!isClueExhausted(clue))
 				continue;
 			clue.active = false;
-			checkClueDisplay(clue);
+			checkClueDisplay(clue, true);
 		}
 	}
 
@@ -5902,6 +5902,7 @@ function Slot(row, symbols, display) {
 function clearClueSlot(slot) {
 	slot.cancelCluePress?.();
 	slot.cancelCluePress = null;
+	slot.animateClueDismissal = null;
 	slot.replaceChildren();
 	slot.className = "clue";
 	slot.onclick = null;
@@ -5913,11 +5914,13 @@ function clearClueSlot(slot) {
 	slot.onlostpointercapture = null;
 }
 
-function checkClueDisplay(clue) {
+function checkClueDisplay(clue, animate) {
 	if (!clue.rendered) {
 		clue.render();
 		clue.rendered = true;
 	}
+	if (animate && clue.display.classList.contains("clue-hidden") == clue.active)
+		clue.display.animateClueDismissal?.();
 	if (clue.active)
 		clue.display.classList.remove("clue-hidden");
 	else
@@ -5989,6 +5992,16 @@ function renderClue(puzzle, clue, slot, type, elements, horizontal) {
 		swipeCover = null;
 		slot.classList.remove("clue-swiping");
 	}
+	function startCover(swipe) {
+		swipe.size = Math.max(1, swipe.axis == "X" ? slot.clientWidth : slot.clientHeight);
+		swipe.active = clue.active;
+		originalChildren = Array.from(slot.children);
+		swipeCover = document.createElement("div");
+		swipeCover.className = "clue-swipe-cover";
+		swipeCover.setAttribute("aria-hidden", "true");
+		slot.appendChild(swipeCover);
+		slot.classList.add("clue-swiping");
+	}
 	function coverPosition(swipe, offset) {
 		/* Dismissal pulls a cover in; restoration pushes the existing cover out. */
 		if (swipe.active)
@@ -6010,6 +6023,16 @@ function renderClue(puzzle, clue, slot, type, elements, horizontal) {
 		], { duration: 160, easing: "ease-out", fill: "forwards" });
 		swipeAnimation.onfinish = resetSwipe;
 	}
+	slot.animateClueDismissal = function() {
+		if (puzzle.proof || puzzle.effectsSuppressed || swipeCover)
+			return;
+		resetSwipe();
+		var swipe = { axis: horizontal ? "X" : "Y",
+			direction: clue.active ? -1 : 1, offset: 0 };
+		startCover(swipe);
+		swipe.active = !clue.active;
+		finishSwipe(swipe, true);
+	};
 	function dismiss() {
 		puzzle.requestClueAction(clue, !clue.active);
 	}
@@ -6084,16 +6107,9 @@ function renderClue(puzzle, clue, slot, type, elements, horizontal) {
 			if (Math.max(Math.abs(dx), Math.abs(dy)) < 6)
 				return;
 			press.axis = Math.abs(dx) >= Math.abs(dy) ? "X" : "Y";
-			press.size = Math.max(1, press.axis == "X" ? slot.clientWidth : slot.clientHeight);
 			clearHighlightDelay();
 			clearClueHighlights(puzzle);
-			originalChildren = Array.from(slot.children);
-			press.active = clue.active;
-			swipeCover = document.createElement("div");
-			swipeCover.className = "clue-swipe-cover";
-			swipeCover.setAttribute("aria-hidden", "true");
-			slot.appendChild(swipeCover);
-			slot.classList.add("clue-swiping");
+			startCover(press);
 		}
 		var distance = press.axis == "X" ? dx : dy;
 		press.direction = distance < 0 ? -1 : 1;
