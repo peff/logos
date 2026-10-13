@@ -3066,7 +3066,9 @@ button.score-entry:focus-visible {
 	pointer-events: none;
 }
 
-body:not(.proof-active) .board .single.clue-highlight-source {
+body:not(.proof-active) .board .single.clue-highlight-source,
+body:not(.proof-active) .board .clue-highlight-tile,
+body:not(.proof-active) .clue .tile.clue-highlight-tile {
 	box-shadow:
 		0 0 0 2px #a36b25,
 		0 0 0.4rem rgb(163 107 37 / 75%);
