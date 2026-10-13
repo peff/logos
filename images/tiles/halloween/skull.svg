@@ -1,1 +1,20 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-labelledby="title"><title id="title">Skull: Classic skull</title><g stroke="#272334" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 44 Q19 14 50 13 Q81 14 78 44 L73 65 63 68 62 85 38 85 37 68 27 65Z" fill="#fff0cb"/><ellipse cx="36" cy="48" rx="8" ry="10" fill="#272334"/><ellipse cx="64" cy="48" rx="8" ry="10" fill="#272334"/><path d="M50 58 44 67 56 67Z" fill="#272334"/><path d="M45 76 45 84 M55 76 55 84" fill="none" stroke-width="2.5"/></g></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-labelledby="title">
+  <title id="title">Skull: Día de los Muertos</title>
+  <g stroke="#342235" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M20 44 Q19 12 50 12 Q81 12 80 44 L78 59 Q76 67 65 68 L64 76 Q63 87 50 87 Q37 87 36 76 L35 68 Q24 67 22 59Z" fill="#fff0cb"/>
+    <path d="M32 20 Q50 36 68 20" fill="none" stroke="#65c8bc" stroke-width="6"/>
+    <path d="M43 16 Q50 23 57 16" fill="none" stroke="#e377a5" stroke-width="4"/>
+    <path d="M50 28 54 33 50 38 46 33Z" fill="#f4c85d" stroke-width="1.5"/>
+    <g stroke-width="2">
+      <path id="flower" d="M35 33 Q40 29 43 36 Q51 35 49 42 Q55 47 49 51 Q51 59 43 58 Q39 65 35 60 Q29 65 26 58 Q18 59 21 51 Q15 46 21 42 Q19 35 27 36 Q29 29 35 33Z" fill="#e377a5"/>
+      <use href="#flower" transform="translate(100 0) scale(-1 1)"/>
+      <circle cx="35" cy="47" r="10" fill="#65c8bc"/>
+      <circle cx="65" cy="47" r="10" fill="#65c8bc"/>
+    </g>
+    <circle cx="35" cy="47" r="7" fill="#342235" stroke="none"/>
+    <circle cx="65" cy="47" r="7" fill="#342235" stroke="none"/>
+    <path d="M50 58 Q40 68 47 68 L50 66 53 68 Q60 68 50 58Z" fill="#342235" stroke-width="2"/>
+    <path d="M39 73 Q50 69 61 73 L60 80 Q50 84 40 80Z" fill="#fff0cb" stroke-width="2"/>
+    <path d="M45 73 45 81 M55 73 55 81 M40 77 60 77" fill="none" stroke-width="1.8"/>
+  </g>
+</svg>
