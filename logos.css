@@ -552,22 +552,20 @@ body[data-custom-cursor="false"] {
 }
 
 .board .dead-possibility.discarding {
-	position: relative;
-	z-index: 1;
 	pointer-events: none;
-	animation: tile-toss 140ms ease-out;
+	animation: tile-sink 160ms ease-out;
 }
 
-@keyframes tile-toss {
+@keyframes tile-sink {
 	from {
 		visibility: visible;
 		opacity: 1;
-		transform: translate(0, 0) rotate(0);
+		transform: scale(1);
 	}
 	to {
 		visibility: visible;
 		opacity: 0;
-		transform: translate(80%, -20%) rotate(10deg);
+		transform: scale(0.88);
 	}
 }
 

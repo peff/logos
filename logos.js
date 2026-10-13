@@ -6015,7 +6015,7 @@ function Slot(row, symbols, display) {
 			cell.appendChild(symbol);
 			cell.className = "possibility";
 			cell.addEventListener("animationend", function(ev) {
-				if (ev.animationName == "tile-toss")
+				if (ev.animationName == "tile-sink")
 					ev.currentTarget.classList.remove("discarding");
 			});
 			bindTileActions(this.row.puzzle, cell, this, j);
