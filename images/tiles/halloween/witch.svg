@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-labelledby="title">
+  <title id="title">Witch: Green face</title>
+  <g stroke="#272334" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M28 44 Q19 68 28 88 L39 79 50 87 61 79 72 88 Q81 68 72 44Z" fill="#675080"/>
+    <path d="M32 41 Q27 59 34 71 Q40 83 50 84 Q60 83 66 71 Q73 59 68 41Z" fill="#a9cf65"/>
+    <circle cx="39" cy="57" r="3" fill="#272334" stroke="none"/>
+    <circle cx="61" cy="57" r="3" fill="#272334" stroke="none"/>
+    <path d="M50 57 45 66 53 64" fill="none" stroke-width="2"/>
+    <path d="M41 71 Q50 78 59 71" fill="none" stroke-width="2.5"/>
+    <path d="M22 43 40 12 57 7 54 22 73 45Z" fill="#a780d6"/>
+    <path d="M12 46 Q47 31 87 47 Q53 62 12 46Z" fill="#a780d6"/>
+    <path d="M30 32 65 33 70 42 25 43Z" fill="#694889"/>
+    <rect x="44" y="33" width="12" height="10" rx="2" fill="#ffd374"/>
+  </g>
+</svg>

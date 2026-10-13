@@ -37,7 +37,7 @@ var tileSets = {
 			return row;
 		return [
 			["ghost", "Ghost"],
-			["cat", "Black cat"],
+			["witch", "Witch"],
 			["candy", "Candy corn"],
 			["bat", "Bat"],
 			["skull", "Skull"],
