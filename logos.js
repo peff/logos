@@ -37,9 +37,9 @@ var tileSets = {
 			return row;
 		return [
 			["ghost", "Ghost"],
+			["bat", "Bat"],
 			["witch", "Witch"],
 			["candy", "Candy corn"],
-			["bat", "Bat"],
 			["skull", "Skull"],
 			["pumpkin", "Jack-o’-lantern"],
 		].map(function(picture) {

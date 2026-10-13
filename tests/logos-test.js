@@ -228,7 +228,7 @@ function revealedTiles(puzzle) {
 }
 
 Deno.test("seasonal symbols reveal left to right on October 26–31 in local time", function() {
-	const expected = ["Ghost", "Witch", "Candy corn", "Bat", "Skull", "Jack-o’-lantern"];
+	const expected = ["Ghost", "Bat", "Witch", "Candy corn", "Skull", "Jack-o’-lantern"];
 	for (const year of [2026, 2027]) {
 		for (const date of [new Date(year, 9, 25, 23, 59, 59),
 			new Date(year, 10, 1), new Date(year, 0, 31)])
@@ -265,7 +265,7 @@ Deno.test("seasonal symbols refresh on load, new games, and accepting invitation
 		assert(revealedTiles(puzzle) == 2, "new game did not refresh the date");
 		assert(puzzle.rows.flatMap(row => row.slots).every((slot, i) => slot === slots[i]),
 		       "refresh replaced slots or their event bindings");
-		assert(puzzle.rows[3].slots[0].possibilityElems[1].children[0].children[0].alt == "Witch",
+		assert(puzzle.rows[3].slots[0].possibilityElems[1].children[0].children[0].alt == "Bat",
 		       "cached possibilities did not refresh");
 		date = new Date(2026, 9, 31);
 		puzzle.newGame("20250101", true);
