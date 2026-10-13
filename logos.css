@@ -553,7 +553,7 @@ body[data-custom-cursor="false"] {
 
 .board .dead-possibility.discarding {
 	pointer-events: none;
-	animation: tile-sink 160ms ease-out;
+	animation: tile-sink 160ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 @keyframes tile-sink {
