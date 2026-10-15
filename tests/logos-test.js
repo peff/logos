@@ -3174,9 +3174,8 @@ Deno.test("forced placements make one place sound per action", function() {
 	first.discard(alternative, true);
 
 	assert(row.isComplete(), "elimination did not trigger placement chain");
-	assert(puzzle.sounds.filter(function(sound) {
-		return sound == "place";
-	}).length == 1, "placement chain made multiple place sounds");
+	assert(puzzle.sounds.length == 1 && puzzle.sounds[0] == "place",
+	       "placement chain did not make only one place sound");
 });
 
 Deno.test("row singleton placement makes a place sound", function() {
@@ -3195,9 +3194,8 @@ Deno.test("row singleton placement makes a place sound", function() {
 	candidates[candidates.length - 1].discard(value, true);
 
 	assert(actual.single, "row singleton was not placed");
-	assert(puzzle.sounds.filter(function(sound) {
-		return sound == "place";
-	}).length == 1, "row singleton did not make one place sound");
+	assert(puzzle.sounds.length == 1 && puzzle.sounds[0] == "place",
+	       "row singleton did not make only one place sound");
 });
 
 Deno.test("losing player actions make a mistake sound", function() {

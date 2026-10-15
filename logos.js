@@ -5930,14 +5930,14 @@ function Slot(row, symbols, display) {
 					randomChoice(falseEliminationMessages),
 				clues, this, value);
 		} else {
-			if (playerAction) {
-				this.row.puzzle.playSound("discard");
+			if (playerAction)
 				this.row.puzzle.placeSoundAllowed = true;
-			}
 			this.removePossible(value);
 			this.row.checkSingleton(value);
-			this.row.puzzle.reconcilePencilMarks(this.row);
+			if (playerAction && this.row.puzzle.placeSoundAllowed)
+				this.row.puzzle.playSound("discard");
 			this.row.puzzle.placeSoundAllowed = false;
+			this.row.puzzle.reconcilePencilMarks(this.row);
 		}
 	}
 
