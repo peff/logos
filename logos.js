@@ -5897,9 +5897,9 @@ function Slot(row, symbols, display) {
 		this.row.puzzle.clearHint();
 		this.row.puzzle.clearPracticeMistake();
 		if (this.value == value) {
-			if (playerAction || this.row.puzzle.placeSoundPending)
+			if (playerAction || this.row.puzzle.placeSoundAllowed)
 				this.row.puzzle.playSound("place");
-			this.row.puzzle.placeSoundPending = false;
+			this.row.puzzle.placeSoundAllowed = false;
 			this.displaySingle(this.possibilityElems[value]);
 			this.row.removePossible(value);
 			this.row.puzzle.reconcilePencilMarks(this.row);
@@ -5932,12 +5932,12 @@ function Slot(row, symbols, display) {
 		} else {
 			if (playerAction) {
 				this.row.puzzle.playSound("discard");
-				this.row.puzzle.placeSoundPending = true;
+				this.row.puzzle.placeSoundAllowed = true;
 			}
 			this.removePossible(value);
 			this.row.checkSingleton(value);
 			this.row.puzzle.reconcilePencilMarks(this.row);
-			this.row.puzzle.placeSoundPending = false;
+			this.row.puzzle.placeSoundAllowed = false;
 		}
 	}
 
