@@ -2936,7 +2936,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			/* A local visibility change must not pause the shared game. */
 			if (hidden) {
 				this.closeSlotTray();
-				this.stopSampleSounds();
 			} else {
 				this.actionController.restoreHostTimer();
 			}
@@ -2950,7 +2949,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 				this.stopTimer();
 			this.paused = true;
 			this.closeSlotTray();
-			this.stopSampleSounds();
 		} else {
 			this.paused = this.pausedBeforePageHidden;
 			if (this.resumeAfterPageHidden && !this.gameOver &&
@@ -3331,11 +3329,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 						name + " sound", error);
 				/* The media element remains available as a fallback. */
 			});
-	}
-
-	this.stopSampleSounds = function() {
-		for (var name in this.soundSamples)
-			this.stopSampleSound(name);
 	}
 
 	this.stopSampleSound = function(name) {

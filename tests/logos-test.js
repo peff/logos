@@ -3159,9 +3159,6 @@ Deno.test("sample variation uses Web Audio resampling", function() {
 	sources[0].onended();
 	assert(puzzle.sampleSources.discard == sources[1],
 	       "an old source cleared its replacement");
-	puzzle.stopSampleSounds();
-	assert(sources[1].stopped && sources[2].stopped,
-	       "stopping sounds left an overlapping effect playing");
 });
 
 Deno.test("forced placements make one place sound per action", function() {
@@ -4080,13 +4077,11 @@ Deno.test("timer pause survives dialogs and page visibility without charging pau
 
 Deno.test("page visibility pauses and resumes active play", function() {
 	const puzzle = makePuzzle(1);
-	let stoppedSounds = 0;
-	puzzle.stopSampleSounds = function() { stoppedSounds++; };
 	puzzle.startTimer();
 	document.hidden = true;
 	document.listeners.visibilitychange();
 	assert(puzzle.pageHidden && puzzle.paused &&
-	       puzzle.timerTimeout === null && stoppedSounds == 1,
+	       puzzle.timerTimeout === null,
 	       "hiding the page did not pause active play");
 	document.hidden = false;
 	document.listeners.visibilitychange();
