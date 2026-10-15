@@ -468,6 +468,8 @@ body[data-custom-cursor="false"] {
 
 #board-container {
 	position: relative;
+	/* Keep animated tiles from promoting later-painted clues into layers. */
+	z-index: 1;
 	grid-area: board;
 	width: max-content;
 	height: max-content;
