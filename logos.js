@@ -485,7 +485,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.soundSequencePositions = {};
 	this.soundBuffers = {};
 	this.soundBufferPromises = {};
-	this.sampleSource = null;
+	this.sampleSources = {};
 	for (var name in this.soundSamples) {
 		this.soundSamples[name].preload = "auto";
 		this.soundSamples[name].preservesPitch = false;
@@ -3334,17 +3334,20 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.stopSampleSounds = function() {
-		for (var name in this.soundSamples) {
-			this.soundSamples[name].pause();
-			this.soundSamples[name].currentTime = 0;
-		}
-		if (this.sampleSource) {
+		for (var name in this.soundSamples)
+			this.stopSampleSound(name);
+	}
+
+	this.stopSampleSound = function(name) {
+		this.soundSamples[name].pause();
+		this.soundSamples[name].currentTime = 0;
+		if (this.sampleSources[name]) {
 			try {
-				this.sampleSource.stop();
+				this.sampleSources[name].stop();
 			} catch (e) {
 				/* It may already have stopped naturally. */
 			}
-			this.sampleSource = null;
+			delete this.sampleSources[name];
 		}
 	}
 
@@ -3367,7 +3370,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.soundSequencePositions[name] =
 			(position + 1) % this.soundSequence.length;
 
-		this.stopSampleSounds();
+		this.stopSampleSound(name);
 		var context = this.getAudioContext();
 		var buffer = this.soundBuffers[name];
 		if (!context || !buffer) {
@@ -3383,11 +3386,11 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		source.playbackRate.value = rate;
 		gain.gain.value = this.soundVolumes[name];
 		source.connect(gain).connect(this.getSoundOutput(context));
-		this.sampleSource = source;
+		this.sampleSources[name] = source;
 		var puzzle = this;
 		source.onended = function() {
-			if (puzzle.sampleSource == source)
-				puzzle.sampleSource = null;
+			if (puzzle.sampleSources[name] == source)
+				delete puzzle.sampleSources[name];
 		};
 		source.start();
 	}
