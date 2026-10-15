@@ -3147,8 +3147,8 @@ Deno.test("sample variation uses Web Audio resampling", function() {
 	       sources[0].playbackRate.value == 1 &&
 	       sources[1].playbackRate.value == 1.0833,
 	       "discard variation did not use buffer source playback rates");
-	assert(sources[0].stopped,
-	       "a previous buffer source continued playing");
+	assert(!sources[0].stopped,
+	       "a repeated effect interrupted the previous sound");
 	assert(gains[0].gain.value == 0.55,
 	       "buffer playback did not apply the sample volume");
 
@@ -3156,9 +3156,6 @@ Deno.test("sample variation uses Web Audio resampling", function() {
 	puzzle.playSampleSound("place");
 	assert(!sources[1].stopped && sources[2].started,
 	       "a different effect interrupted the discard sound");
-	sources[0].onended();
-	assert(puzzle.sampleSources.discard == sources[1],
-	       "an old source cleared its replacement");
 });
 
 Deno.test("forced placements make one place sound per action", function() {

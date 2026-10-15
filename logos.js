@@ -485,7 +485,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.soundSequencePositions = {};
 	this.soundBuffers = {};
 	this.soundBufferPromises = {};
-	this.sampleSources = {};
 	for (var name in this.soundSamples) {
 		this.soundSamples[name].preload = "auto";
 		this.soundSamples[name].preservesPitch = false;
@@ -3331,21 +3330,10 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			});
 	}
 
-	this.stopSampleSound = function(name) {
-		this.soundSamples[name].pause();
-		this.soundSamples[name].currentTime = 0;
-		if (this.sampleSources[name]) {
-			try {
-				this.sampleSources[name].stop();
-			} catch (e) {
-				/* It may already have stopped naturally. */
-			}
-			delete this.sampleSources[name];
-		}
-	}
-
 	this.playMediaSampleSound = function(name, rate) {
-		var audio = this.soundSamples[name];
+		var audio = new Audio(this.soundSamples[name].src);
+		audio.preservesPitch = false;
+		audio.muted = !this.soundEffects;
 		audio.volume = this.soundVolumes[name] * this.soundVolume;
 		audio.playbackRate = rate;
 		var playback = audio.play();
@@ -3363,7 +3351,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.soundSequencePositions[name] =
 			(position + 1) % this.soundSequence.length;
 
-		this.stopSampleSound(name);
 		var context = this.getAudioContext();
 		var buffer = this.soundBuffers[name];
 		if (!context || !buffer) {
@@ -3379,12 +3366,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		source.playbackRate.value = rate;
 		gain.gain.value = this.soundVolumes[name];
 		source.connect(gain).connect(this.getSoundOutput(context));
-		this.sampleSources[name] = source;
-		var puzzle = this;
-		source.onended = function() {
-			if (puzzle.sampleSources[name] == source)
-				delete puzzle.sampleSources[name];
-		};
 		source.start();
 	}
 
