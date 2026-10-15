@@ -11,15 +11,17 @@ function fixture(hash) {
 		static now() { return now; }
 	}
 	const window = { Date: Clock, location: { hash } };
-	const load = new Function("window", "document", source + "\nreturn loadURLDate;")(
+	const api = new Function("window", "document", source +
+		"\nreturn { loadURLDate, active: () => debugDateActive };")(
 		window, { addEventListener() {} });
 	assert(window.Date === Clock);
-	load("https://example.test/" + hash);
-	return { date: window.Date, original: Clock, advance: ms => now += ms };
+	api.loadURLDate("https://example.test/" + hash);
+	return { date: window.Date, original: Clock, active: api.active(), advance: ms => now += ms };
 }
 
 Deno.test("debug date shifts the local day and keeps the clock ticking", () => {
 	const clock = fixture("#daily=20261026&today=2026-10-26");
+	assert(clock.active);
 	const start = new clock.date();
 	assert(start.getFullYear() === 2026 && start.getMonth() === 9 && start.getDate() === 26);
 	assert(start.getHours() === 13 && start.getMinutes() === 14);
@@ -41,8 +43,9 @@ Deno.test("debug date preserves explicit dates and Date utilities", () => {
 });
 
 Deno.test("missing or invalid debug dates leave the clock alone", () => {
-	for (const hash of ["", "#today=", "#today=garbage", "#today=2026-02-30", "#today=2026-13-01"]) {
+	for (const hash of ["", "#daily=20261031", "#today=", "#today=garbage", "#today=2026-02-30", "#today=2026-13-01"]) {
 		const clock = fixture(hash);
 		assert(clock.date === clock.original);
+		assert(!clock.active);
 	}
 });

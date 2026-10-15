@@ -262,6 +262,7 @@ function renderDailyTitle(heading, date, selectDate, direction = 0) {
 }
 
 /* Undocumented debugging override: #today=YYYY-MM-DD. */
+var debugDateActive = false;
 function loadURLDate(url) {
 	const today = new URLSearchParams(new URL(url).hash.slice(1)).get("today");
 	if (!today || !/^\d{4}-\d{2}-\d{2}$/.test(today))
@@ -286,6 +287,7 @@ function loadURLDate(url) {
 	DebugDate.prototype = NativeDate.prototype;
 	DebugDate.now = () => NativeDate.now() + offset;
 	window.Date = DebugDate;
+	debugDateActive = true;
 }
 
 function parseSeed(seed) {
@@ -2276,6 +2278,11 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.recordOutcome = async function(outcome, sharedRun) {
+		/* Experiments with the calendar must not consume daily attempts or
+		 * add fictional dates to the Chronicle (and hence the Pantheon).
+		 */
+		if (debugDateActive)
+			return false;
 		var gameIdentity = this.gameIdentity;
 		var run = sharedRun || this.runRecord(outcome);
 		var saving = this.loadHistory(run,

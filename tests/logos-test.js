@@ -150,6 +150,7 @@ const Logos = eval(source +
 	"defaultSymbols: defaultSymbols, accessRunHistory: accessRunHistory, " +
 	"renderProofMessage, symbolsForDate, " +
 	"setHistoryStorage: storage => { accessRunHistory = storage; }, " +
+	"setDebugDateActive: active => { debugDateActive = active; }, " +
 	"adjacent3DeductionMessage: adjacent3DeductionMessage, " +
 	"clueProofStep: clueProofStep, " +
 	"refreshProofStep, proofStepSupported, buildProofSteps, buildProofRoute, " +
@@ -4896,6 +4897,32 @@ Deno.test("Chronicle refreshes stale difficulty versions but keeps current ratin
 		assert(puzzle.runHistory[4].difficulty.version === undefined,
 		       "tried to rate an unsupported generator");
 	}, initial);
+});
+
+Deno.test("debug dates suppress solo, daily, and shared results without save errors", async () => {
+	await withRunHistory(async runs => {
+		const puzzle = makePuzzle(6);
+		puzzle.newGame(0x98079244);
+		puzzle.stopTimer();
+		puzzle.say = () => { throw new Error("unexpected save error"); };
+		puzzle.dailyScoreSaved = () => { throw new Error("unexpected daily sync"); };
+		puzzle.showDailyResult = () => { throw new Error("unexpected daily result screen"); };
+		Logos.setDebugDateActive(true);
+		try {
+			for (const outcome of ["won", "lost"]) {
+				puzzle.daily = null;
+				assert(await puzzle.recordOutcome(outcome) === false);
+				puzzle.daily = "20261031";
+				assert(await puzzle.recordOutcome(outcome) === false);
+				assert(await puzzle.recordOutcome(outcome, {
+					outcome, multiplayer: 1, multiplayerId: "debug-run",
+				}) === false);
+			}
+			assert(runs.length === 0, "debug results reached history storage");
+		} finally {
+			Logos.setDebugDateActive(false);
+		}
+	});
 });
 
 Deno.test("new runs include difficulty in their saved record", async () => {
