@@ -1138,9 +1138,6 @@ body:is(.proof-active, :has(#proof-controls.hint-explanation)) :is(#logo, #frien
 	border: 2px solid var(--tile-accent);
 	border-radius: 3px;
 	background-color: var(--tile-bg);
-	box-shadow:
-		inset 0 0 0.18rem rgb(0 0 0 / 32%),
-		inset 0 0.05rem 0.12rem rgb(255 255 255 / 7%);
 }
 
 .slot-tray-action-place .slot-tray-action-sample {
@@ -1178,11 +1175,22 @@ body:is(.proof-active, :has(#proof-controls.hint-explanation)) :is(#logo, #frien
 }
 
 .tile-recess {
+	position: relative;
 	background: rgb(115 123 122 / 35%);
 	border-radius: 3px;
-	box-shadow:
-		inset 0 0 0.18rem rgb(0 0 0 / 32%),
-		inset 0 0.05rem 0.12rem rgb(255 255 255 / 5%);
+}
+
+/* Inset edges suggest depth without blurred shadows or changing tile sizes. */
+.tile-recess::before {
+	content: "";
+	position: absolute;
+	inset: 0;
+	border-radius: inherit;
+	border: 0.025rem solid;
+	border-color:
+		rgb(0 0 0 / 32%) rgb(255 255 255 / 8%)
+		rgb(255 255 255 / 14%) rgb(0 0 0 / 24%);
+	pointer-events: none;
 }
 
 #slot-tray-options > .tile-recess {
@@ -3039,9 +3047,6 @@ button.score-entry:focus-visible {
 			transparent 0 0.48rem,
 			rgb(117 94 55 / 3%) 0.5rem,
 			transparent 0.52rem 0.86rem);
-	box-shadow:
-		inset 0.04rem 0.05rem 0.12rem rgb(255 255 255 / 45%),
-		inset -0.05rem -0.04rem 0.14rem rgb(117 94 55 / 8%);
 	border-radius: 0.18rem;
 	cursor: var(--action-cursor);
 	user-select: none;
@@ -3209,9 +3214,6 @@ body.proof-active :is(#hclues, #vclues) .clue.proof-current {
 		calc(var(--slate-family-y, 0rem) +
 			var(--slate-slot-y, 0rem) + var(--slate-tile-y, 0rem));
 	background-size: 5rem 5rem;
-	box-shadow:
-		inset 0 0 0.18rem rgb(0 0 0 / 32%),
-		inset 0 0.05rem 0.12rem rgb(255 255 255 / 5%);
 	font-family: "Logos Tiles";
 	font-synthesis: none;
 }
