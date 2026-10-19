@@ -4105,13 +4105,13 @@ function extremeSkulls(rating) {
 			skull.repeat(rating.bottlenecks)) + '</span>';
 }
 
-/* A single hypothetical placement followed by ordinary propagation can
- * identify a productive symbol without exposing the failed column. Prefer
- * trials whose rejection unlocks placements, then fewer propagation passes
- * as a cheap approximation of a shorter argument. */
-function extremeExplorationHint(puzzle, domains) {
-	var best = null;
+/* Enumerate single-placement contradictions and the progress unlocked by
+ * rejecting each assumption and resuming ordinary propagation. */
+function* extremeExplorationTrials(puzzle, domains) {
 	var before = difficultyPlacements(domains);
+	var candidates = data => data.reduce((sum, row) =>
+		sum + row.reduce((count, bits) => count + countBits(bits), 0), 0);
+	var beforeCandidates = candidates(domains);
 	for (var row = 0; row < domains.length; row++) {
 		for (var symbol = 0; symbol < domains[row].length; symbol++) {
 			var choices = domains[row][symbol];
@@ -4129,12 +4129,21 @@ function extremeExplorationHint(puzzle, domains) {
 				if (!cluesAllow(puzzle, puzzle.clues, after))
 					continue;
 				var gain = difficultyPlacements(after) - before;
-				if (!best || gain > best.gain ||
-				    gain == best.gain && work.passes < best.passes)
-					best = { row, symbol, column: Math.log2(bit), gain, passes: work.passes };
+				var reduction = beforeCandidates - candidates(after);
+				yield { row, symbol, column: Math.log2(bit), gain, reduction, passes: work.passes };
 			}
 		}
 	}
+}
+
+/* Chalk suggestions prefer placements, then use propagation passes as a
+ * cheap approximation of argument length without constructing a proof. */
+function extremeExplorationHint(puzzle, domains) {
+	var best = null;
+	for (var trial of extremeExplorationTrials(puzzle, domains))
+		if (!best || trial.gain > best.gain ||
+		    trial.gain == best.gain && trial.passes < best.passes)
+			best = trial;
 	return best;
 }
 
@@ -5279,9 +5288,9 @@ function chalkContradiction(puzzle, domains) {
 	return null;
 }
 
-function chalkClueContradiction(puzzle, domains) {
+function chalkClueContradiction(puzzle, domains, clues = puzzle.clues) {
 	var full = (1 << domains[0].length) - 1;
-	for (var clue of puzzle.clues) {
+	for (var clue of clues) {
 		if (!clue.displayType)
 			continue;
 		var trial = copyDomains(domains);
@@ -5310,7 +5319,8 @@ function chalkClueContradiction(puzzle, domains) {
 
 /* A lemma has its own hypothetical snapshots. Only its final discard belongs
  * to the main route; none of the assumption's other consequences survive. */
-function buildChalkLemma(puzzle, base, basePlacements, trial) {
+function buildChalkLemma(puzzle, base, basePlacements, trial,
+			 clues = puzzle.clues, maxSteps = Infinity) {
 	var { row, symbol, column } = trial;
 	var bit = 1 << column;
 	var subject = proofSymbolReference(puzzle, row, symbol);
@@ -5344,18 +5354,21 @@ function buildChalkLemma(puzzle, base, basePlacements, trial) {
 	applyProofStep(domains, placements, assumption);
 	record(assumption);
 	while (true) {
+		/* A finished lemma still needs its contradiction and final discard. */
+		if (steps.length + 2 > maxSteps)
+			return [];
 		var contradiction = chalkContradiction(puzzle, domains);
 		if (contradiction) {
 			record({ clues: [], lemmaStage: "contradiction", message: contradiction });
 			break;
 		}
-		var clueContradiction = chalkClueContradiction(puzzle, domains);
+		var clueContradiction = chalkClueContradiction(puzzle, domains, clues);
 		if (clueContradiction) {
 			record(clueContradiction);
 			break;
 		}
 		var step = nextForcedProofStep(domains, placements) ||
-			nextClueProofStep(puzzle, puzzle.clues, domains);
+			nextClueProofStep(puzzle, clues, domains);
 		if (!step)
 			return [];
 		var before = domains[step.row][step.symbol];
@@ -5375,13 +5388,45 @@ function buildChalkLemma(puzzle, base, basePlacements, trial) {
 	return steps;
 }
 
+/* Balance progress up to the next stall against the cost of explaining it.
+ * Count substeps (assumption through conclusion), excluding the lemma title.
+ * Simplify the selected proof afterward to avoid pruning every candidate. */
+function bestChalkLemma(puzzle, domains, placements) {
+	var trials = Array.from(extremeExplorationTrials(puzzle, domains));
+	trials.sort((a, b) => b.reduction - a.reduction);
+	var best = [], chosen;
+	for (var trial of trials) {
+		var limit = chosen ?
+			Math.floor(trial.reduction * (best.length - 1) / chosen.reduction) + 1 : Infinity;
+		var lemma = buildChalkLemma(puzzle, domains, placements, trial,
+			puzzle.clues, limit);
+		if (lemma.length && (!chosen ||
+		    trial.reduction * (best.length - 1) > chosen.reduction * (lemma.length - 1))) {
+			best = lemma;
+			chosen = trial;
+		}
+	}
+	if (!chosen)
+		return [];
+	/* Fewer clues can expose a different, longer route. Accept a removal
+	 * only if its rebuilt explanation is no longer than the current best. */
+	var clues = puzzle.clues.slice();
+	for (var clue of puzzle.clues) {
+		var reduced = clues.filter(candidate => candidate !== clue);
+		var lemma = buildChalkLemma(puzzle, domains, placements, chosen,
+			reduced, best.length);
+		if (lemma.length) {
+			clues = reduced;
+			best = lemma;
+		}
+	}
+	return best;
+}
+
 function extendHintWithLemmas(puzzle, steps, base, basePlacements) {
 	while (true) {
 		var last = steps[steps.length - 1] || { domains: base, placements: basePlacements };
-		var trial = extremeExplorationHint(puzzle, last.domains);
-		if (!trial)
-			break;
-		var lemma = buildChalkLemma(puzzle, last.domains, last.placements, trial);
+		var lemma = bestChalkLemma(puzzle, last.domains, last.placements);
 		if (!lemma.length)
 			break;
 		steps.push(...lemma);

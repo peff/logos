@@ -140,7 +140,7 @@ Object.defineProperty(globalThis, "localStorage", { value: {
 const source = await Deno.readTextFile(
 	new URL("../logos.js", import.meta.url));
 const Logos = eval(source +
-	"\n;({ measureExtremeDifficulty, extremeSkulls, countSolutions, cluesSolve, cluesAllow, buildChalkLemma, chalkContradiction, chalkClueContradiction, extremeExplorationHint, extremeClueIndices, puzzleDifficulty, difficultyRating, puzzleFromSeed, " +
+	"\n;({ measureExtremeDifficulty, extremeSkulls, countSolutions, cluesSolve, cluesAllow, buildChalkLemma, bestChalkLemma, chalkContradiction, chalkClueContradiction, extremeExplorationHint, extremeExplorationTrials, extremeClueIndices, puzzleDifficulty, difficultyRating, puzzleFromSeed, " +
 	"difficultyOpportunities, placementDifficultyChoices, nextHintStep, buildHintSteps, measureDifficulty, hasRunDifficulty, " +
 	"Puzzle: Puzzle, ExactClue: ExactClue, " +
 	"Adjacent2Clue: Adjacent2Clue, " +
@@ -5370,15 +5370,14 @@ Deno.test("expanded extreme hints prove chalk lemmas and finish without changing
 	assert(!puzzle.rows[0].elem.classList.contains("pencil-conflict"),
 	       "amber conflict appeared before the contradiction was explained");
 	puzzle.moveProof(contradictionIndex + 1 - puzzle.proof.position);
-	assert(puzzle.rows[0].elem.classList.contains("pencil-conflict"));
-	assert(puzzle.rows[0].slots[4].possibilityElems[3].className.includes("pencil-selected"),
-	       "a derived placement did not get a chalk circle");
+	const contradiction = puzzle.proof.steps[contradictionIndex];
+	assert(contradiction.clue.display.classList.contains("proof-current"));
 	puzzle.moveProof(1);
 	assert(!puzzle.rows[0].elem.classList.contains("pencil-conflict"));
 	assert(!assumedSlot.possibilityElems[assumption.symbol].className.includes("pencil-selected"),
 	       "lemma conclusion retained hypothetical chalk");
 	puzzle.moveProof(-1);
-	assert(puzzle.rows[0].elem.classList.contains("pencil-conflict"));
+	assert(contradiction.clue.display.classList.contains("proof-current"));
 	while (puzzle.proof.position < puzzle.proof.steps.length)
 		puzzle.moveProof(1);
 	const message = puzzle.proofControls.querySelector(".proof-deduction").textContent;
@@ -5409,6 +5408,74 @@ Deno.test("a partial contradiction discard is not described as a clue placement"
 	const message = Logos.proofMessageText(puzzle,
 		Logos.proofDeductionMessage(puzzle, step, 3, after, domains));
 	assert(message.includes("cannot be") && !message.includes("must be in"));
+});
+
+Deno.test("lemma selection balances propagated progress against explanatory length", function() {
+	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
+	puzzle.say = function() {};
+	puzzle.newGame(0, false, false, true);
+	try {
+		exhaustPuzzleDeductions(puzzle);
+		let { domains, placements } = puzzle.positionSnapshot();
+		for (let i = 0; i < 2; i++) {
+			const trial = Logos.extremeExplorationHint(puzzle, domains);
+			const lemma = Logos.buildChalkLemma(puzzle, domains, placements, trial);
+			({ domains, placements } = lemma.at(-1));
+			let step;
+			while ((step = Logos.nextHintStep(puzzle, domains, placements)))
+				({ domains, placements } = step);
+		}
+		const before = JSON.stringify([domains, placements]);
+		const clues = puzzle.clues.slice();
+		const oldTrial = Logos.extremeExplorationHint(puzzle, domains);
+		assert(Logos.buildChalkLemma(puzzle, domains, placements, oldTrial).length == 42);
+		const best = Logos.bestChalkLemma(puzzle, domains, placements);
+		const trials = Array.from(Logos.extremeExplorationTrials(puzzle, domains));
+		const selected = trials.find(trial => trial.row == best[1].row &&
+			trial.symbol == best[1].symbol && trial.column == best[1].column);
+		const scores = trials.map(trial => {
+			const proof = Logos.buildChalkLemma(puzzle, domains, placements, trial);
+			return proof.length ? trial.reduction / (proof.length - 1) : 0;
+		});
+		const selectedProof = Logos.buildChalkLemma(puzzle, domains, placements, selected);
+		assert(selected.reduction / (selectedProof.length - 1) == Math.max(...scores),
+		       "bounded search skipped a better progress-per-step score");
+		assert(best.length < Logos.buildChalkLemma(puzzle, domains, placements, best[1]).length,
+		       "simplification did not shorten the selected proof");
+		assert(JSON.stringify([domains, placements]) == before);
+		assert(puzzle.clues.every((clue, i) => clue === clues[i]));
+		assert(best.at(-2).lemmaStage == "contradiction");
+		assert(!Logos.buildChalkLemma(puzzle, domains, placements, best[1], clues, 3).length,
+		       "length bound returned an incomplete proof");
+	} finally {
+		puzzle.stopTimer();
+	}
+});
+
+Deno.test("chalk row conflicts remain hidden until their contradiction step", function() {
+	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
+	puzzle.say = function() {};
+	puzzle.newGame(0x0e2b42be, false, false, true);
+	try {
+		exhaustPuzzleDeductions(puzzle);
+		const { domains, placements } = puzzle.positionSnapshot();
+		const steps = Logos.buildChalkLemma(puzzle, domains, placements,
+			{ row: 0, symbol: 0, column: 2 });
+		puzzle.proof = { hint: true, continueGame: true, steps,
+			base: domains, basePlacements: placements, position: 3 };
+		puzzle.openProofDisplay();
+		assert(!puzzle.rows[0].elem.classList.contains("pencil-conflict"));
+		assert(puzzle.rows[0].slots[4].possibilityElems[3].className.includes("pencil-selected"));
+		puzzle.moveProof(1);
+		assert(puzzle.rows[0].elem.classList.contains("pencil-conflict"));
+		puzzle.moveProof(1);
+		assert(!puzzle.rows[0].elem.classList.contains("pencil-conflict"));
+		puzzle.moveProof(-1);
+		assert(puzzle.rows[0].elem.classList.contains("pencil-conflict"));
+		puzzle.closeProof();
+	} finally {
+		puzzle.stopTimer();
+	}
 });
 
 Deno.test("chalk lemmas prove contradictions and retain only their final discard", function() {
@@ -5474,8 +5541,8 @@ Deno.test("chalk lemmas highlight an impossible clue before exhausting a domain"
 		       "checking the clue applied hypothetical eliminations");
 		puzzle.moveProof(index + 1 - puzzle.proof.position);
 		assert(step.clue.display.classList.contains("proof-current"));
-		assert(puzzle.proofControls.querySelector(".proof-deduction").textContent.includes(
-		       "cannot fit between"));
+		assert(puzzle.proofControls.querySelector(".proof-deduction").textContent ===
+		       Logos.proofMessageText(puzzle, step.message));
 		puzzle.moveProof(1);
 		assert(!step.clue.display.classList.contains("proof-current"));
 		assert(steps.at(-1).placements.every(bits => bits === 63));
