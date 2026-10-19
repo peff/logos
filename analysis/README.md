@@ -22,6 +22,19 @@ with Easy below 47 and Medium below 70. This default output does not reveal
 clues or moves.
 See [DIFFICULTY.md](DIFFICULTY.md) for the methodology.
 
+For extreme puzzles, use `--extreme` or a URL containing the `extreme` flag:
+
+```sh
+./analysis/puzzle 0e2b42be --extreme
+./analysis/puzzle 'file:///home/peff/work/logos/index.html#seed=0e2b42be&extreme'
+```
+
+These report the original extreme puzzle's estimated bottleneck count instead
+of a normal difficulty score. Seeds without an extreme variant are rejected.
+`--extreme` applies to every input; URL flags apply only to their own input.
+Snapshots automatically select extreme mode and restore any revealed clues;
+the bottleneck rating still describes the original puzzle without assistance.
+
 ## A position where you wanted help
 
 In Options, click the difficulty readout three times to unlock Puzzle analysis
@@ -58,6 +71,9 @@ This follows the game's hint ordering, including explicit explanations of
 placements that normal play makes automatically. It is not a trace of a
 randomized difficulty-scoring route, and its step count should not be compared
 directly with the difficulty metrics.
+
+If ordinary deductions run out, the walkthrough ends with a chalk exploration
+message and prints the stalled board instead of claiming a complete solution.
 
 The tools reject unsupported generator versions and snapshots inconsistent
 with their seed. They do not change the game, run history, or stored settings.

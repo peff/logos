@@ -185,6 +185,10 @@
 				<p class="analysis-empty" hidden>No clue deductions available.</p>
 				<button class="option-action analysis-copy" type="button"
 				        onClick="puzzle.copyAnalysisPosition()">Copy position</button>
+				<button class="option-action" type="button"
+				        onClick="puzzle.showSolverDeductions()">Walk through deductions</button>
+				<button class="option-action" type="button"
+				        onClick="puzzle.showSolverDeductions(true)">Show solver's stopping point</button>
 				<button class="modal-done modal-close" type="button"
 				        onClick="puzzle.closeAnalysis()">Close</button>
 			</dialog>

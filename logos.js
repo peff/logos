@@ -1370,6 +1370,37 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.optionsButton.focus();
 	}
 
+	this.showSolverDeductions = function(atEnd = false) {
+		if (this.analysis.hidden || this.gameOver || this.pendingSeed !== undefined)
+			return;
+		this.closeAnalysis();
+		this.clearHint();
+		this.prepareHint();
+		var base = domainsFromSlots(this);
+		var basePlacements = proofPlacementsFromSlots(this);
+		var domains = base, placements = basePlacements;
+		var steps = [], step;
+		while ((step = nextHintStep(this, domains, placements))) {
+			steps.push(step);
+			domains = step.domains;
+			placements = step.placements;
+		}
+		var full = (1 << this.rows[0].slots.length) - 1;
+		steps.push({
+			domains: domains, placements: placements, clues: [], conclusion: true,
+			stalled: !placements.every(bits => bits == full),
+			message: placements.every(bits => bits == full) ?
+				"The solver has completed the puzzle." :
+				"No further ordinary deductions. Where would you go next?",
+		});
+		this.proof = {
+			hint: true, solver: true, steps: steps,
+			base: base, basePlacements: basePlacements,
+			position: atEnd ? steps.length : 0, continueGame: true,
+		};
+		this.openProofDisplay();
+	}
+
 	this.copyAnalysisPosition = async function() {
 		var snapshot = this.analysisSnapshot;
 		try {
@@ -1874,7 +1905,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		if (position == 0) {
 			this.renderProofDomains(this.proof.base,
 				this.proof.basePlacements);
-			positionElem.textContent = "Before the proof";
+			positionElem.textContent = this.proof.solver ?
+				"Before the deductions" : "Before the proof";
 			deductionElem.textContent = this.proof.hint ?
 				"The board as it stood." :
 				"The board as it stood before the mistake.";

@@ -1,9 +1,10 @@
-const usage = `Usage: analysis/puzzle SEED_OR_URL... [--trace]
-       analysis/puzzle --position [--trace] < snapshot.json
+const usage = `Usage: analysis/puzzle SEED_OR_URL... [--extreme] [--trace]
+       analysis/puzzle --position [--extreme] [--trace] < snapshot.json
 
 Each seed or URL gets a separate report, in command-line order.
 By default, seed queries show only the difficulty score and metrics.
 --position reads a position snapshot from stdin and lists available deductions.
+--extreme uses extreme mode for all inputs (also detected from URLs and snapshots).
 --trace shows a full hint walkthrough (spoilers), not a difficulty-scoring route.
 
 Paste a snapshot after running --position, then press Ctrl-D to finish input.`;
@@ -16,22 +17,25 @@ async function loadGame() {
 		puzzleGeneratorVersion, parseSeed, formatSeed, defaultSymbols,
 		puzzleFromSeed, measureDifficulty, difficultyRating,
 		difficultyOpportunities, nextHintStep, clueSlots, proofMessageText,
-		drainForcedProofSteps
+		drainForcedProofSteps, extremeClueIndices, measureExtremeDifficulty
 	};`)({ addEventListener() {} });
 }
 
 function seedFromInput(game, input) {
 	let seed = game.parseSeed(input);
+	let extreme = false;
 	if (seed === null && typeof input === "string") {
 		try {
-			seed = game.parseSeed(new URLSearchParams(new URL(input).hash.slice(1)).get("seed"));
+			const params = new URLSearchParams(new URL(input).hash.slice(1));
+			seed = game.parseSeed(params.get("seed"));
+			extreme = params.has("extreme");
 		} catch (_) {
 			// Report the same error for malformed seeds and puzzle links.
 		}
 	}
 	if (seed === null)
 		throw new Error("expected a hexadecimal seed (up to eight digits) or a puzzle URL");
-	return seed;
+	return { seed, extreme };
 }
 
 function validatePosition(game, puzzle, snapshot) {
@@ -129,9 +133,12 @@ function walkthrough(game, puzzle, domains, placements) {
 	for (let count = 1; ; count++) {
 		const step = game.nextHintStep(puzzle, domains, placements);
 		if (!step) {
-			if (!placements.every(bits => bits === 63))
-				throw new Error("walkthrough stalled before solving the puzzle");
-			console.log("Q.E.D.");
+			if (placements.every(bits => bits === 63))
+				console.log("Q.E.D.");
+			else {
+				console.log("No further ordinary deductions. Explore with chalk to make more progress.");
+				describePosition(game, puzzle, domains, placements);
+			}
 			return;
 		}
 		console.log(`${count}. ${game.proofMessageText(puzzle, step.message)}`);
@@ -147,7 +154,8 @@ async function main(args) {
 	}
 	const position = args.includes("--position");
 	const trace = args.includes("--trace");
-	const inputs = args.filter(arg => arg !== "--position" && arg !== "--trace");
+	const extreme = args.includes("--extreme");
+	const inputs = args.filter(arg => !["--position", "--trace", "--extreme"].includes(arg));
 	if (inputs.some(arg => arg.startsWith("-")) || (position ? inputs.length !== 0 : inputs.length === 0))
 		throw new Error(usage);
 	const game = await loadGame();
@@ -162,32 +170,56 @@ async function main(args) {
 		}
 		if (!snapshot || typeof snapshot !== "object")
 			throw new Error("expected a JSON snapshot object");
+		if (snapshot.extreme !== undefined && typeof snapshot.extreme !== "boolean")
+			throw new Error("extreme must be a boolean");
 	}
 	const seeds = (position ? [snapshot.seed] : inputs).map(input => seedFromInput(game, input));
-	for (const [index, seed] of seeds.entries()) {
+	for (const [index, input] of seeds.entries()) {
 		if (index)
 			console.log();
-		analyzePuzzle(game, seed, snapshot, trace);
+		analyzePuzzle(game, input.seed, snapshot, trace,
+			extreme || input.extreme || snapshot?.extreme === true);
 	}
 }
 
-function analyzePuzzle(game, seed, snapshot, trace) {
+function analyzePuzzle(game, seed, snapshot, trace, extreme) {
 	const position = snapshot !== undefined;
 	const puzzle = game.puzzleFromSeed(seed);
+	const originalClues = puzzle.clues;
+	if (extreme) {
+		const indices = game.extremeClueIndices(puzzle);
+		if (!indices)
+			throw new Error(`seed ${game.formatSeed(seed)} has no extreme variant`);
+		puzzle.clues = indices.map(index => originalClues[index]);
+	}
 	// The DOM-free generator omits display names, which proof messages use.
 	puzzle.rows.forEach((row, index) => row.slots.forEach(slot => {
 		slot.symbols = game.defaultSymbols[index];
 	}));
 	if (position)
 		validatePosition(game, puzzle, snapshot);
-	const metrics = game.measureDifficulty(puzzle);
-	const rating = game.difficultyRating(metrics);
-	console.log(`Seed ${game.formatSeed(seed)} — ${rating.level}`);
-	console.log(`Score: ${rating.score.toFixed(2)} = excess discards + 5 × scarcity`);
-	console.log("Cutoffs: Easy < 47; Medium < 70; otherwise Hard");
-	console.log("Ten-route averages (placement-first):");
-	console.log(`  Total scarcity:               ${metrics.scarcity.toFixed(2)}`);
-	console.log(`  Excess discards (3 free):     ${metrics.excessDiscards.toFixed(2)}`);
+	if (extreme) {
+		const rating = game.measureExtremeDifficulty(puzzle);
+		console.log(`Seed ${game.formatSeed(seed)} — extreme`);
+		console.log(rating.complete ? `Estimated bottlenecks: ${rating.bottlenecks}` :
+			"Bottleneck rating unavailable");
+	} else {
+		const metrics = game.measureDifficulty(puzzle);
+		const rating = game.difficultyRating(metrics);
+		console.log(`Seed ${game.formatSeed(seed)} — ${rating.level}`);
+		console.log(`Score: ${rating.score.toFixed(2)} = excess discards + 5 × scarcity`);
+		console.log("Cutoffs: Easy < 47; Medium < 70; otherwise Hard");
+		console.log("Ten-route averages (placement-first):");
+		console.log(`  Total scarcity:               ${metrics.scarcity.toFixed(2)}`);
+		console.log(`  Excess discards (3 free):     ${metrics.excessDiscards.toFixed(2)}`);
+	}
+	const revealed = snapshot?.revealedClues ?? [];
+	if (!Array.isArray(revealed) || (!extreme && revealed.length) ||
+	    revealed.some(index => !Number.isInteger(index) || index < 0 ||
+		index >= originalClues.length || puzzle.clues.includes(originalClues[index])) ||
+	    new Set(revealed).size !== revealed.length)
+		throw new Error("revealedClues must list distinct removed clue indices in an extreme puzzle");
+	puzzle.clues.push(...revealed.map(index => originalClues[index]));
 	if (!position && !trace)
 		return;
 	let domains, placements;

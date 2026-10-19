@@ -5949,6 +5949,32 @@ Deno.test("extreme links, restarts and position copies preserve the mode", async
 	}
 });
 
+Deno.test("analysis replays deductions to an extreme stall without changing the board", function() {
+	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
+	puzzle.say = function() {};
+	puzzle.newGame(0x0e2b42be, false, false, true);
+	const before = JSON.stringify(puzzle.positionSnapshot());
+	for (const atEnd of [false, true]) {
+		puzzle.analysis.hidden = false;
+		puzzle.showSolverDeductions(atEnd);
+		const proof = puzzle.proof;
+		assert(proof && proof.solver && proof.steps.length > 1);
+		assert(proof.position == (atEnd ? proof.steps.length : 0));
+		const last = proof.steps.at(-1);
+		assert(last.message.startsWith("No further ordinary deductions"));
+		assert(!Logos.nextHintStep(puzzle, last.domains, last.placements));
+		assert(last.domains[0][3] == 20 && last.domains[0][5] == 20,
+		       "expected the unresolved 4/6 pair at the stopping point");
+		if (!atEnd)
+			while (proof.position < proof.steps.length)
+				puzzle.moveProof(1);
+		assert(JSON.stringify(puzzle.positionSnapshot()) == before);
+		puzzle.closeProof();
+		assert(!puzzle.proof && !puzzle.pendingProof);
+		assert(JSON.stringify(puzzle.positionSnapshot()) == before);
+	}
+	puzzle.stopTimer();
+});
 
 function exhaustPuzzleDeductions(puzzle) {
 	let { domains, placements } = puzzle.positionSnapshot();
