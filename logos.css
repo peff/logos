@@ -624,6 +624,7 @@ body[data-chalk-cursor="true"][data-discard-cursor="true"]:not([data-custom-curs
 }
 
 :is(#board, #slot-tray) .pencil-selected::after,
+:is(#board, #slot-tray) .pencil-contradiction::before,
 :is(#board, #slot-tray) .pencil-removed::before,
 :is(#board, #slot-tray) .pencil-removed::after {
 	content: "";
@@ -632,7 +633,9 @@ body[data-chalk-cursor="true"][data-discard-cursor="true"]:not([data-custom-curs
 	z-index: 2;
 }
 
-:is(#board, #slot-tray) .pencil-removed.pencil-derived::after {
+/* A contradicted selection keeps its circle, with a neutral slash through it. */
+:is(#board, #slot-tray) .pencil-removed.pencil-derived::after,
+:is(#board, #slot-tray) .pencil-contradiction::before {
 	background-color: var(--chalk-mark);
 	border: 0;
 	border-radius: 45%;

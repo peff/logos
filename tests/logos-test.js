@@ -2281,6 +2281,28 @@ Deno.test("contradicting pencil marks show a conflict", function() {
 	       "removing the contradiction did not clear its display");
 });
 
+Deno.test("contradicted selections retain circles rather than discard marks", function() {
+	const puzzle = makePuzzle(1);
+	const [first, second] = puzzle.rows[0].slots;
+	const value = first.value;
+	first.pencil(value, false);
+	second.pencil(value, false);
+	for (const slot of [first, second]) {
+		const classes = slot.possibilityElems[value].className;
+		assert(classes.includes("pencil-selected pencil-explicit") &&
+		       classes.includes("pencil-contradiction") &&
+		       !classes.includes("pencil-removed") && !classes.includes("pencil-derived"),
+		       "contradiction replaced or faded an explicit circle");
+	}
+	puzzle.openSlotTray(first);
+	assert(puzzle.slotTrayTiles[value].className.includes("pencil-contradiction"),
+	       "expanded tile lost the contradiction");
+	second.pencil(value, false);
+	assert(!first.possibilityElems[value].className.includes("pencil-contradiction") &&
+	       !puzzle.slotTrayTiles[value].className.includes("pencil-contradiction"),
+	       "resolving a contradiction left the slash behind");
+});
+
 Deno.test("erase chalk clears every row without changing deductions", function() {
 	const puzzle = makePuzzle(2);
 	puzzle.setShowActionSelector(false);

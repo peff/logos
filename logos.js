@@ -5601,7 +5601,7 @@ function Row(puzzle, symbols, display, family) {
 					elem.className +=
 						" pencil-removed pencil-explicit";
 				else if (!(domains[value] & bit))
-					elem.className +=
+					elem.className += selected ? " pencil-contradiction" :
 						" pencil-removed pencil-derived";
 			}
 		}
