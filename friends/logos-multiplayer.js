@@ -16,7 +16,7 @@ function normalizePlayerName(name, fallback) {
 	return name || fallback;
 }
 
-const playerColors = ["#2374b8", "#a84391", "#25866a", "#c26920", "#6754b3", "#ac4242", "#36858e", "#827028"];
+const playerColors = ["#2374b8", "#a84391", "#25866a", "#6754b3", "#ac4242", "#36858e", "#827028"];
 function playerColor(player = {}) {
 	const color = Number.isInteger(player.color) ? player.color : 0;
 	return playerColors[color] || `hsl(${color * 137.508 % 360} 55% 40%)`;
