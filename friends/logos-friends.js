@@ -250,7 +250,7 @@ function renderRecentAction(actions) {
 			(action.type == "place" ? "Placed " : "Discarded ") +
 			symbol + (actions.length > 1 ? " in columns " : " in column ") +
 			actions.map(action => action.column + 1).join(", ");
-	} else if (action.type == "hint") {
+	} else if (action.type == "hint" || action.type == "reveal-clue") {
 		icon.textContent = "∵";
 		description = actions.length == 1 ? "Asked for a hint" :
 			"Asked for a hint " + actions.length + " times";

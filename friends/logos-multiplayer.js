@@ -55,6 +55,10 @@ function applicableAction(puzzle, action) {
 	if (action.type == "hint")
 		return puzzle.seed !== undefined && !puzzle.gameOver && !puzzle.paused &&
 			Number.isInteger(action.stage) && action.stage >= 1 && action.stage <= 3;
+	if (action.type == "reveal-clue")
+		return puzzle.extreme && !puzzle.gameOver && !puzzle.paused &&
+			Number.isInteger(action.clue) && !!puzzle.originalClues[action.clue] &&
+			!puzzle.clues.includes(puzzle.originalClues[action.clue]);
 	if (action.type == "clue")
 		return Number.isInteger(action.clue) &&
 			typeof action.active == "boolean" &&
@@ -91,6 +95,8 @@ function applyAction(puzzle, action, playerAction, actor, actorColor) {
 			puzzle.hint(action.stage, true);
 		return;
 	}
+	if (action.type == "reveal-clue")
+		return puzzle.revealExtremeClue(action.clue);
 	if (action.type == "clue")
 		return puzzle.applyClueAction(puzzle.clues[action.clue],
 			action.active);
@@ -180,6 +186,7 @@ class MultiplayerSession {
 				single: slot.single, possible: slot.possible.slice(),
 			}))),
 			clues: puzzle.clues.map(clue => !!clue.active),
+			revealedClues: puzzle.revealedClues.slice(),
 			chalk: puzzle.pencilMarks.map(mark => ({
 				...actionFromSlot(puzzle, mark.slot, mark.value, "chalk"),
 				mark: mark.discard ? "remove" : "select",
@@ -205,6 +212,8 @@ class MultiplayerSession {
 		if (!position)
 			return;
 		var puzzle = this.puzzle;
+		for (var index of position.revealedClues || [])
+			puzzle.revealExtremeClue(index, false);
 		for (var [row, slots] of position.rows.entries()) {
 			for (var [column, state] of slots.entries()) {
 				var slot = puzzle.rows[row].slots[column];
@@ -229,13 +238,13 @@ class MultiplayerSession {
 			puzzle.timer.classList.add("lost");
 	}
 
-	start(seed, actor = this.playerId) {
+	start(seed, actor = this.playerId, extreme = false) {
 		if (this.role != "host")
 			throw new Error("only the host can start a game");
 		var wasReady = this.ready;
 		this.ready = false;
 		this.applyRoomRules();
-		if (!this.puzzle.newGame(seed)) {
+		if (!this.puzzle.newGame(seed, false, false, extreme)) {
 			this.ready = wasReady;
 			return false;
 		}
@@ -261,7 +270,7 @@ class MultiplayerSession {
 		return true;
 	}
 
-	requestNewGame(seed) {
+	requestNewGame(seed, extreme = false) {
 		if (!this.ready || this.role == "guest" && !this.hostSender)
 			return false;
 		if (seed === undefined) {
@@ -275,8 +284,8 @@ class MultiplayerSession {
 		if (!Number.isInteger(seed) || seed < 0 || seed > 0xffffffff)
 			return false;
 		if (this.role == "host")
-			return this.start(seed);
-		this.hostSender({ type: "new-game", gameId: this.gameId, seed });
+			return this.start(seed, this.playerId, extreme);
+		this.hostSender({ type: "new-game", gameId: this.gameId, seed, extreme });
 		return true;
 	}
 
@@ -285,7 +294,7 @@ class MultiplayerSession {
 			return;
 		/* Coalesce requests made for the same game, including the lobby. */
 		if (message.gameId !== this.gameId || !Number.isInteger(message.seed) ||
-		    message.seed < 0 || message.seed > 0xffffffff || !this.start(message.seed, from))
+		    message.seed < 0 || message.seed > 0xffffffff || !this.start(message.seed, from, message.extreme))
 			this.sendTo(from, this.syncMessage());
 	}
 
@@ -591,9 +600,13 @@ class MultiplayerSession {
 	receiveSync(message) {
 		if ((message.seed !== null && !Number.isInteger(message.seed)) ||
 		    !Number.isInteger(message.gameId) || !Array.isArray(message.history) ||
-		    !message.rules)
+		    !message.rules ||
+		    (message.extreme !== undefined && typeof message.extreme !== "boolean") ||
+		    (message.seed === null && message.extreme))
 			return;
 		var session = this;
+		var wasReady = this.ready;
+		var oldRules = this.rules;
 		this.ready = false;
 		this.rules = {
 			practiceMode: !!message.rules.practiceMode,
@@ -605,8 +618,12 @@ class MultiplayerSession {
 			this.puzzle.symbols : null;
 		if (message.seed === null)
 			this.puzzle.showMultiplayerLobby();
-		else if (!this.puzzle.newGame(message.seed))
+		else if (!this.puzzle.newGame(message.seed, false, false, message.extreme)) {
+			this.ready = wasReady;
+			this.rules = oldRules;
+			this.applyRoomRules();
 			return;
+		}
 		if (symbols)
 			this.puzzle.setSymbols(symbols);
 		this.applyRoomRules();
@@ -672,6 +689,7 @@ class MultiplayerSession {
 			result: copyMessage(this.result),
 			gameId: this.gameId,
 			seed: this.seed,
+			extreme: !!this.puzzle.extreme,
 			rules: copyMessage(this.rules),
 			revision: this.revision,
 			history: copyMessage(this.history),
@@ -714,7 +732,7 @@ class MultiplayerSession {
 
 	recordMove(commit) {
 		var action = commit.action;
-		if (action.type == "hint") {
+		if (action.type == "hint" || action.type == "reveal-clue") {
 			this.recordActivity(commit.actor, action);
 			return;
 		}

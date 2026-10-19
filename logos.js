@@ -921,10 +921,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 
 	this.playExtreme = function() {
 		var status = this.options.querySelector("#extreme-status");
-		if (this.actionController) {
-			status.textContent = "Extreme puzzles are not yet supported in multiplayer.";
-			return;
-		}
+		var controller = this.actionController;
 		status.textContent = "";
 		try {
 			for (var attempt = 1; attempt <= 100; attempt++) {
@@ -932,7 +929,14 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 				var indices = extremeClueIndices(puzzleFromSeed(seed));
 				if (!indices)
 					continue;
-				this.newGame(seed, false, false, true);
+				if (controller) {
+					if (!controller.requestNewGame(seed, true)) {
+						status.textContent = "Could not start a shared puzzle. Try again when connected.";
+						return;
+					}
+				} else {
+					this.newGame(seed, false, false, true);
+				}
 				this.toggleOptions();
 				return;
 			}
@@ -948,7 +952,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			return false;
 		seed = arguments.length ? parseSeed(seed) : this.randomPuzzleSeed();
 		/* Reject seeds which do not produce an extreme puzzle before touching
-		 * the current game. */
+		 * the current game. Peers reconstruct this same deterministic pruning. */
 		var indices = extreme && seed !== null ? extremeClueIndices(puzzleFromSeed(seed)) : null;
 		if (extreme && !indices)
 			return false;
@@ -1441,7 +1445,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 				return;
 			}
 			input.setCustomValidity("");
-			if (this.actionController.requestNewGame(seed))
+			if (this.actionController.requestNewGame(seed, !!this.extreme && seed === this.seed))
 				this.toggleOptions();
 			return;
 		}
@@ -1590,6 +1594,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		}
 		if (this.hintRequest?.stalled && (stage >= 3 || !this.hintRequest.exploration)) {
 			var index = this.hintRequest.clueIndex;
+			if (this.actionController && !committed)
+				return this.actionController.requestAction({ type: "reveal-clue", clue: index });
 			this.revealExtremeClue(index);
 			return;
 		}
