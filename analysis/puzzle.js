@@ -16,7 +16,7 @@ async function loadGame() {
 	return new Function("document", source + `\nreturn {
 		puzzleGeneratorVersion, parseSeed, formatSeed, defaultSymbols,
 		puzzleFromSeed, measureDifficulty, difficultyRating,
-		difficultyOpportunities, nextHintStep, clueSlots, proofMessageText,
+		difficultyOpportunities, nextHintStep, buildHintSteps, clueSlots, proofMessageText,
 		drainForcedProofSteps, extremeClueIndices, measureExtremeDifficulty
 	};`)({ addEventListener() {} });
 }
@@ -130,21 +130,20 @@ function describePosition(game, puzzle, domains, placements) {
 
 function walkthrough(game, puzzle, domains, placements) {
 	console.log("\nHint walkthrough (includes automatic row placements):");
-	for (let count = 1; ; count++) {
-		const step = game.nextHintStep(puzzle, domains, placements);
-		if (!step) {
-			if (placements.every(bits => bits === 63))
-				console.log("Q.E.D.");
-			else {
-				console.log("No further ordinary deductions. Explore with chalk to make more progress.");
-				describePosition(game, puzzle, domains, placements);
-			}
-			return;
-		}
-		console.log(`${count}. ${game.proofMessageText(puzzle, step.message)}`);
+	const first = game.nextHintStep(puzzle, domains, placements);
+	const steps = game.buildHintSteps(puzzle, first, domains, placements);
+	for (const [index, step] of steps.entries()) {
+		const number = step.walkthroughNumber || String(index + 1);
+		const label = step.lemmaStage === "start" ? " — Lemma" :
+			step.lemmaStage === "end" ? " — Lemma proved" : "";
+		console.log(`Step ${number}${label}: ${game.proofMessageText(puzzle, step.message)}`);
 		domains = step.domains;
 		placements = step.placements;
 	}
+	if (placements.every(bits => bits === 63))
+		console.log("Q.E.D.");
+	else
+		describePosition(game, puzzle, domains, placements);
 }
 
 async function main(args) {

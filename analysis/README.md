@@ -67,13 +67,15 @@ Add `--trace` to either mode to reveal successive hints through the solution:
 ./analysis/puzzle --position --trace < position.json
 ```
 
-This follows the game's hint ordering, including explicit explanations of
-placements that normal play makes automatically. It is not a trace of a
+This uses the game's expanded hint walkthrough, including explicit explanations
+of placements that normal play makes automatically. It is not a trace of a
 randomized difficulty-scoring route, and its step count should not be compared
 directly with the difficulty metrics.
 
-If ordinary deductions run out, the walkthrough ends with a chalk exploration
-message and prints the stalled board instead of claiming a complete solution.
+When ordinary deductions run out, the walkthrough inserts numbered lemmas
+with substeps for the chalk assumption, deductions, contradiction, and proven
+discard. It then resumes the main proof. If no single-assumption lemma can be
+proved, it prints the stalled board instead of claiming a complete solution.
 
 The tools reject unsupported generator versions and snapshots inconsistent
 with their seed. They do not change the game, run history, or stored settings.

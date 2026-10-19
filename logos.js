@@ -1569,12 +1569,51 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 
 	this.renderProofDomains = function(domains, placements, change) {
 		for (var row = 0; row < this.rows.length; row++) {
+			this.rows[row].elem.classList.remove("pencil-conflict");
 			for (var col = 0; col < this.rows[row].slots.length; col++) {
 				var slot = this.rows[row].slots[col];
 				if (slot.single)
 					continue;
 				slot.displayProof(domains[row], col, placements[row],
 					change && change.row == row ? change : null);
+			}
+		}
+	}
+
+	this.renderChalkProof = function(step) {
+		this.renderProofDomains(step.chalkBase, step.chalkBasePlacements);
+		for (var row = 0; row < this.rows.length; row++) {
+			var domains = step.domains[row];
+			var conflict = domains.some(bits => !bits) ||
+				this.rows[row].slots.some((slot, col) =>
+					!domains.some(bits => bits & (1 << col)));
+			if (conflict && step.lemmaStage == "contradiction")
+				this.rows[row].elem.classList.add("pencil-conflict");
+			for (var col = 0; col < this.rows[row].slots.length; col++) {
+				var slot = this.rows[row].slots[col];
+				if (slot.possibleElem.hidden)
+					continue;
+				for (var symbol = 0; symbol < domains.length; symbol++) {
+					if (!(step.chalkBase[row][symbol] & (1 << col)))
+						continue;
+					var elem = slot.possibilityElems[symbol];
+					elem.style.setProperty("--chalk-author", "");
+					var selected = step.chalkSelections.find(mark =>
+						mark.row == row && mark.symbol == symbol && mark.column == col);
+					var removed = !(domains[symbol] & (1 << col));
+					if (selected) {
+						elem.className += " pencil-selected " +
+							(selected.explicit ? "pencil-explicit" : "pencil-derived");
+						if (removed)
+							elem.className += " pencil-contradiction";
+					} else if (removed) {
+						elem.className += " pencil-removed pencil-derived";
+					}
+					if (step.row == row && step.symbol == symbol &&
+					    (step.placement ? step.column == col || step.domain == (1 << col) :
+					     step.removed & (1 << col)))
+						elem.className += " proof-change";
+				}
 			}
 		}
 	}
@@ -1918,9 +1957,16 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 				"The board as it stood before the mistake.";
 		} else {
 			var step = this.proof.steps[position - 1];
-			this.renderProofDomains(step.domains, step.placements, step);
+			if (step.chalkBase)
+				this.renderChalkProof(step);
+			else
+				this.renderProofDomains(step.domains, step.placements, step);
 			if (step.conclusion) {
 				positionElem.textContent = "Conclusion";
+			} else if (step.walkthroughNumber) {
+				positionElem.textContent = "Step " + step.walkthroughNumber +
+					(step.lemmaStage == "start" ? " — Lemma" :
+					 step.lemmaStage == "end" ? " — Lemma proved" : "");
 			} else {
 				positionElem.textContent = "Step " + position + " of " +
 					this.proof.steps.length;
@@ -5114,7 +5160,9 @@ function* clueProofSteps(puzzle, clue, domains) {
 			clues: clue.display ? [clue] : [],
 			clue: clue,
 			rule: "clue",
-			placement: countBits(after) == 1 &&
+			/* A split discard may leave one candidate even when the clue
+			 * rejects all of them. Do not describe that as a clue placement. */
+			placement: countBits(after) == 1 && countBits(before & trial[row][symbol]) == 1 &&
 				clueDirectlyPlaces(clue, domains, row, symbol,
 					fullDomain),
 			row: row,
@@ -5180,21 +5228,22 @@ function nextHintStep(puzzle, base, basePlacements, clues = puzzle.clues) {
 	return step;
 }
 
-/* Search only when expanding the hint, and keep the step already shown. */
-function buildHintSteps(puzzle, first) {
+/* Search only when expanding the hint, and keep the step already shown.
+ * A caller starting at a stall can pass null and the current board instead. */
+function buildHintSteps(puzzle, first, base, basePlacements) {
 	var full = (1 << puzzle.rows[0].slots.length) - 1;
 	var best = [];
 	var partial;
 	for (var route = 0; route < 10; route++) {
 		var clues = clueRouteOrder(puzzle.clues, route);
-		var steps = [first];
-		var next = first;
+		var steps = first ? [first] : [];
+		var next = first || { domains: base, placements: basePlacements };
 		while ((next = nextHintStep(puzzle, next.domains,
 				next.placements, clues)))
 			steps.push(next);
 		if (!partial)
 			partial = steps;
-		if (steps[steps.length - 1].placements.every(bits => bits == full) &&
+		if (steps.length && steps[steps.length - 1].placements.every(bits => bits == full) &&
 		    (!best.length || steps.length < best.length))
 			best = steps;
 		if (best.length == 1)
@@ -5202,14 +5251,123 @@ function buildHintSteps(puzzle, first) {
 	}
 	if (!best.length) {
 		best = partial;
-		var last = best[best.length - 1];
-		best.push({
-			domains: last.domains, placements: last.placements, clues: [],
-			conclusion: true, stalled: true,
-			message: "No further ordinary deductions. Explore with chalk to make more progress.",
-		});
+		extendHintWithLemmas(puzzle, best, base, basePlacements);
+		var last = best[best.length - 1] || { domains: base, placements: basePlacements };
+		if (!last.placements.every(bits => bits == full))
+			best.push({
+				domains: last.domains, placements: last.placements, clues: [],
+				conclusion: true, stalled: true,
+				message: "No further ordinary deductions. Explore with chalk to make more progress.",
+			});
 	}
 	return best;
+}
+
+/* Explain contradictions without consulting the generated solution. */
+function chalkContradiction(puzzle, domains) {
+	for (var row = 0; row < domains.length; row++) {
+		for (var symbol = 0; symbol < domains[row].length; symbol++)
+			if (!domains[row][symbol])
+				return "Contradiction: " + proofSymbolReference(puzzle, row, symbol) +
+					" has no possible column.";
+		for (var column = 0; column < domains[row].length; column++)
+			if (!domains[row].some(bits => bits & (1 << column)))
+				return "Contradiction: none of the symbols in the row containing " +
+					proofSymbolReference(puzzle, row, 0) + " can occupy column " +
+					(column + 1) + ".";
+	}
+	return null;
+}
+
+/* A lemma has its own hypothetical snapshots. Only its final discard belongs
+ * to the main route; none of the assumption's other consequences survive. */
+function buildChalkLemma(puzzle, base, basePlacements, trial) {
+	var { row, symbol, column } = trial;
+	var bit = 1 << column;
+	var subject = proofSymbolReference(puzzle, row, symbol);
+	var claim = subject + " cannot be in column " + (column + 1) + ".";
+	var steps = [{
+		domains: copyDomains(base), placements: basePlacements.slice(), clues: [],
+		lemmaStage: "start", message: claim,
+	}];
+	var domains = copyDomains(base), placements = basePlacements.slice();
+	var selections = [];
+	function record(step) {
+		step.domain = domains[step.row]?.[step.symbol];
+		step.domains = copyDomains(domains);
+		step.placements = placements.slice();
+		if (step.lemmaStage != "end") {
+			if (step.placement)
+				selections.push({ row: step.row, symbol: step.symbol,
+					column: singleBitIndex(step.domain),
+					explicit: step.lemmaStage == "assumption" });
+			step.chalkBase = base;
+			step.chalkBasePlacements = basePlacements;
+			step.chalkSelections = selections.slice();
+		}
+		steps.push(step);
+	}
+	var assumption = {
+		row, symbol, column, placement: true, removed: base[row][symbol] & ~bit,
+		clues: [], lemmaStage: "assumption",
+		message: "Suppose " + subject + " is in column " + (column + 1) + ".",
+	};
+	applyProofStep(domains, placements, assumption);
+	record(assumption);
+	while (true) {
+		var contradiction = chalkContradiction(puzzle, domains);
+		if (contradiction) {
+			record({ clues: [], lemmaStage: "contradiction", message: contradiction });
+			break;
+		}
+		var step = nextForcedProofStep(domains, placements) ||
+			nextClueProofStep(puzzle, puzzle.clues, domains);
+		if (!step)
+			return [];
+		var before = domains[step.row][step.symbol];
+		applyProofStep(domains, placements, step);
+		step.message = step.rule == "clue" ?
+			proofDeductionMessage(puzzle, step, before, domains[step.row][step.symbol], domains) :
+			forcedProofMessage(puzzle, step);
+		step.lemmaStage = "deduction";
+		record(step);
+	}
+	domains = copyDomains(base);
+	placements = basePlacements.slice();
+	domains[row][symbol] &= ~bit;
+	record({ row, symbol, removed: bit, placement: false, clues: [],
+		lemmaStage: "end", message: "Therefore " + claim,
+	});
+	return steps;
+}
+
+function extendHintWithLemmas(puzzle, steps, base, basePlacements) {
+	while (true) {
+		var last = steps[steps.length - 1] || { domains: base, placements: basePlacements };
+		var trial = extremeExplorationHint(puzzle, last.domains);
+		if (!trial)
+			break;
+		var lemma = buildChalkLemma(puzzle, last.domains, last.placements, trial);
+		if (!lemma.length)
+			break;
+		steps.push(...lemma);
+		last = steps[steps.length - 1];
+		var next;
+		while ((next = nextHintStep(puzzle, last.domains, last.placements))) {
+			steps.push(next);
+			last = next;
+		}
+	}
+	var number = 0, substep = 0;
+	for (var step of steps) {
+		if (!step.lemmaStage || step.lemmaStage == "start") {
+			number++;
+			substep = 0;
+			step.walkthroughNumber = String(number);
+		} else {
+			step.walkthroughNumber = number + "." + (++substep);
+		}
+	}
 }
 
 function nextClueProofStep(puzzle, clues, domains) {

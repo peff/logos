@@ -140,7 +140,7 @@ Object.defineProperty(globalThis, "localStorage", { value: {
 const source = await Deno.readTextFile(
 	new URL("../logos.js", import.meta.url));
 const Logos = eval(source +
-	"\n;({ measureExtremeDifficulty, extremeSkulls, countSolutions, cluesSolve, cluesAllow, extremeExplorationHint, extremeClueIndices, puzzleDifficulty, difficultyRating, puzzleFromSeed, " +
+	"\n;({ measureExtremeDifficulty, extremeSkulls, countSolutions, cluesSolve, cluesAllow, buildChalkLemma, chalkContradiction, extremeExplorationHint, extremeClueIndices, puzzleDifficulty, difficultyRating, puzzleFromSeed, " +
 	"difficultyOpportunities, placementDifficultyChoices, nextHintStep, buildHintSteps, measureDifficulty, hasRunDifficulty, " +
 	"Puzzle: Puzzle, ExactClue: ExactClue, " +
 	"Adjacent2Clue: Adjacent2Clue, " +
@@ -5334,7 +5334,7 @@ Deno.test("hints preserve the live board and continue in Zen", function() {
 	puzzle.say("");
 });
 
-Deno.test("expanded extreme hints show deductions up to the stall without Q.E.D.", function() {
+Deno.test("expanded extreme hints prove chalk lemmas and finish without changing the board", function() {
 	localStorage.setItem("hintAcknowledged", "true");
 	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
 	puzzle.say = function() {};
@@ -5347,17 +5347,145 @@ Deno.test("expanded extreme hints show deductions up to the stall without Q.E.D.
 	puzzle.explainLoss();
 	assert(puzzle.proof && puzzle.proof.steps[0] === first);
 	const last = puzzle.proof.steps.at(-1);
-	assert(last.stalled && last.conclusion &&
-	       !last.placements.every(bits => bits == 63));
+	assert(!last.stalled && last.conclusion &&
+	       last.placements.every(bits => bits == 63));
+	assert(puzzle.proof.steps.some(step => step.lemmaStage == "contradiction"));
 	assert(!Logos.nextHintStep(puzzle, last.domains, last.placements));
+	const lemmaStart = puzzle.proof.steps.findIndex(step => step.lemmaStage == "start");
+	puzzle.moveProof(lemmaStart + 1 - puzzle.proof.position);
+	const number = puzzle.proof.steps[lemmaStart].walkthroughNumber;
+	assert(puzzle.proofControls.querySelector(".proof-position").textContent ==
+	       "Step " + number + " — Lemma");
+	puzzle.moveProof(1);
+	assert(puzzle.proofControls.querySelector(".proof-position").textContent ==
+	       "Step " + number + ".1");
+	const assumption = puzzle.proof.steps[lemmaStart + 1];
+	const assumedSlot = puzzle.rows[assumption.row].slots[assumption.column];
+	assert(!assumedSlot.possibleElem.hidden && assumedSlot.singleElem.hidden,
+	       "hypothetical placement was displayed as a real tile");
+	assert(assumedSlot.possibilityElems[assumption.symbol].className.includes("pencil-selected") &&
+	       assumedSlot.possibilityElems[assumption.symbol].className.includes("pencil-explicit"));
+	const contradictionIndex = puzzle.proof.steps.findIndex(step => step.lemmaStage == "contradiction");
+	puzzle.moveProof(contradictionIndex - puzzle.proof.position);
+	assert(!puzzle.rows[0].elem.classList.contains("pencil-conflict"),
+	       "amber conflict appeared before the contradiction was explained");
+	puzzle.moveProof(contradictionIndex + 1 - puzzle.proof.position);
+	assert(puzzle.rows[0].elem.classList.contains("pencil-conflict"));
+	assert(puzzle.rows[0].slots[4].possibilityElems[3].className.includes("pencil-selected"),
+	       "a derived placement did not get a chalk circle");
+	puzzle.moveProof(1);
+	assert(!puzzle.rows[0].elem.classList.contains("pencil-conflict"));
+	assert(!assumedSlot.possibilityElems[assumption.symbol].className.includes("pencil-selected"),
+	       "lemma conclusion retained hypothetical chalk");
+	puzzle.moveProof(-1);
+	assert(puzzle.rows[0].elem.classList.contains("pencil-conflict"));
 	while (puzzle.proof.position < puzzle.proof.steps.length)
 		puzzle.moveProof(1);
 	const message = puzzle.proofControls.querySelector(".proof-deduction").textContent;
-	assert(message.includes("chalk") && !message.includes("Q.E.D."));
+	assert(message.endsWith(" Q.E.D."));
+	while (puzzle.proof.position)
+		puzzle.moveProof(-1);
 	puzzle.closeProof();
 	assert(!puzzle.pendingProof && JSON.stringify(puzzle.positionSnapshot()) == before,
 	       "partial walkthrough changed the live board");
 	puzzle.stopTimer();
+});
+
+Deno.test("a partial contradiction discard is not described as a clue placement", function() {
+	const puzzle = makePuzzle(6);
+	const clue = new Adjacent2Clue(puzzle);
+	clue.lRow = puzzle.rows[0];
+	clue.rRow = puzzle.rows[1];
+	clue.lCol = 0;
+	clue.rCol = 1;
+	const symbol = clue.lRow.slots[0].value;
+	const domains = Array.from({ length: 6 }, () => Array(6).fill(63));
+	domains[0][symbol] = 3;
+	domains[1][clue.rRow.slots[1].value] = 32;
+	const step = Logos.clueProofStep(puzzle, clue, domains);
+	const after = domains[0][symbol] & ~step.removed;
+	assert(step.row == 0 && step.symbol == symbol && after == 2);
+	assert(!step.placement, "a clue with no supported positions claimed a placement");
+	const message = Logos.proofMessageText(puzzle,
+		Logos.proofDeductionMessage(puzzle, step, 3, after, domains));
+	assert(message.includes("cannot be") && !message.includes("must be in"));
+});
+
+Deno.test("chalk lemmas prove contradictions and retain only their final discard", function() {
+	for (const seed of [0x0e2b42be, 0xac185eca, 0xd40791eb]) {
+		const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
+		puzzle.say = function() {};
+		puzzle.newGame(seed, false, false, true);
+		try {
+			const snapshot = puzzle.positionSnapshot();
+			const before = JSON.stringify(snapshot);
+			const first = Logos.nextHintStep(puzzle, snapshot.domains, snapshot.placements);
+			const steps = Logos.buildHintSteps(puzzle, first);
+			assert(steps.at(-1).placements.every(bits => bits == 63));
+			let base, assumption, contradiction, count = 0;
+			for (const step of steps) {
+				if (step.lemmaStage == "start") {
+					base = step;
+					contradiction = false;
+					count++;
+				} else if (step.lemmaStage == "assumption") {
+					assumption = step;
+					assert(!Logos.cluesAllow(puzzle, puzzle.clues,
+					       step.domains.map(row => row.slice())));
+				} else if (step.lemmaStage == "contradiction") {
+					assert(Logos.chalkContradiction(puzzle, step.domains));
+					contradiction = true;
+				} else if (step.lemmaStage == "end") {
+					assert(contradiction, "lemma ended without a contradiction");
+					const expected = base.domains.map(row => row.slice());
+					expected[assumption.row][assumption.symbol] &= ~(1 << assumption.column);
+					assert(JSON.stringify(step.domains) == JSON.stringify(expected),
+					       "hypothetical deductions leaked into the main proof");
+					assert(JSON.stringify(step.placements) == JSON.stringify(base.placements));
+					base = null;
+				}
+			}
+			assert(count > 0 && !base);
+			assert(JSON.stringify(puzzle.positionSnapshot()) == before);
+		} finally {
+			puzzle.stopTimer();
+		}
+	}
+});
+
+Deno.test("walkthroughs still stop when no single-assumption lemma is available", function() {
+	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
+	puzzle.clues = [];
+	const domains = Array.from({ length: 6 }, () => Array(6).fill(63));
+	domains[0][0] = 1;
+	const first = Logos.nextHintStep(puzzle, domains, Array(6).fill(0));
+	const steps = Logos.buildHintSteps(puzzle, first);
+	assert(steps.at(-1).stalled && steps.at(-1).message.includes("chalk"));
+	assert(!steps.some(step => step.lemmaStage));
+	assert(!Logos.buildChalkLemma(puzzle, first.domains, first.placements,
+	       { row: 1, symbol: 0, column: 0 }).length,
+	       "a consistent assumption produced a lemma");
+});
+
+Deno.test("walkthroughs can start at a stall or an already solved position", function() {
+	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
+	puzzle.say = function() {};
+	puzzle.newGame(0x0e2b42be, false, false, true);
+	try {
+		exhaustPuzzleDeductions(puzzle);
+		const { domains, placements } = puzzle.positionSnapshot();
+		const steps = Logos.buildHintSteps(puzzle, null, domains, placements);
+		assert(steps[0].lemmaStage == "start" && steps[0].walkthroughNumber == "1");
+		const last = steps.at(-1);
+		assert(last.placements.every(bits => bits == 63));
+		assert(Logos.buildHintSteps(puzzle, null, last.domains, last.placements).length == 0);
+		puzzle.clues = [];
+		const stalled = Logos.buildHintSteps(puzzle, null,
+			Array.from({ length: 6 }, () => Array(6).fill(63)), Array(6).fill(0));
+		assert(stalled.length == 1 && stalled[0].stalled);
+	} finally {
+		puzzle.stopTimer();
+	}
 });
 
 Deno.test("expanded hints keep the first step while choosing a shorter continuation", function() {
