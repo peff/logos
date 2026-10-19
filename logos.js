@@ -78,6 +78,8 @@ function renderTileSymbol(elem, symbol) {
 
 var clueArrow = '<span aria-hidden="true">↔</span>';
 
+var extremeStartMessage = "The clues grow scarce. Steel your mind.";
+
 var startMessages = [
 	"The ancient puzzle awaits. Let reason be your guide.",
 	"The signs are set. The search for truth begins.",
@@ -657,6 +659,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.clear = function() {
+		this.extreme = false;
 		this.dailyReturn = null;
 		this.invitationDeclined = false;
 		this.daily = null;
@@ -716,6 +719,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.clearHint();
 		this.stopTimer();
 		this.dailyReturn = {
+			extreme: this.extreme,
 			seed: this.seed,
 			symbols: this.symbols,
 			session: {
@@ -742,7 +746,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		/* Regenerate clues, but never replay moves or reuse the old async
 		 * identity. Slot objects themselves remain stable across games.
 		 */
-		this.newGame(saved.seed, true);
+		this.newGame(saved.seed, true, false, saved.extreme);
 		this.setSymbols(saved.symbols);
 		Object.assign(this, saved.session);
 		for (var [row, slots] of saved.rows.entries())
@@ -833,7 +837,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			this.updateActionControls();
 			if (!this.paused && !this.practiceMode)
 				this.startTimer();
-			this.say(randomChoice(startMessages));
+			this.say(this.extreme ? extremeStartMessage : randomChoice(startMessages));
 		};
 		return this.fadeInvitation(finish, 800, true);
 	}
@@ -908,9 +912,40 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		}
 	}
 
-	this.newGame = function(seed, awaitStart = false, dailyPreview = false) {
-		this.clearHint();
+	this.playExtreme = function() {
+		var status = this.options.querySelector("#extreme-status");
+		if (this.actionController) {
+			status.textContent = "Extreme puzzles are not yet supported in multiplayer.";
+			return;
+		}
+		status.textContent = "";
+		try {
+			for (var attempt = 1; attempt <= 100; attempt++) {
+				var seed = randomSeed();
+				var indices = extremeClueIndices(puzzleFromSeed(seed));
+				if (!indices)
+					continue;
+				this.newGame(seed, false, false, true);
+				this.toggleOptions();
+				return;
+			}
+			status.textContent = "No extreme puzzle found in 100 attempts. Try again.";
+		} catch (error) {
+			console.error(error);
+			status.textContent = "Could not generate an extreme puzzle. Try again.";
+		}
+	}
+
+	this.newGame = function(seed, awaitStart = false, dailyPreview = false, extreme = false) {
+		if (typeof extreme !== "boolean")
+			return false;
 		seed = arguments.length ? parseSeed(seed) : this.randomPuzzleSeed();
+		/* Reject seeds which do not produce an extreme puzzle before touching
+		 * the current game. */
+		var indices = extreme && seed !== null ? extremeClueIndices(puzzleFromSeed(seed)) : null;
+		if (extreme && !indices)
+			return false;
+		this.clearHint();
 		if (seed !== null || !arguments.length)
 			this.beforeNewGame?.();
 		if (seed === null)
@@ -928,6 +963,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.gameIdentity = {};
 		this.continuedFromLoss = false;
 		this.seed = seed;
+		this.extreme = extreme;
 		this.options.querySelector("#game-seed").value = formatSeed(seed);
 		this.updateSeedControls();
 		this.gameOver = true;
@@ -935,7 +971,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.proof = null;
 		this.pendingProof = null;
 		this.practiceMistake = null;
-		this.scoreEligible = !this.practiceMode;
+		this.scoreEligible = !this.practiceMode && !this.extreme;
 		this.explainButton.disabled = true;
 		this.explainButton.classList.remove("active", "proof-available");
 		this.explainButton.setAttribute("aria-pressed", "false");
@@ -958,13 +994,13 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			for (var i = 0; i < puzzle.rows.length; i++)
 				puzzle.rows[i].newGame();
 			puzzle.gameOver = false;
-			puzzle.generateClues();
+			puzzle.generateClues(indices);
 		});
 		this.explainButton.disabled = false;
 		this.paused = awaitStart;
 		if (!this.practiceMode && !awaitStart)
 			this.startTimer();
-		this.say(awaitStart ? "" : randomChoice(startMessages));
+		this.say(awaitStart ? "" : this.extreme ? extremeStartMessage : randomChoice(startMessages));
 		this.updateSeedDifficulty();
 		this.updateActionControls();
 		return true;
@@ -979,7 +1015,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			return false;
 		this.invitation.querySelector(".invitation-seed").textContent =
 			formatSeed(seed);
-		return this.newGame(seed, true);
+		return this.newGame(seed, true, false, params.has("extreme"));
 	}
 
 	this.dailyResultFromRun = function(run, scores = [], level = "all") {
@@ -1207,6 +1243,18 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		copy.value = "Copy link";
 	}
 
+	this.extremeDifficulty = function() {
+		if (!this.extremeDifficultyCache || this.extremeDifficultyCache.seed !== this.seed) {
+			var puzzle = puzzleFromSeed(this.seed);
+			puzzle.clues = extremeClueIndices(puzzle).map(index => puzzle.clues[index]);
+			this.extremeDifficultyCache = {
+				seed: this.seed,
+				rating: measureExtremeDifficulty(puzzle),
+			};
+		}
+		return this.extremeDifficultyCache.rating;
+	}
+
 	this.updateSeedDifficulty = function() {
 		var display = this.options.querySelector("#seed-difficulty");
 		display.textContent = "";
@@ -1216,6 +1264,16 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		if (this.options.hidden || seed === null || seed !== this.seed ||
 		    this.pendingSeed !== undefined)
 			return;
+		if (this.extreme) {
+			var rating = this.extremeDifficulty();
+			display.innerHTML = "Extreme " + extremeSkulls(rating);
+			display.disabled = false;
+			display.title = (rating.complete ? rating.bottlenecks +
+				" estimated bottleneck" + (rating.bottlenecks == 1 ? "" : "s") :
+				"Bottleneck rating unavailable") +
+				(this.analysisUnlocked ? ". Puzzle analysis" : "");
+			return;
+		}
 		if (!this.seedDifficultyCache || this.seedDifficultyCache.seed !== seed)
 			this.seedDifficultyCache = { seed: seed, difficulty: puzzleDifficulty(puzzleFromSeed(seed)) };
 		var level = this.seedDifficultyCache.difficulty.level;
@@ -1227,6 +1285,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.positionSnapshot = function() {
 		return {
 			seed: formatSeed(this.seed),
+			extreme: !!this.extreme,
 			generatorVersion: puzzleGeneratorVersion,
 			// Indexed by row, then symbol; bits identify possible columns.
 			domains: domainsFromSlots(this),
@@ -1256,18 +1315,22 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			}
 		}
 		var snapshot = this.positionSnapshot();
-		var metrics = measureDifficulty(this);
-		var rating = difficultyRating(metrics);
+		var metrics = this.extreme ? null : measureDifficulty(this);
+		var rating = metrics ? difficultyRating(metrics) : null;
 		var available = difficultyOpportunities(this, snapshot.domains);
+		var extremeRating = this.extreme ? this.extremeDifficulty() : null;
 		this.analysisSnapshot = JSON.stringify(snapshot);
 		this.analysis.querySelector(".analysis-summary").textContent =
 			"Seed: " + snapshot.seed + "\n" +
+			(this.extreme ? "Extreme (experimental)\n" +
+			(extremeRating.complete ? "Estimated bottlenecks: " + extremeRating.bottlenecks :
+				"Bottleneck rating unavailable") + "\n\n" :
 			"Difficulty: " + rating.level + "\n" +
 			"Score: " + rating.score.toFixed(2) + " = excess discards + 5 × scarcity\n" +
 			"Cutoffs: Easy < 47; Medium < 70; otherwise Hard\n\n" +
 			"Ten-route averages (placement-first):\n" +
 			"Total scarcity: " + metrics.scarcity.toFixed(2) + "\n" +
-			"Excess discards (3 free per stretch): " + metrics.excessDiscards.toFixed(2) + "\n\n" +
+			"Excess discards (3 free per stretch): " + metrics.excessDiscards.toFixed(2) + "\n\n") +
 			"Available clue observations: " + available.length;
 		var list = this.analysis.querySelector(".analysis-deductions");
 		list.replaceChildren();
@@ -1316,7 +1379,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		if (seed === null)
 			return;
 		var url = new URL(window.location.href);
-		url.hash = "seed=" + formatSeed(seed);
+		url.hash = "seed=" + formatSeed(seed) +
+			(this.extreme && seed === this.seed ? "&extreme" : "");
 		try {
 			await navigator.clipboard.writeText(url.href);
 			if (parseSeed(input.value.trim()) === seed)
@@ -1348,7 +1412,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			this.toggleOptions();
 			return;
 		}
-		var started = value ? this.newGame(value) : this.newGame();
+		var started = value ? this.newGame(value, false, false,
+			!!this.extreme && parseSeed(value) === this.seed) : this.newGame();
 		if (!started) {
 			if (!value) {
 				input.setCustomValidity("");
@@ -2274,7 +2339,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			run.elapsed = this.timerElapsed;
 		if (this.daily)
 			run.daily = this.daily;
-		if (canRateRun(run))
+		if (!this.extreme && canRateRun(run))
 			run.difficulty = puzzleDifficulty(this);
 		return run;
 	}
@@ -2284,6 +2349,9 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		 * add fictional dates to the Chronicle (and hence the Pantheon).
 		 */
 		if (debugDateActive)
+			return false;
+		/* Experimental extreme games stay outside saved scores and ratings. */
+		if (this.extreme)
 			return false;
 		var gameIdentity = this.gameIdentity;
 		var run = sharedRun || this.runRecord(outcome);
@@ -2801,10 +2869,12 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.actionController?.timerChanged();
 	}
 
-	this.generateClues = function() {
+	this.generateClues = function(indices = null) {
 		this.hClues.classList.remove("solution");
 		this.vClues.classList.remove("solution");
 		generatePuzzleClues(this, this.hClueSlots.length, this.vClueSlots.length);
+		if (indices)
+			this.clues = indices.map(index => this.clues[index]);
 
 		for (var slot of [...this.hClueSlots, ...this.vClueSlots])
 			clearClueSlot(slot);
@@ -3780,6 +3850,122 @@ function generatePuzzleClues(puzzle, horizontalLimit, verticalLimit) {
 		puzzle.clues = limitDisplayedClues(puzzle.clues,
 			"vertical", verticalLimit);
 	} while (!cluesSolve(puzzle, puzzle.clues));
+}
+
+/* Deterministically prune a normal puzzle with the full solver. Return the
+ * retained clue indices, or null if deduction still solves the result. */
+function extremeClueIndices(puzzle) {
+	var indices = puzzle.clues.map((clue, index) => index);
+	for (var i = indices.length - 1; i >= 0; i--) {
+		var without = indices.filter((index, position) => position !== i);
+		if (countSolutions(puzzle, without.map(index => puzzle.clues[index])) === 1)
+			indices = without;
+	}
+	return cluesSolve(puzzle, indices.map(index => puzzle.clues[index])) ? null : indices;
+}
+
+/* Count interruptions to ordinary propagation along a deterministic route.
+ * At each stall, reject the trial that unlocks the most candidate removals.
+ * This is a reproducible estimate, not the minimum over all solving routes.
+ * Limit trial work and leave deeper-search puzzles unrated. */
+function measureExtremeDifficulty(puzzle, maxTrials = 10000) {
+	var size = puzzle.rows[0].slots.length;
+	var domains = puzzle.rows.map(() => Array(size).fill((1 << size) - 1));
+	var bottlenecks = 0;
+	var candidates = data => data.flat().reduce((sum, bits) => sum + countBits(bits), 0);
+	if (!cluesAllow(puzzle, puzzle.clues, domains))
+		return { bottlenecks, complete: false };
+	while (candidates(domains) > puzzle.rows.length * size) {
+		var best = null;
+		var bestSize = candidates(domains);
+		for (var row = 0; row < domains.length; row++) {
+			for (var symbol = 0; symbol < size; symbol++) {
+				var choices = domains[row][symbol];
+				if ((choices & (choices - 1)) == 0)
+					continue;
+				for (var bits = choices; bits; bits &= bits - 1) {
+					if (--maxTrials < 0)
+						return { bottlenecks, complete: false };
+					var bit = bits & -bits;
+					var trial = copyDomains(domains);
+					trial[row][symbol] = bit;
+					if (cluesAllow(puzzle, puzzle.clues, trial))
+						continue;
+					var after = copyDomains(domains);
+					after[row][symbol] &= ~bit;
+					if (!cluesAllow(puzzle, puzzle.clues, after))
+						return { bottlenecks, complete: false };
+					var remaining = candidates(after);
+					if (remaining < bestSize) {
+						best = after;
+						bestSize = remaining;
+					}
+				}
+			}
+		}
+		if (!best)
+			return { bottlenecks, complete: false };
+		domains = best;
+		bottlenecks++;
+	}
+	return { bottlenecks, complete: true };
+}
+
+function extremeSkulls(rating) {
+	if (!rating.complete)
+		return "(?)";
+	var skull = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">' +
+		'<use href="#extreme-skull-icon"/></svg>';
+	return '<span class="extreme-skulls" role="img" aria-label="' +
+		rating.bottlenecks + (rating.bottlenecks == 1 ? ' skull' : ' skulls') + '">' +
+		(rating.bottlenecks > 5 ? skull + " × " + rating.bottlenecks :
+			skull.repeat(rating.bottlenecks)) + '</span>';
+}
+
+/* Count up to two solutions, branching on the smallest remaining domain.
+ * A search budget keeps experimental generation bounded; null means that
+ * uniqueness is unproven, so the caller must retain the clue. */
+function countSolutions(puzzle, clues, maxNodes = 10000) {
+	var size = puzzle.rows[0].slots.length;
+	var domains = puzzle.rows.map(() => Array(size).fill((1 << size) - 1));
+	var count = 0;
+	var exhausted = false;
+	function search(domains) {
+		if (count >= 2 || exhausted)
+			return;
+		if (--maxNodes < 0) {
+			exhausted = true;
+			return;
+		}
+		if (!cluesAllow(puzzle, clues, domains))
+			return;
+		var bestRow = -1, bestSymbol, bestSize = size + 1;
+		for (var row = 0; row < domains.length; row++) {
+			for (var symbol = 0; symbol < size; symbol++) {
+				var bits = domains[row][symbol];
+				var n = 0;
+				for (; bits; bits &= bits - 1)
+					n++;
+				if (n > 1 && n < bestSize) {
+					bestRow = row;
+					bestSymbol = symbol;
+					bestSize = n;
+				}
+			}
+		}
+		if (bestRow < 0) {
+			count++;
+			return;
+		}
+		var choices = domains[bestRow][bestSymbol];
+		for (var bits = choices; bits; bits &= bits - 1) {
+			var branch = copyDomains(domains);
+			branch[bestRow][bestSymbol] = bits & -bits;
+			search(branch);
+		}
+	}
+	search(domains);
+	return exhausted ? null : count;
 }
 
 function puzzleFromSeed(seed) {

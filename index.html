@@ -12,6 +12,14 @@
 	</head>
 	<body>
 		<svg class="icon-definitions" width="0" height="0" aria-hidden="true" focusable="false">
+			<symbol id="extreme-skull-icon" viewBox="0 0 24 24">
+				<path d="M8 21v-4l-3-2C1 5 7 2 12 2s11 3 7 13l-3 2v4Z
+				         M11 18v3m2-3v3"
+				      fill="none" stroke="currentColor" stroke-width="1.5"
+				      stroke-linecap="round" stroke-linejoin="round"/>
+				<path d="M6.5 9.5c0-2 4-2 4 0s-4 3-4 0m7 0c0-2 4-2 4 0s-4 3-4 0
+				         M12 12.5l-1.5 3h3Z" fill="currentColor"/>
+			</symbol>
 			<symbol id="chalk-eraser-icon" viewBox="0 0 24 24">
 				<path d="m3 10 12-6 6 4-12 6z M3 10v5l6 5 12-7V8 M9 14v6 M3 13l6 5 12-7"/>
 			</symbol>
@@ -404,15 +412,24 @@
 					       <span>Continue after loss
 					             <small>Enter Zen mode instead of revealing the solution.</small></span></label>
 					<div class="seed-options">
-						<div class="random-difficulties" role="group" aria-label="Random puzzle difficulties"
-						     title="New random games use these difficulty levels. Entering a seed always plays that exact puzzle.">
-							<div class="random-difficulties-heading">Difficulty
-								<small>For new random puzzles.</small></div>
-							<div class="random-difficulty-choices">
-								<label><input id="random-easy" type="checkbox" checked onChange="puzzle.changeRandomDifficulties()">Easy</label>
-								<label><input id="random-medium" type="checkbox" checked onChange="puzzle.changeRandomDifficulties()">Medium</label>
-								<label><input id="random-hard" type="checkbox" checked onChange="puzzle.changeRandomDifficulties()">Hard</label>
+						<div class="difficulty-options">
+							<div class="random-difficulties" role="group" aria-label="Random puzzle difficulties"
+							     title="New random games use these difficulty levels. Entering a seed always plays that exact puzzle.">
+								<div class="random-difficulties-heading">Difficulty
+									<small>For new random puzzles.</small></div>
+								<div class="random-difficulty-choices">
+									<label><input id="random-easy" type="checkbox" checked onChange="puzzle.changeRandomDifficulties()">Easy</label>
+									<label><input id="random-medium" type="checkbox" checked onChange="puzzle.changeRandomDifficulties()">Medium</label>
+									<label><input id="random-hard" type="checkbox" checked onChange="puzzle.changeRandomDifficulties()">Hard</label>
+								</div>
 							</div>
+							<button id="extreme-button" type="button"
+							        title="Generate a new extreme puzzle (experimental)"
+							        aria-label="Generate a new extreme puzzle (experimental)"
+							        onClick="puzzle.playExtreme()">
+								<span class="extreme-badge-title">Extreme</span>
+								<small class="extreme-badge-experimental">experimental!</small>
+							</button>
 						</div>
 						<label for="game-seed">Puzzle seed
 						       <small id="seed-help">Replay or share a particular puzzle.</small></label>
@@ -426,6 +443,7 @@
 							<input id="copy-seed-link" class="option-action" type="button" disabled
 							       onClick="puzzle.copySeedLink()" value="Copy link">
 						</div>
+						<small id="extreme-status" role="status"></small>
 						<button id="seed-difficulty" type="button" disabled
 						        onClick="puzzle.openAnalysis()"></button>
 					</div>

@@ -140,7 +140,7 @@ Object.defineProperty(globalThis, "localStorage", { value: {
 const source = await Deno.readTextFile(
 	new URL("../logos.js", import.meta.url));
 const Logos = eval(source +
-	"\n;({ puzzleDifficulty, difficultyRating, puzzleFromSeed, " +
+	"\n;({ measureExtremeDifficulty, extremeSkulls, countSolutions, cluesSolve, cluesAllow, extremeClueIndices, puzzleDifficulty, difficultyRating, puzzleFromSeed, " +
 	"difficultyOpportunities, placementDifficultyChoices, nextHintStep, buildHintSteps, measureDifficulty, hasRunDifficulty, " +
 	"Puzzle: Puzzle, ExactClue: ExactClue, " +
 	"Adjacent2Clue: Adjacent2Clue, " +
@@ -5806,4 +5806,135 @@ Deno.test("failed and late daily lookups cannot replace a restored game", async 
 	} finally {
 		puzzle.stopTimer();
 	}
+});
+
+Deno.test("full solver distinguishes unique, ambiguous, impossible and unfinished searches", function() {
+	const puzzle = Logos.puzzleFromSeed(0);
+	assert(Logos.countSolutions(puzzle, puzzle.clues) === 1);
+	assert(Logos.countSolutions(puzzle, []) === 2);
+	assert(Logos.countSolutions(puzzle, puzzle.clues, 0) === null);
+	assert(Logos.countSolutions(puzzle, [{ constrain(domains) {
+		domains[0][0] = 0;
+		return false;
+	} }]) === 0);
+});
+
+Deno.test("extreme pruning preserves uniqueness but defeats deduction", function() {
+	let found = 0;
+	for (let seed = 0; seed < 30; seed++) {
+		const puzzle = Logos.puzzleFromSeed(seed);
+		assert(Logos.cluesSolve(puzzle, puzzle.clues));
+		const indices = Logos.extremeClueIndices(puzzle);
+		if (!indices)
+			continue;
+		found++;
+		const clues = indices.map(index => puzzle.clues[index]);
+		assert(Logos.countSolutions(puzzle, clues) === 1);
+		assert(!Logos.cluesSolve(puzzle, clues));
+	}
+	assert(found > 0 && found < 30, "exercise both accepted and rejected candidates");
+});
+
+Deno.test("extreme games reconstruct their clues and stay outside ratings and history", async function() {
+	const puzzle = makePuzzle(6);
+	puzzle.newGame(0, false, false, true);
+	const expected = Logos.extremeClueIndices(Logos.puzzleFromSeed(0));
+	assert(JSON.stringify(expected) === JSON.stringify(Logos.extremeClueIndices(Logos.puzzleFromSeed(0))));
+	const identity = puzzle.gameIdentity;
+	assert(!puzzle.newGame(2, false, false, true));
+	assert(puzzle.gameIdentity === identity && puzzle.extreme === true);
+	assert(!Logos.cluesSolve(puzzle, puzzle.clues));
+	assert(Logos.countSolutions(puzzle, puzzle.clues) === 1);
+	assert(!puzzle.scoreEligible && !puzzle.runRecord("won").difficulty);
+	assert(await puzzle.recordOutcome("won") === false);
+	puzzle.toggleOptions();
+	assert(puzzle.options.querySelector("#game-seed").value === "00000000");
+	assert(!puzzle.options.querySelector("#copy-seed-link").disabled);
+	puzzle.saveDailyReturn();
+	const saved = puzzle.dailyReturn;
+	puzzle.newGame(1);
+	puzzle.dailyReturn = saved;
+	assert(puzzle.restoreDailyReturn());
+	assert(!Logos.cluesSolve(puzzle, puzzle.clues));
+	assert(Logos.countSolutions(puzzle, puzzle.clues) === 1);
+	puzzle.newGame(0);
+	assert(!puzzle.extreme && Logos.cluesSolve(puzzle, puzzle.clues));
+	assert(puzzle.runRecord("won").difficulty);
+	puzzle.stopTimer();
+	puzzle.say("");
+});
+
+Deno.test("extreme button synchronously starts a uniquely solvable puzzle", function() {
+	const puzzle = makePuzzle(6);
+	puzzle.newGame(1);
+	puzzle.options.hidden = true;
+	puzzle.toggleOptions();
+	puzzle.playExtreme();
+	assert(puzzle.extreme && puzzle.options.hidden);
+	assert(!Logos.cluesSolve(puzzle, puzzle.clues));
+	assert(Logos.countSolutions(puzzle, puzzle.clues) === 1);
+	puzzle.stopTimer();
+	puzzle.say("");
+});
+
+Deno.test("extreme links, restarts and position copies preserve the mode", async function() {
+	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
+	const receiver = makePuzzle(6, false, Logos.defaultSymbols);
+	const clipboard = Object.getOwnPropertyDescriptor(navigator, "clipboard");
+	const oldWindow = globalThis.window;
+	globalThis.window = { location: { href: "https://example.com/" } };
+	let copied;
+	Object.defineProperty(navigator, "clipboard", { configurable: true,
+		value: { writeText: async text => { copied = text; } } });
+	try {
+		window.location.href = "https://example.com/#seed=123";
+		puzzle.newGame(0, false, false, true);
+		puzzle.options.hidden = true;
+		puzzle.toggleOptions();
+		await puzzle.copySeedLink();
+		assert(copied === "https://example.com/#seed=00000000&extreme");
+		assert(receiver.loadURLSeed(copied));
+		assert(receiver.extreme && receiver.pendingSeed === 0);
+		assert(puzzleSignature(receiver) === puzzleSignature(puzzle));
+		puzzle.playSeed();
+		assert(puzzle.extreme && !Logos.cluesSolve(puzzle, puzzle.clues));
+		const slot = puzzle.rows[0].slots.find(slot => !slot.single);
+		slot.discard((slot.value + 1) % 6);
+		puzzle.toggleOptions();
+		assert(!puzzle.options.querySelector("#seed-difficulty").disabled);
+		const before = JSON.stringify(puzzle.positionSnapshot());
+		puzzle.analysisUnlocked = true;
+		puzzle.openAnalysis();
+		assert(!puzzle.analysis.hidden && puzzle.analysisSnapshot === before);
+		assert(puzzle.analysis.querySelector(".analysis-summary").textContent.includes("Extreme"));
+		await puzzle.copyAnalysisPosition();
+		assert(copied === before && JSON.parse(copied).extreme === true);
+		assert(JSON.stringify(puzzle.positionSnapshot()) === before);
+		assert(receiver.loadURLSeed("https://example.com/#seed=0"));
+		assert(!receiver.extreme);
+	} finally {
+		globalThis.window = oldWindow;
+		if (clipboard) Object.defineProperty(navigator, "clipboard", clipboard);
+		else delete navigator.clipboard;
+		for (const game of [puzzle, receiver]) {
+			game.stopTimer();
+			game.say("");
+		}
+	}
+});
+
+Deno.test("extreme skull ratings count bottlenecks and leave incomplete searches unrated", function() {
+	for (const [seed, count] of [[0xd40791eb, 1], [0xac185eca, 4]]) {
+		const puzzle = Logos.puzzleFromSeed(seed);
+		puzzle.clues = Logos.extremeClueIndices(puzzle).map(index => puzzle.clues[index]);
+		const before = puzzleSignature(puzzle);
+		const rating = Logos.measureExtremeDifficulty(puzzle);
+		assert(rating.complete && rating.bottlenecks === count);
+		assert((Logos.extremeSkulls(rating).match(/<svg /g) || []).length === count);
+		assert(puzzleSignature(puzzle) === before, "rating mutated the puzzle");
+		const incomplete = Logos.measureExtremeDifficulty(puzzle, 0);
+		assert(!incomplete.complete && Logos.extremeSkulls(incomplete) === "(?)");
+	}
+	assert(Logos.extremeSkulls({ complete: true, bottlenecks: 22 }).includes(" × 22"));
+	assert(!Logos.measureExtremeDifficulty({ rows: [{ slots: [{}, {}] }], clues: [] }).complete);
 });
