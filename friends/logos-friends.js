@@ -82,6 +82,7 @@ function renderSharedHover() {
 	for (const elem of hoverElements) {
 		if (targets.has(elem)) continue;
 		delete elem.dataset.sharedHover;
+		elem.querySelector(":scope > .shared-hover-rings")?.remove();
 		elem.style.removeProperty("--shared-hover-rings");
 		elem.style.removeProperty("--shared-hover-tint");
 		elem.style.removeProperty("--shared-hover-glow");
@@ -89,6 +90,12 @@ function renderSharedHover() {
 	}
 	for (const [elem, { colors, tints }] of targets) {
 		elem.dataset.sharedHover = "true";
+		if (!elem.querySelector(":scope > .shared-hover-rings")) {
+			const rings = document.createElement("span");
+			rings.className = "shared-hover-rings";
+			rings.setAttribute("aria-hidden", "true");
+			elem.append(rings);
+		}
 		const rings = colors.map((color, i) =>
 			`inset 0 0 0 ${(i + 1) * 0.1}rem ${color}`);
 		/* Broad targets get a halo; possibilities retain a precise outline. */

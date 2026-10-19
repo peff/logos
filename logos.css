@@ -3684,13 +3684,12 @@ body.multiplayer #logo {
 	user-select: text;
 }
 
-/* These rings do not replace clue, chalk, or history highlighting. */
+/* Use a separate overlay; tile pseudo-elements belong to chalk marks. */
 :is(#board, #hclues, #vclues) [data-shared-hover] {
 	position: relative;
 }
 
-:is(#board, #hclues, #vclues) [data-shared-hover]::after {
-	content: "";
+:is(#board, #hclues, #vclues) .shared-hover-rings {
 	position: absolute;
 	inset: 0;
 	border-radius: 3px;
