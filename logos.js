@@ -1279,9 +1279,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			var rating = this.extremeDifficulty();
 			display.innerHTML = "Extreme " + extremeSkulls(rating);
 			display.disabled = false;
-			display.title = (rating.complete ? rating.bottlenecks +
-				" estimated bottleneck" + (rating.bottlenecks == 1 ? "" : "s") :
-				"Bottleneck rating unavailable") +
+			display.title = (rating.complete ? "Extreme score: " + rating.score.toFixed(0) :
+				"Extreme rating unavailable") +
 				(this.analysisUnlocked ? ". Puzzle analysis" : "");
 			return;
 		}
@@ -1335,8 +1334,9 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.analysis.querySelector(".analysis-summary").textContent =
 			"Seed: " + snapshot.seed + "\n" +
 			(this.extreme ? "Extreme (experimental)\n" +
-			(extremeRating.complete ? "Estimated bottlenecks: " + extremeRating.bottlenecks :
-				"Bottleneck rating unavailable") + "\n\n" :
+			(extremeRating.complete ? "Skulls: " + extremeRating.skulls + "\nScore: " + extremeRating.score.toFixed(2) +
+				"\nMean bottlenecks: " + extremeRating.bottlenecks.toFixed(1) :
+				"Extreme rating unavailable") + "\n\n" :
 			"Difficulty: " + rating.level + "\n" +
 			"Score: " + rating.score.toFixed(2) + " = excess discards + 5 × scarcity\n" +
 			"Cutoffs: Easy < 47; Medium < 70; otherwise Hard\n\n" +
@@ -4053,47 +4053,87 @@ function extremeClueIndices(puzzle) {
  * At each stall, reject the trial that unlocks the most candidate removals.
  * This is a reproducible estimate, not the minimum over all solving routes.
  * Limit trial work and leave deeper-search puzzles unrated. */
-function measureExtremeDifficulty(puzzle, maxTrials = 10000) {
+function traceExtremeDifficulty(puzzle, maxTrials = 10000, options = {}) {
 	var size = puzzle.rows[0].slots.length;
 	var domains = puzzle.rows.map(() => Array(size).fill((1 << size) - 1));
-	var bottlenecks = 0;
+	var result = { bottlenecks: 0, complete: false };
+	if (options.measureCost)
+		result.costs = [];
+	var route = options.route || 0;
+	var clues = clueRouteOrder(puzzle.clues, route);
 	var candidates = data => data.flat().reduce((sum, bits) => sum + countBits(bits), 0);
-	if (!cluesAllow(puzzle, puzzle.clues, domains))
-		return { bottlenecks, complete: false };
+	if (!cluesAllow(puzzle, clues, domains))
+		return result;
 	while (candidates(domains) > puzzle.rows.length * size) {
-		var best = null;
+		var best = null, chosen;
 		var bestSize = candidates(domains);
+		var trials = [];
 		for (var row = 0; row < domains.length; row++) {
 			for (var symbol = 0; symbol < size; symbol++) {
 				var choices = domains[row][symbol];
 				if ((choices & (choices - 1)) == 0)
 					continue;
-				for (var bits = choices; bits; bits &= bits - 1) {
-					if (--maxTrials < 0)
-						return { bottlenecks, complete: false };
-					var bit = bits & -bits;
-					var trial = copyDomains(domains);
-					trial[row][symbol] = bit;
-					if (cluesAllow(puzzle, puzzle.clues, trial))
-						continue;
-					var after = copyDomains(domains);
-					after[row][symbol] &= ~bit;
-					if (!cluesAllow(puzzle, puzzle.clues, after))
-						return { bottlenecks, complete: false };
-					var remaining = candidates(after);
-					if (remaining < bestSize) {
-						best = after;
-						bestSize = remaining;
-					}
-				}
+				for (var bits = choices; bits; bits &= bits - 1)
+					trials.push({ row, symbol, bit: bits & -bits });
+			}
+		}
+		for (var trial of clueRouteOrder(trials, route)) {
+			if (--maxTrials < 0)
+				return result;
+			var assumed = copyDomains(domains);
+			assumed[trial.row][trial.symbol] = trial.bit;
+			if (cluesAllow(puzzle, clues, assumed))
+				continue;
+			var after = copyDomains(domains);
+			after[trial.row][trial.symbol] &= ~trial.bit;
+			if (!cluesAllow(puzzle, clues, after))
+				return result;
+			var remaining = candidates(after);
+			if (remaining < bestSize) {
+				best = after;
+				bestSize = remaining;
+				chosen = trial;
 			}
 		}
 		if (!best)
-			return { bottlenecks, complete: false };
+			return result;
+		if (options.measureCost) {
+			/* Measure only the selected contradiction, excluding the act of
+			 * assuming a placement and the progress after rejecting it. */
+			var assumed = copyDomains(domains);
+			assumed[chosen.row][chosen.symbol] = chosen.bit;
+			var before = candidates(assumed);
+			var work = { passes: 0 };
+			cluesAllow(puzzle, clues, assumed, work);
+			result.costs.push({
+				row: chosen.row, symbol: chosen.symbol, column: Math.log2(chosen.bit),
+				eliminations: before - candidates(assumed), passes: work.passes,
+				progress: candidates(domains) - bestSize,
+			});
+		}
 		domains = best;
-		bottlenecks++;
+		result.bottlenecks++;
 	}
-	return { bottlenecks, complete: true };
+	result.complete = true;
+	return result;
+}
+
+/* Average weighted contradiction work over fixed routes, independently of
+ * proof narration. A failed route leaves the puzzle unrated. */
+function measureExtremeDifficulty(puzzle, maxTrials = 10000, routes = 10) {
+	if (!Number.isInteger(routes) || routes < 1)
+		throw new Error("difficulty analysis needs a positive route count");
+	var score = 0, bottlenecks = 0;
+	for (var route = 0; route < routes; route++) {
+		var run = traceExtremeDifficulty(puzzle, maxTrials, { route, measureCost: true });
+		if (!run.complete)
+			return { complete: false };
+		score += run.costs.reduce((sum, cost) => sum + cost.eliminations ** 1.5, 0);
+		bottlenecks += run.bottlenecks;
+	}
+	score /= routes;
+	return { complete: true, score, skulls: Math.ceil(score / 1500),
+		bottlenecks: bottlenecks / routes };
 }
 
 function extremeSkulls(rating) {
@@ -4102,9 +4142,9 @@ function extremeSkulls(rating) {
 	var skull = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">' +
 		'<use href="#extreme-skull-icon"/></svg>';
 	return '<span class="extreme-skulls" role="img" aria-label="' +
-		rating.bottlenecks + (rating.bottlenecks == 1 ? ' skull' : ' skulls') + '">' +
-		(rating.bottlenecks > 5 ? skull + " × " + rating.bottlenecks :
-			skull.repeat(rating.bottlenecks)) + '</span>';
+		rating.skulls + (rating.skulls == 1 ? ' skull' : ' skulls') + '">' +
+		(rating.skulls > 5 ? skull + " × " + rating.skulls :
+			skull.repeat(rating.skulls)) + '</span>';
 }
 
 /* Enumerate single-placement contradictions and the progress unlocked by

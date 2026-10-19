@@ -29,11 +29,16 @@ For extreme puzzles, use `--extreme` or a URL containing the `extreme` flag:
 ./analysis/puzzle 'file:///home/peff/work/logos/index.html#seed=0e2b42be&extreme'
 ```
 
-These report the original extreme puzzle's estimated bottleneck count instead
+These report the original extreme puzzle's skull count and score instead
 of a normal difficulty score. Seeds without an extreme variant are rejected.
 `--extreme` applies to every input; URL flags apply only to their own input.
 Snapshots automatically select extreme mode and restore any revealed clues;
-the bottleneck rating still describes the original puzzle without assistance.
+the difficulty rating still describes the original puzzle without assistance.
+
+The extreme score averages ten deterministic solving routes. Each route sums
+the candidate eliminations in its failed assumptions, raised individually to
+the power 1.5. One skull represents 1,500 points, rounded up, with no cap.
+If a route cannot finish within the search limit, the rating is unavailable.
 
 ## A position where you wanted help
 
@@ -79,3 +84,26 @@ proved, it prints the stalled board instead of claiming a complete solution.
 
 The tools reject unsupported generator versions and snapshots inconsistent
 with their seed. They do not change the game, run history, or stored settings.
+
+## Experimental extreme costs
+
+For experimental extreme bottleneck costs, run from the repository root:
+
+```sh
+deno run --allow-read=logos.js analysis/extreme-cost.js 0 d40791eb ac185eca 59
+```
+
+This writes one JSON record per seed, with ten deterministic routes and their
+arithmetic means. Routes vary clue order and trial tie-breaking. Each selected
+failed assumption records candidate eliminations and propagation passes before
+the solver reports a contradiction, plus the progress after rejecting it.
+Elimination counts exclude making the assumption itself. They measure solver
+work, not narrated proof steps or the shortest possible argument; a propagation
+sweep can continue after a clue has already become impossible.
+
+The score is the sum of each bottleneck's eliminations raised to 1.5, averaged
+over ten routes. This gives longer branches more weight. The output also keeps
+unweighted elimination totals for comparison.
+Incomplete routes suppress the averages. The game maps this score to
+`ceil(score / 1500)` skulls, without a cap. Reported time covers all ten rating
+routes, excluding puzzle generation.

@@ -140,7 +140,7 @@ Object.defineProperty(globalThis, "localStorage", { value: {
 const source = await Deno.readTextFile(
 	new URL("../logos.js", import.meta.url));
 const Logos = eval(source +
-	"\n;({ measureExtremeDifficulty, extremeSkulls, countSolutions, cluesSolve, cluesAllow, buildChalkLemma, bestChalkLemma, chalkContradiction, chalkClueContradiction, extremeExplorationHint, extremeExplorationTrials, extremeClueIndices, puzzleDifficulty, difficultyRating, puzzleFromSeed, " +
+	"\n;({ traceExtremeDifficulty, measureExtremeDifficulty, extremeSkulls, countSolutions, cluesSolve, cluesAllow, buildChalkLemma, bestChalkLemma, chalkContradiction, chalkClueContradiction, extremeExplorationHint, extremeExplorationTrials, extremeClueIndices, puzzleDifficulty, difficultyRating, puzzleFromSeed, " +
 	"difficultyOpportunities, placementDifficultyChoices, nextHintStep, buildHintSteps, measureDifficulty, hasRunDifficulty, " +
 	"Puzzle: Puzzle, ExactClue: ExactClue, " +
 	"Adjacent2Clue: Adjacent2Clue, " +
@@ -6376,20 +6376,57 @@ Deno.test("restoring extreme clues fits the original layout and also restores cu
 	assert(givens > 0, "fixture must exercise a removed starting tile");
 });
 
-Deno.test("extreme skull ratings count bottlenecks and leave incomplete searches unrated", function() {
-	for (const [seed, count] of [[0xd40791eb, 1], [0xac185eca, 4]]) {
+Deno.test("extreme skull ratings use weighted branch costs and leave incomplete searches unrated", function() {
+	for (const [seed, count] of [[0xd40791eb, 1], [0xac185eca, 1], [0x39c, 1], [0x3c5, 2], [0x59, 6], [0xd505b84e, 12]]) {
 		const puzzle = Logos.puzzleFromSeed(seed);
 		puzzle.clues = Logos.extremeClueIndices(puzzle).map(index => puzzle.clues[index]);
 		const before = puzzleSignature(puzzle);
 		const rating = Logos.measureExtremeDifficulty(puzzle);
-		assert(rating.complete && rating.bottlenecks === count);
-		assert((Logos.extremeSkulls(rating).match(/<svg /g) || []).length === count);
+		assert(rating.complete && rating.skulls === count);
+		if (seed === 0x39c) {
+			assert(Math.abs(rating.score - 1271.3197213409258) < 1e-8);
+			assert(rating.bottlenecks === 5.4, "rating did not average all ten routes");
+			assert(JSON.stringify(Logos.measureExtremeDifficulty(puzzle)) === JSON.stringify(rating));
+		}
+		assert(Logos.extremeSkulls(rating).includes(`aria-label="${count} skull${count === 1 ? "" : "s"}"`));
 		assert(puzzleSignature(puzzle) === before, "rating mutated the puzzle");
 		const incomplete = Logos.measureExtremeDifficulty(puzzle, 0);
 		assert(!incomplete.complete && Logos.extremeSkulls(incomplete) === "(?)");
 	}
-	assert(Logos.extremeSkulls({ complete: true, bottlenecks: 22 }).includes(" × 22"));
+	assert(Logos.extremeSkulls({ complete: true, skulls: 22 }).includes(" × 22"));
 	assert(!Logos.measureExtremeDifficulty({ rows: [{ slots: [{}, {}] }], clues: [] }).complete);
+});
+
+Deno.test("extreme bottleneck costs measure branch work separately from its assumption", function() {
+	const puzzle = Logos.puzzleFromSeed(0xac185eca);
+	puzzle.clues = Logos.extremeClueIndices(puzzle).map(index => puzzle.clues[index]);
+	const before = puzzleSignature(puzzle);
+	const rating = Logos.traceExtremeDifficulty(puzzle, 10000, { measureCost: true });
+	assert(rating.complete && rating.bottlenecks === 4);
+	assert(rating.costs.length === rating.bottlenecks);
+	const candidates = domains => domains.flat().reduce((n, bits) =>
+		n + bits.toString(2).replace(/0/g, "").length, 0);
+	const domains = puzzle.rows.map(() => Array(6).fill(63));
+	assert(Logos.cluesAllow(puzzle, puzzle.clues, domains));
+	for (const cost of rating.costs) {
+		const assumed = domains.map(row => row.slice());
+		assumed[cost.row][cost.symbol] = 1 << cost.column;
+		const start = candidates(assumed), work = { passes: 0 };
+		assert(!Logos.cluesAllow(puzzle, puzzle.clues, assumed, work));
+		assert(cost.eliminations === start - candidates(assumed));
+		assert(cost.passes === work.passes && cost.passes > 0);
+		const remaining = candidates(domains);
+		domains[cost.row][cost.symbol] &= ~(1 << cost.column);
+		assert(Logos.cluesAllow(puzzle, puzzle.clues, domains));
+		assert(cost.progress === remaining - candidates(domains));
+	}
+	assert(candidates(domains) === 36);
+	const options = { measureCost: true, route: 3 };
+	assert(JSON.stringify(Logos.traceExtremeDifficulty(puzzle, 10000, options)) ===
+		JSON.stringify(Logos.traceExtremeDifficulty(puzzle, 10000, options)));
+	const incomplete = Logos.traceExtremeDifficulty(puzzle, 0, options);
+	assert(!incomplete.complete && incomplete.costs.length === 0);
+	assert(puzzleSignature(puzzle) === before);
 });
 
 Deno.test("extreme Options ratings stay tied to the original seed after clue assistance", function() {
@@ -6398,13 +6435,13 @@ Deno.test("extreme Options ratings stay tied to the original seed after clue ass
 	puzzle.options.hidden = true;
 	puzzle.toggleOptions();
 	const display = puzzle.options.querySelector("#seed-difficulty");
-	assert(display.innerHTML === "Extreme " + Logos.extremeSkulls({ complete: true, bottlenecks: 4 }));
-	assert(display.title.includes("4 estimated bottlenecks") && !display.disabled);
+	assert(display.innerHTML === "Extreme " + Logos.extremeSkulls({ complete: true, skulls: 1 }));
+	assert(display.title.includes("Extreme score: 1375") && !display.disabled);
 	const rating = puzzle.extremeDifficulty();
 	const missing = puzzle.originalClues.findIndex(clue => !puzzle.clues.includes(clue));
 	puzzle.revealExtremeClue(missing, false);
 	puzzle.updateSeedDifficulty();
-	assert(puzzle.extremeDifficulty() === rating && display.innerHTML.includes('aria-label="4 skulls"'));
+	assert(puzzle.extremeDifficulty() === rating && display.innerHTML.includes('aria-label="1 skull"'));
 	puzzle.analysisUnlocked = false;
 	puzzle.openAnalysis();
 	puzzle.openAnalysis();
@@ -6412,7 +6449,7 @@ Deno.test("extreme Options ratings stay tied to the original seed after clue ass
 	puzzle.openAnalysis();
 	assert(!puzzle.analysis.hidden && puzzle.analysisUnlocked);
 	localStorage.removeItem("analysisUnlocked");
-	assert(puzzle.analysis.querySelector(".analysis-summary").textContent.includes("Estimated bottlenecks: 4"));
+	assert(puzzle.analysis.querySelector(".analysis-summary").textContent.includes("Mean bottlenecks: 4.0"));
 	puzzle.newGame(0xd40791eb, false, false, true);
 	assert(puzzle.extremeDifficulty().bottlenecks === 1);
 	puzzle.stopTimer();
