@@ -16,6 +16,16 @@ function normalizePlayerName(name, fallback) {
 	return name || fallback;
 }
 
+const playerColors = ["#2374b8", "#a84391", "#25866a", "#c26920", "#6754b3", "#ac4242", "#36858e", "#827028"];
+function playerColor(player = {}) {
+	const color = Number.isInteger(player.color) ? player.color : 0;
+	return playerColors[color] || `hsl(${color * 137.508 % 360} 55% 40%)`;
+}
+
+function isChalkAction(action) {
+	return action?.type == "chalk" || action?.type == "chalk-clear";
+}
+
 var recentActionLimit = 12;
 
 function copyMessage(message) {
@@ -49,7 +59,12 @@ function applicableAction(puzzle, action) {
 		return Number.isInteger(action.clue) &&
 			typeof action.active == "boolean" &&
 			!!puzzle.clues[action.clue]?.display;
-	if (action.type != "place" && action.type != "remove")
+	if (action.type == "chalk-clear")
+		return !puzzle.gameOver && !puzzle.paused && !puzzle.proof;
+	if (action.type == "chalk" &&
+	    !["select", "remove", "erase"].includes(action.mark))
+		return false;
+	if (action.type != "chalk" && action.type != "place" && action.type != "remove")
 		return false;
 	var slot = slotForAction(puzzle, action);
 	return !!slot && !puzzle.gameOver && !puzzle.paused && !puzzle.proof &&
@@ -57,7 +72,16 @@ function applicableAction(puzzle, action) {
 		!slot.single && slot.possible[action.value];
 }
 
-function applyAction(puzzle, action, playerAction) {
+function applyAction(puzzle, action, playerAction, actor, actorColor) {
+	if (action.type == "chalk-clear") {
+		puzzle.clearPencilMarks();
+		if (puzzle.expandedSlot)
+			puzzle.renderSlotTray();
+		return;
+	}
+	if (action.type == "chalk")
+		return puzzle.setPencilMark(slotForAction(puzzle, action), action.value,
+			action.mark, actor, actorColor);
 	if (action.type == "hint") {
 		puzzle.practiceMode = true;
 		puzzle.scoreEligible = false;
@@ -145,11 +169,22 @@ class MultiplayerSession {
 		this.runId = crypto.randomUUID();
 		this.participatingRunId = this.runId;
 		this.gamePlayers = new Map(this.players.map(player => [player.id, player.name]));
+		for (const mark of puzzle.pencilMarks) {
+			mark.actor = this.playerId;
+			mark.color = playerColor(this.players[0]);
+		}
+		for (const row of puzzle.rows)
+			puzzle.renderPencilMarks(row);
 		this.initialPosition = {
 			rows: puzzle.rows.map(row => row.slots.map(slot => ({
 				single: slot.single, possible: slot.possible.slice(),
 			}))),
 			clues: puzzle.clues.map(clue => !!clue.active),
+			chalk: puzzle.pencilMarks.map(mark => ({
+				...actionFromSlot(puzzle, mark.slot, mark.value, "chalk"),
+				mark: mark.discard ? "remove" : "select",
+				actor: mark.actor, color: mark.color,
+			})),
 			practiceMode: puzzle.practiceMode,
 			continuedFromLoss: puzzle.continuedFromLoss,
 			nextMilestone: puzzle.nextMilestone,
@@ -185,6 +220,8 @@ class MultiplayerSession {
 		for (var [index, active] of position.clues.entries())
 			if (puzzle.clues[index].display)
 				puzzle.applyClueAction(puzzle.clues[index], active);
+		for (const mark of position.chalk || [])
+			applyAction(puzzle, mark, false, mark.actor, mark.color);
 		puzzle.practiceMode = position.practiceMode;
 		puzzle.continuedFromLoss = position.continuedFromLoss;
 		puzzle.nextMilestone = position.nextMilestone;
@@ -401,9 +438,16 @@ class MultiplayerSession {
 	requestTileAction(slot, value, type) {
 		if (this.role == "guest" && this.clock?.paused)
 			return false;
-		/* Tentative marks remain private to each player's board. */
-		if (type == "pencil-select" || type == "pencil-remove")
-			return this.puzzle.applyTileAction(slot, value, type);
+		if (type == "pencil-select" || type == "pencil-remove") {
+			const discard = type == "pencil-remove";
+			const existing = this.puzzle.pencilMarks.find(mark =>
+				mark.slot == slot && mark.value == value);
+			return this.requestAction({
+				...actionFromSlot(this.puzzle, slot, value, "chalk"),
+				mark: existing?.discard === discard ? "erase" :
+					discard ? "remove" : "select",
+			});
+		}
 		return this.requestAction(actionFromSlot(this.puzzle, slot, value, type));
 	}
 
@@ -472,17 +516,24 @@ class MultiplayerSession {
 				this.committedCommands.get(commandKey));
 			return true;
 		}
+		/* Chalk expresses intent, so independent concurrent edits can be ordered
+		 * even when their senders have not seen the latest revision yet.
+		 */
+		const revisionOK = isChalkAction(message.action) ?
+			Number.isInteger(message.expectedRevision) && message.expectedRevision >= 0 &&
+			message.expectedRevision <= this.revision : message.expectedRevision == this.revision;
 		if (message.gameId !== this.gameId ||
-		    message.expectedRevision != this.revision ||
+		    !revisionOK ||
 		    !applicableAction(this.puzzle, message.action)) {
 			this.reject(from, message.commandId, "stale-or-inapplicable");
 			return false;
 		}
 
+		const actorColor = playerColor(this.players.find(player => player.id == from));
 		this.updatingTimer = true;
 		try {
 			applyAction(this.puzzle, message.action,
-				message.action.type != "hint" || from == this.playerId);
+				message.action.type != "hint" || from == this.playerId, from, actorColor);
 		} finally {
 			this.updatingTimer = false;
 		}
@@ -492,6 +543,8 @@ class MultiplayerSession {
 			revision: ++this.revision,
 			commandId: message.commandId,
 			actor: from,
+			/* Preserve chalk colors even after their author leaves the roster. */
+			actorColor,
 			committedAt: Date.now(),
 			action: copyMessage(message.action),
 			clock: this.clockState(),
@@ -523,7 +576,7 @@ class MultiplayerSession {
 		this.updatingTimer = true;
 		try {
 			applyAction(this.puzzle, message.action,
-				message.actor == this.playerId);
+				message.actor == this.playerId, message.actor, message.actorColor);
 		} finally {
 			this.updatingTimer = false;
 		}
@@ -562,7 +615,8 @@ class MultiplayerSession {
 			session.restoreInitialPosition(message.initialPosition);
 			for (var i = 0; i < message.history.length; i++) {
 				applyAction(session.puzzle,
-					message.history[i].action, false);
+					message.history[i].action, false,
+					message.history[i].actor, message.history[i].actorColor);
 			}
 		});
 		this.seed = message.seed;
@@ -801,6 +855,7 @@ class InMemoryMultiplayerNetwork {
 
 Object.assign(globalThis.LogosFriends ||= {}, {
 	normalizePlayerName,
+	playerColor,
 	InMemoryMultiplayerNetwork,
 	MultiplayerSession,
 	actionFromSlot,

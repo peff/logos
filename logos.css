@@ -621,6 +621,7 @@ body[data-chalk-cursor="true"][data-discard-cursor="true"]:not([data-custom-curs
 :is(#board, #slot-tray) .pencil-selected,
 :is(#board, #slot-tray) .pencil-removed {
 	position: relative;
+	--chalk-colored: color-mix(in srgb, var(--chalk-author) 70%, white);
 }
 
 :is(#board, #slot-tray) .pencil-selected::after,
@@ -648,7 +649,7 @@ body[data-chalk-cursor="true"][data-discard-cursor="true"]:not([data-custom-curs
 
 :is(#board, #slot-tray) .pencil-removed.pencil-explicit::before,
 :is(#board, #slot-tray) .pencil-removed.pencil-explicit::after {
-	background-color: var(--chalk-mark);
+	background-color: var(--chalk-colored, var(--chalk-mark));
 	border: 0;
 	border-radius: 45%;
 	width: 2px;
@@ -667,7 +668,7 @@ body[data-chalk-cursor="true"][data-discard-cursor="true"]:not([data-custom-curs
 
 :is(#board, #slot-tray) .pencil-selected::after {
 	background: none;
-	border: 2px solid var(--chalk-mark);
+	border: 2px solid var(--chalk-colored, var(--chalk-mark));
 	border-radius: 48% 53% 46% 55%;
 	width: auto;
 	height: auto;

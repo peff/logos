@@ -203,20 +203,122 @@ Deno.test("an accepted mistake loses the multiplayer game for everyone", functio
 	stopAll(host, guest);
 });
 
-Deno.test("multiplayer pencil marks remain local", function() {
+Deno.test("multiplayer chalk shares attribution, replacement, erasure, and resync", function() {
 	const host = makeSession("host", "host");
 	const guest = makeSession("guest", "alice");
 	const network = new InMemoryMultiplayerNetwork(host.session);
-	host.session.start(0x31415926);
-	network.addGuest(guest.session);
+	try {
+		host.session.start(0x31415926);
+		network.addGuest(guest.session);
+		const slot = guest.puzzle.rows[0].slots[0];
+		const hostSlot = host.puzzle.rows[0].slots[0];
+		guest.puzzle.requestTileAction(slot, slot.value, "pencil-select");
+		for (const game of [host, guest]) {
+			const mark = game.puzzle.pencilMarks[0];
+			assert(mark.actor == "alice" && !mark.discard && mark.color,
+			       "shared chalk lost its author");
+			assert(mark.slot.possibilityElems[mark.value].style["--chalk-author"] == mark.color,
+			       "explicit mark was not colored");
+		}
+		host.puzzle.requestTileAction(hostSlot, slot.value, "pencil-remove");
+		assert(guest.puzzle.pencilMarks[0].actor == "host" &&
+		       guest.puzzle.pencilMarks[0].discard, "opposing mark did not replace ownership");
+		guest.session.receiveSync(host.session.syncMessage());
+		assert(guest.puzzle.pencilMarks[0].actor == "host" &&
+		       guest.puzzle.pencilMarks[0].color == host.puzzle.pencilMarks[0].color,
+		       "resync lost attribution");
+		guest.puzzle.requestTileAction(guest.puzzle.rows[0].slots[0], slot.value, "pencil-remove");
+		assert(!host.puzzle.pencilMarks.length, "guest could not erase another player's mark");
+		host.puzzle.requestTileAction(hostSlot, slot.value, "pencil-select");
+		guest.puzzle.eraseChalkMarks();
+		assert(!host.puzzle.pencilMarks.length && !guest.puzzle.pencilMarks.length,
+		       "eraser did not clear shared chalk");
+	} finally {
+		stopAll(host, guest);
+	}
+});
 
-	const slot = guest.puzzle.rows[0].slots[0];
-	guest.puzzle.requestTileAction(slot, slot.value, "pencil-select");
-	assert(guest.puzzle.pencilMarks.length == 1 &&
-	       host.puzzle.pencilMarks.length == 0 &&
-	       host.session.revision == 0 && guest.session.revision == 0,
-	       "a private pencil mark entered shared state");
-	stopAll(host, guest);
+Deno.test("concurrent chalk actions preserve intent and host ordering", function() {
+	const host = makeSession("host", "host");
+	const guest = makeSession("guest", "alice");
+	const network = new InMemoryMultiplayerNetwork(host.session);
+	try {
+		host.session.start(0x31415926);
+		network.addGuest(guest.session);
+		const queued = [];
+		guest.session.connectHost(message => queued.push(message));
+		const slot = guest.puzzle.rows[0].slots[0];
+		const hostSlot = host.puzzle.rows[0].slots[0];
+		guest.puzzle.requestTileAction(slot, slot.value, "pencil-select");
+		host.puzzle.requestTileAction(hostSlot, slot.value, "pencil-select");
+		host.session.receive("alice", queued.shift());
+		assert(host.puzzle.pencilMarks.length == 1 &&
+		       host.puzzle.pencilMarks[0].actor == "host" && host.session.revision == 2,
+		       "simultaneous circles erased or reassigned the first mark");
+		guest.puzzle.requestTileAction(slot, slot.value, "pencil-select");
+		host.puzzle.requestTileAction(hostSlot, slot.value, "pencil-select");
+		host.session.receive("alice", queued.shift());
+		assert(!host.puzzle.pencilMarks.length, "simultaneous erasures restored a mark");
+		guest.puzzle.requestTileAction(slot, slot.value, "pencil-remove");
+		host.puzzle.requestTileAction(hostSlot, slot.value, "pencil-select");
+		host.session.receive("alice", queued.shift());
+		assert(host.puzzle.pencilMarks[0].actor == "alice" &&
+		       host.puzzle.pencilMarks[0].discard, "later opposing mark did not win");
+		guest.puzzle.eraseChalkMarks();
+		host.puzzle.requestTileAction(hostSlot, slot.value, "pencil-select");
+		host.session.receive("alice", queued.shift());
+		assert(!host.puzzle.pencilMarks.length, "clear did not erase preceding marks");
+		guest.puzzle.requestTileAction(slot, slot.value, "pencil-select");
+		host.session.receive("alice", queued.shift());
+		assert(host.puzzle.pencilMarks[0].actor == "alice", "mark after clear was lost");
+		guest.session.receiveSync(host.session.syncMessage());
+		assert(guest.puzzle.pencilMarks[0].color == host.puzzle.pencilMarks[0].color,
+		       "replay changed first-writer attribution");
+	} finally {
+		stopAll(host, guest);
+	}
+});
+
+Deno.test("late joins retain chalk from players who have left", function() {
+	const host = makeSession("host", "host");
+	const guest = makeSession("guest", "alice");
+	const late = makeSession("guest", "bob");
+	const network = new InMemoryMultiplayerNetwork(host.session);
+	try {
+		host.session.start(0x31415926);
+		network.addGuest(guest.session);
+		const slot = guest.puzzle.rows[0].slots[0];
+		guest.puzzle.requestTileAction(slot, slot.value, "pencil-select");
+		const color = host.puzzle.pencilMarks[0].color;
+		host.session.removePeer("alice");
+		network.addGuest(late.session);
+		assert(late.puzzle.pencilMarks[0].actor == "alice" &&
+		       late.puzzle.pencilMarks[0].color == color,
+		       "late join lost a departed author's chalk color");
+		late.puzzle.requestTileAction(late.puzzle.rows[0].slots[0], slot.value, "place");
+		assert(!host.puzzle.pencilMarks.length && !late.puzzle.pencilMarks.length,
+		       "committing a tile left obsolete chalk");
+	} finally {
+		stopAll(host, guest, late);
+	}
+});
+
+Deno.test("hosting an existing game shares its chalk", function() {
+	const puzzle = makePuzzle(6, true, Logos.defaultSymbols);
+	puzzle.newGame(0x31415926);
+	const slot = puzzle.rows[0].slots[0];
+	puzzle.requestTileAction(slot, slot.value, "pencil-select");
+	const host = { puzzle, session: new MultiplayerSession(puzzle, {role: "host", playerId: "host"}) };
+	const guest = makeSession("guest", "alice");
+	try {
+		new InMemoryMultiplayerNetwork(host.session).addGuest(guest.session);
+		assert(guest.puzzle.pencilMarks.length == 1 && guest.puzzle.pencilMarks[0].actor == "host",
+		       "joining an existing game lost its chalk");
+		assert(guest.puzzle.pencilMarks[0].color == host.puzzle.pencilMarks[0].color,
+		       "adopted chalk colors differ");
+	} finally {
+		stopAll(host, guest);
+	}
 });
 
 Deno.test("the host's multiplayer rules override guest preferences", function() {

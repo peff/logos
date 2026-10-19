@@ -1761,6 +1761,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		if (this.gameOver || this.paused || this.proof ||
 		    !this.pencilMarks.length)
 			return;
+		if (this.actionController)
+			return this.actionController.requestAction({ type: "chalk-clear" });
 		this.clearPencilMarks();
 		if (this.expandedSlot)
 			this.renderSlotTray();
@@ -1996,6 +1998,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		for (var value = 0; value < this.slotTrayTiles.length; value++) {
 			var tile = this.slotTrayTiles[value];
 			tile.className = "slot-tray-symbol " + slot.row.familyClass;
+			var mark = this.pencilMarks.find(mark => mark.slot == slot && mark.value == value);
+			tile.style.setProperty("--chalk-author", mark?.color || "");
 			if (!slot.possible[value]) {
 				tile.className += " eliminated";
 				tile.disabled = true;
@@ -2028,21 +2032,19 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		if (this.gameOver || this.paused || this.proof || slot.single ||
 		    !slot.possible[value])
 			return;
-		var found = false;
-		for (var i = this.pencilMarks.length - 1; i >= 0; i--) {
-			var mark = this.pencilMarks[i];
-			if (mark.slot != slot || mark.value != value)
-				continue;
-			if (mark.discard == discard)
-				found = true;
-			this.pencilMarks.splice(i, 1);
-		}
-		if (!found)
-			this.pencilMarks.push({
-				slot: slot,
-				value: value,
-				discard: discard,
-			});
+		var existing = this.pencilMarks.find(mark => mark.slot == slot && mark.value == value);
+		this.setPencilMark(slot, value, existing?.discard === discard ? "erase" :
+			discard ? "remove" : "select");
+	}
+
+	this.setPencilMark = function(slot, value, kind, actor, color) {
+		var existing = this.pencilMarks.find(mark => mark.slot == slot && mark.value == value);
+		/* Repeated additions retain the original author's color. */
+		if (kind != "erase" && existing?.discard === (kind == "remove"))
+			return;
+		this.pencilMarks = this.pencilMarks.filter(mark => mark.slot != slot || mark.value != value);
+		if (kind != "erase")
+			this.pencilMarks.push({ slot, value, discard: kind == "remove", actor, color });
 		this.renderPencilMarks(slot.row);
 	}
 
@@ -5584,6 +5586,7 @@ function Row(puzzle, symbols, display, family) {
 					if (marks[i].slot != slot ||
 					    marks[i].value != value)
 						continue;
+					slot.possibilityElems[value].style.setProperty("--chalk-author", marks[i].color || "");
 					if (marks[i].discard)
 						removed = true;
 					else
@@ -5868,6 +5871,7 @@ function Slot(row, symbols, display) {
 			return;
 		for (var i = 0; i < this.possibilityElems.length; i++) {
 			var elem = this.possibilityElems[i];
+			elem.style.setProperty("--chalk-author", "");
 			var discarding = elem.classList.contains("discarding");
 			elem.className = this.possible[i] ? "possibility" :
 				"possibility dead-possibility" + (discarding ? " discarding" : "");

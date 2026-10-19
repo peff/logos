@@ -5,6 +5,7 @@ var {
 	WebRTCGuestTransport,
 	WebRTCHostTransport,
 	normalizePlayerName,
+	playerColor,
 } = globalThis.LogosFriends;
 
 var friendsMenu = document.querySelector("#online-menu");
@@ -33,11 +34,6 @@ var roomRenew = friendsMenu.querySelector("#friends-renew-room");
 var roomLink = "";
 
 /* Hover targets use puzzle coordinates, never screen pixels. */
-const hoverColors = ["#2374b8", "#a84391", "#25866a", "#c26920", "#6754b3", "#ac4242", "#36858e", "#827028"];
-function playerColor(player) {
-	const color = Number.isInteger(player.color) ? player.color : 0;
-	return hoverColors[color] || `hsl(${color * 137.508 % 360} 55% 40%)`;
-}
 const hoverElements = new Set();
 let hoverTarget = null;
 let sentHover = null;
