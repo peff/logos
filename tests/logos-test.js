@@ -2001,59 +2001,6 @@ Deno.test("pressing a clue highlights clues with shared symbols", function() {
 	       "repeated mouse clicks dismissed the clue");
 });
 
-Deno.test("clue tiles focus related clues and remaining board possibilities", function() {
-	const puzzle = makePuzzle(3);
-	function column(top, bottom) {
-		const clue = new ColumnClue(puzzle);
-		clue.tRow = puzzle.rows[top];
-		clue.bRow = puzzle.rows[bottom];
-		clue.col = 0;
-		clue.display = new FakeElement();
-		clue.active = true;
-		clue.render();
-		return clue;
-	}
-	const selected = column(0, 1);
-	const related = column(0, 2);
-	const other = column(1, 2);
-	puzzle.clues = [selected, related, other];
-	const symbol = puzzle.rows[0].slots[0];
-	const removed = puzzle.rows[0].slots[1];
-	removed.removePossible(symbol.value, true);
-	const tile = selected.display.children.find(elem => elem.clueSlot === symbol);
-	assert(tile, "clue tile has no symbol association");
-	const event = { button: 0, pointerId: 7, pointerType: "mouse",
-		target: { parentNode: tile }, preventDefault() {} };
-	selected.display.onpointerdown(event);
-	assert(tile.classList.contains("clue-highlight-tile") &&
-	       related.display.classList.contains("clue-highlight-related") &&
-	       !other.display.classList.contains("clue-highlight-related"),
-	       "tile press included clues sharing only the other tile");
-	for (const row of puzzle.rows) {
-		for (const slot of row.slots) {
-			for (let value = 0; value < slot.possibilityElems.length; value++)
-				assert(slot.possibilityElems[value].classList.contains("clue-highlight-tile") ==
-				       (row === symbol.row && value == symbol.value && slot.possible[value]),
-				       "board highlight included an unrelated or removed possibility");
-		}
-	}
-	selected.display.onpointerup(event);
-	assert(!tile.classList.contains("clue-highlight-tile") &&
-	       !symbol.possibilityElems[symbol.value].classList.contains("clue-highlight-tile"),
-	       "release left tile or board highlights behind");
-	symbol.displaySingle();
-	selected.display.onpointerdown({ ...event, target: selected.display });
-	assert(other.display.classList.contains("clue-highlight-related") &&
-	       symbol.singleElem.classList.contains("clue-highlight-tile") &&
-	       puzzle.rows[1].slots[0].possibilityElems[puzzle.rows[1].slots[0].value]
-		.classList.contains("clue-highlight-tile"),
-	       "background press did not include both symbols and filled tiles");
-	selected.display.onlostpointercapture();
-	assert(!symbol.singleElem.classList.contains("clue-highlight-tile") &&
-	       puzzle.clueHighlightedTiles.length == 0,
-	       "capture loss retained board highlights");
-});
-
 Deno.test("losing clue pointer capture clears highlights", function() {
 	const puzzle = makePuzzle(2);
 	const clue = new ColumnClue(puzzle);

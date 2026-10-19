@@ -6692,7 +6692,6 @@ function checkClueDisplay(clue, animate) {
 }
 
 function highlightCluesForSlots(puzzle, slots, selected) {
-	clearClueHighlights(puzzle);
 	for (var i = 0; i < puzzle.clues.length; i++) {
 		var clue = puzzle.clues[i];
 		if (!clue.display)
@@ -6708,30 +6707,11 @@ function highlightCluesForSlots(puzzle, slots, selected) {
 	}
 }
 
-function highlightRelatedClues(puzzle, selected, tile) {
-	var slots = tile ? [tile.clueSlot] : clueSlots(selected);
-	highlightCluesForSlots(puzzle, slots, selected);
-	var highlighted = puzzle.clueHighlightedTiles = [];
-	if (tile)
-		highlighted.push(tile);
-	for (var symbol of slots) {
-		for (var boardSlot of symbol.row.slots) {
-			if (boardSlot.single) {
-				if (boardSlot.value == symbol.value)
-					highlighted.push(boardSlot.singleElem);
-			} else if (boardSlot.possible[symbol.value]) {
-				highlighted.push(boardSlot.possibilityElems[symbol.value]);
-			}
-		}
-	}
-	for (var elem of highlighted)
-		elem.classList.add("clue-highlight-tile");
+function highlightRelatedClues(puzzle, selected) {
+	highlightCluesForSlots(puzzle, clueSlots(selected), selected);
 }
 
 function clearClueHighlights(puzzle) {
-	for (var elem of puzzle.clueHighlightedTiles || [])
-		elem.classList.remove("clue-highlight-tile");
-	puzzle.clueHighlightedTiles = [];
 	for (var i = 0; i < puzzle.clues.length; i++) {
 		if (puzzle.clues[i].display)
 			puzzle.clues[i].display.classList.remove(
@@ -6754,7 +6734,6 @@ function renderClue(puzzle, clue, slot, type, elements, horizontal) {
 		var elem = document.createElement(type);
 		var entry = elements[i];
 		if (entry.slot) {
-			elem.clueSlot = entry.slot;
 			elem.className = "tile " + entry.slot.row.familyClass;
 			renderTileSymbol(elem, entry.slot.symbol());
 		} else {
@@ -6851,7 +6830,6 @@ function renderClue(puzzle, clue, slot, type, elements, horizontal) {
 	slot.onpointerdown = function(ev) {
 		if (ev.isPrimary === false) {
 			clearHighlightDelay();
-			clearClueHighlights(puzzle);
 			if (press)
 				press.cancelled = true;
 			return;
@@ -6870,11 +6848,6 @@ function renderClue(puzzle, clue, slot, type, elements, horizontal) {
 		if (ev.button !== undefined && ev.button != 0)
 			return;
 		ev.preventDefault();
-		var tile = ev.target;
-		while (tile && tile != slot && !tile.clueSlot)
-			tile = tile.parentNode;
-		if (!tile?.clueSlot)
-			tile = null;
 		press = {
 			id: ev.pointerId,
 			x: ev.clientX,
@@ -6887,10 +6860,10 @@ function renderClue(puzzle, clue, slot, type, elements, horizontal) {
 			highlightTimer = setTimeout(function() {
 				highlightTimer = null;
 				if (press && !press.axis && !press.cancelled && !puzzle.proof)
-					highlightRelatedClues(puzzle, clue, tile);
+					highlightRelatedClues(puzzle, clue);
 			}, clueTouchHighlightDelay);
 		} else {
-			highlightRelatedClues(puzzle, clue, tile);
+			highlightRelatedClues(puzzle, clue);
 		}
 		if (slot.setPointerCapture)
 			slot.setPointerCapture(ev.pointerId);

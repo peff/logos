@@ -1,8 +1,5 @@
  - evaluate discard and clue-dismiss animations. Are they too busy?
    Should they be suppressed during auto-discard or auto-dismissal?
- - evaluate individual clue-tile selection and matching board highlights.
-   Does selecting one tile work well on small screens, where a finger may
-   cover multiple tiles? Would highlighting the whole clue feel better?
  - visual consistency; we've grown a few different "looks": stone
    buttons, the chronicle/howto gold navigation, and the daily's fancy
    card. Should we try to settle on a more consistent look? There are
