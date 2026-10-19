@@ -1631,26 +1631,19 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			this.hintNotice.querySelector(".modal-close").focus();
 			return;
 		}
-		if (this.hintRequest?.stalled && (stage >= 3 || !this.hintRequest.exploration)) {
-			var index = this.hintRequest.clueIndex;
-			if (this.actionController && !committed)
-				return this.actionController.requestAction({ type: "reveal-clue", clue: index });
-			this.revealExtremeClue(index);
-			return;
-		}
 		if (this.restoredClueHighlight)
 			this.clearHint();
 		if (this.actionController && !committed)
 			return this.actionController.requestAction({ type: "hint", stage });
 		if (this.hintRequest) {
-			if (this.hintRequest.stalled) {
+			if (this.hintRequest.stalled && stage < 3 && this.hintRequest.exploration) {
 				var exploration = this.hintRequest.exploration;
 				this.hintRequest.stage = 2;
 				this.showHintExplanation("Try placing " +
 					proofSymbolReference(this, exploration.row, exploration.symbol) +
 					" in column " + (exploration.column + 1) + " with chalk.");
 			} else {
-				this.showHint(stage);
+				this.showHint(this.hintRequest.stalled ? 3 : stage);
 			}
 			return;
 		}
@@ -1660,19 +1653,15 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		var step = nextHintStep(this, base, basePlacements);
 		if (!step) {
 			if (this.extreme) {
-				var index = this.extremeHintClue(base, basePlacements);
-				if (index >= 0) {
-					this.prepareHint();
-					var exploration = extremeExplorationHint(this, base);
-					this.hintRequest = { stalled: true, stage: 1, clueIndex: index, exploration };
-					this.showHintExplanation(exploration ? "Explore the possible positions of " +
-						proofSymbolReference(this, exploration.row, exploration.symbol) +
-						" with chalk." :
-						"No deduction available. Press Hint again for a clue.");
-					this.fadeMessage();
-				} else {
-					this.say("No deduction is available. All original clues are already revealed.");
-				}
+				this.prepareHint();
+				var exploration = extremeExplorationHint(this, base);
+				this.hintRequest = { stalled: true, stage: 1, exploration,
+					base, basePlacements, step: null };
+				this.showHintExplanation(exploration ? "Explore the possible positions of " +
+					proofSymbolReference(this, exploration.row, exploration.symbol) +
+					" with chalk." :
+					"No deduction available. Press Hint again for a walkthrough.");
+				this.fadeMessage();
 			} else {
 				console.log("No further deduction is available.");
 			}
@@ -1696,6 +1685,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.showHintExplanation = function(message) {
+		this.updateRevealClueControl(true);
 		this.proofControls.classList.add("hint-explanation");
 		this.proofControls.hidden = false;
 		this.proofControls.querySelector(".proof-previous").disabled = true;
@@ -1705,18 +1695,29 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			this.proofControls.querySelector(".proof-deduction"), message, false);
 	}
 
-	this.extremeHintClue = function(domains, placements) {
+	this.updateRevealClueControl = function(available) {
+		this.proofControls.querySelector(".proof-reveal").hidden =
+			!available || !this.extreme ||
+			!this.originalClues.some(clue => !this.clues.includes(clue));
+	}
+
+	this.requestExtremeClue = function() {
+		if (!this.extreme || this.gameOver || this.paused ||
+		    !(this.hintRequest || this.proof?.hint))
+			return;
+		/* Choose for the player's real position, not a hypothetical proof frame. */
+		var domains = domainsFromSlots(this);
+		var placements = proofPlacementsFromSlots(this);
 		var removed = this.originalClues.filter(clue => !this.clues.includes(clue));
 		var step = nextHintStep(this, domains, placements, removed);
-		if (step?.clues?.length)
-			return this.originalClues.indexOf(step.clues[0]);
-		/* Removed givens are not displayed clues, but can reveal a tile. */
-		for (var clue of removed) {
-			var trial = copyDomains(domains);
-			if (clue.constrain(trial, (1 << this.rows[0].slots.length) - 1))
-				return this.originalClues.indexOf(clue);
-		}
-		return removed.length ? this.originalClues.indexOf(removed[0]) : -1;
+		var clue = step?.clues?.[0] || removed.find(clue =>
+			clue.constrain(copyDomains(domains), (1 << this.rows[0].slots.length) - 1)) || removed[0];
+		if (!clue)
+			return;
+		var index = this.originalClues.indexOf(clue);
+		if (this.actionController)
+			return this.actionController.requestAction({ type: "reveal-clue", clue: index });
+		this.revealExtremeClue(index);
 	}
 
 	this.revealExtremeClue = function(index, assist = true) {
@@ -1800,7 +1801,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 				this.showHintExplanation(step.message);
 			return;
 		}
-		var steps = buildHintSteps(this, step);
+		var steps = buildHintSteps(this, step, request.base, request.basePlacements);
 		if (!steps.length)
 			return;
 		steps[steps.length - 1].conclusion = true;
@@ -1838,6 +1839,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.openProofDisplay = function() {
+		this.updateRevealClueControl(this.proof.hint);
 		this.updateChalkControls();
 		this.proofControls.hidden = false;
 		document.body.classList.add("proof-active");

@@ -171,6 +171,11 @@
 				<div class="proof-step">
 					<div class="proof-position"></div>
 					<div class="proof-deduction"></div>
+					<div class="proof-alternative">Or
+						<button class="proof-reveal" type="button" hidden
+						        onClick="puzzle.requestExtremeClue()"
+						        title="Restore a removed clue to simplify this puzzle">reveal another clue</button>.
+					</div>
 				</div>
 				<button class="proof-next" type="button"
 				        onClick="puzzle.moveProof(1)"

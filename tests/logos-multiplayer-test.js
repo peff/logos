@@ -1569,7 +1569,12 @@ Deno.test("extreme clue assistance is shared and survives adoption, late joins a
 		assert(guest.puzzle.hintRequest.stage === 2 && !host.puzzle.hintRequest);
 		assert(host.session.history.at(-1).action.type === "hint" && host.puzzle.clues.length === count);
 		guest.puzzle.explainLoss();
-		assert(host.session.history.at(-1).action.type === "reveal-clue");
+		assert(host.session.history.at(-1).action.type === "hint");
+		assert(guest.puzzle.proof && !host.puzzle.proof);
+		assert(guest.puzzle.proof.steps.at(-1).placements.every(bits => bits === 63));
+		assert(host.puzzle.clues.length === count && !guest.puzzle.revealedClues.length);
+		guest.puzzle.requestExtremeClue();
+		assert(!guest.puzzle.proof);
 		network.addGuest(late.session);
 		guest.session.requestSync();
 		for (const game of [host, guest, late]) {

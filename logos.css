@@ -790,6 +790,30 @@ body[data-chalk-cursor="true"][data-discard-cursor="true"]:not([data-custom-curs
 	text-align: center;
 }
 
+.proof-alternative {
+	font: 0.6rem/1.15 Georgia, "Times New Roman", serif;
+}
+
+.proof-alternative:has(.proof-reveal[hidden]) {
+	display: none;
+}
+
+.proof-step:has(.proof-reveal:not([hidden])) .proof-deduction {
+	height: 1.65rem;
+}
+
+#proof-controls .proof-reveal {
+	padding: 0;
+	border: 0;
+	background: none;
+	box-shadow: none;
+	color: #74191d;
+	font: 0.6rem/1.15 Georgia, "Times New Roman", serif;
+	text-shadow: none;
+	text-decoration: underline;
+	text-underline-offset: 0.1em;
+}
+
 .proof-position {
 	color: #74191d;
 	font: 600 0.62rem/1 Forum, Georgia, serif;

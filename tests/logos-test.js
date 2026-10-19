@@ -6223,52 +6223,98 @@ function exhaustPuzzleDeductions(puzzle) {
 }
 export { exhaustPuzzleDeductions };
 
-Deno.test("stalled extreme hints suggest a symbol, then a column, then restore a clue", function() {
+Deno.test("stalled extreme hints suggest a symbol, then a column, then explain the proof", function() {
+	for (const seed of [0, 0x3c5]) {
+		const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
+		puzzle.newGame(seed, false, false, true);
+		puzzle.hintAcknowledged = true;
+		exhaustPuzzleDeductions(puzzle);
+		const before = JSON.stringify(puzzle.positionSnapshot());
+		const count = puzzle.clues.length;
+		puzzle.say = function() {};
+		puzzle.explainLoss();
+		const suggestion = Logos.extremeExplorationHint(puzzle, puzzle.positionSnapshot().domains);
+		const explanation = puzzle.proofControls.querySelector(".proof-deduction");
+		assert(!puzzle.proofControls.hidden && puzzle.proofControls.classList.contains("hint-explanation"));
+		assert(explanation.textContent === "Explore the possible positions of " +
+			puzzle.rows[suggestion.row].slots[0].symbols[suggestion.symbol] +
+			" with chalk.");
+		const tile = explanation.children[0].children[1];
+		assert(tile.className === "proof-tile " + puzzle.rows[suggestion.row].familyClass);
+		assert(tile.textContent === puzzle.rows[suggestion.row].slots[0].symbols[suggestion.symbol]);
+		assert(puzzle.practiceMode && puzzle.timerTimeout === null);
+		assert(puzzle.hintRequest.stalled && puzzle.clues.length === count);
+		assert(JSON.stringify(puzzle.positionSnapshot()) === before);
+		puzzle.explainLoss();
+		assert(puzzle.hintRequest.stage === 2 && puzzle.clues.length === count);
+		assert(explanation.textContent === "Try placing " +
+			puzzle.rows[suggestion.row].slots[0].symbols[suggestion.symbol] +
+			" in column " + (suggestion.column + 1) + " with chalk.");
+		assert(explanation.children[0].children[1].className === tile.className);
+		assert(JSON.stringify(puzzle.positionSnapshot()) === before);
+		puzzle.explainLoss();
+		assert(puzzle.proof && puzzle.proof.steps.some(step => step.lemmaStage === "start"));
+		assert(puzzle.proof.steps.at(-1).placements.every(bits => bits === 63));
+		assert(!puzzle.hintRequest && puzzle.practiceMode && !puzzle.scoreEligible);
+		assert(puzzle.clues.length === count && !puzzle.revealedClues.length);
+		assert(JSON.stringify(puzzle.positionSnapshot()) === before);
+		puzzle.closeProof();
+		assert(JSON.stringify(puzzle.positionSnapshot()) === before);
+		puzzle.stopTimer();
+	}
+});
+
+Deno.test("stalled hints without a chalk suggestion show an incomplete walkthrough", function() {
 	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
 	puzzle.newGame(0, false, false, true);
+	// No clues means neither ordinary deductions nor failed assumptions.
+	puzzle.clues = [];
+	for (const row of puzzle.rows) for (const slot of row.slots) {
+		slot.single = false;
+		slot.possible = Array(6).fill(true);
+		slot.displayPossible();
+	}
 	puzzle.hintAcknowledged = true;
-	exhaustPuzzleDeductions(puzzle);
 	const before = JSON.stringify(puzzle.positionSnapshot());
-	const count = puzzle.clues.length;
-	puzzle.say = function() {};
 	puzzle.explainLoss();
-	const suggestion = Logos.extremeExplorationHint(puzzle, puzzle.positionSnapshot().domains);
-	const explanation = puzzle.proofControls.querySelector(".proof-deduction");
-	assert(!puzzle.proofControls.hidden && puzzle.proofControls.classList.contains("hint-explanation"));
-	assert(explanation.textContent === "Explore the possible positions of " +
-		puzzle.rows[suggestion.row].slots[0].symbols[suggestion.symbol] +
-		" with chalk.");
-	const tile = explanation.children[0].children[1];
-	assert(tile.className === "proof-tile " + puzzle.rows[suggestion.row].familyClass);
-	assert(tile.textContent === puzzle.rows[suggestion.row].slots[0].symbols[suggestion.symbol]);
-	assert(puzzle.practiceMode && puzzle.timerTimeout === null);
-	assert(puzzle.hintRequest.stalled && puzzle.clues.length === count);
+	assert(puzzle.hintRequest.stalled && !puzzle.hintRequest.exploration);
+	puzzle.explainLoss();
+	assert(puzzle.proof && puzzle.proof.steps.at(-1).stalled);
+	assert(!puzzle.revealedClues.length);
 	assert(JSON.stringify(puzzle.positionSnapshot()) === before);
-	const index = puzzle.hintRequest.clueIndex;
-	puzzle.explainLoss();
-	assert(puzzle.hintRequest.stage === 2 && puzzle.clues.length === count);
-	assert(explanation.textContent === "Try placing " +
-		puzzle.rows[suggestion.row].slots[0].symbols[suggestion.symbol] +
-		" in column " + (suggestion.column + 1) + " with chalk.");
-	assert(explanation.children[0].children[1].className === tile.className);
-	assert(JSON.stringify(puzzle.positionSnapshot()) === before);
-	puzzle.explainLoss();
-	assert(puzzle.clues.length === count + 1 && puzzle.revealedClues[0] === index);
-	assert(!puzzle.hintRequest && puzzle.practiceMode && !puzzle.scoreEligible);
-	assert(puzzle.proofControls.hidden);
-	assert(puzzle.clues.includes(puzzle.originalClues[index]));
-	const position = puzzle.positionSnapshot();
-	assert(position.revealedClues[0] === index);
-	assert(Logos.nextHintStep(puzzle, position.domains, position.placements));
-	puzzle.saveDailyReturn();
-	const saved = puzzle.dailyReturn;
-	puzzle.newGame(1);
-	puzzle.dailyReturn = saved;
-	puzzle.restoreDailyReturn();
-	assert(JSON.stringify(puzzle.positionSnapshot()) === JSON.stringify(position));
-	assert(puzzle.clues.length === count + 1);
-	puzzle.newGame(0, false, false, true);
-	assert(!puzzle.revealedClues.length && puzzle.clues.length === count);
+	puzzle.closeProof();
+	puzzle.stopTimer();
+});
+
+Deno.test("extreme hints offer clue revelation separately from the walkthrough", function() {
+	for (const walkthrough of [false, true]) {
+		const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
+		puzzle.newGame(0x3c5, false, false, true);
+		puzzle.hintAcknowledged = true;
+		exhaustPuzzleDeductions(puzzle);
+		puzzle.explainLoss();
+		const button = puzzle.proofControls.querySelector(".proof-reveal");
+		assert(!button.hidden);
+		if (walkthrough) {
+			puzzle.explainLoss();
+			puzzle.explainLoss();
+			puzzle.moveProof(2);
+			assert(puzzle.proof && !button.hidden);
+		}
+		const count = puzzle.clues.length;
+		puzzle.requestExtremeClue();
+		assert(puzzle.clues.length === count + 1 && puzzle.revealedClues.length === 1);
+		assert(!puzzle.proof && !puzzle.hintRequest);
+		puzzle.stopTimer();
+	}
+	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
+	puzzle.newGame(0);
+	puzzle.updateRevealClueControl(true);
+	assert(puzzle.proofControls.querySelector(".proof-reveal").hidden);
+	puzzle.extreme = true;
+	puzzle.originalClues = puzzle.clues.slice();
+	puzzle.updateRevealClueControl(true);
+	assert(puzzle.proofControls.querySelector(".proof-reveal").hidden);
 	puzzle.stopTimer();
 });
 
