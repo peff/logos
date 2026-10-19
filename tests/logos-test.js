@@ -140,7 +140,7 @@ Object.defineProperty(globalThis, "localStorage", { value: {
 const source = await Deno.readTextFile(
 	new URL("../logos.js", import.meta.url));
 const Logos = eval(source +
-	"\n;({ measureExtremeDifficulty, extremeSkulls, countSolutions, cluesSolve, cluesAllow, extremeClueIndices, puzzleDifficulty, difficultyRating, puzzleFromSeed, " +
+	"\n;({ measureExtremeDifficulty, extremeSkulls, countSolutions, cluesSolve, cluesAllow, extremeExplorationHint, extremeClueIndices, puzzleDifficulty, difficultyRating, puzzleFromSeed, " +
 	"difficultyOpportunities, placementDifficultyChoices, nextHintStep, buildHintSteps, measureDifficulty, hasRunDifficulty, " +
 	"Puzzle: Puzzle, ExactClue: ExactClue, " +
 	"Adjacent2Clue: Adjacent2Clue, " +
@@ -5334,6 +5334,32 @@ Deno.test("hints preserve the live board and continue in Zen", function() {
 	puzzle.say("");
 });
 
+Deno.test("expanded extreme hints show deductions up to the stall without Q.E.D.", function() {
+	localStorage.setItem("hintAcknowledged", "true");
+	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
+	puzzle.say = function() {};
+	puzzle.newGame(0x0e2b42be, false, false, true);
+	const before = JSON.stringify(puzzle.positionSnapshot());
+	puzzle.explainLoss();
+	const first = puzzle.hintRequest.step;
+	assert(first, "expected an ordinary deduction before the stall");
+	puzzle.explainLoss();
+	puzzle.explainLoss();
+	assert(puzzle.proof && puzzle.proof.steps[0] === first);
+	const last = puzzle.proof.steps.at(-1);
+	assert(last.stalled && last.conclusion &&
+	       !last.placements.every(bits => bits == 63));
+	assert(!Logos.nextHintStep(puzzle, last.domains, last.placements));
+	while (puzzle.proof.position < puzzle.proof.steps.length)
+		puzzle.moveProof(1);
+	const message = puzzle.proofControls.querySelector(".proof-deduction").textContent;
+	assert(message.includes("chalk") && !message.includes("Q.E.D."));
+	puzzle.closeProof();
+	assert(!puzzle.pendingProof && JSON.stringify(puzzle.positionSnapshot()) == before,
+	       "partial walkthrough changed the live board");
+	puzzle.stopTimer();
+});
+
 Deno.test("expanded hints keep the first step while choosing a shorter continuation", function() {
 	localStorage.setItem("hintAcknowledged", "true");
 	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
@@ -5923,6 +5949,134 @@ Deno.test("extreme links, restarts and position copies preserve the mode", async
 	}
 });
 
+
+function exhaustPuzzleDeductions(puzzle) {
+	let { domains, placements } = puzzle.positionSnapshot();
+	let step;
+	while ((step = Logos.nextHintStep(puzzle, domains, placements))) {
+		domains = step.domains;
+		placements = step.placements;
+	}
+	for (let r = 0; r < puzzle.rows.length; r++) {
+		for (let c = 0; c < puzzle.rows[r].slots.length; c++) {
+			const slot = puzzle.rows[r].slots[c];
+			slot.possible = domains[r].map(bits => !!(bits & (1 << c)));
+			if (placements[r] & (1 << slot.value))
+				slot.displaySingle();
+			else
+				slot.displayPossible();
+		}
+	}
+}
+export { exhaustPuzzleDeductions };
+
+Deno.test("stalled extreme hints suggest a symbol, then a column, then restore a clue", function() {
+	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
+	puzzle.newGame(0, false, false, true);
+	puzzle.hintAcknowledged = true;
+	exhaustPuzzleDeductions(puzzle);
+	const before = JSON.stringify(puzzle.positionSnapshot());
+	const count = puzzle.clues.length;
+	puzzle.say = function() {};
+	puzzle.explainLoss();
+	const suggestion = Logos.extremeExplorationHint(puzzle, puzzle.positionSnapshot().domains);
+	const explanation = puzzle.proofControls.querySelector(".proof-deduction");
+	assert(!puzzle.proofControls.hidden && puzzle.proofControls.classList.contains("hint-explanation"));
+	assert(explanation.textContent === "Explore the possible positions of " +
+		puzzle.rows[suggestion.row].slots[0].symbols[suggestion.symbol] +
+		" with chalk.");
+	const tile = explanation.children[0].children[1];
+	assert(tile.className === "proof-tile " + puzzle.rows[suggestion.row].familyClass);
+	assert(tile.textContent === puzzle.rows[suggestion.row].slots[0].symbols[suggestion.symbol]);
+	assert(puzzle.practiceMode && puzzle.timerTimeout === null);
+	assert(puzzle.hintRequest.stalled && puzzle.clues.length === count);
+	assert(JSON.stringify(puzzle.positionSnapshot()) === before);
+	const index = puzzle.hintRequest.clueIndex;
+	puzzle.explainLoss();
+	assert(puzzle.hintRequest.stage === 2 && puzzle.clues.length === count);
+	assert(explanation.textContent === "Try placing " +
+		puzzle.rows[suggestion.row].slots[0].symbols[suggestion.symbol] +
+		" in column " + (suggestion.column + 1) + " with chalk.");
+	assert(explanation.children[0].children[1].className === tile.className);
+	assert(JSON.stringify(puzzle.positionSnapshot()) === before);
+	puzzle.explainLoss();
+	assert(puzzle.clues.length === count + 1 && puzzle.revealedClues[0] === index);
+	assert(!puzzle.hintRequest && puzzle.practiceMode && !puzzle.scoreEligible);
+	assert(puzzle.proofControls.hidden);
+	assert(puzzle.clues.includes(puzzle.originalClues[index]));
+	const position = puzzle.positionSnapshot();
+	assert(position.revealedClues[0] === index);
+	assert(Logos.nextHintStep(puzzle, position.domains, position.placements));
+	puzzle.saveDailyReturn();
+	const saved = puzzle.dailyReturn;
+	puzzle.newGame(1);
+	puzzle.dailyReturn = saved;
+	puzzle.restoreDailyReturn();
+	assert(JSON.stringify(puzzle.positionSnapshot()) === JSON.stringify(position));
+	assert(puzzle.clues.length === count + 1);
+	puzzle.newGame(0, false, false, true);
+	assert(!puzzle.revealedClues.length && puzzle.clues.length === count);
+	puzzle.stopTimer();
+});
+
+Deno.test("extreme chalk suggestions prefer contradictions that unlock placements", function() {
+	for (const seed of [1, 0xd40791eb]) {
+		const puzzle = Logos.puzzleFromSeed(seed);
+		puzzle.clues = Logos.extremeClueIndices(puzzle).map(index => puzzle.clues[index]);
+		const domains = puzzle.rows.map(row => row.slots.map(() => 63));
+		assert(Logos.cluesAllow(puzzle, puzzle.clues, domains));
+		const before = JSON.stringify(domains);
+		const suggestion = Logos.extremeExplorationHint(puzzle, domains);
+		assert(suggestion && suggestion.gain > 0);
+		assert(JSON.stringify(domains) === before, "search changed the player's position");
+		const trial = domains.map(row => row.slice());
+		trial[suggestion.row][suggestion.symbol] = 1 << suggestion.column;
+		assert(!Logos.cluesAllow(puzzle, puzzle.clues, trial));
+		const count = data => data.flat().filter(bits => bits && !(bits & (bits - 1))).length;
+		let bestGain = 0;
+		for (let r = 0; r < 6; r++) for (let s = 0; s < 6; s++) {
+			const mask = domains[r][s];
+			if (!(mask & (mask - 1))) continue;
+			for (let c = 0; c < 6; c++) {
+				if (!(mask & (1 << c))) continue;
+				const trial = domains.map(row => row.slice());
+				trial[r][s] = 1 << c;
+				if (Logos.cluesAllow(puzzle, puzzle.clues, trial)) continue;
+				const after = domains.map(row => row.slice());
+				after[r][s] &= ~(1 << c);
+				assert(Logos.cluesAllow(puzzle, puzzle.clues, after));
+				bestGain = Math.max(bestGain, count(after) - count(domains));
+			}
+		}
+		assert(suggestion.gain === bestGain, "suggestion skipped a more productive contradiction");
+	}
+});
+
+Deno.test("restoring extreme clues fits the original layout and also restores culled givens", function() {
+	let givens = 0;
+	for (let seed = 0; seed < 5; seed++) {
+		const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
+		if (!puzzle.newGame(seed, false, false, true)) continue;
+		for (let i = 0; i < puzzle.originalClues.length; i++) {
+			const clue = puzzle.originalClues[i];
+			if (puzzle.clues.includes(clue)) continue;
+			assert(puzzle.revealExtremeClue(i));
+			assert(!puzzle.revealExtremeClue(i), "revealed a clue twice");
+			if (clue.applyInitialState) {
+				givens++;
+				assert(clue.slot.single);
+			} else {
+				assert(clue.display && clue.active);
+			}
+		}
+		assert(puzzle.clues.length === puzzle.originalClues.length);
+		assert(puzzle.numHClues <= puzzle.hClueSlots.length && puzzle.numVClues <= puzzle.vClueSlots.length);
+		puzzle.stopTimer();
+		puzzle.say("");
+	}
+	assert(givens > 0, "fixture must exercise a removed starting tile");
+});
+
 Deno.test("extreme skull ratings count bottlenecks and leave incomplete searches unrated", function() {
 	for (const [seed, count] of [[0xd40791eb, 1], [0xac185eca, 4]]) {
 		const puzzle = Logos.puzzleFromSeed(seed);
@@ -5937,4 +6091,31 @@ Deno.test("extreme skull ratings count bottlenecks and leave incomplete searches
 	}
 	assert(Logos.extremeSkulls({ complete: true, bottlenecks: 22 }).includes(" × 22"));
 	assert(!Logos.measureExtremeDifficulty({ rows: [{ slots: [{}, {}] }], clues: [] }).complete);
+});
+
+Deno.test("extreme Options ratings stay tied to the original seed after clue assistance", function() {
+	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
+	puzzle.newGame(0xac185eca, false, false, true);
+	puzzle.options.hidden = true;
+	puzzle.toggleOptions();
+	const display = puzzle.options.querySelector("#seed-difficulty");
+	assert(display.innerHTML === "Extreme " + Logos.extremeSkulls({ complete: true, bottlenecks: 4 }));
+	assert(display.title.includes("4 estimated bottlenecks") && !display.disabled);
+	const rating = puzzle.extremeDifficulty();
+	const missing = puzzle.originalClues.findIndex(clue => !puzzle.clues.includes(clue));
+	puzzle.revealExtremeClue(missing, false);
+	puzzle.updateSeedDifficulty();
+	assert(puzzle.extremeDifficulty() === rating && display.innerHTML.includes('aria-label="4 skulls"'));
+	puzzle.analysisUnlocked = false;
+	puzzle.openAnalysis();
+	puzzle.openAnalysis();
+	assert(puzzle.analysis.hidden && !puzzle.analysisUnlocked);
+	puzzle.openAnalysis();
+	assert(!puzzle.analysis.hidden && puzzle.analysisUnlocked);
+	localStorage.removeItem("analysisUnlocked");
+	assert(puzzle.analysis.querySelector(".analysis-summary").textContent.includes("Estimated bottlenecks: 4"));
+	puzzle.newGame(0xd40791eb, false, false, true);
+	assert(puzzle.extremeDifficulty().bottlenecks === 1);
+	puzzle.stopTimer();
+	puzzle.say("");
 });

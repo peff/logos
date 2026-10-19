@@ -498,6 +498,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.practiceMode = this.practiceModePreference;
 	this.continueAfterLoss = true;
 	this.scoreEligible = true;
+	this.revealedClues = [];
+	this.originalClues = [];
 	this.practiceMistake = null;
 	this.paused = false;
 	this.manualPaused = false;
@@ -660,6 +662,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 
 	this.clear = function() {
 		this.extreme = false;
+		this.originalClues = [];
+		this.revealedClues = [];
 		this.dailyReturn = null;
 		this.invitationDeclined = false;
 		this.daily = null;
@@ -720,6 +724,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.stopTimer();
 		this.dailyReturn = {
 			extreme: this.extreme,
+			revealedClues: this.revealedClues.slice(),
 			seed: this.seed,
 			symbols: this.symbols,
 			session: {
@@ -747,6 +752,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		 * identity. Slot objects themselves remain stable across games.
 		 */
 		this.newGame(saved.seed, true, false, saved.extreme);
+		for (var index of saved.revealedClues || [])
+			this.revealExtremeClue(index, false);
 		this.setSymbols(saved.symbols);
 		Object.assign(this, saved.session);
 		for (var [row, slots] of saved.rows.entries())
@@ -1286,6 +1293,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		return {
 			seed: formatSeed(this.seed),
 			extreme: !!this.extreme,
+			revealedClues: this.revealedClues.slice(),
 			generatorVersion: puzzleGeneratorVersion,
 			// Indexed by row, then symbol; bits identify possible columns.
 			domains: domainsFromSlots(this),
@@ -1549,10 +1557,25 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			this.hintNotice.querySelector(".modal-close").focus();
 			return;
 		}
+		if (this.hintRequest?.stalled && (stage >= 3 || !this.hintRequest.exploration)) {
+			var index = this.hintRequest.clueIndex;
+			this.revealExtremeClue(index);
+			return;
+		}
+		if (this.restoredClueHighlight)
+			this.clearHint();
 		if (this.actionController && !committed)
 			return this.actionController.requestAction({ type: "hint", stage });
 		if (this.hintRequest) {
-			this.showHint(stage);
+			if (this.hintRequest.stalled) {
+				var exploration = this.hintRequest.exploration;
+				this.hintRequest.stage = 2;
+				this.showHintExplanation("Try placing " +
+					proofSymbolReference(this, exploration.row, exploration.symbol) +
+					" in column " + (exploration.column + 1) + " with chalk.");
+			} else {
+				this.showHint(stage);
+			}
 			return;
 		}
 		var base = domainsFromSlots(this);
@@ -1560,9 +1583,32 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 
 		var step = nextHintStep(this, base, basePlacements);
 		if (!step) {
-			console.log("No further deduction is available.");
+			if (this.extreme) {
+				var index = this.extremeHintClue(base, basePlacements);
+				if (index >= 0) {
+					this.prepareHint();
+					var exploration = extremeExplorationHint(this, base);
+					this.hintRequest = { stalled: true, stage: 1, clueIndex: index, exploration };
+					this.showHintExplanation(exploration ? "Explore the possible positions of " +
+						proofSymbolReference(this, exploration.row, exploration.symbol) +
+						" with chalk." :
+						"No deduction available. Press Hint again for a clue.");
+					this.fadeMessage();
+				} else {
+					this.say("No deduction is available. All original clues are already revealed.");
+				}
+			} else {
+				console.log("No further deduction is available.");
+			}
 			return;
 		}
+		this.prepareHint();
+		this.hintRequest = { base, basePlacements, step, stage: 0 };
+		this.say("A little enlightenment. Consider the highlighted clue.");
+		this.showHint(stage);
+	}
+
+	this.prepareHint = function() {
 		if (this.proof)
 			this.closeProof();
 		this.clearPracticeMistake();
@@ -1571,9 +1617,64 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.scoreEligible = false;
 		this.stopTimer();
 		this.updatePauseControl();
-		this.hintRequest = { base, basePlacements, step, stage: 0 };
-		this.say("A little enlightenment. Consider the highlighted clue.");
-		this.showHint(stage);
+	}
+
+	this.showHintExplanation = function(message) {
+		this.proofControls.classList.add("hint-explanation");
+		this.proofControls.hidden = false;
+		this.proofControls.querySelector(".proof-previous").disabled = true;
+		this.proofControls.querySelector(".proof-next").disabled = true;
+		this.proofControls.querySelector(".proof-position").textContent = "Hint";
+		renderProofMessage(this,
+			this.proofControls.querySelector(".proof-deduction"), message, false);
+	}
+
+	this.extremeHintClue = function(domains, placements) {
+		var removed = this.originalClues.filter(clue => !this.clues.includes(clue));
+		var step = nextHintStep(this, domains, placements, removed);
+		if (step?.clues?.length)
+			return this.originalClues.indexOf(step.clues[0]);
+		/* Removed givens are not displayed clues, but can reveal a tile. */
+		for (var clue of removed) {
+			var trial = copyDomains(domains);
+			if (clue.constrain(trial, (1 << this.rows[0].slots.length) - 1))
+				return this.originalClues.indexOf(clue);
+		}
+		return removed.length ? this.originalClues.indexOf(removed[0]) : -1;
+	}
+
+	this.revealExtremeClue = function(index, assist = true) {
+		var clue = this.originalClues?.[index];
+		if (!this.extreme || !clue || this.clues.includes(clue))
+			return false;
+		this.clearHint();
+		this.clues.push(clue);
+		this.revealedClues.push(index);
+		if (clue.displayType) {
+			clue.display = clue.displayType == "horizontal" ?
+				this.getHClueSlot() : this.getVClueSlot();
+			clue.active = true;
+			checkClueDisplay(clue);
+		}
+		if (assist) {
+			if (this.proof)
+				this.closeProof();
+			this.clearPracticeMistake();
+			this.closeSlotTray();
+			this.practiceMode = true;
+			this.scoreEligible = false;
+			this.stopTimer();
+			this.updatePauseControl();
+			if (clue.applyInitialState)
+				clue.applyInitialState();
+			if (clue.display) {
+				clue.display.classList.add("hint-current");
+				this.restoredClueHighlight = clue;
+			}
+			this.say(clue.display ? "A removed clue has been revealed and highlighted." :
+				"A removed starting tile has been revealed.");
+		}
+		return true;
 	}
 
 	this.finishHintNotice = function(accept) {
@@ -1595,6 +1696,10 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.clearHint = function() {
+		if (this.restoredClueHighlight) {
+			this.restoredClueHighlight.display?.classList.remove("hint-current");
+			this.restoredClueHighlight = null;
+		}
 		if (this.pendingHint)
 			this.finishHintNotice(false);
 		if (!this.hintRequest)
@@ -1615,16 +1720,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		if (stage < 3) {
 			for (var clue of step.clues)
 				clue.display.classList.add("hint-current");
-			if (stage == 2) {
-				this.proofControls.classList.add("hint-explanation");
-				this.proofControls.hidden = false;
-				this.proofControls.querySelector(".proof-previous").disabled = true;
-				this.proofControls.querySelector(".proof-next").disabled = true;
-				this.proofControls.querySelector(".proof-position").textContent = "Hint";
-				renderProofMessage(this,
-					this.proofControls.querySelector(".proof-deduction"),
-					step.message, false);
-			}
+			if (stage == 2)
+				this.showHintExplanation(step.message);
 			return;
 		}
 		var steps = buildHintSteps(this, step);
@@ -1791,7 +1888,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 					this.proof.steps.length;
 			}
 			renderProofMessage(this, deductionElem, step.message,
-				step.conclusion, step.contradicts);
+				step.conclusion && !step.stalled, step.contradicts);
 			for (var i = 0; i < step.clues.length; i++)
 				step.clues[i].display.classList.add("proof-current");
 		}
@@ -2873,6 +2970,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.hClues.classList.remove("solution");
 		this.vClues.classList.remove("solution");
 		generatePuzzleClues(this, this.hClueSlots.length, this.vClueSlots.length);
+		this.originalClues = this.clues.slice();
+		this.revealedClues = [];
 		if (indices)
 			this.clues = indices.map(index => this.clues[index]);
 
@@ -3922,6 +4021,39 @@ function extremeSkulls(rating) {
 			skull.repeat(rating.bottlenecks)) + '</span>';
 }
 
+/* A single hypothetical placement followed by ordinary propagation can
+ * identify a productive symbol without exposing the failed column. Prefer
+ * trials whose rejection unlocks placements, then fewer propagation passes
+ * as a cheap approximation of a shorter argument. */
+function extremeExplorationHint(puzzle, domains) {
+	var best = null;
+	var before = difficultyPlacements(domains);
+	for (var row = 0; row < domains.length; row++) {
+		for (var symbol = 0; symbol < domains[row].length; symbol++) {
+			var choices = domains[row][symbol];
+			if ((choices & (choices - 1)) == 0)
+				continue;
+			for (var bits = choices; bits; bits &= bits - 1) {
+				var bit = bits & -bits;
+				var trial = copyDomains(domains);
+				trial[row][symbol] = bit;
+				var work = { passes: 0 };
+				if (cluesAllow(puzzle, puzzle.clues, trial, work))
+					continue;
+				var after = copyDomains(domains);
+				after[row][symbol] &= ~bit;
+				if (!cluesAllow(puzzle, puzzle.clues, after))
+					continue;
+				var gain = difficultyPlacements(after) - before;
+				if (!best || gain > best.gain ||
+				    gain == best.gain && work.passes < best.passes)
+					best = { row, symbol, column: Math.log2(bit), gain, passes: work.passes };
+			}
+		}
+	}
+	return best;
+}
+
 /* Count up to two solutions, branching on the smallest remaining domain.
  * A search budget keeps experimental generation bounded; null means that
  * uniqueness is unproven, so the caller must retain the clue. */
@@ -4174,13 +4306,15 @@ function propagatePencilRow(domains) {
 	return false;
 }
 
-function cluesAllow(puzzle, clues, domains) {
+function cluesAllow(puzzle, clues, domains, work = null) {
 	var numRows = puzzle.rows.length;
 	var rowSize = puzzle.rows[0].slots.length;
 	var fullDomain = (1 << rowSize) - 1;
 
 	var changed;
 	do {
+		if (work)
+			work.passes++;
 		changed = false;
 
 		/* Each column contains exactly one symbol from each row. */
@@ -5012,6 +5146,7 @@ function nextHintStep(puzzle, base, basePlacements, clues = puzzle.clues) {
 function buildHintSteps(puzzle, first) {
 	var full = (1 << puzzle.rows[0].slots.length) - 1;
 	var best = [];
+	var partial;
 	for (var route = 0; route < 10; route++) {
 		var clues = clueRouteOrder(puzzle.clues, route);
 		var steps = [first];
@@ -5019,11 +5154,22 @@ function buildHintSteps(puzzle, first) {
 		while ((next = nextHintStep(puzzle, next.domains,
 				next.placements, clues)))
 			steps.push(next);
+		if (!partial)
+			partial = steps;
 		if (steps[steps.length - 1].placements.every(bits => bits == full) &&
 		    (!best.length || steps.length < best.length))
 			best = steps;
 		if (best.length == 1)
 			break;
+	}
+	if (!best.length) {
+		best = partial;
+		var last = best[best.length - 1];
+		best.push({
+			domains: last.domains, placements: last.placements, clues: [],
+			conclusion: true, stalled: true,
+			message: "No further ordinary deductions. Explore with chalk to make more progress.",
+		});
 	}
 	return best;
 }
