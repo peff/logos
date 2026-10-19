@@ -5279,6 +5279,35 @@ function chalkContradiction(puzzle, domains) {
 	return null;
 }
 
+function chalkClueContradiction(puzzle, domains) {
+	var full = (1 << domains[0].length) - 1;
+	for (var clue of puzzle.clues) {
+		if (!clue.displayType)
+			continue;
+		var trial = copyDomains(domains);
+		clue.constrain(trial, full);
+		if (!trial.some(row => row.some(bits => !bits)))
+			continue;
+		var symbols = clueSlots(clue).map(slot =>
+			proofSymbolReference(puzzle, puzzle.rows.indexOf(slot.row), slot.value));
+		var reason;
+		if (clue.constructor == Adjacent3Clue)
+			reason = symbols[1] + " cannot fit between " + symbols[0] + " and " +
+				symbols[2] + " in three consecutive columns.";
+		else if (clue.constructor == Adjacent2Clue)
+			reason = symbols[0] + " and " + symbols[1] + " cannot be adjacent.";
+		else if (clue.constructor == ColumnClue)
+			reason = symbols[0] + " and " + symbols[1] + " cannot share a column.";
+		else if (clue.constructor == OrderClue)
+			reason = symbols[0] + " cannot be to the left of " + symbols[1] + ".";
+		else
+			continue;
+		return { clue, clues: clue.display ? [clue] : [],
+			lemmaStage: "contradiction", message: "Contradiction: " + reason };
+	}
+	return null;
+}
+
 /* A lemma has its own hypothetical snapshots. Only its final discard belongs
  * to the main route; none of the assumption's other consequences survive. */
 function buildChalkLemma(puzzle, base, basePlacements, trial) {
@@ -5318,6 +5347,11 @@ function buildChalkLemma(puzzle, base, basePlacements, trial) {
 		var contradiction = chalkContradiction(puzzle, domains);
 		if (contradiction) {
 			record({ clues: [], lemmaStage: "contradiction", message: contradiction });
+			break;
+		}
+		var clueContradiction = chalkClueContradiction(puzzle, domains);
+		if (clueContradiction) {
+			record(clueContradiction);
 			break;
 		}
 		var step = nextForcedProofStep(domains, placements) ||

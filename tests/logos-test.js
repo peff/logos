@@ -140,7 +140,7 @@ Object.defineProperty(globalThis, "localStorage", { value: {
 const source = await Deno.readTextFile(
 	new URL("../logos.js", import.meta.url));
 const Logos = eval(source +
-	"\n;({ measureExtremeDifficulty, extremeSkulls, countSolutions, cluesSolve, cluesAllow, buildChalkLemma, chalkContradiction, extremeExplorationHint, extremeClueIndices, puzzleDifficulty, difficultyRating, puzzleFromSeed, " +
+	"\n;({ measureExtremeDifficulty, extremeSkulls, countSolutions, cluesSolve, cluesAllow, buildChalkLemma, chalkContradiction, chalkClueContradiction, extremeExplorationHint, extremeClueIndices, puzzleDifficulty, difficultyRating, puzzleFromSeed, " +
 	"difficultyOpportunities, placementDifficultyChoices, nextHintStep, buildHintSteps, measureDifficulty, hasRunDifficulty, " +
 	"Puzzle: Puzzle, ExactClue: ExactClue, " +
 	"Adjacent2Clue: Adjacent2Clue, " +
@@ -5433,7 +5433,8 @@ Deno.test("chalk lemmas prove contradictions and retain only their final discard
 					assert(!Logos.cluesAllow(puzzle, puzzle.clues,
 					       step.domains.map(row => row.slice())));
 				} else if (step.lemmaStage == "contradiction") {
-					assert(Logos.chalkContradiction(puzzle, step.domains));
+					assert(Logos.chalkContradiction(puzzle, step.domains) ||
+					       Logos.chalkClueContradiction(puzzle, step.domains));
 					contradiction = true;
 				} else if (step.lemmaStage == "end") {
 					assert(contradiction, "lemma ended without a contradiction");
@@ -5450,6 +5451,37 @@ Deno.test("chalk lemmas prove contradictions and retain only their final discard
 		} finally {
 			puzzle.stopTimer();
 		}
+	}
+});
+
+Deno.test("chalk lemmas highlight an impossible clue before exhausting a domain", function() {
+	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
+	puzzle.say = function() {};
+	puzzle.newGame(0, false, false, true);
+	try {
+		puzzle.hintAcknowledged = true;
+		puzzle.hint(3);
+		const steps = puzzle.proof.steps;
+		const index = steps.findIndex(step => step.lemmaStage == "contradiction");
+		const step = steps[index];
+		assert(step.clue && step.clues[0] === step.clue);
+		assert(!Logos.chalkContradiction(puzzle, step.domains),
+		       "expected a clue contradiction before any row contradiction");
+		const constrained = step.domains.map(row => row.slice());
+		step.clue.constrain(constrained, 63);
+		assert(constrained.some(row => row.some(bits => bits === 0)));
+		assert(JSON.stringify(step.domains) === JSON.stringify(steps[index - 1].domains),
+		       "checking the clue applied hypothetical eliminations");
+		puzzle.moveProof(index + 1 - puzzle.proof.position);
+		assert(step.clue.display.classList.contains("proof-current"));
+		assert(puzzle.proofControls.querySelector(".proof-deduction").textContent.includes(
+		       "cannot fit between"));
+		puzzle.moveProof(1);
+		assert(!step.clue.display.classList.contains("proof-current"));
+		assert(steps.at(-1).placements.every(bits => bits === 63));
+		puzzle.closeProof();
+	} finally {
+		puzzle.stopTimer();
 	}
 });
 
