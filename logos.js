@@ -586,6 +586,12 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.actionController = null;
 	this.effectsSuppressed = false;
 	this.proof = null;
+	this.suppose = null;
+	this.supposeReplay = null;
+	this.supposeButton = document.querySelector("#suppose-button");
+	this.supposeTap = document.querySelector("#suppose-tap");
+	this.supposeFooter = document.querySelector("#suppose-footer");
+	this.supposeControls = document.querySelector("#suppose-controls");
 	this.pendingProof = null;
 	this.explainButton = document.querySelector("#explain-button");
 	this.explainButton.disabled = true;
@@ -661,6 +667,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.clear = function() {
+		this.cancelSupposeReplay();
+		this.leaveSuppose();
 		this.extreme = false;
 		this.originalClues = [];
 		this.revealedClues = [];
@@ -715,6 +723,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	 * not to any particular date. Transient explanations are dismissed.
 	 */
 	this.saveDailyReturn = function() {
+		this.leaveSuppose();
 		if (this.dailyReturn || this.actionController || this.gameOver ||
 		    this.pendingSeed !== undefined || this.seed === undefined)
 			return;
@@ -960,6 +969,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		var indices = extreme && seed !== null ? extremeClueIndices(puzzleFromSeed(seed)) : null;
 		if (extreme && !indices)
 			return false;
+		this.cancelSupposeReplay();
+		this.leaveSuppose();
 		this.clearHint();
 		if (seed !== null || !arguments.length)
 			this.beforeNewGame?.();
@@ -1318,6 +1329,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.openAnalysis = function() {
+		this.leaveSuppose();
 		var input = this.options.querySelector("#game-seed");
 		if (this.options.hidden || this.seed === undefined ||
 		    parseSeed(input.value.trim()) !== this.seed || this.pendingSeed !== undefined)
@@ -1627,6 +1639,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 
 	/* Reveal assistance in stages without applying moves to the board. */
 	this.hint = function(stage = 3, committed = false) {
+		if (this.suppose || this.supposeReplay)
+			return;
 		if (this.gameOver || this.pendingSeed !== undefined || this.paused) {
 			console.log("Start or resume a game before requesting a hint.");
 			return;
@@ -1873,6 +1887,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.openProofDisplay = function() {
+		this.leaveSuppose();
+		this.updateSupposeControls();
 		this.updateRevealClueControl(false);
 		this.updateChalkControls();
 		this.proofControls.hidden = false;
@@ -1940,6 +1956,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			}
 			this.renderPencilMarks(this.rows[i]);
 		}
+		if (this.suppose)
+			this.renderSuppose();
 	}
 
 	this.clearPracticeMistake = function() {
@@ -2029,6 +2047,282 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.showProofPosition();
 	}
 
+	/* A single-level, local exploration. All hypothetical moves stay in
+	 * domains; Slot.value and the committed board are never modified. */
+	this.enterSuppose = function(button) {
+		if (this.suppose || this.supposeReplay || this.actionController || this.gameOver || this.paused ||
+		    this.proof || this.pendingSeed !== undefined)
+			return;
+		this.supposeLauncher = button || this.supposeButton;
+		this.clearHint();
+		this.clearPracticeMistake();
+		this.closeSlotTray();
+		var base = domainsFromSlots(this);
+		this.suppose = { base, domains: copyDomains(base), assumption: null,
+			dismissed: [], history: [], position: -1, message: null };
+		this.saveSupposeStep();
+		document.body.classList.add("suppose-active");
+		this.updateSupposeControls();
+		this.updateChalkControls();
+		this.updateActionCursor();
+		this.renderSuppose();
+	}
+
+	this.updateSupposeControls = function() {
+		this.supposeButton.hidden = !!this.suppose || this.showActionSelector;
+		this.supposeTap.hidden = !!this.suppose || !this.showActionSelector;
+		this.supposeFooter.hidden = this.supposeButton.hidden;
+		for (var button of [this.supposeButton, this.supposeTap, this.supposeFooter]) {
+			button.disabled = !!(this.gameOver || this.paused || this.proof || this.supposeReplay ||
+				this.actionController || this.pendingSeed !== undefined);
+			button.setAttribute("aria-expanded", String(!!this.suppose));
+		}
+		this.supposeControls.hidden = !this.suppose;
+		if (this.suppose)
+			this.explainButton.disabled = true;
+	}
+
+	this.saveSupposeStep = function(move = null) {
+		var state = this.suppose;
+		state.history.length = state.position + 1;
+		state.history.push({ domains: copyDomains(state.domains),
+			assumption: state.assumption, dismissed: state.dismissed.slice(),
+			message: state.message, move });
+		state.position++;
+	}
+
+	this.applySupposeAction = function(slot, symbol, action) {
+		if (!this.suppose || this.paused || this.gameOver || slot.single)
+			return;
+		var row = this.rows.indexOf(slot.row), column = slot.row.slots.indexOf(slot);
+		var domains = this.suppose.domains, bit = 1 << column;
+		if (!(domains[row][symbol] & bit) || domains[row][symbol] === bit)
+			return;
+		var discard = action == "remove" || action == "pencil-remove";
+		var first = !this.suppose.assumption;
+		if (first)
+			this.suppose.assumption = { row, column, symbol, discard };
+		this.suppose.message = (first ? "Suppose " : discard ? "Discard " : "Place ") +
+			proofSymbolReference(this, row, symbol) +
+			(first ? (discard ? " is not in column " : " is in column ") :
+			 discard ? " from column " : " in column ") + (column + 1) + ".";
+		var before = domains[row].slice();
+		applyPencilMark(domains[row], { slot, value: symbol, discard });
+		propagatePencilRow(domains[row]);
+		var placed = domains[row].some((bits, v) => bits && !(bits & (bits - 1)) &&
+			bits != before[v]);
+		this.playSound(placed ? "place" : "discard");
+		this.dismissSupposeClues();
+		this.saveSupposeStep({ row, column, symbol, discard });
+		this.renderSuppose();
+	}
+
+	this.toggleSupposeClue = function(clue) {
+		if (this.paused || !this.suppose || !clue.active)
+			return;
+		var index = this.clues.indexOf(clue), dismissed = this.suppose.dismissed;
+		if (dismissed.includes(index))
+			this.suppose.dismissed = dismissed.filter(i => i !== index);
+		else {
+			dismissed.push(index);
+			this.playSound("clue");
+		}
+		/* Clue bookkeeping belongs to this position, not a new proof step. */
+		this.suppose.history[this.suppose.position].dismissed = this.suppose.dismissed.slice();
+		this.renderSuppose();
+	}
+
+	/* Only judge a clue once all of its symbols have been placed. */
+	this.supposeClueSatisfied = function(clue) {
+		var domains = this.suppose.domains;
+		var variables = clueSlots(clue).map(slot => ({
+			row: this.rows.indexOf(slot.row), symbol: slot.value,
+		}));
+		if (!variables.length || !variables.every(({ row, symbol }) => {
+			var bits = domains[row][symbol];
+			return bits && !(bits & (bits - 1));
+		}))
+			return null;
+		var trial = copyDomains(domains);
+		clue.constrain(trial, (1 << trial[0].length) - 1);
+		return variables.every(({ row, symbol }) => trial[row][symbol] != 0);
+	}
+
+	this.dismissSupposeClues = function() {
+		if (!this.autoDismissClues)
+			return;
+		var state = this.suppose;
+		for (var [index, clue] of this.clues.entries()) {
+			if (!clue.display || !clue.active || state.dismissed.includes(index))
+				continue;
+			if (this.supposeClueSatisfied(clue) === true)
+				state.dismissed.push(index);
+		}
+	}
+
+	this.moveSuppose = function(offset) {
+		if (!this.suppose || this.paused)
+			return;
+		var state = this.suppose;
+		var position = Math.max(0, Math.min(state.history.length - 1, state.position + offset));
+		if (position == state.position)
+			return;
+		this.closeSlotTray();
+		var step = state.history[position];
+		Object.assign(state, { position, domains: copyDomains(step.domains),
+			assumption: step.assumption, dismissed: step.dismissed.slice(), message: step.message });
+		this.renderSuppose();
+	}
+
+	this.renderSuppose = function() {
+		var state = this.suppose;
+		var previous = state.displayed;
+		state.displayed = copyDomains(state.domains);
+		var conflict = false;
+		for (var r = 0; r < this.rows.length; r++) {
+			var row = this.rows[r];
+			row.elem.classList.remove("pencil-conflict");
+			var rowConflict = propagatePencilRow(state.domains[r].slice());
+			if (rowConflict) {
+				row.elem.classList.add("pencil-conflict");
+				conflict = true;
+			}
+			for (var c = 0; c < row.slots.length; c++) {
+				var slot = row.slots[c];
+				if (slot.single)
+					continue;
+				var placed = state.domains[r].findIndex(bits => bits == (1 << c));
+				slot.elem.classList.remove("suppose-placed");
+				if (placed >= 0) {
+					slot.elem.classList.add("suppose-placed");
+					if (!previous || previous[r][placed] != (1 << c)) {
+						renderTileSymbol(slot.singleElem, slot.symbols[placed]);
+						slot.displaySingle(previous ? slot.possibilityElems[placed] : null, true);
+					}
+				} else {
+					slot.singleElem.hidden = true;
+					slot.possibleElem.hidden = false;
+				}
+				slot.possibleElem.className = "";
+				for (var v = 0; v < slot.possibilityElems.length; v++) {
+					var tile = slot.possibilityElems[v];
+					tile.className = "possibility";
+					tile.classList.remove("suppose-removed");
+					if (!(state.base[r][v] & (1 << c)))
+						tile.className += " dead-possibility";
+					else if (!(state.domains[r][v] & (1 << c)))
+						tile.classList.add("suppose-removed");
+				}
+			}
+		}
+		for (var [index, clue] of this.clues.entries()) {
+			if (!clue.display)
+				continue;
+			clue.display.classList.remove("suppose-dismissed");
+			if (state.dismissed.includes(index))
+				clue.display.classList.add("suppose-dismissed");
+		}
+		var message = state.message || "Choose or discard a tile to begin your supposition.";
+		if (conflict)
+			message += " These possibilities conflict within a row.";
+		renderProofMessage(this, this.supposeControls.querySelector(".suppose-assumption"), message, false);
+		this.supposeControls.querySelector(".proof-position").textContent =
+			state.position ? "Suppose · Step " + state.position : "Suppose";
+		this.supposeControls.querySelector(".proof-previous").disabled = !state.position;
+		this.supposeControls.querySelector(".proof-next").disabled = state.position == state.history.length - 1;
+		this.supposeControls.querySelector(".suppose-accept").disabled = !state.position && !state.dismissed.length;
+		this.supposeControls.querySelector(".suppose-reject").disabled = !state.assumption;
+		if (this.expandedSlot)
+			this.renderSlotTray();
+	}
+
+	/* Once an exploration becomes real, use the usual move checking and
+	 * propagation. Stop at the first mistake, including in practice mode. */
+	this.cancelSupposeReplay = function() {
+		var replay = this.supposeReplay;
+		if (!replay)
+			return;
+		this.supposeReplay = null;
+		clearTimeout(replay.timer);
+		replay.wake?.();
+		this.updatePauseControl();
+		this.updateSupposeControls();
+		this.explainButton.disabled = this.gameOver && !this.pendingProof;
+	}
+
+	this.acceptSuppose = async function() {
+		if (!this.suppose || this.paused)
+			return;
+		var state = this.suppose;
+		var steps = state.history.slice(1, state.position + 1);
+		this.leaveSuppose();
+		var replay = this.supposeReplay = {};
+		this.updatePauseControl();
+		this.updateSupposeControls();
+		this.explainButton.disabled = true;
+		var wait = () => new Promise(resolve => {
+			replay.wake = resolve;
+			replay.timer = setTimeout(resolve, 300);
+		});
+		try {
+			for (var i = 0; i < steps.length; i++) {
+				if (i)
+					await wait();
+				while (this.supposeReplay === replay && this.paused)
+					await wait();
+				if (this.supposeReplay !== replay || this.gameOver)
+					return;
+				var move = steps[i].move;
+				var slot = this.rows[move.row].slots[move.column];
+				if (slot.single || !slot.possible[move.symbol])
+					continue;
+				this.applyTileAction(slot, move.symbol, move.discard ? "remove" : "place");
+				/* Practice mode reports mistakes without ending the game. */
+				if ((slot.value == move.symbol) == move.discard || this.gameOver)
+					return;
+			}
+			this.withEffectsSuppressed(() => {
+				for (var index of state.dismissed)
+					this.applyClueAction(this.clues[index], false);
+			});
+		} finally {
+			if (this.supposeReplay === replay)
+				this.cancelSupposeReplay();
+		}
+	}
+
+	this.rejectSuppose = function() {
+		if (!this.suppose?.assumption || this.paused)
+			return;
+		var assumption = this.suppose.assumption;
+		this.leaveSuppose();
+		this.applyTileAction(this.rows[assumption.row].slots[assumption.column],
+			assumption.symbol, assumption.discard ? "place" : "remove");
+	}
+
+	this.leaveSuppose = function() {
+		if (!this.suppose)
+			return;
+		this.closeSlotTray();
+		this.suppose = null;
+		document.body.classList.remove("suppose-active");
+		for (var row of this.rows)
+			for (var slot of row.slots) {
+				slot.elem.classList.remove("suppose-placed");
+				renderTileSymbol(slot.singleElem, slot.symbols[slot.value]);
+				for (var tile of slot.possibilityElems)
+					tile.classList.remove("suppose-removed");
+			}
+		for (var clue of this.clues)
+			clue.display?.classList.remove("suppose-dismissed");
+		this.restorePlayDisplay();
+		this.explainButton.disabled = this.gameOver && !this.pendingProof;
+		this.updateSupposeControls();
+		this.updateChalkControls();
+		this.updateActionCursor();
+		(this.supposeLauncher || this.supposeButton).focus();
+	}
+
 	this.updateChalkControls = function() {
 		var show = (this.pencilMarks.length > 0 || this.clues.some(clue => clue.chalkMark)) && !this.gameOver;
 		this.eraseChalkBoard.hidden = !show || this.showActionSelector;
@@ -2036,10 +2330,12 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.eraseChalkFooter.hidden = this.eraseChalkBoard.hidden;
 		for (var button of [this.eraseChalkBoard, this.eraseChalkTap,
 				   this.eraseChalkFooter])
-			button.disabled = !!(this.manualPaused || this.proof);
+			button.disabled = !!(this.manualPaused || this.proof || this.suppose);
 	}
 
 	this.eraseChalkMarks = function() {
+		if (this.suppose)
+			return;
 		if (this.gameOver || this.paused || this.proof ||
 		    (!this.pencilMarks.length && !this.clues.some(clue => clue.chalkMark)))
 			return;
@@ -2120,6 +2416,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.setActionController = function(controller) {
+		this.cancelSupposeReplay();
+		this.leaveSuppose();
 		if (controller) {
 			this.dailyReturn = null;
 			this.daily = null;
@@ -2134,6 +2432,10 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	 * to its host and call applyTileAction() when the host commits them.
 	 */
 	this.requestTileAction = function(slot, value, action) {
+		if (this.supposeReplay)
+			return;
+		if (this.suppose)
+			return this.applySupposeAction(slot, value, action);
 		if (this.actionController)
 			return this.actionController.requestTileAction(
 				slot, value, action);
@@ -2141,6 +2443,10 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.requestClueAction = function(clue, active) {
+		if (this.supposeReplay)
+			return;
+		if (this.suppose)
+			return this.toggleSupposeClue(clue);
 		if (this.proof)
 			return false;
 		if (this.actionController)
@@ -2149,6 +2455,10 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.requestChalkClue = function(clue) {
+		if (this.supposeReplay)
+			return;
+		if (this.suppose)
+			return this.toggleSupposeClue(clue);
 		if (this.gameOver || this.paused || this.proof || !clue.display || !clue.active)
 			return false;
 		var marked = !clue.chalkMark;
@@ -2219,7 +2529,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			action = this.showActionSelector ? this.getTileAction() : "place";
 		var discard = contextMenu || ev.ctrlKey || action == "remove" ||
 			action == "pencil-remove";
-		var chalk = ev.altKey || ev.shiftKey || action.indexOf("pencil-") == 0;
+		var chalk = !this.suppose && (ev.altKey || ev.shiftKey || action.indexOf("pencil-") == 0);
 		if (chalk)
 			return discard ? "pencil-remove" : "pencil-select";
 		return discard ? "remove" : "place";
@@ -2246,7 +2556,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			"input[name=tile-operation]:checked").value;
 		var mark = this.boardActions.querySelector(
 			"input[name=tile-mark]:checked").value;
-		if (mark == "inscribe")
+		if (this.suppose || mark == "inscribe")
 			return operation;
 		return operation == "place" ? "pencil-select" : "pencil-remove";
 	}
@@ -2309,7 +2619,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			tile.className = "slot-tray-symbol " + slot.row.familyClass;
 			var mark = this.pencilMarks.find(mark => mark.slot == slot && mark.value == value);
 			tile.style.setProperty("--chalk-author", mark?.color || "");
-			if (!slot.possible[value]) {
+			if (!slot.possible[value] || this.suppose &&
+			    !(this.suppose.domains[this.rows.indexOf(slot.row)][value] & (1 << slot.row.slots.indexOf(slot)))) {
 				tile.className += " eliminated";
 				tile.disabled = true;
 				tile.textContent = "";
@@ -2475,7 +2786,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		var paused = this.manualPaused;
 		document.body.classList[paused ? "add" : "remove"]("game-paused");
 		for (var element of [board, this.hClues, this.vClues, this.boardActions, this.proofControls])
-			element.inert = paused || this.pendingSeed !== undefined;
+			element.inert = paused || !!this.supposeReplay || this.pendingSeed !== undefined;
 		this.timer.disabled = this.gameOver || this.practiceMode || this.pendingSeed !== undefined;
 		this.timer.title = this.invitationDeclined && this.pendingSeed !== undefined ?
 			"Invitation declined" : this.seed === undefined || this.pendingSeed !== undefined ?
@@ -3413,10 +3724,13 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			}
 			return;
 		}
-		if (!puzzle.proof || puzzle.paused)
+		if ((!puzzle.proof && !puzzle.suppose) || puzzle.paused)
 			return;
 		ev.preventDefault();
-		puzzle.moveProof(direction);
+		if (puzzle.suppose)
+			puzzle.moveSuppose(direction);
+		else
+			puzzle.moveProof(direction);
 	});
 	document.addEventListener("keyup", function(ev) {
 		if (ev.key == "Control" || ev.key == "Shift" || ev.key == "Alt") {
@@ -3566,6 +3880,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.updateActionControls = function() {
+		this.updateSupposeControls();
 		this.updatePauseControl();
 		var show = this.showActionSelector && !this.gameOver;
 		if (this.seed === undefined)
@@ -6472,7 +6787,7 @@ function Slot(row, symbols, display) {
 		return this.symbols[this.value];
 	}
 
-	this.displaySingle = function(source) {
+	this.displaySingle = function(source, supposed) {
 		var sourceRect;
 		if (source && source.getBoundingClientRect)
 			sourceRect = source.getBoundingClientRect();
@@ -6504,7 +6819,8 @@ function Slot(row, symbols, display) {
 				(y ? -Math.sign(y) * 2 : 0) + "px");
 			this.singleElem.classList.add("placing");
 		}
-		this.single = true;
+		if (!supposed)
+			this.single = true;
 	}
 
 	this.reveal = function() {
@@ -6667,9 +6983,20 @@ function Slot(row, symbols, display) {
 	this.singleElem.className = "single";
 	this.singleElem.hidden = true;
 	this.singleElem.addEventListener("pointerdown", ev => {
-		if (!this.single || (ev.button !== undefined && ev.button != 0) || this.row.puzzle.proof)
+		var puzzle = this.row.puzzle;
+		if ((ev.button !== undefined && ev.button != 0) || puzzle.proof)
 			return;
-		highlightCluesForSlots(this.row.puzzle, [this]);
+		var identity = this;
+		if (!this.single) {
+			if (!puzzle.suppose || this.singleElem.hidden)
+				return;
+			var domains = puzzle.suppose.domains[puzzle.rows.indexOf(this.row)];
+			var symbol = domains.findIndex(bits => bits == (1 << this.row.slots.indexOf(this)));
+			identity = this.row.slots.find(slot => slot.value == symbol);
+			if (!identity)
+				return;
+		}
+		highlightCluesForSlots(puzzle, [identity]);
 		this.singleElem.classList.add("clue-highlight-source");
 		if (this.singleElem.setPointerCapture)
 			this.singleElem.setPointerCapture(ev.pointerId);

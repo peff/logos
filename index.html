@@ -52,6 +52,13 @@
 		</div>
 		<div id="board-container">
 			<table id="board" class="board"></table>
+			<button id="suppose-button" class="suppose-launch" type="button"
+			        onClick="puzzle.enterSuppose(this)" title="Suppose: explore tentative moves (experimental)"
+			        aria-label="Enter suppose mode" aria-controls="suppose-controls" aria-expanded="false">
+				<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+					<path d="M12 21V13M12 13L5 6M5 6v5M5 6h5M12 13l7-7M19 6v5M19 6h-5"/>
+				</svg>
+			</button>
 			<button id="erase-chalk-board" class="erase-chalk" type="button" hidden
 			        onClick="puzzle.eraseChalkMarks()" title="Erase all chalk marks"
 			        aria-label="Erase all chalk marks">
@@ -146,6 +153,13 @@
 					       value="sketch">
 					<label for="action-sketch">Chalk</label>
 				</fieldset>
+				<button id="suppose-tap" class="suppose-launch" type="button"
+				        onClick="puzzle.enterSuppose(this)" title="Suppose: explore tentative moves (experimental)"
+				        aria-label="Enter suppose mode" aria-controls="suppose-controls" aria-expanded="false">
+					<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+						<path d="M12 21V13M12 13L5 6M5 6v5M5 6h5M12 13l7-7M19 6v5M19 6h-5"/>
+					</svg>
+				</button>
 				<button id="erase-chalk-tap" class="erase-chalk" type="button" hidden
 				        onClick="puzzle.eraseChalkMarks()" title="Erase all chalk marks"
 				        aria-label="Erase all chalk marks">
@@ -163,6 +177,19 @@
 					</button>
 				</h2>
 				<ul id="friends-roster-players" aria-label="Players"></ul>
+			</section>
+			<section id="suppose-controls" hidden aria-label="Supposition" aria-live="polite">
+				<button class="proof-previous" type="button" onClick="puzzle.moveSuppose(-1)" aria-label="Previous supposed move">←</button>
+				<div class="proof-step">
+					<div class="proof-position">Suppose</div>
+					<div class="proof-deduction suppose-assumption">Choose or discard a tile to begin your supposition.</div>
+					<div class="suppose-actions">
+						<button class="suppose-accept" type="button" onClick="puzzle.acceptSuppose()" title="Apply the moves through this step to the real board">Apply moves</button>
+						<button class="suppose-reject" type="button" onClick="puzzle.rejectSuppose()" title="Back out and commit the opposite of the initial assumption">Reject assumption</button>
+						<button type="button" onClick="puzzle.leaveSuppose()">Back out</button>
+					</div>
+				</div>
+				<button class="proof-next" type="button" onClick="puzzle.moveSuppose(1)" aria-label="Next supposed move">→</button>
 			</section>
 			<div id="proof-controls" hidden aria-live="polite">
 				<button class="proof-previous" type="button"
@@ -711,6 +738,13 @@
 					       onClick="puzzle.explainLoss()" value="∵" disabled
 					       title="Hint / Explain"
 					       aria-label="Hint or explain a mistake" aria-pressed="false">
+					<button id="suppose-footer" class="suppose-launch" type="button"
+					        onClick="puzzle.enterSuppose(this)" title="Suppose: explore tentative moves (experimental)"
+					        aria-label="Enter suppose mode" aria-controls="suppose-controls" aria-expanded="false">
+						<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+							<path d="M12 21V13M12 13L5 6M5 6v5M5 6h5M12 13l7-7M19 6v5M19 6h-5"/>
+						</svg>
+					</button>
 					<button id="erase-chalk-footer" class="erase-chalk" type="button" hidden
 					        onClick="puzzle.eraseChalkMarks()" title="Erase all chalk marks"
 					        aria-label="Erase all chalk marks">

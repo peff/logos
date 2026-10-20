@@ -148,7 +148,7 @@ const Logos = eval(source +
 	"ColumnClue: ColumnClue, " +
 	"OrderClue: OrderClue, " +
 	"defaultSymbols: defaultSymbols, accessRunHistory: accessRunHistory, " +
-	"renderProofMessage, symbolsForDate, " +
+	"renderProofMessage, symbolsForDate, clueSlots, " +
 	"setHistoryStorage: storage => { accessRunHistory = storage; }, " +
 	"setDebugDateActive: active => { debugDateActive = active; }, " +
 	"adjacent3DeductionMessage: adjacent3DeductionMessage, " +
@@ -6466,4 +6466,253 @@ Deno.test("extreme Options ratings stay tied to the original seed after clue ass
 	assert(puzzle.extremeDifficulty().bottlenecks === 1);
 	puzzle.stopTimer();
 	puzzle.say("");
+});
+
+Deno.test("supposing keeps real moves and clue states intact until backed out", function() {
+	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
+	puzzle.newGame(0);
+	const row = puzzle.rows[0], real = row.slots[0], slot = row.slots[1];
+	puzzle.applyTileAction(real, real.value, "place");
+	const before = JSON.stringify(puzzle.positionSnapshot());
+	const clue = puzzle.clues.find(c => c.active && c.display);
+	const wrong = slot.possible.findIndex((possible, v) => possible && v != slot.value);
+	puzzle.enterSuppose();
+	puzzle.requestTileAction(slot, wrong, "place");
+	assert(real.single && !slot.single && !puzzle.losses);
+	assert(slot.elem.classList.contains("suppose-placed"));
+	assert(slot.singleElem.classList.contains("placing"));
+	assert(puzzle.suppose.domains[0][wrong] == 2);
+	puzzle.requestClueAction(clue, false);
+	assert(clue.active && clue.display.classList.contains("suppose-dismissed"));
+	assert(puzzle.suppose.position == 1 && puzzle.suppose.history.length == 2);
+	puzzle.requestClueAction(clue, true);
+	assert(!clue.display.classList.contains("suppose-dismissed"));
+	assert(puzzle.suppose.assumption.symbol == wrong);
+	puzzle.moveSuppose(-1);
+	assert(!puzzle.suppose.assumption && !slot.possibleElem.hidden);
+	puzzle.leaveSuppose();
+	assert(JSON.stringify(puzzle.positionSnapshot()) == before);
+	assert(!slot.elem.classList.contains("suppose-placed"));
+	puzzle.stopTimer();
+});
+
+Deno.test("accepting a supposition commits its moves and clue dismissals", async function() {
+	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
+	puzzle.newGame(0);
+	const slot = puzzle.rows[0].slots[0];
+	const other = puzzle.rows[1].slots[0];
+	const removed = (other.value + 1) % 6;
+	const clue = puzzle.clues.find(c => c.active && c.display);
+	puzzle.enterSuppose();
+	puzzle.requestTileAction(slot, slot.value, "place");
+	puzzle.requestTileAction(other, removed, "remove");
+	puzzle.requestClueAction(clue, false);
+	await puzzle.acceptSuppose();
+	assert(!puzzle.suppose && slot.single && !other.possible[removed]);
+	assert(!clue.active && !puzzle.losses);
+	puzzle.stopTimer();
+});
+
+Deno.test("rejecting a supposition commits only the opposite initial move", function() {
+	for (const discard of [false, true]) {
+		const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
+		puzzle.newGame(0);
+		const slot = puzzle.rows[0].slots[0], other = puzzle.rows[1].slots[0];
+		const value = discard ? slot.value : (slot.value + 1) % 6;
+		const clue = puzzle.clues.find(c => c.active && c.display);
+		puzzle.enterSuppose();
+		puzzle.requestTileAction(slot, value, discard ? "remove" : "place");
+		puzzle.requestTileAction(other, other.value, "place");
+		puzzle.requestClueAction(clue, false);
+		puzzle.rejectSuppose();
+		assert(!puzzle.suppose && !puzzle.losses);
+		assert(discard ? slot.single : !slot.possible[value]);
+		assert(!other.single && other.possible.every(Boolean));
+		assert(clue.active);
+		puzzle.stopTimer();
+	}
+});
+
+Deno.test("committing an incorrect supposition uses normal mistake checking", async function() {
+	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
+	puzzle.newGame(0);
+	const slot = puzzle.rows[0].slots[0];
+	puzzle.enterSuppose();
+	puzzle.requestTileAction(slot, slot.value, "remove");
+	assert(!puzzle.losses);
+	await puzzle.acceptSuppose();
+	assert(puzzle.losses == 1 && !puzzle.suppose);
+	puzzle.stopTimer();
+});
+
+Deno.test("supposition arrows restore steps and new moves replace the remaining route", async function() {
+	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
+	puzzle.newGame(0);
+	const a = puzzle.rows[0].slots[0], b = puzzle.rows[1].slots[0];
+	const clue = puzzle.clues.find(c => c.active && c.display);
+	puzzle.enterSuppose();
+	puzzle.requestTileAction(a, a.value, "place");
+	puzzle.requestTileAction(b, b.value, "place");
+	puzzle.requestClueAction(clue, false);
+	const end = JSON.stringify(puzzle.suppose.domains);
+	puzzle.moveSuppose(-1);
+	assert(puzzle.suppose.position == 1 && b.singleElem.hidden);
+	assert(!clue.display.classList.contains("suppose-dismissed"));
+	puzzle.moveSuppose(1);
+	assert(JSON.stringify(puzzle.suppose.domains) == end);
+	assert(!b.singleElem.hidden && clue.display.classList.contains("suppose-dismissed"));
+	puzzle.moveSuppose(-1);
+	puzzle.requestTileAction(b, (b.value + 1) % 6, "remove");
+	assert(puzzle.suppose.position == 2 && puzzle.suppose.history.length == 3);
+	puzzle.moveSuppose(1);
+	assert(puzzle.suppose.position == 2);
+	puzzle.moveSuppose(-1);
+	await puzzle.acceptSuppose();
+	assert(a.single && !b.single && b.possible.every(Boolean));
+	assert(clue.active);
+	puzzle.stopTimer();
+});
+
+Deno.test("suppositions auto-dismiss placed clue symbols tentatively and respect the preference", function() {
+	for (const automatic of [false, true]) {
+		const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
+		puzzle.newGame(0);
+		puzzle.autoDismissClues = automatic;
+		const clue = puzzle.clues.find(c => c.active && c.display &&
+			Logos.clueSlots(c).some(slot => !slot.single));
+		puzzle.enterSuppose();
+		for (const slot of Logos.clueSlots(clue))
+			puzzle.requestTileAction(slot, slot.value, "place");
+		assert(clue.active);
+		assert(clue.display.classList.contains("suppose-dismissed") == automatic);
+		puzzle.moveSuppose(-1);
+		assert(!clue.display.classList.contains("suppose-dismissed"));
+		puzzle.moveSuppose(1);
+		assert(clue.display.classList.contains("suppose-dismissed") == automatic);
+		puzzle.leaveSuppose();
+		assert(clue.active && !clue.display.classList.contains("suppose-dismissed"));
+		puzzle.stopTimer();
+	}
+});
+
+Deno.test("supposed moves use normal sounds including placement cascades", function() {
+	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
+	puzzle.newGame(0);
+	const slot = puzzle.rows[0].slots[0];
+	puzzle.enterSuppose();
+	puzzle.sounds = [];
+	const candidates = slot.possible.map((possible, v) => possible ? v : -1).filter(v => v >= 0);
+	for (const v of candidates.slice(0, -1))
+		puzzle.requestTileAction(slot, v, "remove");
+	assert(puzzle.sounds.slice(0, -1).every(sound => sound == "discard"));
+	assert(puzzle.sounds.at(-1) == "place");
+	puzzle.moveSuppose(-1);
+	const count = puzzle.sounds.length;
+	puzzle.moveSuppose(1);
+	assert(puzzle.sounds.length == count);
+	puzzle.leaveSuppose();
+	puzzle.stopTimer();
+});
+
+Deno.test("tentative placements highlight the displayed symbol's clues", function() {
+	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
+	puzzle.newGame(0);
+	const slot = puzzle.rows[0].slots[0];
+	const symbol = (slot.value + 1) % 6;
+	const identity = slot.row.slots.find(s => s.value == symbol);
+	puzzle.enterSuppose();
+	puzzle.requestTileAction(slot, symbol, "place");
+	slot.singleElem.listeners.pointerdown({ button: 0 });
+	for (const clue of puzzle.clues.filter(c => c.display))
+		assert(clue.display.classList.contains("clue-highlight-related") ==
+			Logos.clueSlots(clue).includes(identity));
+	slot.singleElem.listeners.pointerup({});
+	assert(puzzle.clues.every(c => !c.display || !c.display.classList.contains("clue-highlight-related")));
+	puzzle.leaveSuppose();
+	puzzle.stopTimer();
+});
+
+Deno.test("arrow keys navigate supposition steps", function() {
+	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
+	puzzle.newGame(0);
+	const slot = puzzle.rows[0].slots[0];
+	puzzle.enterSuppose();
+	puzzle.requestTileAction(slot, slot.value, "place");
+	let prevented = 0;
+	const press = (key, extra = {}) => document.listeners.keydown({
+		key, preventDefault() { prevented++; }, ...extra,
+	});
+	press("ArrowLeft");
+	assert(puzzle.suppose.position == 0 && prevented == 1);
+	press("ArrowRight", { shiftKey: true });
+	assert(puzzle.suppose.position == 0 && prevented == 1);
+	press("ArrowRight");
+	assert(puzzle.suppose.position == 1 && prevented == 2);
+	puzzle.leaveSuppose();
+	puzzle.stopTimer();
+});
+
+Deno.test("supposition auto-dismissal keeps violated clues visible", function() {
+	const puzzle = makePuzzle(2);
+	puzzle.autoDismissClues = true;
+	const clue = new ColumnClue(puzzle);
+	clue.tRow = puzzle.rows[0];
+	clue.bRow = puzzle.rows[1];
+	clue.col = 0;
+	clue.display = new FakeElement();
+	clue.active = true;
+	clue.render();
+	puzzle.clues = [clue];
+	puzzle.enterSuppose();
+	puzzle.requestTileAction(puzzle.rows[0].slots[0], puzzle.rows[0].slots[0].value, "place");
+	puzzle.requestTileAction(puzzle.rows[1].slots[1], puzzle.rows[1].slots[0].value, "place");
+	assert(!puzzle.suppose.dismissed.length && clue.active);
+	assert(!clue.display.classList.contains("suppose-dismissed"));
+	puzzle.moveSuppose(-1);
+	puzzle.requestTileAction(puzzle.rows[1].slots[0], puzzle.rows[1].slots[0].value, "place");
+	assert(puzzle.suppose.dismissed.includes(0) && clue.active);
+	puzzle.leaveSuppose();
+});
+
+Deno.test("applying a supposition replays in move order and stops at a practice mistake", async function() {
+	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
+	puzzle.newGame(0);
+	puzzle.practiceMode = true;
+	const first = puzzle.rows[4].slots[0], wrong = puzzle.rows[1].slots[0];
+	const last = puzzle.rows[0].slots[0];
+	puzzle.enterSuppose();
+	puzzle.requestTileAction(first, first.value, "place");
+	puzzle.requestTileAction(wrong, (wrong.value + 1) % 6, "place");
+	puzzle.requestTileAction(last, last.value, "place");
+	const calls = [];
+	const apply = puzzle.applyTileAction;
+	puzzle.applyTileAction = function(slot, value, action) {
+		calls.push({ slot, value, action, time: Date.now() });
+		return apply.call(this, slot, value, action);
+	};
+	const replay = puzzle.acceptSuppose();
+	assert(first.single && !wrong.single && !last.single && puzzle.supposeReplay);
+	puzzle.requestTileAction(last, last.value, "place");
+	assert(!last.single);
+	await replay;
+	assert(calls.length == 2 && calls[0].slot == first && calls[1].slot == wrong);
+	assert(calls[1].time - calls[0].time >= 250);
+	assert(puzzle.losses == 1 && !last.single && !puzzle.supposeReplay);
+	assert(puzzle.pendingProof.failedSlot == wrong);
+	puzzle.stopTimer();
+});
+
+Deno.test("a new game cancels pending supposition replay moves", async function() {
+	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
+	puzzle.newGame(0);
+	puzzle.enterSuppose();
+	for (const row of puzzle.rows.slice(0, 3))
+		puzzle.requestTileAction(row.slots[0], row.slots[0].value, "place");
+	const replay = puzzle.acceptSuppose();
+	assert(puzzle.supposeReplay);
+	puzzle.newGame(1);
+	const before = JSON.stringify(puzzle.positionSnapshot());
+	await replay;
+	assert(!puzzle.supposeReplay && JSON.stringify(puzzle.positionSnapshot()) == before);
+	puzzle.stopTimer();
 });
