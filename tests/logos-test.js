@@ -1843,6 +1843,54 @@ Deno.test("right and control presses toggle clues exactly once", function() {
 	}
 });
 
+Deno.test("chalk clue dismissal toggles separately and erases without restoring regular dismissals", function() {
+	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
+	puzzle.newGame(0);
+	const [clue, regular] = puzzle.clues.filter(clue => clue.display);
+	puzzle.applyClueAction(regular, false);
+	const event = { button: 2, pointerType: "mouse", shiftKey: true,
+		preventDefault() {} };
+	clue.display.onpointerdown(event);
+	clue.display.oncontextmenu(event);
+	assert(clue.active && clue.chalkMark);
+	assert(clue.display.classList.contains("chalk-dismissed"));
+	assert(!puzzle.eraseChalkBoard.hidden);
+	clue.display.onpointerdown(event);
+	clue.display.oncontextmenu(event);
+	assert(clue.active && !clue.chalkMark);
+	puzzle.requestChalkClue(clue);
+	const index = puzzle.clues.indexOf(clue);
+	assert(puzzle.positionSnapshot().chalkClues[0] === index);
+	puzzle.saveDailyReturn();
+	const saved = puzzle.dailyReturn;
+	puzzle.newGame(1);
+	puzzle.dailyReturn = saved;
+	puzzle.restoreDailyReturn();
+	assert(puzzle.clues[index].chalkMark);
+	puzzle.eraseChalkMarks();
+	assert(puzzle.clues[index].active && !puzzle.clues[index].chalkMark);
+	assert(!puzzle.clues[index].display.classList.contains("chalk-dismissed"));
+	assert(puzzle.clues.some(clue => clue.display && !clue.active));
+	assert(puzzle.eraseChalkBoard.hidden);
+	puzzle.stopTimer();
+});
+
+Deno.test("touch clue swipes use chalk without changing normal dismissal", function() {
+	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
+	puzzle.newGame(0);
+	puzzle.showActionSelector = true;
+	puzzle.getTileAction = () => "pencil-remove";
+	const clue = puzzle.clues.find(clue => clue.display);
+	const event = { button: 0, pointerType: "touch", pointerId: 4,
+		clientX: 100, clientY: 100, preventDefault() {} };
+	clue.display.onpointerdown(event);
+	clue.display.onpointerup({ ...event, clientX: 150 });
+	assert(clue.active && clue.chalkMark);
+	puzzle.eraseChalkMarks();
+	assert(clue.active && !clue.chalkMark);
+	puzzle.stopTimer();
+});
+
 Deno.test("touch holds highlight clues without dismissing them", async function() {
 	const puzzle = makePuzzle(2);
 	const clue = new ColumnClue(puzzle);

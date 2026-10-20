@@ -23,7 +23,7 @@ function playerColor(player = {}) {
 }
 
 function isChalkAction(action) {
-	return action?.type == "chalk" || action?.type == "chalk-clear";
+	return action?.type == "chalk" || action?.type == "chalk-clue" || action?.type == "chalk-clear";
 }
 
 var recentActionLimit = 12;
@@ -63,6 +63,10 @@ function applicableAction(puzzle, action) {
 		return Number.isInteger(action.clue) &&
 			typeof action.active == "boolean" &&
 			!!puzzle.clues[action.clue]?.display;
+	if (action.type == "chalk-clue")
+		return !puzzle.gameOver && !puzzle.paused && !puzzle.proof &&
+			Number.isInteger(action.clue) && typeof action.marked == "boolean" &&
+			!!puzzle.clues[action.clue]?.display && !!puzzle.clues[action.clue].active;
 	if (action.type == "chalk-clear")
 		return !puzzle.gameOver && !puzzle.paused && !puzzle.proof;
 	if (action.type == "chalk" &&
@@ -83,6 +87,8 @@ function applyAction(puzzle, action, playerAction, actor, actorColor) {
 			puzzle.renderSlotTray();
 		return;
 	}
+	if (action.type == "chalk-clue")
+		return puzzle.setChalkClue(puzzle.clues[action.clue], action.marked, actor, actorColor);
 	if (action.type == "chalk")
 		return puzzle.setPencilMark(slotForAction(puzzle, action), action.value,
 			action.mark, actor, actorColor);
@@ -179,6 +185,11 @@ class MultiplayerSession {
 			mark.actor = this.playerId;
 			mark.color = playerColor(this.players[0]);
 		}
+		for (const clue of puzzle.clues)
+			if (clue.chalkMark) {
+				clue.chalkMark = { actor: this.playerId, color: playerColor(this.players[0]) };
+				puzzle.setChalkClue(clue, true);
+			}
 		for (const row of puzzle.rows)
 			puzzle.renderPencilMarks(row);
 		this.initialPosition = {
@@ -191,7 +202,10 @@ class MultiplayerSession {
 				...actionFromSlot(puzzle, mark.slot, mark.value, "chalk"),
 				mark: mark.discard ? "remove" : "select",
 				actor: mark.actor, color: mark.color,
-			})),
+			})).concat(puzzle.clues.flatMap((clue, index) => clue.chalkMark ? [{
+				type: "chalk-clue", clue: index, marked: true,
+				actor: this.playerId, color: playerColor(this.players[0]),
+			}] : [])),
 			practiceMode: puzzle.practiceMode,
 			continuedFromLoss: puzzle.continuedFromLoss,
 			nextMilestone: puzzle.nextMilestone,

@@ -741,6 +741,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 				single: slot.single, possible: slot.possible.slice(),
 			}))),
 			clues: this.clues.map(clue => clue.active),
+			chalkClues: this.clues.flatMap((clue, index) => clue.chalkMark ?
+				[{ index, ...clue.chalkMark }] : []),
 		};
 	}
 
@@ -767,6 +769,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			if (this.clues[index].display)
 				checkClueDisplay(this.clues[index]);
 		}
+		for (var mark of saved.chalkClues || [])
+			this.setChalkClue(this.clues[mark.index], true, mark.actor, mark.color);
 		this.restorePlayDisplay();
 		this.pendingSeed = undefined;
 		this.paused = this.manualPaused || this.pageHidden;
@@ -1298,6 +1302,9 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			extreme: !!this.extreme,
 			revealedClues: this.revealedClues.slice(),
 			generatorVersion: puzzleGeneratorVersion,
+			...(this.clues.some(clue => clue.chalkMark) ? {
+				chalkClues: this.clues.flatMap((clue, index) => clue.chalkMark ? [index] : []),
+			} : {}),
 			// Indexed by row, then symbol; bits identify possible columns.
 			domains: domainsFromSlots(this),
 			placements: proofPlacementsFromSlots(this),
@@ -2023,7 +2030,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.updateChalkControls = function() {
-		var show = this.pencilMarks.length > 0 && !this.gameOver;
+		var show = (this.pencilMarks.length > 0 || this.clues.some(clue => clue.chalkMark)) && !this.gameOver;
 		this.eraseChalkBoard.hidden = !show || this.showActionSelector;
 		this.eraseChalkTap.hidden = !show || !this.showActionSelector;
 		this.eraseChalkFooter.hidden = this.eraseChalkBoard.hidden;
@@ -2034,7 +2041,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 
 	this.eraseChalkMarks = function() {
 		if (this.gameOver || this.paused || this.proof ||
-		    !this.pencilMarks.length)
+		    (!this.pencilMarks.length && !this.clues.some(clue => clue.chalkMark)))
 			return;
 		if (this.actionController)
 			return this.actionController.requestAction({ type: "chalk-clear" });
@@ -2045,6 +2052,12 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 
 	this.clearPencilMarks = function() {
 		this.pencilMarks = [];
+		for (var clue of this.clues) {
+			if (clue.chalkMark) {
+				delete clue.chalkMark;
+				checkClueDisplay(clue);
+			}
+		}
 		for (var i = 0; i < this.rows.length; i++)
 			this.rows[i].clearPencilDisplay();
 		this.updateChalkControls();
@@ -2135,7 +2148,27 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		return this.applyClueAction(clue, active);
 	}
 
+	this.requestChalkClue = function(clue) {
+		if (this.gameOver || this.paused || this.proof || !clue.display || !clue.active)
+			return false;
+		var marked = !clue.chalkMark;
+		if (this.actionController)
+			return this.actionController.requestAction({ type: "chalk-clue",
+				clue: this.clues.indexOf(clue), marked });
+		this.setChalkClue(clue, marked);
+	}
+
+	this.setChalkClue = function(clue, marked, actor, color) {
+		if (marked && !clue.chalkMark)
+			clue.chalkMark = { actor, color };
+		else if (!marked)
+			delete clue.chalkMark;
+		checkClueDisplay(clue);
+		this.updateChalkControls();
+	}
+
 	this.applyClueAction = function(clue, active) {
+		delete clue.chalkMark;
 		if (clue.active && !active)
 			this.playSound("clue");
 		/* A temporary contradiction reveal must not undo this choice. */
@@ -2145,6 +2178,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 					state.active = active;
 		clue.active = active;
 		checkClueDisplay(clue, true);
+		this.updateChalkControls();
 	}
 
 	this.withEffectsSuppressed = function(callback) {
@@ -6696,6 +6730,11 @@ function clearClueSlot(slot) {
 }
 
 function checkClueDisplay(clue, animate) {
+	if (clue.chalkMark)
+		clue.display.classList.add("chalk-dismissed");
+	else
+		clue.display.classList.remove("chalk-dismissed");
+	clue.display.style.setProperty("--chalk-author", clue.chalkMark?.color || "");
 	if (!clue.rendered) {
 		clue.render();
 		clue.rendered = true;
@@ -6781,7 +6820,7 @@ function renderClue(puzzle, clue, slot, type, elements, horizontal) {
 	}
 	function startCover(swipe) {
 		swipe.size = Math.max(1, swipe.axis == "X" ? slot.clientWidth : slot.clientHeight);
-		swipe.active = clue.active;
+		swipe.active = clue.active && !clue.chalkMark;
 		originalChildren = Array.from(slot.children);
 		swipeCover = document.createElement("div");
 		swipeCover.className = "clue-swipe-cover";
@@ -6820,8 +6859,13 @@ function renderClue(puzzle, clue, slot, type, elements, horizontal) {
 		swipe.active = !clue.active;
 		finishSwipe(swipe, true);
 	};
-	function dismiss() {
-		puzzle.requestClueAction(clue, !clue.active);
+	function dismiss(ev, chalk) {
+		if (chalk === undefined)
+			chalk = puzzle.tileActionForPointer(ev, true) == "pencil-remove";
+		if (chalk)
+			puzzle.requestChalkClue(clue);
+		else
+			puzzle.requestClueAction(clue, !clue.active);
 	}
 	slot.cancelCluePress = function() {
 		clearHighlightDelay();
@@ -6834,7 +6878,7 @@ function renderClue(puzzle, clue, slot, type, elements, horizontal) {
 		ev.preventDefault();
 		/* Pointer-down already handles physical control-clicks. */
 		if (ev.ctrlKey && !dismissed && pointerType != "touch")
-			dismiss();
+			dismiss(ev);
 	};
 	slot.oncontextmenu = function(ev) {
 		ev.preventDefault();
@@ -6842,7 +6886,7 @@ function renderClue(puzzle, clue, slot, type, elements, horizontal) {
 		if (ev.pointerType == "touch" || pointerType == "touch")
 			return;
 		if (!dismissed)
-			dismiss();
+			dismiss(ev);
 	};
 	slot.onpointerdown = function(ev) {
 		if (ev.isPrimary === false) {
@@ -6858,7 +6902,7 @@ function renderClue(puzzle, clue, slot, type, elements, horizontal) {
 			return;
 		if (pointerType != "touch" && (ev.button == 2 || ev.ctrlKey)) {
 			ev.preventDefault();
-			dismiss();
+			dismiss(ev);
 			dismissed = true;
 			return;
 		}
@@ -6870,6 +6914,7 @@ function renderClue(puzzle, clue, slot, type, elements, horizontal) {
 			x: ev.clientX,
 			y: ev.clientY,
 			touch: pointerType == "touch",
+			chalk: puzzle.tileActionForPointer(ev, true) == "pencil-remove",
 			cancelled: false,
 		};
 		if (press.touch) {
@@ -6919,7 +6964,7 @@ function renderClue(puzzle, clue, slot, type, elements, horizontal) {
 		var committed = swipe.touch && !swipe.cancelled && swipe.axis &&
 			Math.abs(distance) >= 30;
 		if (committed)
-			dismiss();
+			dismiss(ev, swipe.chalk);
 		finishSwipe(swipe, committed);
 	};
 	slot.onpointercancel = function() {

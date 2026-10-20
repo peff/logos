@@ -203,6 +203,35 @@ Deno.test("an accepted mistake loses the multiplayer game for everyone", functio
 	stopAll(host, guest);
 });
 
+Deno.test("chalk clue dismissals survive hosting, late joins, resync and shared erasure", function() {
+	const puzzle = makePuzzle(6, true, Logos.defaultSymbols);
+	puzzle.newGame(0);
+	const index = puzzle.clues.findIndex(clue => clue.display);
+	puzzle.requestChalkClue(puzzle.clues[index]);
+	const host = { puzzle, session: new MultiplayerSession(puzzle, { role: "host", playerId: "host" }) };
+	const guest = makeSession("guest", "alice");
+	const late = makeSession("guest", "bob");
+	const network = new InMemoryMultiplayerNetwork(host.session);
+	try {
+		network.addGuest(guest.session);
+		assert(guest.puzzle.clues[index].chalkMark?.actor === "host");
+		guest.puzzle.requestChalkClue(guest.puzzle.clues[index]);
+		assert(!host.puzzle.clues[index].chalkMark);
+		guest.puzzle.requestChalkClue(guest.puzzle.clues[index]);
+		network.addGuest(late.session);
+		guest.session.requestSync();
+		for (const game of [host, guest, late]) {
+			assert(game.puzzle.clues[index].active);
+			assert(game.puzzle.clues[index].chalkMark?.actor === "alice");
+		}
+		guest.puzzle.eraseChalkMarks();
+		for (const game of [host, guest, late])
+			assert(game.puzzle.clues[index].active && !game.puzzle.clues[index].chalkMark);
+	} finally {
+		stopAll(host, guest, late);
+	}
+});
+
 Deno.test("multiplayer chalk shares attribution, replacement, erasure, and resync", function() {
 	const host = makeSession("host", "host");
 	const guest = makeSession("guest", "alice");

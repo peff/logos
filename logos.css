@@ -3139,6 +3139,24 @@ button.score-entry:focus-visible {
 	opacity: 0.2;
 }
 
+body:not(.proof-active) .clue.chalk-dismissed:not(.proof-current):not(.hint-current):not(.contradiction) > * {
+	opacity: 0.2;
+}
+
+body:not(.proof-active) .clue.chalk-dismissed:not(.proof-current):not(.hint-current):not(.contradiction)::after {
+	content: "";
+	position: absolute;
+	left: 15%;
+	top: 50%;
+	width: 70%;
+	height: 0.1rem;
+	border-radius: 50%;
+	background: var(--chalk-author, #f8f4e9);
+	box-shadow: 0 1px 2px rgb(55 49 38 / 65%), 0 -1px 1px rgb(55 49 38 / 25%);
+	transform: rotate(-12deg);
+	pointer-events: none;
+}
+
 /* Slide a translucent paper cover over stationary symbols. */
 .clue.clue-swiping {
 	clip-path: inset(0 round 0.18rem);
