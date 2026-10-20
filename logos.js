@@ -1639,6 +1639,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			if (this.hintRequest.stalled && stage < 3 && this.hintRequest.exploration) {
 				var exploration = this.hintRequest.exploration;
 				this.hintRequest.stage = 2;
+				this.setHintHighlights([this.rows[exploration.row].slots[exploration.column]
+					.possibilityElems[exploration.symbol]]);
 				this.showHintExplanation("Try placing " +
 					proofSymbolReference(this, exploration.row, exploration.symbol) +
 					" in column " + (exploration.column + 1) + " with chalk.");
@@ -1665,13 +1667,14 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 					var symbols = base[row].filter(bits => bits & (1 << column)).length;
 					if (symbols < positions) {
 						var slot = this.rows[row].slots[column];
-						slot.elem.classList.add("hint-current");
-						this.hintRequest.slot = slot;
+						this.setHintHighlights([slot.elem]);
 						var choices = base[row].flatMap((bits, candidate) =>
 							bits & (1 << column) ? [proofSymbolReference(this, row, candidate)] : []);
 						message = "Explore the choice of " +
 							new Intl.ListFormat("en", { type: "disjunction" }).format(choices) + ".";
 					} else {
+						this.setHintHighlights(this.rows[row].slots.flatMap((slot, c) =>
+							base[row][symbol] & (1 << c) ? [slot.possibilityElems[symbol]] : []));
 						message = "Explore the possible positions of " +
 							proofSymbolReference(this, row, symbol) + " with chalk.";
 					}
@@ -1787,6 +1790,14 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.hint(request.stage);
 	}
 
+	this.setHintHighlights = function(elements) {
+		for (var elem of this.hintRequest.highlights || [])
+			elem.classList.remove("hint-current");
+		this.hintRequest.highlights = elements;
+		for (var elem of elements)
+			elem.classList.add("hint-current");
+	}
+
 	this.clearHint = function() {
 		if (this.restoredClueHighlight) {
 			this.restoredClueHighlight.display?.classList.remove("hint-current");
@@ -1796,7 +1807,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			this.finishHintNotice(false);
 		if (!this.hintRequest)
 			return;
-		this.hintRequest.slot?.elem.classList.remove("hint-current");
+		this.setHintHighlights([]);
 		this.hintRequest = null;
 		this.proofControls.hidden = true;
 		this.proofControls.classList.remove("hint-explanation");

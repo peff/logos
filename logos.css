@@ -3172,6 +3172,19 @@ body:not(.proof-active) #board .slot.hint-current {
 		0 0 0.65rem 0.2rem rgb(206 145 38 / 85%);
 }
 
+body:not(.proof-active) #board .slot:has(.possibility.hint-current) {
+	position: relative;
+	z-index: 1;
+}
+
+body:not(.proof-active) #board .possibility.hint-current {
+	position: relative;
+	z-index: 1;
+	box-shadow:
+		0 0 0 0.07rem #d5aa55,
+		0 0 0.18rem rgb(206 145 38 / 45%);
+}
+
 /* Use the same gold treatment whenever we call attention to a clue. */
 body:not(.proof-active) .clue:is(.clue-highlight-source, .clue-highlight-related, .hint-current),
 body:not(.proof-active) :is(#hclues, #vclues) .clue.contradiction,

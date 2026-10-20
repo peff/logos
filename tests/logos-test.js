@@ -6211,6 +6211,11 @@ Deno.test("stalled extreme hints choose the narrower exploration, then explain t
 			assert(puzzle.rows[row].slots[column].elem.classList.contains("hint-current"));
 		} else {
 			symbolHints++;
+			for (const [c, slot] of puzzle.rows[row].slots.entries()) {
+				assert(slot.possibilityElems[symbol].classList.contains("hint-current") ===
+					!!(domains[row][symbol] & (1 << c)));
+				assert(!slot.elem.classList.contains("hint-current"));
+			}
 			assert(explanation.textContent === "Explore the possible positions of " +
 				puzzle.rows[row].slots[0].symbols[symbol] + " with chalk.");
 			const tile = explanation.children[0].children[1];
@@ -6222,6 +6227,11 @@ Deno.test("stalled extreme hints choose the narrower exploration, then explain t
 		assert(JSON.stringify(puzzle.positionSnapshot()) === before);
 		puzzle.explainLoss();
 		assert(puzzle.hintRequest.stage === 2 && puzzle.clues.length === count);
+		for (const [c, slot] of puzzle.rows[row].slots.entries()) {
+			assert(!slot.elem.classList.contains("hint-current"));
+			for (const [s, tile] of slot.possibilityElems.entries())
+				assert(tile.classList.contains("hint-current") === (c === column && s === symbol));
+		}
 		assert(explanation.textContent === "Try placing " +
 			puzzle.rows[suggestion.row].slots[0].symbols[suggestion.symbol] +
 			" in column " + (suggestion.column + 1) + " with chalk.");
@@ -6230,6 +6240,8 @@ Deno.test("stalled extreme hints choose the narrower exploration, then explain t
 		puzzle.explainLoss();
 		assert(puzzle.proof && puzzle.proof.steps[0].lemmaStage === "start");
 		assert(!puzzle.rows[row].slots[column].elem.classList.contains("hint-current"));
+		for (const slot of puzzle.rows[row].slots)
+			assert(slot.possibilityElems.every(tile => !tile.classList.contains("hint-current")));
 		assert(lemma.every((step, i) => puzzle.proof.steps[i] === step),
 		       "walkthrough did not reuse the suggested lemma");
 		const assumption = puzzle.proof.steps.find(step => step.lemmaStage === "assumption");
