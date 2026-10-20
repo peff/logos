@@ -668,7 +668,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 
 	this.clear = function() {
 		this.cancelSupposeReplay();
-		this.leaveSuppose();
+		this.leaveSuppose(true);
 		this.extreme = false;
 		this.originalClues = [];
 		this.revealedClues = [];
@@ -723,7 +723,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	 * not to any particular date. Transient explanations are dismissed.
 	 */
 	this.saveDailyReturn = function() {
-		this.leaveSuppose();
+		this.leaveSuppose(true);
 		if (this.dailyReturn || this.actionController || this.gameOver ||
 		    this.pendingSeed !== undefined || this.seed === undefined)
 			return;
@@ -970,7 +970,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		if (extreme && !indices)
 			return false;
 		this.cancelSupposeReplay();
-		this.leaveSuppose();
+		this.leaveSuppose(true);
 		this.clearHint();
 		if (seed !== null || !arguments.length)
 			this.beforeNewGame?.();
@@ -1329,7 +1329,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.openAnalysis = function() {
-		this.leaveSuppose();
+		this.leaveSuppose(true);
 		var input = this.options.querySelector("#game-seed");
 		if (this.options.hidden || this.seed === undefined ||
 		    parseSeed(input.value.trim()) !== this.seed || this.pendingSeed !== undefined)
@@ -1887,7 +1887,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.openProofDisplay = function() {
-		this.leaveSuppose();
+		this.leaveSuppose(true);
 		this.updateSupposeControls();
 		this.updateRevealClueControl(false);
 		this.updateChalkControls();
@@ -2047,19 +2047,26 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.showProofPosition();
 	}
 
-	/* A single-level, local exploration. All hypothetical moves stay in
+	/* Nested, local explorations. All hypothetical moves stay in
 	 * domains; Slot.value and the committed board are never modified. */
 	this.enterSuppose = function(button) {
-		if (this.suppose || this.supposeReplay || this.actionController || this.gameOver || this.paused ||
+		if (this.supposeReplay || this.actionController || this.gameOver || this.paused ||
 		    this.proof || this.pendingSeed !== undefined)
 			return;
+		if (this.suppose && !this.suppose.assumption)
+			return;
+		var parent = this.suppose;
 		this.supposeLauncher = button || this.supposeButton;
 		this.clearHint();
 		this.clearPracticeMistake();
 		this.closeSlotTray();
-		var base = domainsFromSlots(this);
-		this.suppose = { base, domains: copyDomains(base), assumption: null,
-			dismissed: [], history: [], position: -1, message: null };
+		var base = parent ? parent.base : domainsFromSlots(this);
+		this.suppose = { base, parent,
+			prefix: parent ? parent.history[parent.position].label + "." : "",
+			domains: copyDomains(parent ? parent.domains : base), assumption: null,
+			displayed: parent?.displayed,
+			dismissed: parent ? parent.dismissed.slice() : [],
+			history: [], position: -1, message: null };
 		this.saveSupposeStep();
 		document.body.classList.add("suppose-active");
 		this.updateSupposeControls();
@@ -2069,12 +2076,13 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.updateSupposeControls = function() {
-		this.supposeButton.hidden = !!this.suppose || this.showActionSelector;
-		this.supposeTap.hidden = !!this.suppose || !this.showActionSelector;
+		this.supposeButton.hidden = this.showActionSelector;
+		this.supposeTap.hidden = !this.showActionSelector;
 		this.supposeFooter.hidden = this.supposeButton.hidden;
 		for (var button of [this.supposeButton, this.supposeTap, this.supposeFooter]) {
 			button.disabled = !!(this.gameOver || this.paused || this.proof || this.supposeReplay ||
-				this.actionController || this.pendingSeed !== undefined);
+				this.actionController || this.pendingSeed !== undefined ||
+				this.suppose && !this.suppose.assumption);
 			button.setAttribute("aria-expanded", String(!!this.suppose));
 		}
 		this.supposeControls.hidden = !this.suppose;
@@ -2085,10 +2093,18 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.saveSupposeStep = function(move = null) {
 		var state = this.suppose;
 		state.history.length = state.position + 1;
-		state.history.push({ domains: copyDomains(state.domains),
+		var label = state.prefix + (state.position + 1);
+		state.history.push({ label, domains: copyDomains(state.domains),
 			assumption: state.assumption, dismissed: state.dismissed.slice(),
 			message: state.message, move });
 		state.position++;
+	}
+
+	this.supposeMoveMessage = function({ row, column, symbol, discard }, first = false) {
+		return (first ? "Suppose " : discard ? "Discard " : "Place ") +
+			proofSymbolReference(this, row, symbol) +
+			(first ? (discard ? " is not in column " : " is in column ") :
+			 discard ? " from column " : " in column ") + (column + 1) + ".";
 	}
 
 	this.applySupposeAction = function(slot, symbol, action) {
@@ -2102,10 +2118,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		var first = !this.suppose.assumption;
 		if (first)
 			this.suppose.assumption = { row, column, symbol, discard };
-		this.suppose.message = (first ? "Suppose " : discard ? "Discard " : "Place ") +
-			proofSymbolReference(this, row, symbol) +
-			(first ? (discard ? " is not in column " : " is in column ") :
-			 discard ? " from column " : " in column ") + (column + 1) + ".";
+		this.suppose.message = this.supposeMoveMessage({ row, column, symbol, discard }, first);
 		var before = domains[row].slice();
 		applyPencilMark(domains[row], { slot, value: symbol, discard });
 		propagatePencilRow(domains[row]);
@@ -2227,7 +2240,9 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			message += " These possibilities conflict within a row.";
 		renderProofMessage(this, this.supposeControls.querySelector(".suppose-assumption"), message, false);
 		this.supposeControls.querySelector(".proof-position").textContent =
-			state.position ? "Suppose · Step " + state.position : "Suppose";
+			state.position ? "Suppose · Step " + state.history[state.position].label :
+			state.parent ? "Nested supposition" : "Suppose";
+		this.updateSupposeControls();
 		this.supposeControls.querySelector(".proof-previous").disabled = !state.position;
 		this.supposeControls.querySelector(".proof-next").disabled = state.position == state.history.length - 1;
 		this.supposeControls.querySelector(".suppose-accept").disabled = !state.position && !state.dismissed.length;
@@ -2255,7 +2270,23 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			return;
 		var state = this.suppose;
 		var steps = state.history.slice(1, state.position + 1);
-		this.leaveSuppose();
+		if (state.parent) {
+			var parent = state.parent;
+			parent.history.length = parent.position + 1;
+			for (var step of steps)
+				parent.history.push({ ...step, assumption: parent.assumption,
+					label: parent.prefix + parent.history.length,
+					message: this.supposeMoveMessage(step.move) });
+			parent.position = parent.history.length - 1;
+			parent.domains = copyDomains(state.domains);
+			parent.dismissed = state.dismissed.slice();
+			parent.message = parent.history[parent.position].message;
+			parent.history[parent.position].dismissed = parent.dismissed.slice();
+			this.leaveSuppose();
+			this.playSound("clue");
+			return;
+		}
+		this.leaveSuppose(true);
 		var replay = this.supposeReplay = {};
 		this.updatePauseControl();
 		this.updateSupposeControls();
@@ -2296,14 +2327,21 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			return;
 		var assumption = this.suppose.assumption;
 		this.leaveSuppose();
-		this.applyTileAction(this.rows[assumption.row].slots[assumption.column],
+		this.requestTileAction(this.rows[assumption.row].slots[assumption.column],
 			assumption.symbol, assumption.discard ? "place" : "remove");
 	}
 
-	this.leaveSuppose = function() {
+	this.leaveSuppose = function(all = false) {
 		if (!this.suppose)
 			return;
 		this.closeSlotTray();
+		if (!all && this.suppose.parent) {
+			var displayed = this.suppose.displayed;
+			this.suppose = this.suppose.parent;
+			this.suppose.displayed = displayed;
+			this.renderSuppose();
+			return;
+		}
 		this.suppose = null;
 		document.body.classList.remove("suppose-active");
 		for (var row of this.rows)
@@ -2417,7 +2455,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 
 	this.setActionController = function(controller) {
 		this.cancelSupposeReplay();
-		this.leaveSuppose();
+		this.leaveSuppose(true);
 		if (controller) {
 			this.dailyReturn = null;
 			this.daily = null;
