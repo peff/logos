@@ -140,7 +140,7 @@ Object.defineProperty(globalThis, "localStorage", { value: {
 const source = await Deno.readTextFile(
 	new URL("../logos.js", import.meta.url));
 const Logos = eval(source +
-	"\n;({ traceExtremeDifficulty, measureExtremeDifficulty, extremeSkulls, countSolutions, cluesSolve, cluesAllow, buildChalkLemma, bestChalkLemma, chalkContradiction, chalkClueContradiction, extremeExplorationHint, extremeExplorationTrials, extremeClueIndices, puzzleDifficulty, difficultyRating, puzzleFromSeed, " +
+	"\n;({ traceExtremeDifficulty, measureExtremeDifficulty, extremeSkulls, countSolutions, cluesSolve, cluesAllow, buildChalkLemma, bestChalkLemma, chalkContradiction, chalkClueContradiction, extremeExplorationTrials, extremeClueIndices, puzzleDifficulty, difficultyRating, puzzleFromSeed, " +
 	"difficultyOpportunities, placementDifficultyChoices, nextHintStep, buildHintSteps, measureDifficulty, hasRunDifficulty, " +
 	"Puzzle: Puzzle, ExactClue: ExactClue, " +
 	"Adjacent2Clue: Adjacent2Clue, " +
@@ -5358,6 +5358,15 @@ Deno.test("a partial contradiction discard is not described as a clue placement"
 });
 
 Deno.test("lemma selection balances propagated progress against explanatory length", function() {
+	// Recreate the old hint route that produced a 41-substep lemma.
+	function oldChalkSuggestion(domains) {
+		let best;
+		for (const trial of Logos.extremeExplorationTrials(puzzle, domains))
+			if (!best || trial.gain > best.gain ||
+			    trial.gain === best.gain && trial.passes < best.passes)
+				best = trial;
+		return best;
+	}
 	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
 	puzzle.say = function() {};
 	puzzle.newGame(0, false, false, true);
@@ -5365,7 +5374,7 @@ Deno.test("lemma selection balances propagated progress against explanatory leng
 		exhaustPuzzleDeductions(puzzle);
 		let { domains, placements } = puzzle.positionSnapshot();
 		for (let i = 0; i < 2; i++) {
-			const trial = Logos.extremeExplorationHint(puzzle, domains);
+			const trial = oldChalkSuggestion(domains);
 			const lemma = Logos.buildChalkLemma(puzzle, domains, placements, trial);
 			({ domains, placements } = lemma.at(-1));
 			let step;
@@ -5374,7 +5383,7 @@ Deno.test("lemma selection balances propagated progress against explanatory leng
 		}
 		const before = JSON.stringify([domains, placements]);
 		const clues = puzzle.clues.slice();
-		const oldTrial = Logos.extremeExplorationHint(puzzle, domains);
+		const oldTrial = oldChalkSuggestion(domains);
 		assert(Logos.buildChalkLemma(puzzle, domains, placements, oldTrial).length == 42);
 		const best = Logos.bestChalkLemma(puzzle, domains, placements);
 		const trials = Array.from(Logos.extremeExplorationTrials(puzzle, domains));
@@ -6171,7 +6180,7 @@ function exhaustPuzzleDeductions(puzzle) {
 export { exhaustPuzzleDeductions };
 
 Deno.test("stalled extreme hints suggest a symbol, then a column, then explain the proof", function() {
-	for (const seed of [0, 0x3c5]) {
+	for (const seed of [0, 0x3c5, 0x59]) {
 		const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
 		puzzle.newGame(seed, false, false, true);
 		puzzle.hintAcknowledged = true;
@@ -6180,7 +6189,8 @@ Deno.test("stalled extreme hints suggest a symbol, then a column, then explain t
 		const count = puzzle.clues.length;
 		puzzle.say = function() {};
 		puzzle.explainLoss();
-		const suggestion = Logos.extremeExplorationHint(puzzle, puzzle.positionSnapshot().domains);
+		const suggestion = puzzle.hintRequest.exploration;
+		const lemma = puzzle.hintRequest.lemma;
 		const explanation = puzzle.proofControls.querySelector(".proof-deduction");
 		assert(!puzzle.proofControls.hidden && puzzle.proofControls.classList.contains("hint-explanation"));
 		assert(explanation.textContent === "Explore the possible positions of " +
@@ -6200,7 +6210,12 @@ Deno.test("stalled extreme hints suggest a symbol, then a column, then explain t
 		assert(explanation.children[0].children[1].className === tile.className);
 		assert(JSON.stringify(puzzle.positionSnapshot()) === before);
 		puzzle.explainLoss();
-		assert(puzzle.proof && puzzle.proof.steps.some(step => step.lemmaStage === "start"));
+		assert(puzzle.proof && puzzle.proof.steps[0].lemmaStage === "start");
+		assert(lemma.every((step, i) => puzzle.proof.steps[i] === step),
+		       "walkthrough did not reuse the suggested lemma");
+		const assumption = puzzle.proof.steps.find(step => step.lemmaStage === "assumption");
+		assert(assumption.row === suggestion.row && assumption.symbol === suggestion.symbol &&
+		       assumption.column === suggestion.column);
 		assert(puzzle.proof.steps.at(-1).placements.every(bits => bits === 63));
 		assert(!puzzle.hintRequest && puzzle.practiceMode && !puzzle.scoreEligible);
 		assert(puzzle.clues.length === count && !puzzle.revealedClues.length);
@@ -6266,39 +6281,6 @@ Deno.test("extreme hints offer clue revelation separately from the walkthrough",
 	puzzle.updateRevealClueControl(true);
 	assert(puzzle.proofControls.querySelector(".proof-reveal").hidden);
 	puzzle.stopTimer();
-});
-
-Deno.test("extreme chalk suggestions prefer contradictions that unlock placements", function() {
-	for (const seed of [1, 0xd40791eb]) {
-		const puzzle = Logos.puzzleFromSeed(seed);
-		puzzle.clues = Logos.extremeClueIndices(puzzle).map(index => puzzle.clues[index]);
-		const domains = puzzle.rows.map(row => row.slots.map(() => 63));
-		assert(Logos.cluesAllow(puzzle, puzzle.clues, domains));
-		const before = JSON.stringify(domains);
-		const suggestion = Logos.extremeExplorationHint(puzzle, domains);
-		assert(suggestion && suggestion.gain > 0);
-		assert(JSON.stringify(domains) === before, "search changed the player's position");
-		const trial = domains.map(row => row.slice());
-		trial[suggestion.row][suggestion.symbol] = 1 << suggestion.column;
-		assert(!Logos.cluesAllow(puzzle, puzzle.clues, trial));
-		const count = data => data.flat().filter(bits => bits && !(bits & (bits - 1))).length;
-		let bestGain = 0;
-		for (let r = 0; r < 6; r++) for (let s = 0; s < 6; s++) {
-			const mask = domains[r][s];
-			if (!(mask & (mask - 1))) continue;
-			for (let c = 0; c < 6; c++) {
-				if (!(mask & (1 << c))) continue;
-				const trial = domains.map(row => row.slice());
-				trial[r][s] = 1 << c;
-				if (Logos.cluesAllow(puzzle, puzzle.clues, trial)) continue;
-				const after = domains.map(row => row.slice());
-				after[r][s] &= ~(1 << c);
-				assert(Logos.cluesAllow(puzzle, puzzle.clues, after));
-				bestGain = Math.max(bestGain, count(after) - count(domains));
-			}
-		}
-		assert(suggestion.gain === bestGain, "suggestion skipped a more productive contradiction");
-	}
 });
 
 Deno.test("restoring extreme clues fits the original layout and also restores culled givens", function() {

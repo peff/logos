@@ -1654,8 +1654,9 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		if (!step) {
 			if (this.extreme) {
 				this.prepareHint();
-				var exploration = extremeExplorationHint(this, base);
-				this.hintRequest = { stalled: true, stage: 1, exploration,
+				var lemma = bestChalkLemma(this, base, basePlacements);
+				var exploration = lemma.find(step => step.lemmaStage == "assumption");
+				this.hintRequest = { stalled: true, stage: 1, exploration, lemma,
 					base, basePlacements, step: null };
 				this.showHintExplanation(exploration ? "Explore the possible positions of " +
 					proofSymbolReference(this, exploration.row, exploration.symbol) +
@@ -1800,7 +1801,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 				this.showHintExplanation(step.message);
 			return;
 		}
-		var steps = buildHintSteps(this, step, request.base, request.basePlacements);
+		var steps = buildHintSteps(this, step, request.base, request.basePlacements, request.lemma);
 		if (!steps.length)
 			return;
 		steps[steps.length - 1].conclusion = true;
@@ -4177,17 +4178,6 @@ function* extremeExplorationTrials(puzzle, domains) {
 	}
 }
 
-/* Chalk suggestions prefer placements, then use propagation passes as a
- * cheap approximation of argument length without constructing a proof. */
-function extremeExplorationHint(puzzle, domains) {
-	var best = null;
-	for (var trial of extremeExplorationTrials(puzzle, domains))
-		if (!best || trial.gain > best.gain ||
-		    trial.gain == best.gain && trial.passes < best.passes)
-			best = trial;
-	return best;
-}
-
 /* Count up to two solutions, branching on the smallest remaining domain.
  * A search budget keeps experimental generation bounded; null means that
  * uniqueness is unproven, so the caller must retain the clue. */
@@ -5280,7 +5270,7 @@ function nextHintStep(puzzle, base, basePlacements, clues = puzzle.clues) {
 
 /* Search only when expanding the hint, and keep the step already shown.
  * A caller starting at a stall can pass null and the current board instead. */
-function buildHintSteps(puzzle, first, base, basePlacements) {
+function buildHintSteps(puzzle, first, base, basePlacements, firstLemma) {
 	var full = (1 << puzzle.rows[0].slots.length) - 1;
 	var best = [];
 	var partial;
@@ -5301,7 +5291,7 @@ function buildHintSteps(puzzle, first, base, basePlacements) {
 	}
 	if (!best.length) {
 		best = partial;
-		extendHintWithLemmas(puzzle, best, base, basePlacements);
+		extendHintWithLemmas(puzzle, best, base, basePlacements, !best.length && firstLemma);
 		var last = best[best.length - 1] || { domains: base, placements: basePlacements };
 		if (!last.placements.every(bits => bits == full))
 			best.push({
@@ -5464,10 +5454,11 @@ function bestChalkLemma(puzzle, domains, placements) {
 	return best;
 }
 
-function extendHintWithLemmas(puzzle, steps, base, basePlacements) {
+function extendHintWithLemmas(puzzle, steps, base, basePlacements, firstLemma) {
 	while (true) {
 		var last = steps[steps.length - 1] || { domains: base, placements: basePlacements };
-		var lemma = bestChalkLemma(puzzle, last.domains, last.placements);
+		var lemma = firstLemma || bestChalkLemma(puzzle, last.domains, last.placements);
+		firstLemma = null;
 		if (!lemma.length)
 			break;
 		steps.push(...lemma);
