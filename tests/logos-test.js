@@ -6246,7 +6246,10 @@ Deno.test("extreme hints offer clue revelation separately from the walkthrough",
 			puzzle.explainLoss();
 			puzzle.explainLoss();
 			puzzle.moveProof(2);
-			assert(puzzle.proof && !button.hidden);
+			assert(puzzle.proof && button.hidden);
+			puzzle.explainLoss();
+			puzzle.explainLoss();
+			assert(!puzzle.proof && !button.hidden);
 		}
 		const count = puzzle.clues.length;
 		puzzle.requestExtremeClue();

@@ -1703,9 +1703,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 
 	this.requestExtremeClue = function() {
 		if (!this.extreme || this.gameOver || this.paused ||
-		    !(this.hintRequest || this.proof?.hint))
+		    !this.hintRequest)
 			return;
-		/* Choose for the player's real position, not a hypothetical proof frame. */
 		var domains = domainsFromSlots(this);
 		var placements = proofPlacementsFromSlots(this);
 		var removed = this.originalClues.filter(clue => !this.clues.includes(clue));
@@ -1839,7 +1838,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.openProofDisplay = function() {
-		this.updateRevealClueControl(this.proof.hint);
+		this.updateRevealClueControl(false);
 		this.updateChalkControls();
 		this.proofControls.hidden = false;
 		document.body.classList.add("proof-active");

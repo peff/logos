@@ -1573,6 +1573,8 @@ Deno.test("extreme clue assistance is shared and survives adoption, late joins a
 		assert(guest.puzzle.proof && !host.puzzle.proof);
 		assert(guest.puzzle.proof.steps.at(-1).placements.every(bits => bits === 63));
 		assert(host.puzzle.clues.length === count && !guest.puzzle.revealedClues.length);
+		guest.puzzle.explainLoss();
+		guest.puzzle.explainLoss();
 		guest.puzzle.requestExtremeClue();
 		assert(!guest.puzzle.proof);
 		network.addGuest(late.session);
