@@ -140,7 +140,7 @@ Object.defineProperty(globalThis, "localStorage", { value: {
 const source = await Deno.readTextFile(
 	new URL("../logos.js", import.meta.url));
 const Logos = eval(source +
-	"\n;({ traceExtremeDifficulty, measureExtremeDifficulty, extremeSkulls, countSolutions, cluesSolve, cluesAllow, buildChalkLemma, bestChalkLemma, chalkContradiction, chalkClueContradiction, extremeExplorationTrials, extremeClueIndices, puzzleDifficulty, difficultyRating, puzzleFromSeed, " +
+	"\n;({ countBits, traceExtremeDifficulty, measureExtremeDifficulty, extremeSkulls, countSolutions, cluesSolve, cluesAllow, buildChalkLemma, bestChalkLemma, chalkContradiction, chalkClueContradiction, extremeExplorationTrials, extremeClueIndices, puzzleDifficulty, difficultyRating, puzzleFromSeed, " +
 	"difficultyOpportunities, placementDifficultyChoices, nextHintStep, buildHintSteps, measureDifficulty, hasRunDifficulty, " +
 	"Puzzle: Puzzle, ExactClue: ExactClue, " +
 	"Adjacent2Clue: Adjacent2Clue, " +
@@ -6179,8 +6179,9 @@ function exhaustPuzzleDeductions(puzzle) {
 }
 export { exhaustPuzzleDeductions };
 
-Deno.test("stalled extreme hints suggest a symbol, then a column, then explain the proof", function() {
-	for (const seed of [0, 0x3c5, 0x59]) {
+Deno.test("stalled extreme hints choose the narrower exploration, then explain the same trial", function() {
+	let positionHints = 0, symbolHints = 0;
+	for (const seed of [0, 1, 0x3, 0x12, 0x21, 0x3c5, 0x59]) {
 		const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
 		puzzle.newGame(seed, false, false, true);
 		puzzle.hintAcknowledged = true;
@@ -6193,12 +6194,29 @@ Deno.test("stalled extreme hints suggest a symbol, then a column, then explain t
 		const lemma = puzzle.hintRequest.lemma;
 		const explanation = puzzle.proofControls.querySelector(".proof-deduction");
 		assert(!puzzle.proofControls.hidden && puzzle.proofControls.classList.contains("hint-explanation"));
-		assert(explanation.textContent === "Explore the possible positions of " +
-			puzzle.rows[suggestion.row].slots[0].symbols[suggestion.symbol] +
-			" with chalk.");
-		const tile = explanation.children[0].children[1];
-		assert(tile.className === "proof-tile " + puzzle.rows[suggestion.row].familyClass);
-		assert(tile.textContent === puzzle.rows[suggestion.row].slots[0].symbols[suggestion.symbol]);
+		const { row, symbol, column } = suggestion;
+		const domains = puzzle.hintRequest.base;
+		const positions = Logos.countBits(domains[row][symbol]);
+		const symbols = domains[row].filter(bits => bits & (1 << column)).length;
+		if (symbols < positions) {
+			positionHints++;
+			const choices = domains[row].flatMap((bits, candidate) =>
+				bits & (1 << column) ? [puzzle.rows[row].slots[0].symbols[candidate]] : []);
+			const list = choices.slice(0, -1).join(", ") +
+				(choices.length > 2 ? ", or " : " or ") + choices.at(-1);
+			assert(explanation.textContent === "Explore the choice of " + list + ".");
+			const tiles = explanation.children[0].children.filter(child =>
+				child.className === "proof-tile " + puzzle.rows[row].familyClass);
+			assert(tiles.length === choices.length);
+			assert(puzzle.rows[row].slots[column].elem.classList.contains("hint-current"));
+		} else {
+			symbolHints++;
+			assert(explanation.textContent === "Explore the possible positions of " +
+				puzzle.rows[row].slots[0].symbols[symbol] + " with chalk.");
+			const tile = explanation.children[0].children[1];
+			assert(tile.className === "proof-tile " + puzzle.rows[row].familyClass);
+			assert(tile.textContent === puzzle.rows[row].slots[0].symbols[symbol]);
+		}
 		assert(puzzle.practiceMode && puzzle.timerTimeout === null);
 		assert(puzzle.hintRequest.stalled && puzzle.clues.length === count);
 		assert(JSON.stringify(puzzle.positionSnapshot()) === before);
@@ -6207,10 +6225,11 @@ Deno.test("stalled extreme hints suggest a symbol, then a column, then explain t
 		assert(explanation.textContent === "Try placing " +
 			puzzle.rows[suggestion.row].slots[0].symbols[suggestion.symbol] +
 			" in column " + (suggestion.column + 1) + " with chalk.");
-		assert(explanation.children[0].children[1].className === tile.className);
+		assert(explanation.children[0].children[1].className === "proof-tile " + puzzle.rows[row].familyClass);
 		assert(JSON.stringify(puzzle.positionSnapshot()) === before);
 		puzzle.explainLoss();
 		assert(puzzle.proof && puzzle.proof.steps[0].lemmaStage === "start");
+		assert(!puzzle.rows[row].slots[column].elem.classList.contains("hint-current"));
 		assert(lemma.every((step, i) => puzzle.proof.steps[i] === step),
 		       "walkthrough did not reuse the suggested lemma");
 		const assumption = puzzle.proof.steps.find(step => step.lemmaStage === "assumption");
@@ -6224,6 +6243,7 @@ Deno.test("stalled extreme hints suggest a symbol, then a column, then explain t
 		assert(JSON.stringify(puzzle.positionSnapshot()) === before);
 		puzzle.stopTimer();
 	}
+	assert(positionHints > 0 && symbolHints > 0, "fixtures must cover both orientations");
 });
 
 Deno.test("stalled hints without a chalk suggestion show an incomplete walkthrough", function() {
@@ -6337,7 +6357,7 @@ Deno.test("extreme bottleneck costs measure branch work separately from its assu
 	assert(rating.complete && rating.bottlenecks === 4);
 	assert(rating.costs.length === rating.bottlenecks);
 	const candidates = domains => domains.flat().reduce((n, bits) =>
-		n + bits.toString(2).replace(/0/g, "").length, 0);
+		n + Logos.countBits(bits), 0);
 	const domains = puzzle.rows.map(() => Array(6).fill(63));
 	assert(Logos.cluesAllow(puzzle, puzzle.clues, domains));
 	for (const cost of rating.costs) {

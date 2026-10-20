@@ -1658,10 +1658,25 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 				var exploration = lemma.find(step => step.lemmaStage == "assumption");
 				this.hintRequest = { stalled: true, stage: 1, exploration, lemma,
 					base, basePlacements, step: null };
-				this.showHintExplanation(exploration ? "Explore the possible positions of " +
-					proofSymbolReference(this, exploration.row, exploration.symbol) +
-					" with chalk." :
-					"No deduction available. Press Hint again for a walkthrough.");
+				var message = "No deduction available. Press Hint again for a walkthrough.";
+				if (exploration) {
+					var { row, symbol, column } = exploration;
+					var positions = countBits(base[row][symbol]);
+					var symbols = base[row].filter(bits => bits & (1 << column)).length;
+					if (symbols < positions) {
+						var slot = this.rows[row].slots[column];
+						slot.elem.classList.add("hint-current");
+						this.hintRequest.slot = slot;
+						var choices = base[row].flatMap((bits, candidate) =>
+							bits & (1 << column) ? [proofSymbolReference(this, row, candidate)] : []);
+						message = "Explore the choice of " +
+							new Intl.ListFormat("en", { type: "disjunction" }).format(choices) + ".";
+					} else {
+						message = "Explore the possible positions of " +
+							proofSymbolReference(this, row, symbol) + " with chalk.";
+					}
+				}
+				this.showHintExplanation(message);
 				this.fadeMessage();
 			} else {
 				console.log("No further deduction is available.");
@@ -1781,6 +1796,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			this.finishHintNotice(false);
 		if (!this.hintRequest)
 			return;
+		this.hintRequest.slot?.elem.classList.remove("hint-current");
 		this.hintRequest = null;
 		this.proofControls.hidden = true;
 		this.proofControls.classList.remove("hint-explanation");

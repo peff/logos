@@ -3162,6 +3162,16 @@ body:not(.proof-active) .board .single.clue-highlight-source {
 		0 0 0.4rem rgb(163 107 37 / 75%);
 }
 
+body:not(.proof-active) #board .slot.hint-current {
+	position: relative;
+	z-index: 1;
+	background-color: #f4cf72;
+	box-shadow:
+		0 0 0 0.12rem #fff1ba,
+		0 0 0 0.25rem #b47719,
+		0 0 0.65rem 0.2rem rgb(206 145 38 / 85%);
+}
+
 /* Use the same gold treatment whenever we call attention to a clue. */
 body:not(.proof-active) .clue:is(.clue-highlight-source, .clue-highlight-related, .hint-current),
 body:not(.proof-active) :is(#hclues, #vclues) .clue.contradiction,
