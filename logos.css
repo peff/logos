@@ -38,7 +38,7 @@ body {
 	--action-cursor: url("images/cursor-stylus-active.svg") 1 1, pointer;
 	--discard-cursor: url("images/cursor-ostracon.svg") 2 2, crosshair;
 	--discard-action-cursor: url("images/cursor-ostracon-active.svg") 2 2, crosshair;
-	cursor: var(--default-cursor);
+	cursor: var(--mode-cursor, var(--default-cursor));
 	display: grid;
 	grid-template-columns: max-content 27.5rem;
 	grid-template-rows: 1.15rem max-content 5.8rem;
@@ -477,8 +477,10 @@ body[data-custom-cursor="false"] {
 
 #board {
 	--chalk-mark: rgb(240 232 211 / 88%);
-	/* Resolve the board-local cursor rather than inherit body's cursor. */
-	cursor: var(--default-cursor);
+}
+
+:is(#board, #hclues, #vclues) {
+	cursor: var(--mode-cursor, var(--default-cursor));
 }
 
 .board .slot {
@@ -596,22 +598,24 @@ body[data-custom-cursor="false"] {
 }
 
 #board .possibility {
-	cursor: var(--action-cursor);
+	cursor: var(--mode-action-cursor, var(--action-cursor));
 }
 
-body[data-discard-cursor="true"] #board {
-	--default-cursor: var(--discard-cursor);
-	--action-cursor: var(--discard-action-cursor);
+/* Keep the background between tables in the same mode, without changing
+ * the ordinary action cursors used by buttons and menus. */
+body[data-discard-cursor="true"] {
+	--mode-cursor: var(--discard-cursor);
+	--mode-action-cursor: var(--discard-action-cursor);
 }
 
-body[data-chalk-cursor="true"]:not([data-custom-cursor="false"]) #board {
-	--default-cursor: url("images/cursor-chalk.svg") 2 2, default;
-	--action-cursor: url("images/cursor-chalk-active.svg") 2 2, pointer;
+body[data-chalk-cursor="true"]:not([data-custom-cursor="false"]) {
+	--mode-cursor: url("images/cursor-chalk.svg") 2 2, default;
+	--mode-action-cursor: url("images/cursor-chalk-active.svg") 2 2, pointer;
 }
 
-body[data-chalk-cursor="true"][data-discard-cursor="true"]:not([data-custom-cursor="false"]) #board {
-	--default-cursor: url("images/cursor-chalk-discard.svg") 2 2, crosshair;
-	--action-cursor: url("images/cursor-chalk-discard-active.svg") 2 2, crosshair;
+body[data-chalk-cursor="true"][data-discard-cursor="true"]:not([data-custom-cursor="false"]) {
+	--mode-cursor: url("images/cursor-chalk-discard.svg") 2 2, crosshair;
+	--mode-action-cursor: url("images/cursor-chalk-discard-active.svg") 2 2, crosshair;
 }
 
 :is(#board tr, #slot-tray).pencil-conflict {
@@ -3131,7 +3135,7 @@ button.score-entry:focus-visible {
 			rgb(117 94 55 / 3%) 0.5rem,
 			transparent 0.52rem 0.86rem);
 	border-radius: 0.18rem;
-	cursor: var(--action-cursor);
+	cursor: var(--mode-action-cursor, var(--action-cursor));
 	user-select: none;
 }
 
