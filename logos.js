@@ -2245,7 +2245,11 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.updateSupposeControls();
 		this.supposeControls.querySelector(".proof-previous").disabled = !state.position;
 		this.supposeControls.querySelector(".proof-next").disabled = state.position == state.history.length - 1;
-		this.supposeControls.querySelector(".suppose-accept").disabled = !state.position && !state.dismissed.length;
+		var accept = this.supposeControls.querySelector(".suppose-accept");
+		accept.textContent = state.parent ? "Keep moves" : "Apply moves";
+		accept.title = state.parent ? "Keep these moves in the enclosing supposition" :
+			"Apply the moves through this step to the real board";
+		accept.disabled = !state.position && !state.dismissed.length;
 		this.supposeControls.querySelector(".suppose-reject").disabled = !state.assumption;
 		if (this.expandedSlot)
 			this.renderSlotTray();
