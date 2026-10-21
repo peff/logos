@@ -6,3 +6,25 @@
  - daily: you can't easily navigate to other dailies without completing
    the current invitation (you can get there via the Forum, but not by
    clicking "daily puzzle")
+ - consider whether chalk should coexist with suppose mode
+   - chalk might still be useful for small conjectures and multiplayer
+     discussion.
+   - consider converting existing chalk into a supposition (the existing
+     button could appear only when there's chalk)
+   - if chalk is retired, consider using shift-click to enter suppose
+     mode
+ - design multiplayer suppose support. Possibilities include private
+   branches for parallel exploration and opting into another player's
+   branch to observe or help, rather than entering Suppose forcing
+   everyone into the mode. Show who is exploring which branch.
+   - decide how real-board updates interact with private branches:
+     queue them until exit, or incorporate compatible updates live.
+     Probably the latter.
+   - When an update contradicts the tentative board state, highlight the
+     conflicts. Possibly offer a quick rewind button to go back. You'd
+     lose moves after, but they're suspect anyway, potentially having
+     been based on the wrong move.
+   - work out how keeping or rejecting a branch updates the shared board,
+     especially if it changed during the exploration. I think it should
+     be OK to just play moves. Some of them may have become redundant,
+     so we'd skip them.
