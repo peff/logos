@@ -3526,6 +3526,17 @@ body.proof-active :is(#hclues, #vclues) .clue.proof-current {
 	overflow: auto;
 }
 
+.analysis-actions {
+	display: flex;
+	justify-content: center;
+	gap: 0.35rem;
+	margin-top: 0.35rem;
+}
+
+.analysis-actions .option-action {
+	margin: 0;
+}
+
 .analysis-summary {
 	white-space: pre-wrap;
 	font-size: 0.75em;

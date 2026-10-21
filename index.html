@@ -215,10 +215,12 @@
 				<h3>Deductions from the current position (up to three)</h3>
 				<ol class="analysis-deductions"></ol>
 				<p class="analysis-empty" hidden>No clue deductions available.</p>
-				<button class="option-action analysis-copy" type="button"
-				        onClick="puzzle.copyAnalysisPosition()">Copy position</button>
-				<button class="option-action analysis-copy-moves" type="button"
-				        onClick="puzzle.copyMoveHistory()">Copy move history</button>
+				<div class="analysis-actions">
+					<button class="option-action analysis-copy" type="button"
+					        onClick="puzzle.copyAnalysisPosition()">Copy position</button>
+					<button class="option-action analysis-copy-moves" type="button"
+					        onClick="puzzle.copyMoveHistory()">Copy move history</button>
+				</div>
 				<button class="modal-done modal-close" type="button"
 				        onClick="puzzle.closeAnalysis()">Close</button>
 			</dialog>
