@@ -781,6 +781,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		for (var mark of saved.chalkClues || [])
 			this.setChalkClue(this.clues[mark.index], true, mark.actor, mark.color);
 		this.restorePlayDisplay();
+		this.startMoveRecording();
 		this.pendingSeed = undefined;
 		this.paused = this.manualPaused || this.pageHidden;
 		this.resumeAfterPageHidden = this.pageHidden && !this.manualPaused && !this.practiceMode;
@@ -1029,6 +1030,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.say(awaitStart ? "" : this.extreme ? extremeStartMessage : randomChoice(startMessages));
 		this.updateSeedDifficulty();
 		this.updateActionControls();
+		this.startMoveRecording();
 		return true;
 	}
 
@@ -1329,6 +1331,43 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		};
 	}
 
+	/* A local diagnostic transcript, separate from scores and saved positions.
+	 * Keep snapshots so automatic consequences need not be reconstructed. */
+	this.startMoveRecording = function() {
+		this.moveRecording = { version: 1, initial: this.positionSnapshot(), events: [] };
+		this.moveRecordingStarted = Date.now();
+	}
+
+	this.recordMoveEvent = function(type, details = {}) {
+		if (!this.moveRecording)
+			return;
+		var depth = 0;
+		for (var state = this.suppose; state; state = state.parent)
+			depth++;
+		this.moveRecording.events.push({ type, ...details,
+			elapsed: Date.now() - this.moveRecordingStarted, depth,
+			...(this.suppose ? { position: this.suppose.position,
+				domains: copyDomains(this.suppose.domains) } : {
+				domains: domainsFromSlots(this), placements: proofPlacementsFromSlots(this),
+			}),
+		});
+	}
+
+	this.moveHistorySnapshot = function() {
+		return JSON.parse(JSON.stringify({ ...this.moveRecording,
+			final: this.positionSnapshot() }));
+	}
+
+	this.copyMoveHistory = async function() {
+		var text = JSON.stringify(this.moveHistorySnapshot());
+		try {
+			await navigator.clipboard.writeText(text);
+			this.analysis.querySelector(".analysis-copy-moves").textContent = "Copied";
+		} catch (e) {
+			window.prompt("Copy this move history:", text);
+		}
+	}
+
 	this.openAnalysis = function() {
 		this.leaveSuppose(true);
 		var input = this.options.querySelector("#game-seed");
@@ -1383,6 +1422,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		}
 		this.analysis.querySelector(".analysis-empty").hidden = count != 0;
 		this.analysis.querySelector(".analysis-copy").textContent = "Copy position";
+		this.analysis.querySelector(".analysis-copy-moves").textContent = "Copy move history";
 		setDialogOpen(this.options, false);
 		setDialogOpen(this.analysis, true);
 		this.analysis.querySelector(".modal-close").focus();
@@ -1641,6 +1681,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 
 	/* Reveal assistance in stages without applying moves to the board. */
 	this.hint = function(stage = 3, committed = false) {
+		this.recordMoveEvent("hint", { stage });
 		if (this.suppose || this.supposeReplay)
 			return;
 		if (this.gameOver || this.pendingSeed !== undefined || this.paused) {
@@ -1765,6 +1806,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		var clue = this.originalClues?.[index];
 		if (!this.extreme || !clue || this.clues.includes(clue))
 			return false;
+		this.recordMoveEvent("reveal-clue", { index });
 		this.clearHint();
 		this.clues.push(clue);
 		this.revealedClues.push(index);
@@ -2059,6 +2101,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		if (this.suppose && !this.suppose.assumption)
 			return;
 		var parent = this.suppose;
+		this.recordMoveEvent("suppose-enter");
 		this.supposeLauncher = button || this.supposeButton;
 		this.clearHint();
 		this.clearPracticeMistake();
@@ -2130,6 +2173,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.playSound(placed ? "place" : "discard");
 		this.dismissSupposeClues();
 		this.saveSupposeStep({ row, column, symbol, discard });
+		this.recordMoveEvent("suppose-move", { row, column, symbol, discard });
 		this.renderSuppose();
 	}
 
@@ -2187,6 +2231,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		var step = state.history[position];
 		Object.assign(state, { position, domains: copyDomains(step.domains),
 			assumption: step.assumption, dismissed: step.dismissed.slice(), message: step.message });
+		this.recordMoveEvent("suppose-rewind");
 		this.renderSuppose();
 	}
 
@@ -2276,6 +2321,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		if (!this.suppose || this.paused)
 			return;
 		var state = this.suppose;
+		this.recordMoveEvent("suppose-keep");
 		var steps = state.history.slice(1, state.position + 1);
 		if (state.parent) {
 			var parent = state.parent;
@@ -2333,6 +2379,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		if (!this.suppose?.assumption || this.paused)
 			return;
 		var assumption = this.suppose.assumption;
+		this.recordMoveEvent("suppose-reject", { ...assumption });
 		this.leaveSuppose();
 		this.requestTileAction(this.rows[assumption.row].slots[assumption.column],
 			assumption.symbol, assumption.discard ? "place" : "remove");
@@ -2341,6 +2388,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.leaveSuppose = function(all = false) {
 		if (!this.suppose)
 			return;
+		this.recordMoveEvent("suppose-leave", { all });
 		this.closeSlotTray();
 		if (!all && this.suppose.parent) {
 			var displayed = this.suppose.displayed;
@@ -2558,6 +2606,9 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		if ((action == "place" || action == "remove") &&
 		    !options.deferClueDismissal)
 			this.dismissExhaustedClues();
+		this.recordMoveEvent("move", { row: this.rows.indexOf(slot.row),
+			column: slot.row.slots.indexOf(slot), symbol: value, action,
+			replay: !!this.supposeReplay, playerAction });
 	}
 
 	this.applySlotTrayAction = function(value, ev, contextMenu) {

@@ -6856,3 +6856,44 @@ Deno.test("Suppose controls recover after hints, pauses, and entering Zen in Opt
 	else
 		localStorage.setItem("practiceMode", previousPracticeMode);
 });
+
+Deno.test("move recordings retain nested explorations and rewound branches", async function() {
+	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
+	puzzle.newGame(0);
+	const first = puzzle.rows[0].slots[0], second = puzzle.rows[1].slots[0];
+	puzzle.requestTileAction(first, (first.value + 1) % 6, "remove");
+	puzzle.enterSuppose();
+	puzzle.requestTileAction(first, first.value, "place");
+	puzzle.enterSuppose();
+	puzzle.requestTileAction(second, (second.value + 1) % 6, "place");
+	puzzle.moveSuppose(-1);
+	puzzle.requestTileAction(second, second.value, "place");
+	await puzzle.acceptSuppose();
+	puzzle.leaveSuppose();
+	const history = puzzle.moveHistorySnapshot();
+	assert(history.version === 1 && history.initial.seed === "00000000");
+	assert(history.events.map(event => event.type).join(",") ===
+	       "move,suppose-enter,suppose-move,suppose-enter,suppose-move,suppose-rewind,suppose-move,suppose-keep,suppose-leave,suppose-leave");
+	assert(history.events[4].depth === 2 && history.events[5].position === 0);
+	assert(history.events[4].domains[1][(second.value + 1) % 6] === 1);
+	assert(history.events[6].domains[1][second.value] === 1);
+	assert(history.final.domains[0][first.value] !== 1,
+	       "abandoned supposition was confused with a committed move");
+	puzzle.newGame(1);
+	assert(puzzle.moveHistorySnapshot().events.length === 0);
+	assert(history.events.length === 10, "export changed when a new game started");
+	puzzle.enterSuppose();
+	const slot = puzzle.rows[0].slots[0];
+	puzzle.requestTileAction(slot, (slot.value + 1) % 6, "place");
+	puzzle.rejectSuppose();
+	assert(puzzle.moveRecording.events.map(event => event.type).join(",") ===
+	       "suppose-enter,suppose-move,suppose-reject,suppose-leave,move");
+	assert(!puzzle.moveRecording.events.at(-1).replay);
+	puzzle.enterSuppose();
+	puzzle.requestTileAction(slot, slot.value, "place");
+	await puzzle.acceptSuppose();
+	assert(puzzle.moveRecording.events.at(-1).replay);
+	assert(puzzle.moveRecording.events.at(-1).domains[0][slot.value] === 1);
+	puzzle.stopTimer();
+	puzzle.say("");
+});
