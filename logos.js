@@ -3,6 +3,7 @@ var puzzleGeneratorVersion = 1;
 
 /* Increment when the difficulty formula, route policy/count, or cutoffs change. */
 var puzzleDifficultyVersion = 1;
+var extremeDifficultyVersion = 1;
 
 const difficultyLevels = ["easy", "medium", "hard"];
 const pantheonLevels = ["all", ...difficultyLevels];
@@ -998,7 +999,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.proof = null;
 		this.pendingProof = null;
 		this.practiceMistake = null;
-		this.scoreEligible = !this.practiceMode && !this.extreme;
+		this.scoreEligible = !this.practiceMode;
 		this.explainButton.disabled = true;
 		this.explainButton.classList.remove("active", "proof-available");
 		this.explainButton.setAttribute("aria-pressed", "false");
@@ -2959,7 +2960,10 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			run.elapsed = this.timerElapsed;
 		if (this.daily)
 			run.daily = this.daily;
-		if (!this.extreme)
+		if (this.extreme) {
+			run.extreme = true;
+			run.extremeDifficulty = storedExtremeDifficulty(this.extremeDifficulty());
+		} else
 			run.difficulty = puzzleDifficulty(this);
 		return run;
 	}
@@ -2969,9 +2973,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		 * add fictional dates to the Chronicle (and hence the Pantheon).
 		 */
 		if (debugDateActive)
-			return false;
-		/* Experimental extreme games stay outside saved scores and ratings. */
-		if (this.extreme)
 			return false;
 		var gameIdentity = this.gameIdentity;
 		var run = sharedRun || this.runRecord(outcome);
@@ -3172,7 +3173,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.historySort = "newest";
 		this.scores.querySelector(".history-wins").checked = true;
 		this.scores.querySelector(".history-losses").checked = true;
-		for (var level of difficultyLevels)
+		for (var level of [...difficultyLevels, "extreme"])
 			this.scores.querySelector(".history-" + level).checked = true;
 		this.scores.querySelector(".pantheon-view").hidden = true;
 		this.scores.querySelector(".history-view").hidden = false;
@@ -3255,6 +3256,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		var losses = this.scores.querySelector(".history-losses").checked;
 		var levels = difficultyLevels.filter(level =>
 			this.scores.querySelector(".history-" + level).checked);
+		var showExtreme = this.scores.querySelector(".history-extreme").checked;
 		var filteringDifficulty = levels.length > 0 && levels.length < 3;
 		var pendingDifficulty = [];
 		var sort = this.historySort;
@@ -3265,6 +3267,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		var runs = (this.runHistory || []).filter(function(run) {
 			return (wins && run.outcome == "won") || (losses && run.outcome == "lost");
 		}).filter(run => {
+			if (run.extreme)
+				return showExtreme;
 			if (filteringDifficulty && !hasRunDifficulty(run) && canRateRun(run) &&
 			    !this.historyDifficultyFailures.has(run))
 				pendingDifficulty.push({ run: run });
@@ -3336,7 +3340,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			if (run.seed !== undefined) {
 				var link = document.createElement("a");
 				link.textContent = formatSeed(run.seed);
-				link.href = "#seed=" + formatSeed(run.seed);
+				link.href = "#seed=" + formatSeed(run.seed) + (run.extreme ? "&extreme" : "");
 				link.title = "Open this puzzle";
 				link.onclick = event => {
 					/* A solo invitation must not replace a live shared game. */
@@ -3417,7 +3421,10 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.historyViewport.scrollLeft = (this.historyPage - this.historyWindowStart) *
 			this.historyViewport.clientWidth;
 		this.historyDifficultyTask = this.fillRunDifficulties(
-			filteringDifficulty ? pendingDifficulty : difficultyEntries, request,
+			filteringDifficulty ? pendingDifficulty.concat(difficultyEntries.filter(entry =>
+				entry.run.extreme && !hasRunDifficulty(entry.run) &&
+				!this.historyDifficultyFailures.has(entry.run))) :
+				difficultyEntries, request,
 			filteringDifficulty ? { page: page } : null);
 	}
 
@@ -3432,10 +3439,20 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			    this.scores.querySelector(".history-view").hidden)
 				return;
 			try {
-				run.difficulty = puzzleDifficulty(puzzleFromSeed(run.seed));
+				var difficulty;
+				if (run.extreme) {
+					var puzzle = puzzleFromSeed(run.seed);
+					var indices = extremeClueIndices(puzzle);
+					if (!indices)
+						throw new Error("seed has no extreme variant");
+					puzzle.clues = indices.map(index => puzzle.clues[index]);
+					difficulty = run.extremeDifficulty = storedExtremeDifficulty(measureExtremeDifficulty(puzzle));
+				} else {
+					difficulty = run.difficulty = puzzleDifficulty(puzzleFromSeed(run.seed));
+				}
 				if (entry.element)
 					showRunDifficulty(entry.element, run);
-				await saveRunDifficulty(run.id, run.difficulty);
+				await saveRunDifficulty(run.id, difficulty);
 			} catch (e) {
 				this.historyDifficultyFailures.add(run);
 				if (entry.element) {
@@ -4332,6 +4349,11 @@ function accessRunHistory(run, includeRuns, level = "all", multiplayer = false) 
 						if (!cursor)
 							return;
 						var entry = Object.assign({}, cursor.value, { id: cursor.primaryKey });
+						/* Preserve Extreme times in history without ranking them. */
+						if (entry.extreme) {
+							cursor.continue();
+							return;
+						}
 						if (level == "all" || hasRunDifficulty(entry) &&
 						    entry.difficulty.level == level)
 							summary.highScores.push(entry);
@@ -4395,7 +4417,7 @@ function saveRunDifficulty(id, difficulty) {
 				store.get(id).onsuccess = function(event) {
 					var run = event.target.result;
 					if (run) {
-						run.difficulty = difficulty;
+						run[run.extreme ? "extremeDifficulty" : "difficulty"] = difficulty;
 						store.put(run, id);
 					}
 				};
@@ -4692,13 +4714,25 @@ function canRateRun(run) {
 		run.rows == 6 && run.columns == 6;
 }
 
+/* Store infinity as an explicit stalled flag so shared JSON results retain it. */
+function storedExtremeDifficulty(rating) {
+	var { skulls, ...details } = rating;
+	return { ...details, version: extremeDifficultyVersion,
+		level: rating.stalled ? null : skulls };
+}
+
 function hasRunDifficulty(run) {
+	if (run.extreme)
+		return run.extremeDifficulty?.version === extremeDifficultyVersion;
 	return run.difficulty && run.difficulty.version === puzzleDifficultyVersion &&
 		difficultyLevels.includes(run.difficulty.level);
 }
 
 function showRunDifficulty(element, run) {
-	if (hasRunDifficulty(run)) {
+	if (run.extreme) {
+		element.textContent = "Extreme";
+		element.title = "Difficulty: Extreme";
+	} else if (hasRunDifficulty(run)) {
 		var level = run.difficulty.level;
 		element.textContent = level[0].toUpperCase() + level.slice(1);
 		element.title = "Difficulty: " + element.textContent;

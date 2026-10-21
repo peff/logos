@@ -3265,7 +3265,7 @@ async function withRunHistory(callback, initial) {
 		}
 		const selected = runs.filter(run => !!run.multiplayer === !!multiplayer &&
 			run.elapsed !== undefined);
-		const wins = selected.filter(run => run.outcome == "won")
+		const wins = selected.filter(run => run.outcome == "won" && !run.extreme)
 			.sort((a, b) => a.elapsed - b.elapsed || a.id - b.id);
 		return {
 			runs: structuredClone(runs),
@@ -6104,7 +6104,7 @@ Deno.test("extreme pruning preserves uniqueness but defeats deduction", function
 	assert(found > 0 && found < 30, "exercise both accepted and rejected candidates");
 });
 
-Deno.test("extreme games reconstruct their clues and stay outside ratings and history", async function() {
+Deno.test("extreme games reconstruct their clues and record their own rating", async function() {
 	const puzzle = makePuzzle(6);
 	puzzle.newGame(0, false, false, true);
 	const expected = Logos.extremeClueIndices(Logos.puzzleFromSeed(0));
@@ -6114,8 +6114,8 @@ Deno.test("extreme games reconstruct their clues and stay outside ratings and hi
 	assert(puzzle.gameIdentity === identity && puzzle.extreme === true);
 	assert(!Logos.cluesSolve(puzzle, puzzle.clues));
 	assert(Logos.countSolutions(puzzle, puzzle.clues) === 1);
-	assert(!puzzle.scoreEligible && !puzzle.runRecord("won").difficulty);
-	assert(await puzzle.recordOutcome("won") === false);
+	assert(puzzle.scoreEligible && !puzzle.runRecord("won").difficulty);
+	assert(puzzle.runRecord("won").extremeDifficulty.version === 1);
 	puzzle.toggleOptions();
 	assert(puzzle.options.querySelector("#game-seed").value === "00000000");
 	assert(!puzzle.options.querySelector("#copy-seed-link").disabled);
@@ -6881,4 +6881,62 @@ Deno.test("move recordings retain nested explorations and rewound branches", asy
 	assert(puzzle.moveRecording.events.at(-1).domains[0][slot.value] === 1);
 	puzzle.stopTimer();
 	puzzle.say("");
+});
+
+Deno.test("Extreme history preserves timing and outcomes without entering the Pantheon", async function() {
+	await withRunHistory(async runs => {
+		const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
+		puzzle.newGame(0, false, false, true);
+		puzzle.stopTimer();
+		puzzle.scoreEligible = true;
+		puzzle.timerElapsed = 123456;
+		puzzle.scores.hidden = true;
+		for (const outcome of ["won", "lost"])
+			assert(await puzzle.recordOutcome(outcome));
+		assert(runs.length === 2 && runs.every(run => run.extreme === true &&
+		       run.elapsed === 123456 && run.seed === 0 && run.generatorVersion === 1 &&
+		       run.rows === 6 && run.columns === 6 && !run.difficulty &&
+		       run.extremeDifficulty.version === 1 && run.extremeDifficulty.complete));
+		assert(!puzzle.highScores.length && puzzle.scores.hidden,
+		       "Extreme result entered or opened the Pantheon");
+		puzzle.prepareHint();
+		assert(await puzzle.recordOutcome("won"));
+		assert(runs[2].extreme && runs[2].elapsed === undefined,
+		       "assisted Extreme did not follow the ordinary timing policy");
+		puzzle.say("");
+	});
+});
+
+Deno.test("Chronicle displays, filters, links, and refreshes Extreme ratings", async function() {
+	const initial = [
+		{ seed: 0x98079244, difficulty: { version: 1, level: "easy", score: 20 } },
+		{ seed: 0, extreme: true, extremeDifficulty: { version: 1, complete: true, level: 6, score: 8000 } },
+		{ seed: 0x4c3f2a56, extreme: true, extremeDifficulty: { version: 1, complete: false, stalled: true, level: null } },
+		{ seed: 0, extreme: true, extremeDifficulty: { version: 0, complete: true, level: 999 } },
+	].map((run, i) => ({ date: i, elapsed: 1000, outcome: "won", rows: 6,
+		columns: 6, generatorVersion: 1, ...run }));
+	await withRunHistory(async () => {
+		const puzzle = makePuzzle(6);
+		puzzle.scores.hidden = false;
+		await puzzle.showRunHistory();
+		const rows = puzzle.historyBody.children;
+		assert(rows.length === 4);
+		for (const row of Array.from(rows).slice(0, 3))
+			assert(row.children[4].textContent === "Extreme");
+		assert(rows[1].children[3].children[0].href === "#seed=4c3f2a56&extreme");
+		await puzzle.historyDifficultyTask;
+		assert(puzzle.runHistory[3].extremeDifficulty.version === 1 &&
+		       puzzle.runHistory[3].extremeDifficulty.level !== 999 && !puzzle.runHistory[3].difficulty);
+		for (const level of ["easy", "medium", "hard"])
+			puzzle.scores.querySelector(".history-" + level).checked = false;
+		puzzle.renderRunHistory();
+		assert(puzzle.historyBody.children.length === 3);
+		puzzle.scores.querySelector(".history-extreme").checked = false;
+		puzzle.renderRunHistory();
+		assert(!puzzle.historyBody.children.length);
+		await puzzle.showRunHistory();
+		assert(puzzle.scores.querySelector(".history-extreme").checked &&
+		       puzzle.historyBody.children.length === 4);
+		await puzzle.historyDifficultyTask;
+	}, initial);
 });

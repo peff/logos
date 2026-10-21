@@ -383,6 +383,44 @@ var storageTestsDone = (async function() {
 			       appended[1].id === zen.id && !("elapsed" in appended[1]),
 			       "reload did not preserve the initial loss followed by its Zen completion");
 		});
+		await test("Extreme times persist without entering any Pantheon", async function() {
+			const before = await accessRunHistory(null, true);
+			const rating = { version: 1, complete: true, level: 3, score: 4000 };
+			const records = [];
+			for (let i = 0; i < 12; i++) {
+				const run = { ...win, date: 9000 + i, seed: 0, elapsed: i,
+					extreme: true, extremeDifficulty: rating };
+				delete run.id;
+				await accessRunHistory(run);
+				records.push(run);
+			}
+			const shared = { ...win, extreme: true, extremeDifficulty: rating,
+				elapsed: 0, multiplayer: 1, multiplayerId: "extreme-shared" };
+			delete shared.id;
+			await accessRunHistory(shared);
+			await accessRunHistory({ ...shared });
+			for (const multiplayer of [false, true])
+				for (const level of ["all", "easy", "medium", "hard"]) {
+					const history = await accessRunHistory(null, true, level, multiplayer);
+					assert(history && !history.highScores.some(run => run.extreme) &&
+					       !(history.unratedRuns || []).some(run => run.extreme),
+					       "Extreme run entered a ranking or ordinary rating backfill");
+				}
+			const history = await accessRunHistory(null, true);
+			assert(history.runs.length === before.runs.length + 13,
+			       "Extreme records were lost or a shared result was duplicated");
+			assert(history.highScores.map(run => run.id).join() ===
+			       before.highScores.map(run => run.id).join(),
+			       "skipping fast Extreme runs truncated the ordinary ranking");
+			assert(history.runs.find(run => run.id === records[0].id).elapsed === 0,
+			       "Extreme time was not retained");
+			const infinite = { version: 1, complete: false, stalled: true, level: null };
+			assert(await saveRunDifficulty(records[0].id, infinite));
+			const saved = (await accessRunHistory(null, true)).runs.find(run => run.id === records[0].id);
+			assert(saved.extremeDifficulty.stalled && saved.extremeDifficulty.level === null &&
+			       saved.extreme && saved.elapsed === 0,
+			       "Extreme cache update changed the run or lost its infinite rating");
+		});
 		output.textContent += "\n" + passed.length + " tests passed";
 		return true;
 	} catch (error) {

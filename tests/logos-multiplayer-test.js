@@ -1620,3 +1620,25 @@ Deno.test("extreme clue assistance is shared and survives adoption, late joins a
 		stopAll(host, guest, late);
 	}
 });
+
+Deno.test("shared Extreme results retain mode, host time, and JSON-safe skull ratings", function() {
+	const host = makeSession("host", "host"), guest = makeSession("guest", "guest");
+	const hostRuns = captureMultiplayerRuns(host), guestRuns = captureMultiplayerRuns(guest);
+	const network = new InMemoryMultiplayerNetwork(host.session);
+	try {
+		host.session.start(0x4c3f2a56, "host", true);
+		network.addGuest(guest.session);
+		host.puzzle.timerStarted = Date.now() - 45000;
+		finishSharedPuzzle(host);
+		assert(hostRuns.length === 1 && guestRuns.length === 1 &&
+		       JSON.stringify(hostRuns) === JSON.stringify(guestRuns));
+		const run = hostRuns[0];
+		assert(run.extreme === true && run.multiplayer && run.elapsed >= 45000 &&
+		       run.extremeDifficulty.version === 1 && run.extremeDifficulty.stalled &&
+		       run.extremeDifficulty.level === null && !run.difficulty);
+		guest.session.requestSync();
+		assert(guestRuns.length === 1);
+	} finally {
+		stopAll(host, guest);
+	}
+});
