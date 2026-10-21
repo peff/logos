@@ -1294,7 +1294,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			var rating = this.extremeDifficulty();
 			display.innerHTML = "Extreme " + extremeSkulls(rating);
 			display.disabled = false;
-			display.title = (rating.complete ? "Extreme score: " + rating.score.toFixed(0) :
+			display.title = (rating.stalled ? "Beyond single-choice deductions" :
+				rating.complete ? "Extreme score: " + rating.score.toFixed(0) :
 				"Extreme rating unavailable") +
 				(this.analysisUnlocked ? ". Puzzle analysis" : "");
 			return;
@@ -1353,7 +1354,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.analysis.querySelector(".analysis-summary").textContent =
 			"Seed: " + snapshot.seed + "\n" +
 			(this.extreme ? "Extreme (experimental)\n" +
-			(extremeRating.complete ? "Skulls: " + extremeRating.skulls + "\nScore: " + extremeRating.score.toFixed(2) +
+			(extremeRating.stalled ? "Skulls: ∞" :
+			 extremeRating.complete ? "Skulls: " + extremeRating.skulls + "\nScore: " + extremeRating.score.toFixed(2) +
 				"\nMean bottlenecks: " + extremeRating.bottlenecks.toFixed(1) :
 				"Extreme rating unavailable") + "\n\n" :
 			"Difficulty: " + rating.level + "\n" +
@@ -4514,7 +4516,7 @@ function traceExtremeDifficulty(puzzle, maxTrials = 10000, options = {}) {
 			}
 		}
 		if (!best)
-			return result;
+			return { ...result, stalled: true };
 		if (options.measureCost) {
 			/* Measure only the selected contradiction, excluding the act of
 			 * assuming a placement and the progress after rejecting it. */
@@ -4537,7 +4539,8 @@ function traceExtremeDifficulty(puzzle, maxTrials = 10000, options = {}) {
 }
 
 /* Average weighted contradiction work over fixed routes, independently of
- * proof narration. A failed route leaves the puzzle unrated. */
+ * proof narration. A genuine stall rates as infinite; an interrupted search
+ * leaves the puzzle unrated. */
 function measureExtremeDifficulty(puzzle, maxTrials = 10000, routes = 10) {
 	if (!Number.isInteger(routes) || routes < 1)
 		throw new Error("difficulty analysis needs a positive route count");
@@ -4545,7 +4548,8 @@ function measureExtremeDifficulty(puzzle, maxTrials = 10000, routes = 10) {
 	for (var route = 0; route < routes; route++) {
 		var run = traceExtremeDifficulty(puzzle, maxTrials, { route, measureCost: true });
 		if (!run.complete)
-			return { complete: false };
+			return run.stalled ? { complete: false, stalled: true, skulls: Infinity } :
+				{ complete: false };
 		score += run.costs.reduce((sum, cost) => sum + cost.eliminations ** 1.5, 0);
 		bottlenecks += run.bottlenecks;
 	}
@@ -4555,10 +4559,13 @@ function measureExtremeDifficulty(puzzle, maxTrials = 10000, routes = 10) {
 }
 
 function extremeSkulls(rating) {
-	if (!rating.complete)
+	if (!rating.complete && !rating.stalled)
 		return "(?)";
 	var skull = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">' +
 		'<use href="#extreme-skull-icon"/></svg>';
+	if (rating.stalled)
+		return '<span class="extreme-skulls" role="img" aria-label="Infinite skulls">' +
+			skull + ' × ∞</span>';
 	return '<span class="extreme-skulls" role="img" aria-label="' +
 		rating.skulls + (rating.skulls == 1 ? ' skull' : ' skulls') + '">' +
 		(rating.skulls > 5 ? skull + " × " + rating.skulls :

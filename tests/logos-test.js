@@ -6801,3 +6801,18 @@ Deno.test("nested rejection and back-out affect only their parent exploration", 
 	assert(!puzzle.suppose);
 	puzzle.stopTimer();
 });
+
+Deno.test("extremes that exhaust single-choice lemmas receive infinite skulls", function() {
+	for (const seed of [0x4c3f2a56, 0x78c9d796]) {
+		const puzzle = Logos.puzzleFromSeed(seed);
+		puzzle.clues = Logos.extremeClueIndices(puzzle).map(index => puzzle.clues[index]);
+		const rating = Logos.measureExtremeDifficulty(puzzle);
+		assert(!rating.complete && rating.stalled && rating.skulls === Infinity);
+		const html = Logos.extremeSkulls(rating);
+		assert(html.includes('aria-label="Infinite skulls"') && html.includes(' × ∞'));
+		assert(html.includes('href="#extreme-skull-icon"'));
+		const interrupted = Logos.measureExtremeDifficulty(puzzle, 0);
+		assert(!interrupted.complete && !interrupted.stalled);
+		assert(Logos.extremeSkulls(interrupted) === "(?)");
+	}
+});

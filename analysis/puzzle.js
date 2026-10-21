@@ -200,7 +200,7 @@ function analyzePuzzle(game, seed, snapshot, trace, extreme) {
 	if (extreme) {
 		const rating = game.measureExtremeDifficulty(puzzle);
 		console.log(`Seed ${game.formatSeed(seed)} — extreme`);
-		console.log(rating.complete ? `Skulls: ${rating.skulls}\nScore: ${rating.score.toFixed(2)}\nMean bottlenecks: ${rating.bottlenecks.toFixed(1)}` :
+		console.log(rating.stalled ? "Skulls: ∞" : rating.complete ? `Skulls: ${rating.skulls}\nScore: ${rating.score.toFixed(2)}\nMean bottlenecks: ${rating.bottlenecks.toFixed(1)}` :
 			"Extreme rating unavailable");
 	} else {
 		const metrics = game.measureDifficulty(puzzle);
