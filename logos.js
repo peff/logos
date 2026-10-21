@@ -1931,6 +1931,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			failedValue: proof.failedValue,
 		};
 		this.proof = null;
+		this.updateSupposeControls();
 		this.updateChalkControls();
 		this.proofControls.hidden = true;
 		document.body.classList.remove("proof-active");
@@ -2826,6 +2827,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.updatePauseControl = function() {
+		this.updateSupposeControls();
 		this.updateChalkControls();
 		var paused = this.manualPaused;
 		document.body.classList[paused ? "add" : "remove"]("game-paused");
@@ -3525,6 +3527,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			this.resumeAfterModal = false;
 		}
 		this.actionController?.restoreHostTimer();
+		this.updateSupposeControls();
 		button.setAttribute("aria-expanded", !modal.hidden);
 	}
 
@@ -3636,6 +3639,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			this.resumeAfterPageHidden = false;
 			this.pausedBeforePageHidden = false;
 		}
+		this.updateSupposeControls();
 	}
 
 	var puzzle = this;
@@ -3924,7 +3928,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.updateActionControls = function() {
-		this.updateSupposeControls();
 		this.updatePauseControl();
 		var show = this.showActionSelector && !this.gameOver;
 		if (this.seed === undefined)

@@ -6816,3 +6816,43 @@ Deno.test("extremes that exhaust single-choice lemmas receive infinite skulls", 
 		assert(Logos.extremeSkulls(interrupted) === "(?)");
 	}
 });
+
+Deno.test("Suppose controls recover after hints, pauses, and entering Zen in Options", function() {
+	const previousPracticeMode = localStorage.getItem("practiceMode");
+	localStorage.setItem("hintAcknowledged", "true");
+	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
+	puzzle.newGame("5be42607");
+	const controls = [puzzle.supposeButton, puzzle.supposeTap, puzzle.supposeFooter];
+	const disabled = expected => assert(controls.every(button => button.disabled === expected),
+		"Suppose controls did not reflect whether exploration is available");
+	puzzle.practiceMode = false;
+	disabled(false);
+	puzzle.togglePause();
+	disabled(true);
+	puzzle.togglePause();
+	disabled(false);
+	puzzle.hint();
+	assert(puzzle.proof, "hint did not open its proof");
+	disabled(true);
+	puzzle.closeProof();
+	disabled(false);
+	puzzle.options.hidden = true;
+	puzzle.toggleOptions();
+	disabled(true);
+	puzzle.setPracticeMode(true);
+	puzzle.toggleOptions();
+	disabled(false);
+	puzzle.setPageHidden(true);
+	disabled(true);
+	puzzle.setPageHidden(false);
+	disabled(false);
+	puzzle.enterSuppose();
+	assert(puzzle.suppose, "restored controls did not allow a supposition");
+	puzzle.leaveSuppose();
+	puzzle.stopTimer();
+	puzzle.say("");
+	if (previousPracticeMode === null)
+		localStorage.removeItem("practiceMode");
+	else
+		localStorage.setItem("practiceMode", previousPracticeMode);
+});
