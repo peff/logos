@@ -6328,6 +6328,25 @@ Deno.test("stalled hints without a chalk suggestion show an incomplete walkthrou
 	puzzle.stopTimer();
 });
 
+Deno.test("ordinary extreme deductions do not offer clue revelation", function() {
+	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
+	puzzle.newGame(0x3c5, false, false, true);
+	puzzle.hintAcknowledged = true;
+	const count = puzzle.clues.length;
+	assert(count < puzzle.originalClues.length);
+	puzzle.explainLoss();
+	assert(puzzle.hintRequest.step && !puzzle.hintRequest.stalled);
+	puzzle.explainLoss();
+	assert(puzzle.hintRequest.stage === 2);
+	assert(puzzle.proofControls.querySelector(".proof-reveal").hidden);
+	puzzle.requestExtremeClue();
+	assert(puzzle.clues.length === count && !puzzle.revealedClues.length);
+	puzzle.explainLoss();
+	assert(puzzle.proof && puzzle.proofControls.querySelector(".proof-reveal").hidden);
+	puzzle.closeProof();
+	puzzle.stopTimer();
+});
+
 Deno.test("extreme hints offer clue revelation separately from the walkthrough", function() {
 	for (const walkthrough of [false, true]) {
 		const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
@@ -6357,6 +6376,7 @@ Deno.test("extreme hints offer clue revelation separately from the walkthrough",
 	puzzle.updateRevealClueControl(true);
 	assert(puzzle.proofControls.querySelector(".proof-reveal").hidden);
 	puzzle.extreme = true;
+	puzzle.hintRequest = { stalled: true };
 	puzzle.originalClues = puzzle.clues.slice();
 	puzzle.updateRevealClueControl(true);
 	assert(puzzle.proofControls.querySelector(".proof-reveal").hidden);

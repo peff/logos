@@ -1737,13 +1737,13 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 
 	this.updateRevealClueControl = function(available) {
 		this.proofControls.querySelector(".proof-reveal").hidden =
-			!available || !this.extreme ||
+			!available || !this.extreme || !this.hintRequest?.stalled ||
 			!this.originalClues.some(clue => !this.clues.includes(clue));
 	}
 
 	this.requestExtremeClue = function() {
 		if (!this.extreme || this.gameOver || this.paused ||
-		    !this.hintRequest)
+		    !this.hintRequest?.stalled)
 			return;
 		var domains = domainsFromSlots(this);
 		var placements = proofPlacementsFromSlots(this);
