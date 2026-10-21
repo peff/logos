@@ -2959,7 +2959,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			run.elapsed = this.timerElapsed;
 		if (this.daily)
 			run.daily = this.daily;
-		if (!this.extreme && canRateRun(run))
+		if (!this.extreme)
 			run.difficulty = puzzleDifficulty(this);
 		return run;
 	}

@@ -202,6 +202,18 @@ function makePuzzle(numRows, checkWin, puzzleSymbols) {
 		puzzleSymbols || Array(numRows).fill(symbols),
 		elem(), elem(), help, elem(),
 		elem(), elem(), elem(), elem());
+	/* Hand-built boards need not be solvable or have a reproducible seed.
+	 * Only generated games exercise the real rating and record creation.
+	 */
+	const runRecord = puzzle.runRecord;
+	puzzle.runRecord = function(outcome) {
+		if (this.seed !== undefined && this.rows.length === 6 && this.rows[0].slots.length === 6)
+			return runRecord.call(this, outcome);
+		return { date: Date.now(), seed: this.seed, outcome, rows: this.rows.length,
+			columns: this.rows[0].slots.length, generatorVersion: 1,
+			...(this.daily ? { daily: this.daily } : {}),
+			...(this.scoreEligible ? { elapsed: this.timerElapsed } : {}) };
+	};
 	const lose = puzzle.lose;
 	puzzle.lose = function() {
 		this.losses++;
