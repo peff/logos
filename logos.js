@@ -2102,11 +2102,15 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 
 	/* Nested, local explorations. All hypothetical moves stay in
 	 * domains; Slot.value and the committed board are never modified. */
+	this.hasSupposeConflict = function() {
+		return !!this.suppose?.sharedConflicts.some(Boolean);
+	}
+
 	this.enterSuppose = function(button) {
 		if (this.supposeReplay || this.gameOver || this.paused ||
 		    this.proof || this.pendingSeed !== undefined)
 			return;
-		if (this.suppose && (!this.suppose.assumption || this.suppose.pending))
+		if (this.suppose && (!this.suppose.assumption || this.suppose.pending || this.hasSupposeConflict()))
 			return;
 		var parent = this.suppose;
 		this.recordMoveEvent("suppose-enter");
@@ -2118,6 +2122,10 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.suppose = { base, parent,
 			prefix: parent ? parent.history[parent.position].label + "." : "",
 			domains: copyDomains(parent ? parent.domains : base), assumption: null,
+			sharedConflicts: parent ? parent.sharedConflicts.slice() : [],
+			sharedConflictMessages: { ...parent?.sharedConflictMessages },
+			conflictDomains: [],
+			conflictTiles: parent ? copyDomains(parent.conflictTiles) : base.map(row => row.map(() => 0)),
 			displayed: parent?.displayed,
 			dismissed: parent ? parent.dismissed.slice() : [],
 			history: [], position: -1, message: null };
@@ -2137,7 +2145,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		for (var button of [this.supposeButton, this.supposeTap, this.supposeFooter]) {
 			button.disabled = !!(this.gameOver || this.paused || this.proof || this.supposeReplay ||
 				this.pendingSeed !== undefined ||
-				this.suppose && (!this.suppose.assumption || this.suppose.pending));
+				this.suppose && (!this.suppose.assumption || this.suppose.pending || this.hasSupposeConflict()));
 			button.setAttribute("aria-expanded", String(!!this.suppose));
 		}
 		this.supposeControls.hidden = !this.suppose;
@@ -2150,6 +2158,10 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		state.history.length = state.position + 1;
 		var label = state.prefix + (state.position + 1);
 		state.history.push({ label, domains: copyDomains(state.domains),
+			sharedConflicts: state.sharedConflicts.slice(),
+			sharedConflictMessages: { ...state.sharedConflictMessages },
+			conflictDomains: state.conflictDomains.map(row => row?.slice()),
+			conflictTiles: copyDomains(state.conflictTiles),
 			assumption: state.assumption, dismissed: state.dismissed.slice(),
 			message: state.message, move });
 		state.position++;
@@ -2163,7 +2175,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.applySupposeAction = function(slot, symbol, action) {
-		if (!this.suppose || this.suppose.pending || this.paused || this.gameOver || slot.single)
+		if (!this.suppose || this.suppose.pending || this.hasSupposeConflict() || this.paused || this.gameOver || slot.single)
 			return;
 		var row = this.rows.indexOf(slot.row), column = slot.row.slots.indexOf(slot);
 		var domains = this.suppose.domains, bit = 1 << column;
@@ -2187,7 +2199,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.toggleSupposeClue = function(clue) {
-		if (this.paused || !this.suppose || this.suppose.pending || !clue.active)
+		if (this.paused || !this.suppose || this.suppose.pending || this.hasSupposeConflict() || !clue.active)
 			return;
 		var index = this.clues.indexOf(clue), dismissed = this.suppose.dismissed;
 		if (dismissed.includes(index))
@@ -2239,9 +2251,37 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.closeSlotTray();
 		var step = state.history[position];
 		Object.assign(state, { position, domains: copyDomains(step.domains),
+			sharedConflicts: step.sharedConflicts.slice(),
+			sharedConflictMessages: { ...step.sharedConflictMessages },
+			conflictDomains: step.conflictDomains.map(row => row?.slice()),
+			conflictTiles: copyDomains(step.conflictTiles),
 			assumption: step.assumption, dismissed: step.dismissed.slice(), message: step.message });
 		this.recordMoveEvent("suppose-rewind");
 		this.renderSuppose();
+	}
+
+	this.supposeRewindTarget = function() {
+		if (!this.suppose?.sharedConflicts.some(Boolean))
+			return null;
+		for (var state = this.suppose; state; state = state.parent)
+			for (var position = state.position; position >= 0; position--)
+				if (!state.history[position].domains.some(row => propagatePencilRow(row.slice())))
+					return { state, position };
+		return null;
+	}
+
+	this.rewindSupposeConflict = function() {
+		if (!this.suppose || this.suppose.pending || this.paused)
+			return;
+		var target = this.supposeRewindTarget();
+		if (!target)
+			return;
+		while (this.suppose !== target.state)
+			this.leaveSuppose();
+		this.moveSuppose(target.position - target.state.position);
+		target.state.history.length = target.position + 1;
+		this.renderSuppose();
+		this.supposeControls.querySelector(".suppose-leave").focus();
 	}
 
 	this.restoreSuppose = function(state) {
@@ -2258,21 +2298,89 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.reconcileSuppose = function() {
 		if (!this.suppose)
 			return;
+		var oldConflicts = Object.keys(this.suppose.sharedConflictMessages).length;
 		var base = domainsFromSlots(this);
-		var merge = domains => domains.map((row, r) => {
-			var merged = row.map((bits, v) => bits & base[r][v]);
-			propagatePencilRow(merged);
-			return merged;
-		});
+		var merge = position => {
+			position.domains = position.domains.map((row, r) => {
+				var merged = row.map((bits, v) => bits & base[r][v]);
+				var conflict = propagatePencilRow(merged);
+				if (!position.conflictDomains[r]) {
+					if (!conflict || propagatePencilRow(row.slice()))
+						return merged;
+					/* Keep the tentative row as evidence. The displayed
+					 * domains continue following the shared board, but
+					 * must not erase guesses contradicted by later moves. */
+					position.conflictDomains[r] = row.slice();
+					position.sharedConflicts[r] = true;
+				}
+				var tentativeRow = position.conflictDomains[r];
+				var combined = tentativeRow.map((bits, v) => bits & base[r][v]);
+				propagatePencilRow(combined);
+				var mark = (v, bits, action, explanation, placementMessage = null) => {
+					position.conflictTiles[r][v] |= bits;
+					for (var c = 0; c < row.length; c++) {
+						if (!(bits & (1 << c)))
+							continue;
+						var key = r + ":" + v + ":" + c;
+						if (placementMessage)
+							position.sharedConflictMessages[key] = placementMessage;
+						else
+							position.sharedConflictMessages[key] ||=
+								"Another player " + action + " " + proofSymbolReference(this, r, v) +
+								(action == "placed" ? " in" : " from") + " column " + (c + 1) +
+								"; " + explanation;
+					}
+				};
+				for (var v = 0; v < row.length; v++) {
+					var tentative = tentativeRow[v], shared = base[r][v];
+					if (tentative && !(tentative & (tentative - 1)) &&
+					    shared && !(shared & (shared - 1)) && tentative != shared) {
+						var message = "You placed " + proofSymbolReference(this, r, v) +
+							" in column " + (Math.log2(tentative) + 1) +
+							"; another player placed it in column " + (Math.log2(shared) + 1) + ".";
+						mark(v, tentative | shared, null, null, message);
+						continue;
+					}
+					if (tentative && !(tentative & (tentative - 1)) && !(tentative & shared))
+						mark(v, tentative, "discarded", "you had placed it there.");
+					if (shared && !(shared & (shared - 1)) && !(tentative & shared))
+						mark(v, shared, "placed", "you had discarded it there.");
+				}
+				/* Exhausting a domain does not mean each former candidate
+				 * was a supposed placement. Only outline the definite
+				 * placement/discard contradictions above. */
+				if (!position.conflictTiles[r].some(Boolean)) {
+					var symbol = combined.findIndex(bits => !bits);
+					position.sharedConflictMessages[r + ":row"] ||= symbol >= 0 ?
+						"Another player's moves leave no place for " +
+						proofSymbolReference(this, r, symbol) + " in your supposition." :
+						"Another player's moves conflict with this row's supposed possibilities.";
+				}
+				return merged;
+			});
+		};
 		for (var state = this.suppose; state; state = state.parent) {
 			state.base = base;
-			state.domains = merge(state.domains);
+			merge(state);
 			for (var step of state.history)
-				step.domains = merge(step.domains);
+				merge(step);
 			/* Shared actions may have repainted hypothetical tiles. */
 			state.displayed = null;
 		}
+		if (Object.keys(this.suppose.sharedConflictMessages).length > oldConflicts)
+			this.playSound("practice-mistake");
 		this.renderSuppose();
+	}
+
+	this.markSupposeConflict = function(tile, conflict, message = "", discarded = false) {
+		if (conflict) {
+			tile.classList.add("suppose-conflict");
+			tile.classList[discarded ? "add" : "remove"]("suppose-conflict-discarded");
+			tile.title = message;
+		} else if (tile.classList.contains("suppose-conflict")) {
+			tile.classList.remove("suppose-conflict", "suppose-conflict-discarded");
+			tile.title = "";
+		}
 	}
 
 	this.renderSuppose = function() {
@@ -2290,6 +2398,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			}
 			for (var c = 0; c < row.slots.length; c++) {
 				var slot = row.slots[c];
+				for (var tile of [slot.singleElem, ...slot.possibilityElems])
+					this.markSupposeConflict(tile, false);
 				if (slot.single) {
 					slot.elem.classList.remove("suppose-placed");
 					renderTileSymbol(slot.singleElem, slot.symbols[slot.value]);
@@ -2319,6 +2429,24 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 				}
 			}
 		}
+		for (var [r, row] of this.rows.entries())
+			for (var [c, slot] of row.slots.entries())
+				for (var v = 0; v < slot.possibilityElems.length; v++) {
+					if (!(state.conflictTiles[r][v] & (1 << c)))
+						continue;
+					/* Once shared play places a symbol, show its conflict
+					 * there, not at superseded tentative placements. */
+					var shared = state.base[r][v];
+					if (shared && !(shared & (shared - 1)) && shared != (1 << c))
+						continue;
+					var message = shared & (1 << c) ?
+						"Another player placed this tile; you had discarded it." :
+						"Another player discarded this tile; your supposition needed it.";
+					this.markSupposeConflict(slot.possibilityElems[v], true, message,
+						!(state.base[r][v] & (1 << c)));
+					if (slot.single && slot.value == v)
+						this.markSupposeConflict(slot.singleElem, true, message);
+				}
 		for (var [index, clue] of this.clues.entries()) {
 			if (!clue.display)
 				continue;
@@ -2327,20 +2455,38 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 				clue.display.classList.add("suppose-dismissed");
 		}
 		var message = state.pending ? "Waiting for the host to apply these moves." : state.message || "Choose or discard a tile to begin your supposition.";
-		if (conflict)
+		var sharedConflict = this.hasSupposeConflict();
+		/* Later deductions inherit the conflict, but retain their own
+		 * descriptions. Explain it at the step which introduced it. */
+		var preceding = state.position ? state.history[state.position - 1] : state.parent;
+		var stepConflict = Object.entries(state.sharedConflictMessages).find(([tile]) =>
+			!preceding?.sharedConflictMessages[tile]);
+		if (!state.pending && stepConflict)
+			message = stepConflict[1];
+		else if (conflict && !sharedConflict)
 			message += " These possibilities conflict within a row.";
 		renderProofMessage(this, this.supposeControls.querySelector(".suppose-assumption"), message, false);
 		this.supposeControls.querySelector(".proof-position").textContent =
-			state.position ? "Suppose · Step " + state.history[state.position].label :
-			state.parent ? "Nested supposition" : "Suppose";
+			(state.position ? "Suppose · Step " + state.history[state.position].label :
+			state.parent ? "Nested supposition" : "Suppose") + (sharedConflict ? " · Conflict" : "");
 		this.updateSupposeControls();
 		this.supposeControls.querySelector(".proof-previous").disabled = !!state.pending || !state.position;
 		this.supposeControls.querySelector(".proof-next").disabled = !!state.pending || state.position == state.history.length - 1;
+		var target = this.supposeRewindTarget();
+		var rewind = this.supposeControls.querySelector(".suppose-rewind");
+		rewind.hidden = !target;
+		rewind.disabled = !!state.pending;
+		if (target)
+			rewind.title = "Discard conflicting steps and return to " + (target.position ?
+				"step " + target.state.history[target.position].label :
+				"the start of the supposition");
 		var accept = this.supposeControls.querySelector(".suppose-accept");
+		accept.hidden = this.hasSupposeConflict();
 		accept.textContent = state.parent ? "Keep moves" : "Apply moves";
 		accept.title = state.parent ? "Keep these moves in the enclosing supposition" :
 			"Apply the moves through this step to the real board";
 		accept.disabled = !!state.pending || !state.position && !state.dismissed.length;
+		this.supposeControls.querySelector(".suppose-reject").hidden = this.hasSupposeConflict();
 		this.supposeControls.querySelector(".suppose-reject").disabled = !!state.pending || !state.assumption;
 		this.supposeControls.querySelector(".suppose-leave").disabled = !!state.pending;
 		if (this.expandedSlot)
@@ -2362,7 +2508,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.acceptSuppose = async function() {
-		if (!this.suppose || this.suppose.pending || this.paused)
+		if (!this.suppose || this.suppose.pending || this.hasSupposeConflict() || this.paused)
 			return;
 		var state = this.suppose;
 		this.recordMoveEvent("suppose-keep");
@@ -2376,6 +2522,10 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 					message: this.supposeMoveMessage(step.move) });
 			parent.position = parent.history.length - 1;
 			parent.domains = copyDomains(state.domains);
+			parent.sharedConflicts = state.sharedConflicts.slice();
+			parent.sharedConflictMessages = { ...state.sharedConflictMessages };
+			parent.conflictDomains = state.conflictDomains.map(row => row?.slice());
+			parent.conflictTiles = copyDomains(state.conflictTiles);
 			parent.dismissed = state.dismissed.slice();
 			parent.message = parent.history[parent.position].message;
 			parent.history[parent.position].dismissed = parent.dismissed.slice();
@@ -2425,7 +2575,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.rejectSuppose = function() {
-		if (!this.suppose?.assumption || this.suppose.pending || this.paused)
+		if (!this.suppose?.assumption || this.suppose.pending || this.hasSupposeConflict() || this.paused)
 			return;
 		var assumption = this.suppose.assumption;
 		this.recordMoveEvent("suppose-reject", { ...assumption });
@@ -2451,6 +2601,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		for (var row of this.rows)
 			for (var slot of row.slots) {
 				slot.elem.classList.remove("suppose-placed");
+				for (var tile of [slot.singleElem, ...slot.possibilityElems])
+					this.markSupposeConflict(tile, false);
 				renderTileSymbol(slot.singleElem, slot.symbols[slot.value]);
 				for (var tile of slot.possibilityElems)
 					tile.classList.remove("suppose-removed");

@@ -58,8 +58,19 @@ for every player, including guests who join later. Chalk marks and automatic
 clue dismissal preferences remain local. The same room link accepts additional guests while the invitation is open.
 
 Suppose explores a private branch, including nested suppositions. Shared
-moves update every saved step of that branch; conflicting rows are highlighted,
-and the step controls let you rewind before the conflicting assumption.
+moves update every saved step of that branch. When a shared move introduces
+a conflict, the conflicting tiles get the gold outline and glow used for proof
+steps. Further tentative moves are blocked, and **Rewind to conflict** replaces
+**Apply moves** and **Reject**.
+It discards the conflicting steps and returns to the last consistent position,
+leaving nested branches if necessary. The title marks conflicting positions;
+the step that introduces a conflict explains it, while later steps retain
+their original descriptions. Later shared moves can reveal additional
+conflicting tiles, including within an already conflicting row. Each update
+that reveals new conflicts plays the gentle Zen mistake sound when sound
+effects are enabled. Shared placements remain visible; discarded tiles involved in a conflict appear as faded markers
+and cannot be played. Shared moves continue updating the committed board even
+after a conflict, so backing out always returns to the current shared position.
 **Apply moves** sends the explored moves to the host in order, skips moves
 already resolved on the shared board, and stops at the first mistake (also in
 Zen mode). **Reject** shares only the inverse of the initial assumption.

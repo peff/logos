@@ -184,6 +184,7 @@
 					<div class="proof-position">Suppose</div>
 					<div class="proof-deduction suppose-assumption">Choose or discard a tile to begin your supposition.</div>
 					<div class="suppose-actions">
+						<button class="suppose-rewind" type="button" onClick="puzzle.rewindSupposeConflict()" hidden>Rewind to conflict</button>
 						<button class="suppose-accept" type="button" onClick="puzzle.acceptSuppose()" title="Apply the moves through this step to the real board">Apply moves</button>
 						<button class="suppose-reject" type="button" onClick="puzzle.rejectSuppose()" title="Back out and commit the opposite of the initial assumption">Reject assumption</button>
 						<button class="suppose-leave" type="button" onClick="puzzle.leaveSuppose()">Back out</button>

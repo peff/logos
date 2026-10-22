@@ -16,5 +16,3 @@
  - extend multiplayer suppose support:
    - opt into another player's branch to observe or help. Show who is
      exploring which branch.
-   - offer a quick rewind to the last step compatible with shared-board
-     updates; conflicts currently highlight the affected rows.

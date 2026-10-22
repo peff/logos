@@ -1902,3 +1902,281 @@ Deno.test("private suppositions clear outgoing hover but still receive other pla
 		stopAll(host, guest);
 	}
 });
+
+Deno.test("shared conflicts offer a rewind that preserves earlier deductions and discards the suffix", async function() {
+	const host = makeSession("host", "host");
+	const guest = makeSession("guest", "guest");
+	const network = new InMemoryMultiplayerNetwork(host.session);
+	try {
+		host.session.start(0x12345678);
+		network.addGuest(guest.session);
+		const p = guest.puzzle, a = wrongMove(p, 0), b = wrongMove(p, 1), c = wrongMove(p, 2);
+		p.enterSuppose();
+		p.requestTileAction(a.slot, a.value, "remove");
+		p.requestTileAction(b.slot, b.value, "place");
+		p.requestTileAction(c.slot, c.value, "remove");
+		const state = p.suppose;
+		assert(p.supposeControls.querySelector(".suppose-rewind").hidden);
+		const row = p.rows.indexOf(b.slot.row), column = b.slot.row.slots.indexOf(b.slot);
+		p.sounds.length = 0;
+		host.puzzle.requestTileAction(host.puzzle.rows[row].slots[column], b.value, "remove");
+		assert(state.sharedConflicts[row]);
+		const description = p.supposeControls.querySelector(".suppose-assumption");
+		const title = p.supposeControls.querySelector(".proof-position");
+		assert(description.textContent.startsWith("Discard "), "later deduction lost its description");
+		assert(title.textContent.endsWith(" · Conflict"));
+		assert(p.sounds.filter(sound => sound == "practice-mistake").length == 1);
+		p.moveSuppose(-1);
+		assert(description.textContent.startsWith("Another player discarded "));
+		p.moveSuppose(1);
+		p.reconcileSuppose();
+		assert(description.textContent.startsWith("Discard "));
+		assert(p.sounds.filter(sound => sound == "practice-mistake").length == 1,
+			"history navigation or repeated reconciliation replayed the alert");
+		assert(state.sharedConflictMessages[row + ":" + b.value + ":" + column].startsWith("Another player discarded "));
+		assert(state.sharedConflictMessages[row + ":" + b.value + ":" + column].endsWith("from column " + (column + 1) + "; you had placed it there."));
+		assert(b.slot.possibilityElems[b.value].classList.contains("suppose-conflict"));
+		assert(b.slot.possibilityElems[b.value].classList.contains("suppose-conflict-discarded"));
+		assert(!p.supposeControls.querySelector(".suppose-rewind").hidden);
+		assert(p.supposeRewindTarget().position == 1);
+		assert(p.supposeControls.querySelector(".suppose-accept").hidden);
+		assert(p.supposeControls.querySelector(".suppose-reject").hidden);
+		assert(p.supposeButton.disabled);
+		const before = JSON.stringify(state);
+		const next = wrongMove(p, 3);
+		p.requestTileAction(next.slot, next.value, "remove");
+		const clue = p.clues.find(clue => clue.active && clue.display);
+		p.requestClueAction(clue, false);
+		p.enterSuppose();
+		await p.acceptSuppose();
+		p.rejectSuppose();
+		assert(p.suppose === state && JSON.stringify(state) == before,
+			"conflicted exploration accepted an edit, nested branch, apply, or reject");
+		assert(host.session.revision == 1, "conflicted exploration sent a shared move");
+		state.pending = true;
+		p.rewindSupposeConflict();
+		assert(state.position == 3 && state.history.length == 4);
+		state.pending = false;
+		p.paused = true;
+		p.rewindSupposeConflict();
+		assert(state.position == 3 && state.history.length == 4);
+		p.paused = false;
+		p.moveSuppose(-2);
+		assert(!title.textContent.includes("Conflict"));
+		assert(p.supposeControls.querySelector(".suppose-rewind").hidden);
+		p.moveSuppose(2);
+		p.rewindSupposeConflict();
+		assert(p.suppose === state && state.position == 1 && state.history.length == 2);
+		assert(!state.sharedConflicts.some(Boolean));
+		assert(!b.slot.row.elem.classList.contains("pencil-conflict"));
+		assert(!b.slot.possibilityElems[b.value].classList.contains("suppose-conflict"));
+		assert(!b.slot.possible[b.value], "rewind undid a shared move");
+		assert(!p.supposeControls.querySelector(".suppose-accept").hidden);
+		assert(!p.supposeControls.querySelector(".suppose-reject").hidden);
+		assert(!p.supposeButton.disabled);
+		p.moveSuppose(1);
+		assert(state.position == 1, "discarded suffix remained accessible");
+		assert(host.session.revision == 1 && boardState(p) == boardState(host.puzzle));
+	} finally {
+		stopAll(host, guest);
+	}
+});
+
+Deno.test("conflict rewind can return from a nested branch to its enclosing supposition", function() {
+	const host = makeSession("host", "host");
+	const guest = makeSession("guest", "guest");
+	const network = new InMemoryMultiplayerNetwork(host.session);
+	try {
+		host.session.start(0x12345678);
+		network.addGuest(guest.session);
+		const p = guest.puzzle, a = wrongMove(p), b = wrongMove(p, 1);
+		p.enterSuppose();
+		p.requestTileAction(a.slot, a.value, "place");
+		const root = p.suppose;
+		p.enterSuppose();
+		p.requestTileAction(b.slot, b.value, "remove");
+		const row = p.rows.indexOf(a.slot.row), column = a.slot.row.slots.indexOf(a.slot);
+		host.puzzle.requestTileAction(host.puzzle.rows[row].slots[column], a.value, "remove");
+		guest.session.receiveSync(host.session.syncMessage());
+		assert(p.supposeRewindTarget().state === root);
+		p.rewindSupposeConflict();
+		assert(p.suppose === root && !root.assumption && root.position == 0 && root.history.length == 1);
+		assert(!root.sharedConflicts.some(Boolean));
+		assert(!p.rows[row].slots[column].possible[a.value]);
+	} finally {
+		stopAll(host, guest);
+	}
+});
+
+Deno.test("private row contradictions are not attributed to unrelated shared moves", function() {
+	const host = makeSession("host", "host");
+	const guest = makeSession("guest", "guest");
+	const network = new InMemoryMultiplayerNetwork(host.session);
+	try {
+		host.session.start(0x12345678);
+		network.addGuest(guest.session);
+		const p = guest.puzzle;
+		p.enterSuppose();
+		/* Make an intrinsically contradictory row, as tentative deductions can. */
+		p.suppose.domains[0][0] = 0;
+		p.saveSupposeStep();
+		p.renderSuppose();
+		const a = wrongMove(host.puzzle, 1);
+		host.puzzle.requestTileAction(a.slot, a.value, "remove");
+		assert(p.rows[0].elem.classList.contains("pencil-conflict"));
+		assert(!p.suppose.sharedConflicts.some(Boolean));
+		assert(!p.supposeRewindTarget());
+		assert(p.supposeControls.querySelector(".suppose-rewind").hidden);
+	} finally {
+		stopAll(host, guest);
+	}
+});
+
+Deno.test("conflicting shared placements stay visible and later moves survive backing out", function() {
+	const host = makeSession("host", "host");
+	const guest = makeSession("guest", "guest");
+	const network = new InMemoryMultiplayerNetwork(host.session);
+	try {
+		host.session.start(0x12345678);
+		network.addGuest(guest.session);
+		const p = guest.puzzle, a = wrongMove(p), b = wrongMove(host.puzzle, 1);
+		const row = p.rows.indexOf(a.slot.row), column = a.slot.row.slots.indexOf(a.slot);
+		p.enterSuppose();
+		p.requestTileAction(a.slot, a.slot.value, "remove");
+		host.puzzle.requestTileAction(host.puzzle.rows[row].slots[column], a.slot.value, "place");
+		assert(a.slot.single && !a.slot.singleElem.hidden);
+		assert(a.slot.singleElem.classList.contains("suppose-conflict"));
+		assert(p.suppose.sharedConflictMessages[row + ":" + a.slot.value + ":" + column].startsWith("Another player placed "));
+		assert(p.suppose.sharedConflictMessages[row + ":" + a.slot.value + ":" + column].endsWith("in column " + (column + 1) + "; you had discarded it there."));
+		assert(!a.slot.singleElem.classList.contains("suppose-conflict-discarded"));
+		assert(!a.slot.elem.classList.contains("suppose-placed"), "shared placement rendered as tentative");
+		host.puzzle.requestTileAction(b.slot, b.value, "remove");
+		assert(boardState(p) == boardState(host.puzzle), "conflict stopped later shared moves");
+		assert(a.slot.singleElem.classList.contains("suppose-conflict"), "later update erased the marker");
+		guest.session.receiveSync(host.session.syncMessage());
+		const slot = p.rows[row].slots[column];
+		assert(slot.singleElem.classList.contains("suppose-conflict"), "resync lost the conflicting tile");
+		p.leaveSuppose();
+		assert(slot.single && !slot.singleElem.hidden);
+		assert(!slot.singleElem.classList.contains("suppose-conflict"));
+		assert(boardState(p) == boardState(host.puzzle));
+	} finally {
+		stopAll(host, guest);
+	}
+});
+
+Deno.test("later shared moves reveal additional conflicts in an already conflicting row", function() {
+	const host = makeSession("host", "host");
+	const guest = makeSession("guest", "guest");
+	const network = new InMemoryMultiplayerNetwork(host.session);
+	try {
+		host.session.start(0x12345678);
+		network.addGuest(guest.session);
+		const p = guest.puzzle, a = wrongMove(p);
+		const row = p.rows.indexOf(a.slot.row), column = a.slot.row.slots.indexOf(a.slot);
+		p.enterSuppose();
+		p.requestTileAction(a.slot, a.value, "place");
+		let b;
+		for (const [c, slot] of a.slot.row.slots.entries())
+			for (const [v, bits] of p.suppose.domains[row].entries())
+				if (c != column && !slot.single && v != slot.value && (bits & (1 << c)) && bits != (1 << c))
+					b ||= { slot, value: v, column: c };
+		assert(b, "no independent second guess in the same row");
+		p.requestTileAction(b.slot, b.value, "place");
+		assert(p.suppose.position == 2);
+		p.sounds.length = 0;
+		host.puzzle.requestTileAction(host.puzzle.rows[row].slots[column], a.value, "remove");
+		assert(a.slot.possibilityElems[a.value].classList.contains("suppose-conflict"));
+		assert(!b.slot.possibilityElems[b.value].classList.contains("suppose-conflict"));
+		host.puzzle.requestTileAction(host.puzzle.rows[row].slots[b.column], b.value, "remove");
+		assert(a.slot.possibilityElems[a.value].classList.contains("suppose-conflict"));
+		assert(b.slot.possibilityElems[b.value].classList.contains("suppose-conflict"), "second conflict was lost");
+		assert(p.sounds.filter(sound => sound == "practice-mistake").length == 2);
+		const description = p.supposeControls.querySelector(".suppose-assumption");
+		assert(description.textContent.includes("from column " + (b.column + 1)));
+		p.moveSuppose(-1);
+		assert(!b.slot.possibilityElems[b.value].classList.contains("suppose-conflict"));
+		assert(description.textContent.includes("from column " + (column + 1)));
+		p.moveSuppose(1);
+		assert(b.slot.possibilityElems[b.value].classList.contains("suppose-conflict"));
+		guest.session.receiveSync(host.session.syncMessage());
+		assert(p.rows[row].slots[b.column].possibilityElems[b.value].classList.contains("suppose-conflict"));
+		assert(p.sounds.filter(sound => sound == "practice-mistake").length == 2, "resync repeated the alerts");
+		p.rewindSupposeConflict();
+		assert(p.suppose.position == 0 && p.suppose.history.length == 1);
+		assert(!p.hasSupposeConflict() && !Object.keys(p.suppose.sharedConflictMessages).length);
+		assert(boardState(p) == boardState(host.puzzle));
+	} finally {
+		stopAll(host, guest);
+	}
+});
+
+Deno.test("shared placement conflicts only with its supposed discard, not untouched candidates", function() {
+	const host = makeSession("host", "host");
+	const guest = makeSession("guest", "guest");
+	const network = new InMemoryMultiplayerNetwork(host.session);
+	try {
+		host.session.start(0x12345678);
+		network.addGuest(guest.session);
+		const p = guest.puzzle;
+		const row = p.rows.findIndex(row => row.slots.every(slot =>
+			!slot.single && slot.possible[row.slots[3].value]));
+		assert(row >= 0, "no row with all six candidates available");
+		const slots = p.rows[row].slots, symbol = slots[3].value;
+		p.enterSuppose();
+		p.requestTileAction(slots[2], symbol, "remove");
+		p.requestTileAction(slots[3], symbol, "remove");
+		host.puzzle.requestTileAction(host.puzzle.rows[row].slots[3], symbol, "place");
+		assert(p.suppose.conflictTiles[row][symbol] == (1 << 3));
+		assert(slots[3].singleElem.classList.contains("suppose-conflict"));
+		for (const column of [0, 1, 2, 4, 5])
+			assert(!slots[column].possibilityElems[symbol].classList.contains("suppose-conflict"),
+				"non-conflicting candidate was highlighted in column " + (column + 1));
+		assert(Object.keys(p.suppose.sharedConflictMessages).length == 1);
+		assert(p.supposeRewindTarget().position == 1);
+		p.rewindSupposeConflict();
+		assert(!p.hasSupposeConflict() && slots[3].single);
+		assert(!slots[2].possible[symbol], "rewind lost an agreed discard");
+		assert(boardState(p) == boardState(host.puzzle));
+	} finally {
+		stopAll(host, guest);
+	}
+});
+
+Deno.test("shared placement hides conflict markers at superseded tentative placements", function() {
+	for (const discardFirst of [false, true]) {
+		const host = makeSession("host", "host");
+		const guest = makeSession("guest", "guest");
+		const network = new InMemoryMultiplayerNetwork(host.session);
+		try {
+			host.session.start(0x12345678);
+			network.addGuest(guest.session);
+			const p = guest.puzzle, a = wrongMove(p);
+			const row = p.rows.indexOf(a.slot.row);
+			const wrongColumn = a.slot.row.slots.indexOf(a.slot);
+			const realColumn = a.slot.row.slots.findIndex(slot => slot.value == a.value);
+			p.enterSuppose();
+			p.requestTileAction(a.slot, a.value, "place");
+			if (discardFirst) {
+				host.puzzle.requestTileAction(host.puzzle.rows[row].slots[wrongColumn], a.value, "remove");
+				assert(a.slot.possibilityElems[a.value].classList.contains("suppose-conflict"));
+			}
+			host.puzzle.requestTileAction(host.puzzle.rows[row].slots[realColumn], a.value, "place");
+			assert(p.rows[row].slots[realColumn].singleElem.classList.contains("suppose-conflict"));
+			const description = p.supposeControls.querySelector(".suppose-assumption").textContent;
+			assert(description.startsWith("You placed "));
+			assert(description.endsWith("in column " + (wrongColumn + 1) +
+				"; another player placed it in column " + (realColumn + 1) + "."));
+			for (const [column, slot] of p.rows[row].slots.entries())
+				if (column != realColumn)
+					assert(!slot.possibilityElems[a.value].classList.contains("suppose-conflict"),
+						"superseded placement retained a visible conflict marker");
+			assert(p.suppose.conflictTiles[row][a.value] & (1 << wrongColumn),
+				"display filtering erased the earlier conflict evidence");
+			p.rewindSupposeConflict();
+			assert(!p.hasSupposeConflict() && p.rows[row].slots[realColumn].single);
+		} finally {
+			stopAll(host, guest);
+		}
+	}
+});

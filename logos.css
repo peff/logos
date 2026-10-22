@@ -3431,8 +3431,8 @@ body.proof-active :is(#hclues, #vclues) .clue.proof-current {
 
 /* Raise both the recess and its slot so later table cells do not paint
  * over a highlighted tile's outline and glow. */
-#board .slot:has(.proof-change),
-#board .tile-recess:has(> .proof-change) {
+#board .slot:has(.proof-change, .suppose-conflict),
+#board .tile-recess:has(> :is(.proof-change, .suppose-conflict)) {
 	position: relative;
 	z-index: 1;
 }
@@ -4017,6 +4017,37 @@ body.multiplayer #logo {
 #board .possibility.suppose-removed {
 	visibility: visible;
 	opacity: 0.16;
+	pointer-events: none;
+}
+/* Keep a conflicting discarded tile visible as evidence, not as a move
+ * the player can make. Use the proof-step outline and glow to call
+ * attention to both these tiles and conflicting shared placements. */
+body.suppose-active #board .suppose-conflict {
+	visibility: visible;
+	opacity: 1;
+	animation: none;
+	outline: 2px solid #f1d47a;
+	outline-offset: 1px;
+	box-shadow: var(--tile-highlight-glow);
+}
+body.suppose-active #board .suppose-conflict-discarded {
+	opacity: 0.45;
+	outline: none;
+	box-shadow: none;
+}
+/* Dim the discarded tile, not its highlight. Put the latter on the
+ * recess, outside the tile's opacity group. */
+body.suppose-active #board .tile-recess:has(> .suppose-conflict-discarded)::after {
+	content: "";
+	position: absolute;
+	inset: 0;
+	border-radius: 3px;
+	outline: 2px solid #f1d47a;
+	outline-offset: 1px;
+	box-shadow: var(--tile-highlight-glow);
+	pointer-events: none;
+}
+body.suppose-active #board .possibility.suppose-conflict {
 	pointer-events: none;
 }
 body.suppose-active .clue.suppose-dismissed > * { opacity: 0.2; }
