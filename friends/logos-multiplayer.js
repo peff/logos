@@ -467,6 +467,7 @@ class MultiplayerSession {
 		if (active) {
 			message.branchId = this.playerId + ":" + this.nextBranch++;
 			message.snapshot = this.puzzle.supposeSnapshot();
+			this.branchSnapshot = JSON.stringify([message.branchId, message.snapshot]);
 		}
 		this.sendBranchRequest(message);
 	}
@@ -531,8 +532,8 @@ class MultiplayerSession {
 			typeof snapshot.nested == "boolean";
 	}
 
-	supposeRendered() {
-		if (!this.ready || this.updatingBranches || this.updatingTimer || this.watchingBranch ||
+	publishSuppose() {
+		if (!this.ready || this.updatingBranches || this.watchingBranch ||
 		    !this.puzzle.suppose) return;
 		const branch = this.branchForPlayer();
 		if (!branch || branch.controller != this.playerId) return;
@@ -601,7 +602,8 @@ class MultiplayerSession {
 		this.branches = new Map(branches.map(branch => [branch.id, copyMessage(branch)]));
 		this.updateBranchView();
 		this.onPlayersChanged(copyMessage(this.players));
-		this.supposeRendered();
+		/* Flush edits made while the host was registering our branch. */
+		this.publishSuppose();
 	}
 
 	updateBranchView() {
@@ -869,7 +871,7 @@ class MultiplayerSession {
 			this.committedCommands.set(from + "\0" + commandId, commit);
 		this.recordMove(commit);
 		this.broadcast(commit);
-		this.supposeRendered();
+		this.publishSuppose();
 		this.saveResult();
 		return commit;
 	}
@@ -969,7 +971,7 @@ class MultiplayerSession {
 		this.revision = message.revision;
 		this.history.push(copyMessage(message));
 		this.recordMove(message);
-		this.supposeRendered();
+		this.publishSuppose();
 		this.result = copyMessage(message.result || null);
 		this.saveResult();
 	}
@@ -1047,7 +1049,7 @@ class MultiplayerSession {
 		this.watchedVersion = null;
 		this.watchRequest = null;
 		this.receiveBranches(message.branches || []);
-		this.supposeRendered();
+		this.publishSuppose();
 		this.sendPlayerName();
 		this.saveResult();
 	}

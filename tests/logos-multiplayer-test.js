@@ -2610,6 +2610,37 @@ Deno.test("leaving or resyncing a supposition cancels animated rewind", async fu
 	}
 });
 
+Deno.test("suppose redraws stay local while clue changes reach watchers", function() {
+	const host = makeSession("host", "host"), guest = makeSession("guest", "alice");
+	const network = new InMemoryMultiplayerNetwork(host.session);
+	try {
+		host.session.start(0x12345678);
+		network.addGuest(guest.session);
+		host.puzzle.enterSuppose();
+		assert(guest.session.watchSuppose(host.session.branchForPlayer().id));
+		const snapshot = host.puzzle.supposeSnapshot;
+		let snapshots = 0;
+		host.puzzle.supposeSnapshot = function() {
+			snapshots++;
+			return snapshot.call(this);
+		};
+		host.puzzle.renderSuppose();
+		host.puzzle.restorePlayDisplay();
+		host.session.updateBranchView();
+		assert(snapshots === 0, "redrawing serialized branch state");
+
+		const clue = host.puzzle.clues.find(clue => clue.active);
+		const index = host.puzzle.clues.indexOf(clue);
+		host.puzzle.toggleSupposeClue(clue);
+		assert(guest.puzzle.suppose.dismissed.includes(index), "watcher missed clue dismissal");
+		host.puzzle.toggleSupposeClue(clue);
+		assert(!guest.puzzle.suppose.dismissed.includes(index), "watcher missed clue restoration");
+		assert(snapshots > 0, "clue changes did not publish branch state");
+	} finally {
+		stopAll(host, guest);
+	}
+});
+
 Deno.test("watchers join the same branch through any participant and follow nested history read-only", async function() {
 	for (const controllerIsHost of [true, false]) {
 		const host = makeSession("host", "host"), guest = makeSession("guest", "alice");

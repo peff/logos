@@ -2187,6 +2187,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.updateChalkControls();
 		this.updateActionCursor();
 		this.renderSuppose();
+		if (parent)
+			this.actionController?.publishSuppose();
 	}
 
 	this.updateSupposeControls = function() {
@@ -2251,6 +2253,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.saveSupposeStep({ row, column, symbol, discard });
 		this.recordMoveEvent("suppose-move", { row, column, symbol, discard });
 		this.renderSuppose();
+		this.actionController?.publishSuppose();
 	}
 
 	this.toggleSupposeClue = function(clue) {
@@ -2267,6 +2270,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		/* Clue bookkeeping belongs to this position, not a new proof step. */
 		this.suppose.history[this.suppose.position].dismissed = this.suppose.dismissed.slice();
 		this.renderSuppose();
+		this.actionController?.publishSuppose();
 	}
 
 	/* Only judge a clue once all of its symbols have been placed. */
@@ -2316,6 +2320,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			assumption: step.assumption, dismissed: step.dismissed.slice(), message: step.message });
 		this.recordMoveEvent("suppose-rewind");
 		this.renderSuppose();
+		this.actionController?.publishSuppose();
 	}
 
 	this.supposeRewindTarget = function() {
@@ -2579,7 +2584,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.supposeControls.querySelector(".suppose-reject").disabled = !!state.pending || !state.parent && !!this.actionController?.replay || !state.assumption;
 		this.supposeControls.querySelector(".suppose-leave").disabled = !!state.pending;
 		this.supposeControls.querySelector(".suppose-leave").textContent = watching ? "Stop watching" : "Back out";
-		this.actionController?.supposeRendered();
 		if (this.expandedSlot)
 			this.renderSlotTray();
 	}
@@ -2690,6 +2694,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			this.suppose = this.suppose.parent;
 			this.suppose.displayed = displayed;
 			this.renderSuppose();
+			this.actionController?.publishSuppose();
 			return;
 		}
 		this.suppose = null;
