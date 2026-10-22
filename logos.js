@@ -406,6 +406,45 @@ function initializeDialog(dialog, close) {
 	});
 }
 
+/* Fit portrait clues into the space left by the board and controls. */
+function initializePortraitClueLayout() {
+	if (typeof ResizeObserver == "undefined")
+		return;
+	var body = document.body;
+	var footer = document.querySelector("#application-footer");
+	var portrait = window.matchMedia("(orientation: portrait)");
+	function fit() {
+		if (!portrait.matches || !body.matches(".game-started:is(" +
+		    ".multiplayer, .proof-active, .suppose-active, " +
+		    ":has(#proof-controls.hint-explanation))")) {
+			body.style.removeProperty("--portrait-clue-scale");
+			return;
+		}
+		var style = getComputedStyle(body);
+		var scale = parseFloat(style.getPropertyValue("--portrait-clue-scale"));
+		var tracks = style.gridTemplateRows.split(" ").map(parseFloat);
+		var clueHeight = (tracks[3] + tracks[4]) / scale;
+		var bottom = Math.min(body.getBoundingClientRect().bottom,
+			document.documentElement.clientHeight) - parseFloat(style.paddingBottom);
+		var spare = bottom - footer.getBoundingClientRect().bottom;
+		/* Recover the unscaled height without briefly expanding the clues.
+		 * Leave a pixel for grid-track rounding when space is tight. */
+		var next = Math.max(0.01, Math.min(1, scale + (spare - 1) / clueHeight));
+		if (Math.abs(next - scale) > 0.00001)
+			body.style.setProperty("--portrait-clue-scale", next);
+	}
+	/* Observe only sizes that do not depend on the clue scale, so fitting
+	 * the clue tracks does not feed back into the observer. */
+	var resize = new ResizeObserver(fit);
+	for (var element of document.querySelectorAll(
+		"body, #message, #board-container, #board-actions, " +
+		"#suppose-controls, #proof-controls, #friends-roster, #application-footer"))
+		resize.observe(element);
+	new MutationObserver(fit).observe(body, { attributes: true, attributeFilter: ["class"] });
+	window.addEventListener("resize", fit);
+	fit();
+}
+
 function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		options, optionsButton, help, helpButton, scores, scoresButton,
 		about, logoButton) {
@@ -4157,6 +4196,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.setShowActionSelector(readOption(
 		"showActionSelector", this.showActionSelector));
 	this.loadingOptions = false;
+	initializePortraitClueLayout();
 	this.updateFullscreenButton();
 
 	this.clear();
