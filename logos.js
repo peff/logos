@@ -1691,7 +1691,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	/* Reveal assistance in stages without applying moves to the board. */
 	this.hint = function(stage = 3, committed = false) {
 		this.recordMoveEvent("hint", { stage });
-		if (this.suppose || this.supposeReplay)
+		if (this.suppose || this.supposeReplay || this.actionController?.replay)
 			return;
 		if (this.gameOver || this.pendingSeed !== undefined || this.paused) {
 			console.log("Start or resume a game before requesting a hint.");
@@ -2487,9 +2487,9 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		accept.textContent = state.parent ? "Keep moves" : "Apply moves";
 		accept.title = state.parent ? "Keep these moves in the enclosing supposition" :
 			"Apply the moves through this step to the real board";
-		accept.disabled = !!state.pending || !state.position && !state.dismissed.length;
+		accept.disabled = !!state.pending || !state.parent && !!this.actionController?.replay || !state.position && !state.dismissed.length;
 		this.supposeControls.querySelector(".suppose-reject").hidden = this.hasSupposeConflict();
-		this.supposeControls.querySelector(".suppose-reject").disabled = !!state.pending || !state.assumption;
+		this.supposeControls.querySelector(".suppose-reject").disabled = !!state.pending || !state.parent && !!this.actionController?.replay || !state.assumption;
 		this.supposeControls.querySelector(".suppose-leave").disabled = !!state.pending;
 		if (this.expandedSlot)
 			this.renderSlotTray();
@@ -2510,7 +2510,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.acceptSuppose = async function() {
-		if (!this.suppose || this.suppose.pending || this.hasSupposeConflict() || this.paused)
+		if (!this.suppose || this.suppose.pending || this.hasSupposeConflict() || this.paused ||
+		    !this.suppose.parent && this.actionController?.replay)
 			return;
 		var state = this.suppose;
 		this.recordMoveEvent("suppose-keep");
@@ -2577,7 +2578,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.rejectSuppose = function() {
-		if (!this.suppose?.assumption || this.suppose.pending || this.hasSupposeConflict() || this.paused)
+		if (!this.suppose?.assumption || this.suppose.pending || this.hasSupposeConflict() || this.paused ||
+		    !this.suppose.parent && this.actionController?.replay)
 			return;
 		var assumption = this.suppose.assumption;
 		this.recordMoveEvent("suppose-reject", { ...assumption });

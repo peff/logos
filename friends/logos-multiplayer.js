@@ -184,6 +184,9 @@ class MultiplayerSession {
 		this.clock = null;
 		this.updatingTimer = false;
 		this.lastClockBroadcast = null;
+		this.replay = null;
+		this.replayTimer = null;
+		this.acceptedSupposes = [];
 		this.history = [];
 		this.initialPosition = null;
 		this.recentActions = new Map();
@@ -301,6 +304,8 @@ class MultiplayerSession {
 			this.ready = wasReady;
 			return false;
 		}
+		this.setReplay(null);
+		this.acceptedSupposes = [];
 		this.pendingSuppose = null;
 		this.applyRoomRules();
 		this.seed = this.puzzle.seed;
@@ -544,7 +549,7 @@ class MultiplayerSession {
 	}
 
 	requestAction(action) {
-		if (!this.ready || this.seed === null || this.pendingSuppose ||
+		if (!this.ready || this.seed === null || this.pendingSuppose || this.replay ||
 		    this.role == "guest" && !this.hostSender)
 			return false;
 		var command = {
@@ -612,7 +617,11 @@ class MultiplayerSession {
 		else if (this.role == "guest" && message.type == "clock" &&
 		         message.gameId === this.gameId)
 			this.receiveClock(message.clock, message.activity);
-		else if (this.role == "guest" && message.type == "commit")
+		else if (this.role == "guest" && message.type == "replay" && message.gameId === this.gameId) {
+			if (message.replay)
+				this.acceptSupposeReplay(message.replay);
+			this.setReplay(message.replay);
+		} else if (this.role == "guest" && message.type == "commit")
 			this.receiveCommit(message);
 		else if (this.role == "guest" && message.type == "reject")
 			this.receiveRejection(message);
@@ -628,7 +637,8 @@ class MultiplayerSession {
 		var commandKey = from + "\0" + message.commandId;
 		if (this.committedCommands.has(commandKey)) {
 			this.sendTo(from,
-				this.committedCommands.get(commandKey));
+				this.committedCommands.get(commandKey).type == "replay" ?
+					this.syncMessage() : this.committedCommands.get(commandKey));
 			return true;
 		}
 		/* Chalk expresses intent, so independent concurrent edits can be ordered
@@ -639,23 +649,25 @@ class MultiplayerSession {
 		const revisionOK = (isChalkAction(message.action) || message.action?.type == "suppose-apply") ?
 			Number.isInteger(message.expectedRevision) && message.expectedRevision >= 0 &&
 			message.expectedRevision <= this.revision : message.expectedRevision == this.revision;
-		if (message.gameId !== this.gameId ||
+		if (message.gameId !== this.gameId || this.replay ||
 		    !revisionOK ||
 		    !applicableAction(this.puzzle, message.action)) {
 			this.reject(from, message.commandId, "stale-or-inapplicable");
 			return false;
 		}
 
-		/* Announce an accepted branch's exit before its replayed moves.
-		 * The later local exit notification is redundant. */
 		if (message.action.type == "suppose-apply")
-			this.receiveSuppose(from, { gameId: this.gameId, active: false });
+			return this.startSupposeReplay(from, message);
+		this.commitAction(from, message.commandId, message.action);
+		return true;
+	}
 
+	commitAction(from, commandId, action, remember = true) {
 		const actorColor = playerColor(this.players.find(player => player.id == from));
 		this.updatingTimer = true;
 		try {
-			applyAction(this.puzzle, message.action,
-				message.action.type != "hint" || from == this.playerId, from, actorColor);
+			applyAction(this.puzzle, action,
+				action.type != "hint" || from == this.playerId, from, actorColor);
 		} finally {
 			this.updatingTimer = false;
 		}
@@ -663,21 +675,89 @@ class MultiplayerSession {
 			type: "commit",
 			gameId: this.gameId,
 			revision: ++this.revision,
-			commandId: message.commandId,
+			commandId: commandId,
 			actor: from,
 			/* Preserve chalk colors even after their author leaves the roster. */
 			actorColor,
 			committedAt: Date.now(),
-			action: copyMessage(message.action),
+			action: copyMessage(action),
 			clock: this.clockState(),
 			result: copyMessage(this.result),
 		};
 		this.history.push(commit);
-		this.committedCommands.set(commandKey, commit);
+		if (remember)
+			this.committedCommands.set(from + "\0" + commandId, commit);
 		this.recordMove(commit);
 		this.broadcast(commit);
 		this.saveResult();
+		return commit;
+	}
+
+	setReplay(replay) {
+		clearTimeout(this.replayTimer);
+		this.replayTimer = null;
+		this.replay = replay;
+		this.puzzle.explainButton.disabled = !!replay || !!this.puzzle.suppose ||
+			this.puzzle.gameOver && !this.puzzle.pendingProof;
+		if (this.puzzle.suppose)
+			this.puzzle.renderSuppose();
+	}
+
+	acceptSupposeReplay(replay) {
+		if (replay.actor === this.playerId)
+			this.finishSuppose(replay.commandId, true);
+	}
+
+	replayState() {
+		return this.replay ? { actor: this.replay.actor, commandId: this.replay.commandId } : null;
+	}
+
+	startSupposeReplay(actor, command) {
+		const replay = { actor, commandId: command.commandId,
+			moves: copyMessage(command.action.moves), clues: command.action.clues.slice() };
+		const accepted = { actor, commandId: command.commandId };
+		this.acceptedSupposes.push(accepted);
+		this.setReplay(replay);
+		/* Acceptance closes the private branch before anybody sees its moves. */
+		this.receiveSuppose(actor, { gameId: this.gameId, active: false });
+		const message = { type: "replay", gameId: this.gameId, replay: accepted };
+		this.committedCommands.set(actor + "\0" + command.commandId, message);
+		this.acceptSupposeReplay(accepted);
+		this.broadcast(message);
+		this.advanceSupposeReplay();
 		return true;
+	}
+
+	advanceSupposeReplay() {
+		const replay = this.replay;
+		if (!replay || this.role != "host") return;
+		clearTimeout(this.replayTimer);
+		const later = () => {
+			this.replayTimer = setTimeout(() => this.advanceSupposeReplay(), 300);
+		};
+		if (this.puzzle.paused) {
+			later();
+			return;
+		}
+		while (!this.puzzle.gameOver && replay.moves.length) {
+			const move = replay.moves.shift();
+			const slot = slotForAction(this.puzzle, move);
+			if (slot.single || !slot.possible[move.value]) continue;
+			this.commitAction(replay.actor, replay.commandId, move, false);
+			if ((slot.value === move.value) === (move.type === "remove")) {
+				replay.clues = [];
+				break;
+			}
+			if (!this.puzzle.gameOver && replay.moves.length) {
+				later();
+				return;
+			}
+		}
+		if (!this.puzzle.gameOver)
+			for (const clue of replay.clues)
+				this.commitAction(replay.actor, replay.commandId, { type: "clue", clue, active: false }, false);
+		this.setReplay(null);
+		this.broadcast({ type: "replay", gameId: this.gameId, replay: null });
 	}
 
 	receiveCommit(message) {
@@ -774,9 +854,10 @@ class MultiplayerSession {
 		this.ready = true;
 		if (supposition && !this.puzzle.gameOver)
 			this.puzzle.restoreSuppose(supposition);
-		if (this.pendingSuppose && message.history.some(commit =>
+		if (this.pendingSuppose && [...message.history, ...(message.acceptedSupposes || [])].some(commit =>
 		    commit.commandId === this.pendingSuppose.commandId && commit.actor === this.playerId))
 			this.finishSuppose(this.pendingSuppose.commandId, true);
+		this.setReplay(message.replay || null);
 		this.receiveClock(message.clock);
 		this.receivePlayers(message.players);
 		this.sendPlayerName();
@@ -819,6 +900,8 @@ class MultiplayerSession {
 			rules: copyMessage(this.rules),
 			revision: this.revision,
 			history: copyMessage(this.history),
+			replay: this.replayState(),
+			acceptedSupposes: copyMessage(this.acceptedSupposes),
 			initialPosition: copyMessage(this.initialPosition),
 			recentActions: copyMessage([...this.recentActions]),
 			players: copyMessage(this.players),
@@ -954,6 +1037,7 @@ class MultiplayerSession {
 	}
 
 	leave() {
+		this.setReplay(null);
 		this.pendingSuppose = null;
 		if (this.puzzle.actionController == this)
 			this.puzzle.setActionController(null);

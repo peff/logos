@@ -1696,7 +1696,7 @@ Deno.test("multiplayer applies private moves through the host and skips redundan
 		assert(!p.suppose && !b.slot.possible[b.value]);
 		assert(host.puzzle.suppose, "accepting a guest branch closed the host branch");
 		assert(boardState(p) == boardState(host.puzzle));
-		assert(host.session.history.at(-1).action.moves.length == 1);
+		assert(host.session.history.at(-1).action.type == "remove");
 		guest.session.receiveSync(host.session.syncMessage());
 		assert(boardState(p) == boardState(host.puzzle), "batch did not survive resync");
 	} finally {
@@ -1720,7 +1720,7 @@ Deno.test("multiplayer branch application stops at a mistake in Zen mode", async
 		await p.acceptSuppose();
 		assert(p.losses == 1 && host.puzzle.losses == 1);
 		assert(b.slot.possible[b.value], "moves continued after a mistake");
-		assert(host.session.history.at(-1).action.moves.length == 1);
+		assert(host.session.history.length == 1 && host.session.history[0].action.type == "place");
 		assert(boardState(p) == boardState(host.puzzle));
 	} finally {
 		stopAll(host, guest);
@@ -2264,6 +2264,237 @@ Deno.test("rejected suppose applications do not log departure", async function()
 		assert(host.session.recentActions.get("alice").at(-1).type === "suppose-leave");
 	} finally {
 		host.puzzle.proof = null;
+		stopAll(host, guest);
+	}
+});
+
+Deno.test("host-paced suppose replay pauses between moves and resumes for every player", async function() {
+	const host = makeSession("host", "host"), guest = makeSession("guest", "alice");
+	const late = makeSession("guest", "bob");
+	const network = new InMemoryMultiplayerNetwork(host.session);
+	const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+	try {
+		host.session.start(0x12345678);
+		network.addGuest(guest.session);
+		const p = guest.puzzle;
+		const moves = [wrongMove(p, 0), wrongMove(p, 1), wrongMove(p, 2)];
+		p.enterSuppose();
+		for (const move of moves)
+			p.requestTileAction(move.slot, move.value, "remove");
+		await p.acceptSuppose();
+		assert(!p.suppose && !guest.session.pendingSuppose, "acceptance did not close the branch");
+		assert(host.session.revision === 1 && guest.session.replay);
+		assert(!moves[0].slot.possible[moves[0].value] && moves[1].slot.possible[moves[1].value]);
+		await wait(100);
+		assert(host.session.revision === 1, "the second move had no delay");
+		guest.puzzle.togglePause();
+		assert(host.puzzle.paused && guest.puzzle.paused);
+		const paused = boardState(host.puzzle);
+		network.addGuest(late.session);
+		assert(late.session.replay && late.puzzle.paused, "late join lost replay or pause state");
+		guest.session.requestSync();
+		for (const game of [host, guest]) {
+			game.puzzle.toggleAbout();
+			game.puzzle.toggleAbout();
+			assert(game.puzzle.paused, "closing a dialog resumed a shared pause");
+		}
+		await wait(400);
+		for (const game of [host, guest, late])
+			assert(boardState(game.puzzle) === paused && game.session.revision === 1,
+			       "replay advanced while paused");
+		late.puzzle.togglePause();
+		assert(!host.puzzle.paused && !guest.puzzle.paused && !late.puzzle.paused);
+		for (let i = 0; i < 20 && host.session.replay; i++) await wait(100);
+		assert(!host.session.replay && host.session.revision === 3, "replay did not finish after resume");
+		for (const game of [host, guest, late]) {
+			assert(!game.session.replay && boardState(game.puzzle) === boardState(host.puzzle));
+			assert(game.session.recentActions.get("alice").map(a => a.type).join() ===
+			       "suppose-enter,suppose-leave,remove,pause,remove,remove");
+		}
+	} finally {
+		stopAll(host, guest, late);
+	}
+});
+
+Deno.test("suppose replay blocks shared edits but permits pointing and private exploration", async function() {
+	const host = makeSession("host", "host"), guest = makeSession("guest", "alice");
+	const network = new InMemoryMultiplayerNetwork(host.session);
+	try {
+		host.session.start(0x12345678);
+		network.addGuest(guest.session);
+		const p = guest.puzzle;
+		p.enterSuppose();
+		for (const row of [0, 1]) {
+			const move = wrongMove(p, row);
+			p.requestTileAction(move.slot, move.value, "remove");
+		}
+		await p.acceptSuppose();
+		const move = wrongMove(host.puzzle, 3);
+		assert(host.session.requestTileAction(move.slot, move.value, "remove") === false);
+		assert(guest.session.requestAction({ type: "hint", stage: 1 }) === false);
+		host.session.receive("alice", { type: "command", gameId: host.session.gameId,
+			commandId: "during-replay", expectedRevision: host.session.revision,
+			action: { type: "remove", row: 3, column: move.slot.row.slots.indexOf(move.slot), value: move.value } });
+		assert(host.session.revision === 1 && host.session.replay, "incoming command interrupted replay");
+		host.session.requestHover({ type: "tile", row: 3, column: 0, value: 0 });
+		assert(guest.session.hovers.has("host"), "pointing was blocked");
+		host.puzzle.enterSuppose();
+		host.puzzle.requestTileAction(move.slot, move.value, "remove");
+		assert(host.puzzle.suppose.position === 1);
+		await host.puzzle.acceptSuppose();
+		host.puzzle.rejectSuppose();
+		assert(host.puzzle.suppose && host.session.revision === 1, "private Apply or Reject escaped the replay lock");
+		host.session.advanceSupposeReplay();
+		assert(!host.session.replay && host.session.revision === 2);
+		assert(host.puzzle.suppose, "another player's replay closed private exploration");
+		host.puzzle.leaveSuppose();
+		assert(host.session.requestTileAction(move.slot, move.value, "remove"));
+	} finally {
+		stopAll(host, guest);
+	}
+});
+
+Deno.test("replay acceptance survives missed messages and duplicate requests without restarting", async function() {
+	const host = makeSession("host", "host"), guest = makeSession("guest", "alice");
+	const network = new InMemoryMultiplayerNetwork(host.session);
+	try {
+		host.session.start(0x12345678);
+		network.addGuest(guest.session);
+		const p = guest.puzzle;
+		p.enterSuppose();
+		for (const row of [0, 1]) {
+			const move = wrongMove(p, row);
+			p.requestTileAction(move.slot, move.value, "remove");
+		}
+		let command;
+		guest.session.connectHost(message => {
+			if (message.type === "command") command = message;
+			host.session.receive("alice", message);
+		});
+		host.session.peers.set("alice", () => {});
+		await p.acceptSuppose();
+		assert(p.suppose.pending && host.session.revision === 1);
+		host.session.peers.set("alice", message => guest.session.receive("host", message));
+		guest.session.requestSync();
+		assert(!p.suppose && guest.session.replay, "resync failed to recover acceptance");
+		host.session.receive("alice", command);
+		assert(host.session.revision === 1 && guest.session.replay, "duplicate restarted replay");
+		host.session.advanceSupposeReplay();
+		host.session.receive("alice", command);
+		assert(host.session.revision === 2 && !guest.session.replay, "completed replay restarted");
+		assert(boardState(p) === boardState(host.puzzle));
+	} finally {
+		stopAll(host, guest);
+	}
+});
+
+Deno.test("new games and leaving multiplayer cancel scheduled replay moves", async function() {
+	const host = makeSession("host", "host"), guest = makeSession("guest", "alice");
+	const network = new InMemoryMultiplayerNetwork(host.session);
+	try {
+		host.session.start(0x12345678);
+		network.addGuest(guest.session);
+		for (const end of ["new-game", "leave"]) {
+			guest.puzzle.enterSuppose();
+			for (const row of [0, 1]) {
+				const move = wrongMove(guest.puzzle, row);
+				guest.puzzle.requestTileAction(move.slot, move.value, "remove");
+			}
+			await guest.puzzle.acceptSuppose();
+			assert(host.session.replay && host.session.replayTimer !== null);
+			if (end === "new-game") host.session.start(0x12345678);
+			else host.session.leave();
+			assert(!host.session.replay && host.session.replayTimer === null);
+			const before = boardState(host.puzzle);
+			await new Promise(resolve => setTimeout(resolve, 350));
+			assert(boardState(host.puzzle) === before, "cancelled replay changed the board");
+		}
+	} finally {
+		stopAll(host, guest);
+	}
+});
+
+Deno.test("host and guest dialogs do not pause a shared replay", async function() {
+	const host = makeSession("host", "host"), guest = makeSession("guest", "alice");
+	const network = new InMemoryMultiplayerNetwork(host.session);
+	try {
+		host.session.start(0x12345678);
+		network.addGuest(guest.session);
+		guest.puzzle.enterSuppose();
+		for (const row of [0, 1]) {
+			const move = wrongMove(guest.puzzle, row);
+			guest.puzzle.requestTileAction(move.slot, move.value, "remove");
+		}
+		await guest.puzzle.acceptSuppose();
+		host.puzzle.toggleAbout();
+		guest.puzzle.toggleAbout();
+		assert(!host.puzzle.paused && !guest.puzzle.paused && host.session.revision === 1);
+		await new Promise(resolve => setTimeout(resolve, 350));
+		assert(!host.session.replay && host.session.revision === 2,
+		       "a dialog suspended the replay");
+		host.puzzle.toggleAbout();
+		guest.puzzle.toggleAbout();
+		assert(!host.puzzle.paused && !guest.puzzle.paused);
+		assert(boardState(host.puzzle) === boardState(guest.puzzle));
+	} finally {
+		stopAll(host, guest);
+	}
+});
+
+Deno.test("a mistake during paced replay stops later moves and clue dismissals, also in Zen", async function() {
+	for (const zen of [false, true]) {
+		const host = makeSession("host", "host"), guest = makeSession("guest", "alice");
+		const network = new InMemoryMultiplayerNetwork(host.session);
+		try {
+			host.session.rules.practiceMode = zen;
+			host.session.start(0x12345678);
+			network.addGuest(guest.session);
+			const p = guest.puzzle;
+			p.enterSuppose();
+			const a = wrongMove(p, 0), b = wrongMove(p, 1), c = wrongMove(p, 2);
+			p.requestTileAction(a.slot, a.value, "remove");
+			p.requestTileAction(b.slot, b.value, "place");
+			p.requestTileAction(c.slot, c.value, "remove");
+			const clue = p.clues.find(clue => clue.display && clue.active);
+			p.requestClueAction(clue, false);
+			await p.acceptSuppose();
+			assert(host.session.replay && host.session.revision === 1);
+			host.session.advanceSupposeReplay();
+			assert(!host.session.replay && !guest.session.replay && host.session.revision === 2);
+			assert(c.slot.possible[c.value], "replay continued after the mistake");
+			assert(!host.session.history.some(commit => commit.action.type === "clue"),
+			       "replay dismissed clues after the mistake");
+			assert(p.losses === 1 && host.puzzle.losses === 1);
+			assert(boardState(p) === boardState(host.puzzle));
+		} finally {
+			stopAll(host, guest);
+		}
+	}
+});
+
+Deno.test("an entirely redundant branch still acknowledges acceptance across resync", async function() {
+	const host = makeSession("host", "host"), guest = makeSession("guest", "alice");
+	const network = new InMemoryMultiplayerNetwork(host.session);
+	try {
+		host.session.start(0x12345678);
+		network.addGuest(guest.session);
+		guest.puzzle.enterSuppose();
+		const move = wrongMove(guest.puzzle);
+		guest.puzzle.requestTileAction(move.slot, move.value, "remove");
+		let command;
+		guest.session.connectHost(message => {
+			if (message.type === "command") command = message;
+		});
+		await guest.puzzle.acceptSuppose();
+		const action = command.action.moves[0];
+		host.session.requestAction(action);
+		host.session.peers.set("alice", () => {});
+		host.session.receive("alice", command);
+		assert(host.session.revision === 1 && !host.session.replay && guest.puzzle.suppose.pending);
+		guest.session.receiveSync(host.session.syncMessage());
+		assert(!guest.puzzle.suppose && !guest.session.pendingSuppose && !guest.session.replay);
+		assert(boardState(host.puzzle) === boardState(guest.puzzle));
+	} finally {
 		stopAll(host, guest);
 	}
 });

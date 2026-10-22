@@ -71,9 +71,14 @@ that reveals new conflicts plays the gentle Zen mistake sound when sound
 effects are enabled. Shared placements remain visible; discarded tiles involved in a conflict appear as faded markers
 and cannot be played. Shared moves continue updating the committed board even
 after a conflict, so backing out always returns to the current shared position.
-**Apply moves** sends the explored moves to the host in order, skips moves
-already resolved on the shared board, and stops at the first mistake (also in
-Zen mode). **Reject** shares only the inverse of the initial assumption.
+**Apply moves** sends the explored moves to the host as a batch. On acceptance,
+the player leaves Suppose to watch the shared board. The host replays the moves
+with a 300 ms delay between them, skips moves already resolved on the shared
+board, and stops at the first mistake (also in Zen mode). Shared board edits
+are blocked during replay, but pointing and private exploration remain
+available. The pause button suspends replay for everyone; local dialogs do not.
+Late joiners receive the current board and follow the remaining moves.
+**Reject** shares only the inverse of the initial assumption.
 Players in Suppose do not broadcast hover highlights, but can still see other
 players pointing at tiles or clues. The multiplayer log marks entry into and
 exit from Suppose with a fork and a slashed fork. Nested branches stay private;
