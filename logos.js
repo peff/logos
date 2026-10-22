@@ -628,6 +628,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.proof = null;
 	this.suppose = null;
 	this.supposeReplay = null;
+	this.supposeRewindTimer = null;
 	this.supposeButton = document.querySelector("#suppose-button");
 	this.supposeTap = document.querySelector("#suppose-tap");
 	this.supposeFooter = document.querySelector("#suppose-footer");
@@ -2141,6 +2142,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.updateSupposeControls = function() {
+		if (this.paused)
+			this.cancelSupposeRewind();
 		this.supposeButton.hidden = this.showActionSelector;
 		this.supposeTap.hidden = !this.showActionSelector;
 		this.supposeFooter.hidden = this.supposeButton.hidden;
@@ -2244,6 +2247,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.moveSuppose = function(offset) {
+		this.cancelSupposeRewind();
 		if (!this.suppose || this.suppose.pending || this.paused)
 			return;
 		var state = this.suppose;
@@ -2272,18 +2276,32 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		return null;
 	}
 
+	this.cancelSupposeRewind = function() {
+		clearTimeout(this.supposeRewindTimer);
+		this.supposeRewindTimer = null;
+	}
+
 	this.rewindSupposeConflict = function() {
+		this.cancelSupposeRewind();
 		if (!this.suppose || this.suppose.pending || this.paused)
 			return;
 		var target = this.supposeRewindTarget();
 		if (!target)
 			return;
-		while (this.suppose !== target.state)
+		/* A branch's initial position is its parent's current position.
+		 * Cross that boundary without spending another beat on the same board. */
+		while (this.suppose !== target.state && !this.suppose.position)
 			this.leaveSuppose();
-		this.moveSuppose(target.position - target.state.position);
-		target.state.history.length = target.position + 1;
+		if (this.suppose !== target.state || this.suppose.position > target.position)
+			this.moveSuppose(-1);
+		this.suppose.history.length = this.suppose.position + 1;
 		this.renderSuppose();
-		this.supposeControls.querySelector(".suppose-leave").focus();
+		/* Recompute the destination each time: shared moves may have exposed
+		 * an earlier conflict while we were stepping backwards. */
+		if (this.suppose !== target.state || this.suppose.position > target.position)
+			this.supposeRewindTimer = setTimeout(() => this.rewindSupposeConflict(), 300);
+		else
+			this.supposeControls.querySelector(".suppose-leave").focus();
 	}
 
 	this.restoreSuppose = function(state) {
@@ -2589,6 +2607,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.leaveSuppose = function(all = false) {
+		this.cancelSupposeRewind();
 		if (!this.suppose || this.suppose.pending && !all)
 			return;
 		this.recordMoveEvent("suppose-leave", { all });

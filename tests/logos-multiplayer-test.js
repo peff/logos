@@ -41,6 +41,12 @@ function stopAll(...games) {
 	}
 }
 
+async function waitForConflictRewind(puzzle) {
+	for (let i = 0; puzzle.supposeRewindTimer !== null && i < 60; i++)
+		await new Promise(resolve => setTimeout(resolve, 50));
+	assert(puzzle.supposeRewindTimer === null, "conflict rewind did not finish");
+}
+
 function wrongMove(puzzle, rowStart = 0) {
 	for (let offset = 0; offset < puzzle.rows.length; offset++) {
 		const row = puzzle.rows[(rowStart + offset) % puzzle.rows.length];
@@ -1966,6 +1972,7 @@ Deno.test("shared conflicts offer a rewind that preserves earlier deductions and
 		assert(p.supposeControls.querySelector(".suppose-rewind").hidden);
 		p.moveSuppose(2);
 		p.rewindSupposeConflict();
+		await waitForConflictRewind(p);
 		assert(p.suppose === state && state.position == 1 && state.history.length == 2);
 		assert(!state.sharedConflicts.some(Boolean));
 		assert(!b.slot.row.elem.classList.contains("pencil-conflict"));
@@ -1982,7 +1989,7 @@ Deno.test("shared conflicts offer a rewind that preserves earlier deductions and
 	}
 });
 
-Deno.test("conflict rewind can return from a nested branch to its enclosing supposition", function() {
+Deno.test("conflict rewind can return from a nested branch to its enclosing supposition", async function() {
 	const host = makeSession("host", "host");
 	const guest = makeSession("guest", "guest");
 	const network = new InMemoryMultiplayerNetwork(host.session);
@@ -2000,6 +2007,8 @@ Deno.test("conflict rewind can return from a nested branch to its enclosing supp
 		guest.session.receiveSync(host.session.syncMessage());
 		assert(p.supposeRewindTarget().state === root);
 		p.rewindSupposeConflict();
+		assert(p.suppose.parent === root && p.suppose.position === 0, "nested steps were skipped");
+		await waitForConflictRewind(p);
 		assert(p.suppose === root && !root.assumption && root.position == 0 && root.history.length == 1);
 		assert(!root.sharedConflicts.some(Boolean));
 		assert(!p.rows[row].slots[column].possible[a.value]);
@@ -2065,7 +2074,7 @@ Deno.test("conflicting shared placements stay visible and later moves survive ba
 	}
 });
 
-Deno.test("later shared moves reveal additional conflicts in an already conflicting row", function() {
+Deno.test("later shared moves reveal additional conflicts in an already conflicting row", async function() {
 	const host = makeSession("host", "host");
 	const guest = makeSession("guest", "guest");
 	const network = new InMemoryMultiplayerNetwork(host.session);
@@ -2103,6 +2112,7 @@ Deno.test("later shared moves reveal additional conflicts in an already conflict
 		assert(p.rows[row].slots[b.column].possibilityElems[b.value].classList.contains("suppose-conflict"));
 		assert(p.sounds.filter(sound => sound == "practice-mistake").length == 2, "resync repeated the alerts");
 		p.rewindSupposeConflict();
+		await waitForConflictRewind(p);
 		assert(p.suppose.position == 0 && p.suppose.history.length == 1);
 		assert(!p.hasSupposeConflict() && !Object.keys(p.suppose.sharedConflictMessages).length);
 		assert(boardState(p) == boardState(host.puzzle));
@@ -2494,6 +2504,107 @@ Deno.test("an entirely redundant branch still acknowledges acceptance across res
 		guest.session.receiveSync(host.session.syncMessage());
 		assert(!guest.puzzle.suppose && !guest.session.pendingSuppose && !guest.session.replay);
 		assert(boardState(host.puzzle) === boardState(guest.puzzle));
+	} finally {
+		stopAll(host, guest);
+	}
+});
+
+Deno.test("animated conflict rewind stops on pause and manual navigation", async function() {
+	const host = makeSession("host", "host"), guest = makeSession("guest", "alice");
+	const network = new InMemoryMultiplayerNetwork(host.session);
+	const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+	try {
+		host.session.start(0x12345678);
+		network.addGuest(guest.session);
+		const p = guest.puzzle, first = wrongMove(p);
+		p.enterSuppose();
+		p.requestTileAction(first.slot, first.value, "place");
+		for (const row of [1, 2, 3]) {
+			const move = wrongMove(p, row);
+			p.requestTileAction(move.slot, move.value, "remove");
+		}
+		host.puzzle.requestTileAction(host.puzzle.rows[0].slots[first.slot.row.slots.indexOf(first.slot)],
+			first.value, "remove");
+		assert(p.suppose.position === 4 && p.supposeRewindTarget().position === 0);
+		p.rewindSupposeConflict();
+		assert(p.suppose.position === 3 && p.suppose.history.length === 4);
+		await wait(100);
+		assert(p.suppose.position === 3, "rewind had no delay");
+		p.togglePause();
+		assert(p.paused && p.supposeRewindTimer === null);
+		await wait(350);
+		assert(p.suppose.position === 3, "rewind continued while paused");
+		p.togglePause();
+		await wait(350);
+		assert(p.suppose.position === 3, "rewind resumed without another click");
+		p.rewindSupposeConflict();
+		assert(p.suppose.position === 2 && p.suppose.history.length === 3);
+		p.moveSuppose(-1);
+		assert(p.suppose.position === 1 && p.supposeRewindTimer === null);
+		await wait(350);
+		assert(p.suppose.position === 1, "animation overrode manual navigation");
+		p.rewindSupposeConflict();
+		assert(p.suppose.position === 0 && p.suppose.history.length === 1);
+		assert(!p.hasSupposeConflict() && p.supposeRewindTimer === null);
+		assert(host.session.revision === 1 && boardState(p) === boardState(host.puzzle));
+	} finally {
+		stopAll(host, guest);
+	}
+});
+
+Deno.test("animated conflict rewind follows newly exposed earlier conflicts", async function() {
+	const host = makeSession("host", "host"), guest = makeSession("guest", "alice");
+	const network = new InMemoryMultiplayerNetwork(host.session);
+	try {
+		host.session.start(0x12345678);
+		network.addGuest(guest.session);
+		const p = guest.puzzle, a = wrongMove(p, 0), b = wrongMove(p, 1), c = wrongMove(p, 2);
+		p.enterSuppose();
+		p.requestTileAction(a.slot, a.value, "place");
+		p.requestTileAction(b.slot, b.value, "place");
+		p.requestTileAction(c.slot, c.value, "remove");
+		const discard = move => host.puzzle.requestTileAction(
+			host.puzzle.rows[p.rows.indexOf(move.slot.row)].slots[move.slot.row.slots.indexOf(move.slot)],
+			move.value, "remove");
+		discard(b);
+		assert(p.supposeRewindTarget().position === 1);
+		p.rewindSupposeConflict();
+		assert(p.suppose.position === 2);
+		discard(a);
+		assert(p.supposeRewindTarget().position === 0);
+		await waitForConflictRewind(p);
+		assert(p.suppose.position === 0 && p.suppose.history.length === 1);
+		assert(!p.hasSupposeConflict() && host.session.revision === 2);
+		assert(boardState(p) === boardState(host.puzzle));
+	} finally {
+		stopAll(host, guest);
+	}
+});
+
+Deno.test("leaving or resyncing a supposition cancels animated rewind", async function() {
+	const host = makeSession("host", "host"), guest = makeSession("guest", "alice");
+	const network = new InMemoryMultiplayerNetwork(host.session);
+	try {
+		host.session.start(0x12345678);
+		network.addGuest(guest.session);
+		for (const exit of ["resync", "leave", "new-game"]) {
+			const p = guest.puzzle, a = wrongMove(p, 0), b = wrongMove(p, 1);
+			p.enterSuppose();
+			p.requestTileAction(a.slot, a.value, "place");
+			p.requestTileAction(b.slot, b.value, "remove");
+			host.puzzle.requestTileAction(host.puzzle.rows[0].slots[a.slot.row.slots.indexOf(a.slot)],
+				a.value, "remove");
+			p.rewindSupposeConflict();
+			assert(p.suppose.position === 1 && p.supposeRewindTimer !== null);
+			if (exit === "resync") guest.session.requestSync();
+			else if (exit === "leave") p.leaveSuppose();
+			else host.session.start(0x12345678);
+			assert(p.supposeRewindTimer === null);
+			const state = p.suppose;
+			await new Promise(resolve => setTimeout(resolve, 350));
+			assert(p.suppose === state && (!state || state.position === 1));
+			p.leaveSuppose();
+		}
 	} finally {
 		stopAll(host, guest);
 	}

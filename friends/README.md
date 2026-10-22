@@ -62,8 +62,10 @@ moves update every saved step of that branch. When a shared move introduces
 a conflict, the conflicting tiles get the gold outline and glow used for proof
 steps. Further tentative moves are blocked, and **Rewind to conflict** replaces
 **Apply moves** and **Reject**.
-It discards the conflicting steps and returns to the last consistent position,
-leaving nested branches if necessary. The title marks conflicting positions;
+It steps backward every 300 ms, discarding each step until it reaches the last
+consistent position and leaving nested branches if necessary. Pausing or
+manually navigating history stops the animation; click Rewind again to
+continue. The title marks conflicting positions;
 the step that introduces a conflict explains it, while later steps retain
 their original descriptions. Later shared moves can reveal additional
 conflicting tiles, including within an already conflicting row. Each update
