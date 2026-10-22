@@ -63,6 +63,9 @@ and the step controls let you rewind before the conflicting assumption.
 **Apply moves** sends the explored moves to the host in order, skips moves
 already resolved on the shared board, and stops at the first mistake (also in
 Zen mode). **Reject** shares only the inverse of the initial assumption.
+Players in Suppose do not broadcast hover highlights, but can still see other
+players pointing at tiles or clues.
+
 Other players continue on their own boards. While application is pending, the
 branch stays visible and its controls are locked until the host acknowledges
 it. Rejection unlocks the branch for retry; shared pauses and the host viewing

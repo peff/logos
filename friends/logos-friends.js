@@ -114,7 +114,7 @@ function renderSharedHover() {
 }
 
 function hoverAt(elem) {
-	if (!session?.ready || session.seed === null || !elem || !hoverAreas.some(area => area.contains(elem)) ||
+	if (!session?.ready || session.seed === null || puzzle.suppose || !elem || !hoverAreas.some(area => area.contains(elem)) ||
 	    !friendsMenu.hidden || document.querySelector(".modal:not([hidden])")) return null;
 	const clue = puzzle.clues.findIndex(clue => clue.display?.contains(elem));
 	if (clue >= 0) return { clue };
@@ -134,6 +134,7 @@ function queueHover(target) {
 	/* Combine the leave/enter pair without adding a dwell delay. */
 	hoverTimer = setTimeout(() => {
 		hoverTimer = null;
+		if (puzzle.suppose) hoverTarget = null;
 		if (JSON.stringify(hoverTarget) == JSON.stringify(sentHover)) return;
 		sentHover = hoverTarget;
 		session?.requestHover(hoverTarget);
@@ -153,6 +154,11 @@ window.addEventListener("blur", clearLocalHover);
 document.addEventListener("visibilitychange", () => {
 	if (document.hidden) clearLocalHover();
 });
+/* Entering Suppose can happen without moving the pointer. Forget the
+ * last sent target too, so it can be shared again after leaving. */
+new MutationObserver(() => {
+	if (puzzle.suppose) clearLocalHover();
+}).observe(document.body, { attributes: true, attributeFilter: ["class"] });
 const modalObserver = new MutationObserver(() => {
 	if (document.querySelector(".modal:not([hidden])")) clearLocalHover();
 });

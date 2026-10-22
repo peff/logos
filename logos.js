@@ -2123,6 +2123,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			history: [], position: -1, message: null };
 		this.saveSupposeStep();
 		document.body.classList.add("suppose-active");
+		this.actionController?.requestHover(null);
 		this.updateSupposeControls();
 		this.updateChalkControls();
 		this.updateActionCursor();

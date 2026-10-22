@@ -439,7 +439,7 @@ class MultiplayerSession {
 	}
 
 	requestHover(target) {
-		if (!this.ready || this.seed === null) return;
+		if (!this.ready || this.seed === null || this.puzzle.suppose && target !== null) return;
 		const message = { type: "hover", gameId: this.gameId, target };
 		if (this.role == "host") this.receiveHover(this.playerId, message);
 		else if (this.hostSender) this.hostSender(message);

@@ -1875,3 +1875,30 @@ Deno.test("resync preserves nested explorations and recovers a missed branch ack
 		stopAll(host, guest);
 	}
 });
+
+Deno.test("private suppositions clear outgoing hover but still receive other players' highlights", function() {
+	const host = makeSession("host", "host");
+	const guest = makeSession("guest", "guest");
+	const network = new InMemoryMultiplayerNetwork(host.session);
+	try {
+		host.session.start(0x12345678);
+		network.addGuest(guest.session);
+		const target = { row: 0, column: 1, value: 2 };
+		for (const [explorer, other] of [[host, guest], [guest, host]]) {
+			explorer.session.requestHover(target);
+			assert(other.session.hovers.has(explorer.session.playerId));
+			explorer.puzzle.enterSuppose();
+			assert(!other.session.hovers.has(explorer.session.playerId), "entering kept a shared highlight");
+			explorer.session.requestHover(target);
+			explorer.session.requestHover({ clue: explorer.puzzle.clues.findIndex(clue => clue.displayType) });
+			assert(!other.session.hovers.has(explorer.session.playerId), "private hover escaped");
+			other.session.requestHover(target);
+			assert(explorer.session.hovers.has(other.session.playerId), "incoming highlight was suppressed");
+			explorer.puzzle.leaveSuppose();
+			explorer.session.requestHover(target);
+			assert(other.session.hovers.has(explorer.session.playerId), "hover did not resume");
+		}
+	} finally {
+		stopAll(host, guest);
+	}
+});
