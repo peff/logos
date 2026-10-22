@@ -1897,7 +1897,7 @@ Deno.test("private suppositions clear outgoing hover but still receive other pla
 			assert(!other.session.hovers.has(explorer.session.playerId), "entering kept a shared highlight");
 			explorer.session.requestHover(target);
 			explorer.session.requestHover({ clue: explorer.puzzle.clues.findIndex(clue => clue.displayType) });
-			assert(!other.session.hovers.has(explorer.session.playerId), "private hover escaped");
+			assert(!other.session.hoverForPlayer(explorer.session.playerId), "private hover escaped");
 			other.session.requestHover(target);
 			assert(explorer.session.hovers.has(other.session.playerId), "incoming highlight was suppressed");
 			explorer.puzzle.leaveSuppose();
@@ -1906,6 +1906,52 @@ Deno.test("private suppositions clear outgoing hover but still receive other pla
 		}
 	} finally {
 		stopAll(host, guest);
+	}
+});
+
+Deno.test("branch participants share hover highlights without leaking to other views", function() {
+	for (const controllerIsHost of [true, false]) {
+		const host = makeSession("host", "host"), guest = makeSession("guest", "alice");
+		const watcher = makeSession("guest", "bob"), outsider = makeSession("guest", "carol");
+		const network = new InMemoryMultiplayerNetwork(host.session);
+		try {
+			host.session.start(0x12345678);
+			for (const game of [guest, watcher, outsider]) network.addGuest(game.session);
+			const owner = controllerIsHost ? host : guest, other = controllerIsHost ? guest : host;
+			const target = { row: 0, column: 1, value: 2 };
+			owner.puzzle.enterSuppose();
+			const branchId = owner.session.branchForPlayer().id;
+			watcher.session.watchSuppose(branchId);
+			other.session.watchSuppose(branchId);
+			outsider.puzzle.enterSuppose();
+			for (const sender of [owner, watcher, other]) {
+				sender.session.requestHover(target);
+				for (const receiver of [owner, watcher, other])
+					assert(receiver.session.hoverForPlayer(sender.session.playerId)?.value === 2,
+					       "branch participant missed a tile highlight");
+				assert(!outsider.session.hovers.has(sender.session.playerId), "branch hover was sent to an outsider");
+			}
+			const clue = owner.puzzle.clues.findIndex(clue => clue.displayType);
+			watcher.session.requestHover({ clue });
+			assert(owner.session.hoverForPlayer("bob")?.clue === clue);
+			const move = wrongMove(owner.puzzle);
+			owner.puzzle.requestTileAction(move.slot, move.value, "remove");
+			assert(owner.session.hoverForPlayer("bob")?.clue === clue, "branch update cleared watcher hover");
+			watcher.puzzle.leaveSuppose();
+			assert(!owner.session.hoverForPlayer("bob"), "departed watcher kept a branch highlight");
+			assert(!watcher.session.hoverForPlayer(owner.session.playerId), "leaving exposed branch highlights");
+			watcher.session.requestHover(target);
+			assert(owner.session.hoverForPlayer("bob")?.value === 2, "shared-board pointing no longer reaches suppositions");
+			host.session.receive("bob", { type: "hover", gameId: host.session.gameId, branchId, target: { clue } });
+			assert(owner.session.hoverForPlayer("bob")?.value === 2, "stale branch hover was accepted");
+			owner.puzzle.leaveSuppose();
+			for (const game of [host, guest, watcher, outsider]) {
+				assert(!game.session.hoverForPlayer(owner.session.playerId), "closing branch retained owner hover");
+				assert(!game.session.hoverForPlayer(other.session.playerId), "closing branch retained watcher hover");
+			}
+		} finally {
+			stopAll(host, guest, watcher, outsider);
+		}
 	}
 });
 

@@ -607,7 +607,12 @@ class MultiplayerSession {
 	 * the watched position and roster together. */
 	refreshBranchView() {
 		if (this.updatingBranches) return;
+		for (const [id, target] of this.hovers) {
+			if ((target.branchId || null) !== (this.branchForPlayer(id)?.id || null))
+				this.hovers.delete(id);
+		}
 		this.updateBranchView();
+		this.onHoverChanged();
 		this.onPlayersChanged(copyMessage(this.players));
 	}
 
@@ -629,7 +634,6 @@ class MultiplayerSession {
 					this.puzzle.clearHint();
 					this.puzzle.closeSlotTray();
 					this.puzzle.restoreSuppose(state);
-					this.requestHover(null);
 				}
 			} else if (this.watchingBranch) {
 				this.puzzle.leaveSuppose(true);
@@ -643,9 +647,19 @@ class MultiplayerSession {
 		}
 	}
 
+	hoverForPlayer(id) {
+		const target = this.hovers.get(id);
+		if (target?.branchId && (!this.puzzle.suppose ||
+		    target.branchId !== this.branchForPlayer()?.id)) return null;
+		return target;
+	}
+
 	requestHover(target) {
-		if (!this.ready || this.seed === null || this.puzzle.suppose && target !== null) return;
-		const message = { type: "hover", gameId: this.gameId, target };
+		if (!this.ready || this.seed === null) return;
+		const branchId = this.branchForPlayer()?.id || null;
+		/* Do not send targets from a view whose membership is still pending. */
+		if (target !== null && !!this.puzzle.suppose !== !!branchId) return;
+		const message = { type: "hover", gameId: this.gameId, branchId, target };
 		if (this.role == "host") this.receiveHover(this.playerId, message);
 		else if (this.hostSender) this.hostSender(message);
 	}
@@ -655,6 +669,8 @@ class MultiplayerSession {
 		const id = this.role == "host" ? from : message.playerId;
 		if (!this.players.some(player => player.id == id && player.state == "connected")) return;
 		const target = message.target;
+		const branchId = message.branchId || null;
+		if (target !== null && branchId !== (this.branchForPlayer(id)?.id || null)) return;
 		if (target && Object.hasOwn(target, "clue")) {
 			if (!Number.isInteger(target.clue) || !this.puzzle.clues[target.clue]?.displayType) return;
 			this.hovers.set(id, { clue: target.clue });
@@ -667,10 +683,15 @@ class MultiplayerSession {
 		} else {
 			this.hovers.delete(id);
 		}
+		if (target !== null && branchId) this.hovers.get(id).branchId = branchId;
 		this.onHoverChanged();
-		if (this.role == "host")
-			this.broadcast({ type: "hover", gameId: this.gameId, playerId: id,
-				target: this.hovers.get(id) || null });
+		if (this.role == "host") {
+			for (const peerId of this.peers.keys()) {
+				const visible = !branchId || this.branchForPlayer(peerId)?.id === branchId;
+				this.sendTo(peerId, { type: "hover", gameId: this.gameId, playerId: id,
+					branchId, target: visible ? this.hovers.get(id) || null : null });
+			}
+		}
 	}
 
 	connectHost(sender) {

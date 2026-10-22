@@ -81,8 +81,9 @@ are blocked during replay, but pointing and private exploration remain
 available. The pause button suspends replay for everyone; local dialogs do not.
 Late joiners receive the current board and follow the remaining moves.
 **Reject** shares only the inverse of the initial assumption.
-Players in Suppose do not broadcast hover highlights, but can still see other
-players pointing at tiles or clues. The multiplayer log marks entry into and
+Players in the same supposition share hover highlights with each other. These
+stay within the branch, while highlights from the shared board remain visible
+to everyone. The multiplayer log marks entry into and
 exit from Suppose with a fork and a slashed fork. Nested branches stay private;
 an accepted Apply logs the exit before its replayed moves.
 

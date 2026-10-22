@@ -40,6 +40,8 @@ let sentHover = null;
 let hoverTimer = null;
 let hoverGame = null;
 let hoverSession = null;
+let hoverBranch = null;
+let hoverSupposing = false;
 const board = document.querySelector("#board");
 const hoverAreas = [board, document.querySelector("#hclues"), document.querySelector("#vclues")];
 
@@ -54,7 +56,7 @@ function renderSharedHover() {
 	}
 	for (const player of session?.players || []) {
 		if (player.id == session.playerId) continue;
-		const target = session.hovers.get(player.id);
+		const target = session.hoverForPlayer(player.id);
 		if (!target) continue;
 		const color = playerColor(player);
 		let elem;
@@ -64,7 +66,9 @@ function renderSharedHover() {
 		} else {
 			const slot = puzzle.rows[target.row]?.slots[target.column];
 			if (!slot) continue;
-			elem = target.value !== null && !slot.single && slot.possible[target.value] ?
+			const placed = puzzle.suppose ? puzzle.suppose.domains[target.row].some(bits =>
+				bits === (1 << target.column)) : slot.single;
+			elem = target.value !== null && !placed && slot.possible[target.value] ?
 				slot.possibilityElems[target.value] : slot.elem;
 			/* Locate the slot without losing the precise possibility target. */
 			if (elem !== slot.elem) {
@@ -114,7 +118,7 @@ function renderSharedHover() {
 }
 
 function hoverAt(elem) {
-	if (!session?.ready || session.seed === null || puzzle.suppose || !elem || !hoverAreas.some(area => area.contains(elem)) ||
+	if (!session?.ready || session.seed === null || !elem || !hoverAreas.some(area => area.contains(elem)) ||
 	    !friendsMenu.hidden || document.querySelector(".modal:not([hidden])")) return null;
 	const clue = puzzle.clues.findIndex(clue => clue.display?.contains(elem));
 	if (clue >= 0) return { clue };
@@ -134,7 +138,6 @@ function queueHover(target) {
 	/* Combine the leave/enter pair without adding a dwell delay. */
 	hoverTimer = setTimeout(() => {
 		hoverTimer = null;
-		if (puzzle.suppose) hoverTarget = null;
 		if (JSON.stringify(hoverTarget) == JSON.stringify(sentHover)) return;
 		sentHover = hoverTarget;
 		session?.requestHover(hoverTarget);
@@ -154,10 +157,12 @@ window.addEventListener("blur", clearLocalHover);
 document.addEventListener("visibilitychange", () => {
 	if (document.hidden) clearLocalHover();
 });
-/* Entering Suppose can happen without moving the pointer. Forget the
- * last sent target too, so it can be shared again after leaving. */
+/* Changing views can happen without moving the pointer. */
 new MutationObserver(() => {
-	if (puzzle.suppose) clearLocalHover();
+	if (hoverSupposing === !!puzzle.suppose) return;
+	hoverSupposing = !!puzzle.suppose;
+	clearLocalHover();
+	renderSharedHover();
 }).observe(document.body, { attributes: true, attributeFilter: ["class"] });
 const modalObserver = new MutationObserver(() => {
 	if (document.querySelector(".modal:not([hidden])")) clearLocalHover();
@@ -315,12 +320,14 @@ function renderRecentAction(actions, playerId, activeFork) {
 }
 
 function renderPlayers(players) {
-	if (hoverSession !== session || hoverGame !== session?.gameId) {
+	const branchId = session?.branchForPlayer()?.id || null;
+	if (hoverSession !== session || hoverGame !== session?.gameId || hoverBranch !== branchId) {
 		clearTimeout(hoverTimer);
 		hoverTimer = null;
 		hoverTarget = sentHover = null;
 		hoverSession = session;
 		hoverGame = session?.gameId;
+		hoverBranch = branchId;
 	}
 	renderSharedHover();
 	clearHistoryHighlight();
