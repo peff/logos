@@ -238,11 +238,18 @@ function beginSession(role) {
 	};
 }
 
-function renderRecentAction(actions) {
+function renderRecentAction(actions, playerId, activeFork) {
 	var action = actions[actions.length - 1];
 	var event = document.createElement("span");
 	event.className = "friends-roster-event";
-	var icon = document.createElement("span");
+	var branch = session?.branchForPlayer(playerId);
+	var join = action === activeFork && action.type == "suppose-enter" && action.branchId === branch?.id;
+	var icon = document.createElement(join ? "button" : "span");
+	if (join) {
+		icon.type = "button";
+		icon.disabled = !session.canWatch(branch.id);
+		icon.addEventListener("click", () => session.watchSuppose(branch.id));
+	}
 	icon.className = "friends-roster-action";
 	icon.dataset.action = action.type;
 	var description;
@@ -282,8 +289,9 @@ function renderRecentAction(actions) {
 		icon.append(columns);
 		description = action.type == "pause" ? "Paused the game" : "Resumed the game";
 	}
+	if (join) description = "Watch " + (session.players.find(player => player.id == branch.controller)?.name || "player") + "'s supposition";
 	icon.title = description;
-	icon.setAttribute("role", "img");
+	if (!join) icon.setAttribute("role", "img");
 	icon.setAttribute("aria-label", description);
 	event.append(icon);
 	if (actions.length > 1) {
@@ -343,7 +351,9 @@ function renderPlayers(players) {
 		var history = document.createElement("span");
 		history.className = "friends-roster-history";
 		var groups = [];
-		for (var action of session?.recentActions.get(player.id) || []) {
+		var actions = session?.recentActions.get(player.id) || [];
+		var activeFork = actions.findLast(action => action.type == "suppose-enter");
+		for (var action of actions) {
 			var previous = groups.at(-1)?.at(-1);
 			if (action.type == "hint" && previous?.type == "hint" ||
 			    action.type == "remove" && previous?.type == "remove" &&
@@ -354,7 +364,7 @@ function renderPlayers(players) {
 				groups.push([action]);
 		}
 		for (var group of groups)
-			history.prepend(renderRecentAction(group));
+			history.prepend(renderRecentAction(group, player.id, activeFork));
 		entry.append(history);
 		rosterPlayers.append(entry);
 	}

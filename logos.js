@@ -633,6 +633,33 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.supposeTap = document.querySelector("#suppose-tap");
 	this.supposeFooter = document.querySelector("#suppose-footer");
 	this.supposeControls = document.querySelector("#suppose-controls");
+	var watcherPeek = this.supposeControls.querySelector(".suppose-watchers button");
+	var hideWatchers = () => watcherPeek.setAttribute("aria-expanded", "false");
+	watcherPeek.addEventListener("pointerenter", function(ev) {
+		this.setAttribute("data-hover", String(ev.pointerType == "mouse"));
+	});
+	watcherPeek.addEventListener("pointerleave", function() {
+		this.setAttribute("data-hover", "false");
+	});
+	watcherPeek.addEventListener("pointerdown", function(ev) {
+		if (ev.button != 0 || !ev.isPrimary) return;
+		this.setPointerCapture(ev.pointerId);
+		this.setAttribute("aria-expanded", "true");
+	});
+	for (var event of ["pointerup", "pointercancel", "lostpointercapture", "blur"])
+		watcherPeek.addEventListener(event, hideWatchers);
+	watcherPeek.addEventListener("keydown", function(ev) {
+		if (ev.key == "Escape") hideWatchers();
+		if (ev.key != " " && ev.key != "Enter") return;
+		ev.preventDefault();
+		this.setAttribute("aria-expanded", "true");
+	});
+	watcherPeek.addEventListener("keyup", function(ev) {
+		if (ev.key != " " && ev.key != "Enter") return;
+		ev.preventDefault();
+		hideWatchers();
+	});
+	watcherPeek.addEventListener("contextmenu", ev => ev.preventDefault());
 	this.pendingProof = null;
 	this.explainButton = document.querySelector("#explain-button");
 	this.explainButton.disabled = true;
@@ -2107,7 +2134,28 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		return !!this.suppose?.sharedConflicts.some(Boolean);
 	}
 
+	this.supposeSnapshot = function() {
+		/* Watchers follow the displayed position, not an independently
+		 * navigable copy of the entire exploration. Keep updates bounded. */
+		const state = this.suppose;
+		const preceding = state.position ? state.history[state.position - 1] : state.parent;
+		const fields = ["base", "domains", "assumption", "sharedConflicts",
+			"sharedConflictMessages", "conflictDomains", "conflictTiles", "dismissed",
+			"message", "prefix", "position"];
+		return JSON.parse(JSON.stringify({
+			...Object.fromEntries(fields.map(key => [key, state[key]])),
+			label: state.watched ? state.watchLabel : state.history[state.position].label,
+			previousConflicts: state.watched ? state.watchPreviousConflicts : preceding?.sharedConflictMessages || {},
+			nested: state.watched ? state.watchNested : !!state.parent,
+		}));
+	}
+
+	this.isWatchingSuppose = function() {
+		return !!this.actionController?.watchingBranch;
+	}
+
 	this.enterSuppose = function(button) {
+		if (this.isWatchingSuppose() || this.actionController?.watchRequest) return;
 		if (this.supposeReplay || this.gameOver || this.paused ||
 		    this.proof || this.pendingSeed !== undefined)
 			return;
@@ -2148,7 +2196,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.supposeTap.hidden = !this.showActionSelector;
 		this.supposeFooter.hidden = this.supposeButton.hidden;
 		for (var button of [this.supposeButton, this.supposeTap, this.supposeFooter]) {
-			button.disabled = !!(this.gameOver || this.paused || this.proof || this.supposeReplay ||
+			button.disabled = !!(this.isWatchingSuppose() || this.actionController?.watchRequest ||
+				this.gameOver || this.paused || this.proof || this.supposeReplay ||
 				this.pendingSeed !== undefined ||
 				this.suppose && (!this.suppose.assumption || this.suppose.pending || this.hasSupposeConflict()));
 			button.setAttribute("aria-expanded", String(!!this.suppose));
@@ -2180,6 +2229,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.applySupposeAction = function(slot, symbol, action) {
+		if (this.isWatchingSuppose() || this.actionController?.watchRequest) return;
 		if (!this.suppose || this.suppose.pending || this.hasSupposeConflict() || this.paused || this.gameOver || slot.single)
 			return;
 		var row = this.rows.indexOf(slot.row), column = slot.row.slots.indexOf(slot);
@@ -2204,6 +2254,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.toggleSupposeClue = function(clue) {
+		if (this.isWatchingSuppose() || this.actionController?.watchRequest) return;
 		if (this.paused || !this.suppose || this.suppose.pending || this.hasSupposeConflict() || !clue.active)
 			return;
 		var index = this.clues.indexOf(clue), dismissed = this.suppose.dismissed;
@@ -2247,6 +2298,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.moveSuppose = function(offset) {
+		if (this.isWatchingSuppose() || this.actionController?.watchRequest) return;
 		this.cancelSupposeRewind();
 		if (!this.suppose || this.suppose.pending || this.paused)
 			return;
@@ -2282,6 +2334,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.rewindSupposeConflict = function() {
+		if (this.isWatchingSuppose() || this.actionController?.watchRequest) return;
 		this.cancelSupposeRewind();
 		if (!this.suppose || this.suppose.pending || this.paused)
 			return;
@@ -2474,11 +2527,14 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			if (state.dismissed.includes(index))
 				clue.display.classList.add("suppose-dismissed");
 		}
-		var message = state.pending ? "Waiting for the host to apply these moves." : state.message || "Choose or discard a tile to begin your supposition.";
+		var watching = this.isWatchingSuppose();
+		var message = state.pending ? "Waiting for the host to apply these moves." : state.message ||
+			(watching ? "Watching a supposition." : "Choose or discard a tile to begin your supposition.");
 		var sharedConflict = this.hasSupposeConflict();
 		/* Later deductions inherit the conflict, but retain their own
 		 * descriptions. Explain it at the step which introduced it. */
-		var preceding = state.position ? state.history[state.position - 1] : state.parent;
+		var preceding = state.watched ? { sharedConflictMessages: state.watchPreviousConflicts } :
+			state.position ? state.history[state.position - 1] : state.parent;
 		var stepConflict = Object.entries(state.sharedConflictMessages).find(([tile]) =>
 			!preceding?.sharedConflictMessages[tile]);
 		if (!state.pending && stepConflict)
@@ -2486,29 +2542,44 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		else if (conflict && !sharedConflict)
 			message += " These possibilities conflict within a row.";
 		renderProofMessage(this, this.supposeControls.querySelector(".suppose-assumption"), message, false);
-		this.supposeControls.querySelector(".proof-position").textContent =
-			(state.position ? "Suppose · Step " + state.history[state.position].label :
-			state.parent ? "Nested supposition" : "Suppose") + (sharedConflict ? " · Conflict" : "");
+		var branch = this.actionController?.branchForPlayer();
+		var controller = this.actionController?.players.find(player => player.id == branch?.controller);
+		var title = watching ? (controller?.name || "Player") + "'s Suppose" : "Suppose";
+		var position = this.supposeControls.querySelector(".proof-position");
+		position.textContent = (state.position ? title + " · Step " + (state.watched ? state.watchLabel : state.history[state.position].label) :
+			(state.parent || state.watchNested) ? title + " · Nested" : title) + (sharedConflict ? " · Conflict" : "");
+		position.title = position.textContent;
+		var watchers = branch?.participants.filter(id => id != branch.controller) || [];
+		var names = watchers.map(id => this.actionController.players.find(player => player.id == id)?.name || "Player");
+		var presence = this.supposeControls.querySelector(".suppose-watchers");
+		presence.hidden = !watchers.length;
+		var eye = presence.querySelector("button");
+		if (!watchers.length) eye.setAttribute("aria-expanded", "false");
+		eye.setAttribute("aria-label", "Watching: " + names.join(", "));
+		presence.querySelector(".suppose-watcher-count").textContent = watchers.length;
+		presence.querySelector(".suppose-watcher-names").textContent = names.join(", ");
 		this.updateSupposeControls();
-		this.supposeControls.querySelector(".proof-previous").disabled = !!state.pending || !state.position;
-		this.supposeControls.querySelector(".proof-next").disabled = !!state.pending || state.position == state.history.length - 1;
-		var target = this.supposeRewindTarget();
+		this.supposeControls.querySelector(".proof-previous").disabled = watching || !!state.pending || !state.position;
+		this.supposeControls.querySelector(".proof-next").disabled = watching || !!state.pending || state.position == state.history.length - 1;
+		var target = watching ? null : this.supposeRewindTarget();
 		var rewind = this.supposeControls.querySelector(".suppose-rewind");
-		rewind.hidden = !target;
+		rewind.hidden = watching || !target;
 		rewind.disabled = !!state.pending;
 		if (target)
 			rewind.title = "Discard conflicting steps and return to " + (target.position ?
 				"step " + target.state.history[target.position].label :
 				"the start of the supposition");
 		var accept = this.supposeControls.querySelector(".suppose-accept");
-		accept.hidden = this.hasSupposeConflict();
+		accept.hidden = watching || this.hasSupposeConflict();
 		accept.textContent = state.parent ? "Keep moves" : "Apply moves";
 		accept.title = state.parent ? "Keep these moves in the enclosing supposition" :
 			"Apply the moves through this step to the real board";
 		accept.disabled = !!state.pending || !state.parent && !!this.actionController?.replay || !state.position && !state.dismissed.length;
-		this.supposeControls.querySelector(".suppose-reject").hidden = this.hasSupposeConflict();
+		this.supposeControls.querySelector(".suppose-reject").hidden = watching || this.hasSupposeConflict();
 		this.supposeControls.querySelector(".suppose-reject").disabled = !!state.pending || !state.parent && !!this.actionController?.replay || !state.assumption;
 		this.supposeControls.querySelector(".suppose-leave").disabled = !!state.pending;
+		this.supposeControls.querySelector(".suppose-leave").textContent = watching ? "Stop watching" : "Back out";
+		this.actionController?.supposeRendered();
 		if (this.expandedSlot)
 			this.renderSlotTray();
 	}
@@ -2528,6 +2599,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.acceptSuppose = async function() {
+		if (this.isWatchingSuppose() || this.actionController?.watchRequest) return;
 		if (!this.suppose || this.suppose.pending || this.hasSupposeConflict() || this.paused ||
 		    !this.suppose.parent && this.actionController?.replay)
 			return;
@@ -2596,6 +2668,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.rejectSuppose = function() {
+		if (this.isWatchingSuppose() || this.actionController?.watchRequest) return;
 		if (!this.suppose?.assumption || this.suppose.pending || this.hasSupposeConflict() || this.paused ||
 		    !this.suppose.parent && this.actionController?.replay)
 			return;
@@ -2612,7 +2685,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			return;
 		this.recordMoveEvent("suppose-leave", { all });
 		this.closeSlotTray();
-		if (!all && this.suppose.parent) {
+		if (!all && !this.isWatchingSuppose() && this.suppose.parent) {
 			var displayed = this.suppose.displayed;
 			this.suppose = this.suppose.parent;
 			this.suppose.displayed = displayed;
@@ -2620,6 +2693,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			return;
 		}
 		this.suppose = null;
+		this.supposeControls.querySelector(".suppose-watchers button").setAttribute("aria-expanded", "false");
 		this.actionController?.supposeChanged(false);
 		document.body.classList.remove("suppose-active");
 		for (var row of this.rows)

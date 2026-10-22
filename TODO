@@ -13,6 +13,5 @@
      button could appear only when there's chalk)
    - if chalk is retired, consider using shift-click to enter suppose
      mode
- - extend multiplayer suppose support:
-   - opt into another player's branch to observe or help. Show who is
-     exploring which branch.
+ - extend shared suppositions from read-only watching to equal participants
+   who can make tentative moves, navigate, apply, and reject together.

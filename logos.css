@@ -4110,3 +4110,78 @@ body.suppose-active #board .possibility { transition: opacity 180ms ease; }
 	#suppose-button { display: none; }
 	#suppose-footer:not([hidden]) { display: block; }
 }
+
+/* Presence shares the existing title line; names only appear on demand. */
+.suppose-heading {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 0.25rem;
+	min-width: 0;
+	position: relative;
+}
+.suppose-heading .proof-position {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.suppose-watchers { flex: none; }
+.suppose-watchers[hidden] { display: none; }
+#suppose-controls .suppose-watchers button {
+	display: flex;
+	align-items: center;
+	gap: 0.12rem;
+	padding: 0;
+	border: 0;
+	background: none;
+	box-shadow: none;
+	color: #74191d;
+	font: 600 0.62rem/1 Forum, Georgia, serif;
+	text-shadow: none;
+	cursor: pointer;
+	touch-action: none;
+	user-select: none;
+	-webkit-touch-callout: none;
+}
+#suppose-controls .suppose-watchers button::before {
+	content: "·";
+	margin-right: 0.13rem;
+}
+.suppose-watchers svg {
+	width: 0.85rem;
+	height: 0.6rem;
+	fill: none;
+	stroke: currentColor;
+	stroke-width: 1.6;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+}
+.suppose-watcher-names {
+	display: none;
+	position: absolute;
+	top: 100%;
+	right: 0;
+	z-index: 6;
+	max-width: 100%;
+	box-sizing: border-box;
+	padding: 0.3rem;
+	border: 1px solid #a48c65;
+	border-radius: 0.15rem;
+	background: #f7f3e9;
+	color: #000;
+	box-shadow: 0 0.1rem 0.25rem rgb(75 55 31 / 25%);
+	font: 0.65rem/1.2 sans-serif;
+	overflow-wrap: anywhere;
+}
+.suppose-watchers button[data-hover="true"] + .suppose-watcher-names,
+.suppose-watchers button[aria-expanded="true"] + .suppose-watcher-names { display: block; }
+.friends-roster-event button.friends-roster-action {
+	padding: 0;
+	cursor: pointer;
+}
+.friends-roster-event button.friends-roster-action:disabled { cursor: default; }
+.friends-roster-event button.friends-roster-action:focus-visible {
+	outline: 2px solid #cfb779;
+	outline-offset: 1px;
+}

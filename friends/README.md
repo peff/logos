@@ -91,7 +91,26 @@ branch stays visible and its controls are locked until the host acknowledges
 it. Rejection unlocks the branch for retry; shared pauses and the host viewing
 a proof can prevent application. Resyncing the same game preserves branches
 and recovers missed acknowledgments. A new game or ending multiplayer closes
-private branches. Branch sharing and roster indicators are not yet implemented.
+private branches.
+
+From the shared board, click a player's active fork tile to watch their
+supposition. Watchers also get a fork tile; clicking either participant's fork
+joins the same branch. Historical forks are not join links. You must leave
+your own supposition before watching another one.
+
+Watching follows the controller's current step, nested branches, clue
+dismissals, shared conflicts, and rewinds. This first version is read-only:
+only the controller can change the branch, navigate its history, or Apply or
+Reject it. Watchers can stop watching independently. If the controller leaves
+or disconnects, everyone returns to the shared board; an accepted Apply
+returns everyone before the shared replay starts. A rejected Apply keeps the
+branch open. Resync preserves participation.
+
+The watched panel is titled with the controller's name. An SVG eye and count
+show how many people are watching; hover or press and hold for their names.
+Keyboard users can hold Space or Enter while the eye button is focused.
+Branch identity and participation are separate from control permission, so
+future versions can allow participants to edit the same branch as equals.
 
 The host’s practice mode and continue-after-loss preferences apply to the
 shared game. With continuation enabled, a mistake switches everyone to

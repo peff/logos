@@ -181,7 +181,19 @@
 			<section id="suppose-controls" hidden aria-label="Supposition" aria-live="polite">
 				<button class="proof-previous" type="button" onClick="puzzle.moveSuppose(-1)" aria-label="Previous supposed move">←</button>
 				<div class="proof-step">
-					<div class="proof-position">Suppose</div>
+					<div class="suppose-heading">
+						<div class="proof-position">Suppose</div>
+						<span class="suppose-watchers" hidden>
+							<button type="button" aria-label="Watchers" aria-expanded="false" aria-controls="suppose-watcher-names">
+								<svg viewBox="0 0 24 16" aria-hidden="true" focusable="false">
+									<path d="M2 8Q12-3 22 8Q12 19 2 8Z"/>
+									<circle cx="12" cy="8" r="3"/>
+								</svg>
+								<span class="suppose-watcher-count"></span>
+							</button>
+							<span id="suppose-watcher-names" class="suppose-watcher-names" role="tooltip"></span>
+						</span>
+					</div>
 					<div class="proof-deduction suppose-assumption">Choose or discard a tile to begin your supposition.</div>
 					<div class="suppose-actions">
 						<button class="suppose-rewind" type="button" onClick="puzzle.rewindSupposeConflict()" hidden>Rewind to conflict</button>

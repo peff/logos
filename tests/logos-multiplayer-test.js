@@ -1766,7 +1766,7 @@ Deno.test("branch batches tolerate intervening moves but validate the entire req
 		p.requestTileAction(a.slot, a.value, "remove");
 		p.requestTileAction(b.slot, b.value, "remove");
 		let pending;
-		guest.session.connectHost(message => { pending = message; });
+		guest.session.connectHost(message => { if (message.type == "command") pending = message; });
 		await p.acceptSuppose();
 		const row = p.rows.indexOf(a.slot.row), column = a.slot.row.slots.indexOf(a.slot);
 		host.puzzle.requestTileAction(host.puzzle.rows[row].slots[column], a.value, "remove");
@@ -2605,6 +2605,312 @@ Deno.test("leaving or resyncing a supposition cancels animated rewind", async fu
 			assert(p.suppose === state && (!state || state.position === 1));
 			p.leaveSuppose();
 		}
+	} finally {
+		stopAll(host, guest);
+	}
+});
+
+Deno.test("watchers join the same branch through any participant and follow nested history read-only", async function() {
+	for (const controllerIsHost of [true, false]) {
+		const host = makeSession("host", "host"), guest = makeSession("guest", "alice");
+		const third = makeSession("guest", "bob");
+		const network = new InMemoryMultiplayerNetwork(host.session);
+		try {
+			host.session.start(0x12345678);
+			network.addGuest(guest.session);
+			network.addGuest(third.session);
+			const owner = controllerIsHost ? host : guest, watcher = controllerIsHost ? guest : host;
+			owner.puzzle.enterSuppose();
+			const branchId = owner.session.branchForPlayer().id;
+			const a = wrongMove(owner.puzzle, 0), b = wrongMove(owner.puzzle, 1);
+			owner.puzzle.requestTileAction(a.slot, a.value, "remove");
+			assert(watcher.session.watchSuppose(branchId));
+			assert(watcher.puzzle.isWatchingSuppose() && watcher.puzzle.suppose.position === 1);
+			assert(third.session.watchSuppose(third.session.branchForPlayer(watcher.session.playerId).id));
+			for (const game of [host, guest, third]) {
+				const branch = game.session.branchForPlayer();
+				assert(branch.id === branchId && branch.controller === owner.session.playerId &&
+				       branch.participants.length === 3);
+				assert(game.puzzle.supposeControls.querySelector(".suppose-watchers")
+				       .querySelector(".suppose-watcher-count").textContent === 2);
+			}
+			owner.puzzle.enterSuppose();
+			owner.puzzle.requestTileAction(b.slot, b.value, "remove");
+			for (const game of [watcher, third]) {
+				assert(game.puzzle.suppose.watchNested && game.puzzle.suppose.position === 1);
+				assert(game.puzzle.supposeControls.querySelector(".proof-position").textContent.includes("'s Suppose"));
+				const before = JSON.stringify(game.puzzle.supposeSnapshot());
+				game.puzzle.moveSuppose(-1);
+				game.puzzle.enterSuppose();
+				game.puzzle.requestTileAction(game.puzzle.rows[2].slots[0], 0, "remove");
+				game.puzzle.requestClueAction(game.puzzle.clues.find(clue => clue.active), false);
+				game.puzzle.rewindSupposeConflict();
+				await game.puzzle.acceptSuppose();
+				game.puzzle.rejectSuppose();
+				assert(JSON.stringify(game.puzzle.supposeSnapshot()) === before, "watcher edited the branch");
+				assert(game.puzzle.supposeControls.querySelector(".suppose-accept").hidden);
+				assert(game.puzzle.supposeControls.querySelector(".proof-previous").disabled);
+			}
+			owner.puzzle.moveSuppose(-1);
+			assert(watcher.puzzle.suppose.position === 0 && third.puzzle.suppose.position === 0);
+			owner.puzzle.moveSuppose(1);
+			assert(watcher.puzzle.suppose.position === 1);
+			watcher.puzzle.leaveSuppose();
+			assert(!watcher.puzzle.suppose && !watcher.session.branchForPlayer(), "leaving only backed out of a nested branch");
+			assert(owner.session.branchForPlayer().participants.length === 2);
+			await owner.puzzle.acceptSuppose();
+			assert(!third.puzzle.suppose.watchNested && third.puzzle.suppose.position === 2);
+			assert(host.session.revision === 0, "watching committed tentative moves");
+			owner.puzzle.leaveSuppose();
+			assert(!third.puzzle.suppose && !third.session.watchingBranch);
+		} finally {
+			stopAll(host, guest, third);
+		}
+	}
+});
+
+Deno.test("watching requires the shared board and survives resync and late joins", function() {
+	const host = makeSession("host", "host"), guest = makeSession("guest", "alice");
+	const late = makeSession("guest", "bob");
+	const network = new InMemoryMultiplayerNetwork(host.session);
+	try {
+		host.session.start(0x12345678);
+		network.addGuest(guest.session);
+		host.puzzle.enterSuppose();
+		const move = wrongMove(host.puzzle);
+		host.puzzle.requestTileAction(move.slot, move.value, "place");
+		const branchId = host.session.branchForPlayer().id;
+		guest.puzzle.enterSuppose();
+		assert(!guest.session.watchSuppose(branchId), "watching replaced a private branch");
+		guest.puzzle.leaveSuppose();
+		host.puzzle.togglePause();
+		assert(!guest.session.watchSuppose(branchId));
+		host.puzzle.togglePause();
+		assert(guest.session.watchSuppose(branchId));
+		guest.session.requestSync();
+		assert(guest.session.watchingBranch === branchId && guest.puzzle.suppose.position === 1);
+		network.addGuest(late.session);
+		assert(late.session.branchForPlayer("alice").id === branchId);
+		assert(late.session.watchSuppose(branchId));
+		host.session.setPlayerName("Renamed");
+		assert(guest.puzzle.supposeControls.querySelector(".proof-position").textContent.startsWith("Renamed's"));
+		const before = JSON.stringify(host.session.branches.get(branchId).snapshot);
+		host.session.receive("alice", { type: "branch-update", gameId: host.session.gameId,
+			branchId, snapshot: guest.puzzle.supposeSnapshot() });
+		assert(JSON.stringify(host.session.branches.get(branchId).snapshot) === before);
+		const action = { type: "remove", row: 0, column: move.slot.row.slots.indexOf(move.slot), value: move.value };
+		host.session.receive("alice", { type: "command", gameId: host.session.gameId,
+			commandId: "watcher-edit", expectedRevision: 0, action });
+		assert(host.session.revision === 0 && guest.puzzle.isWatchingSuppose(), "watcher sent a shared edit");
+		host.puzzle.leaveSuppose();
+		assert(!guest.puzzle.suppose && !late.puzzle.suppose && !host.session.branches.size);
+		assert(!guest.session.watchSuppose(branchId), "historical fork remained joinable");
+		host.session.receive("alice", { type: "branch-watch", gameId: host.session.gameId, branchId });
+		assert(!host.session.branches.size, "stale request resurrected a branch");
+	} finally {
+		stopAll(host, guest, late);
+	}
+});
+
+Deno.test("watchers follow shared conflicts and every animated rewind step", async function() {
+	const host = makeSession("host", "host"), guest = makeSession("guest", "alice");
+	const network = new InMemoryMultiplayerNetwork(host.session);
+	try {
+		host.session.start(0x12345678);
+		network.addGuest(guest.session);
+		const p = guest.puzzle, a = wrongMove(p, 3), b = wrongMove(p, 1);
+		p.enterSuppose();
+		p.requestTileAction(a.slot, a.value, "place");
+		p.requestTileAction(b.slot, b.value, "remove");
+		host.session.watchSuppose(guest.session.branchForPlayer().id);
+		/* A shared command already in flight can still contradict the branch. */
+		host.session.commitAction("host", "conflict", {
+			type: "remove", row: 3, column: a.slot.row.slots.indexOf(a.slot), value: a.value });
+		assert(host.puzzle.hasSupposeConflict() && p.hasSupposeConflict());
+		p.rewindSupposeConflict();
+		assert(p.suppose.position === 1 && host.puzzle.suppose.position === 1);
+		await waitForConflictRewind(p);
+		assert(host.puzzle.suppose.position === 0 && !host.puzzle.hasSupposeConflict());
+		assert(boardState(p) === boardState(host.puzzle));
+	} finally {
+		stopAll(host, guest);
+	}
+});
+
+Deno.test("applying a watched branch releases watchers before paced shared replay", async function() {
+	const host = makeSession("host", "host"), guest = makeSession("guest", "alice");
+	const third = makeSession("guest", "bob");
+	const network = new InMemoryMultiplayerNetwork(host.session);
+	try {
+		host.session.start(0x12345678);
+		network.addGuest(guest.session);
+		network.addGuest(third.session);
+		guest.puzzle.enterSuppose();
+		for (const row of [0, 1]) {
+			const move = wrongMove(guest.puzzle, row);
+			guest.puzzle.requestTileAction(move.slot, move.value, "remove");
+		}
+		const branchId = guest.session.branchForPlayer().id;
+		third.session.watchSuppose(branchId);
+		host.puzzle.proof = {};
+		await guest.puzzle.acceptSuppose();
+		host.puzzle.proof = null;
+		assert(guest.puzzle.suppose && third.puzzle.isWatchingSuppose(), "rejected Apply closed the watched branch");
+		await guest.puzzle.acceptSuppose();
+		for (const game of [guest, third])
+			assert(!game.puzzle.suppose && !game.session.watchingBranch && game.session.replay);
+		assert(host.session.revision === 1 && !host.session.branches.size);
+		host.session.advanceSupposeReplay();
+		assert(host.session.revision === 2 && !third.session.replay);
+		assert(third.session.recentActions.get("bob").map(action => action.type).join() === "suppose-enter,suppose-leave");
+	} finally {
+		host.puzzle.proof = null;
+		stopAll(host, guest, third);
+	}
+});
+
+Deno.test("watched branch membership closes on rejection, disconnect and replacement games", function() {
+	const host = makeSession("host", "host"), guest = makeSession("guest", "alice");
+	const third = makeSession("guest", "bob");
+	const network = new InMemoryMultiplayerNetwork(host.session);
+	try {
+		host.session.start(0x12345678);
+		network.addGuest(guest.session);
+		network.addGuest(third.session);
+		for (const ending of ["reject", "new-game", "disconnect"]) {
+			guest.puzzle.enterSuppose();
+			const move = wrongMove(guest.puzzle);
+			guest.puzzle.requestTileAction(move.slot, move.value, "place");
+			third.session.watchSuppose(guest.session.branchForPlayer().id);
+			if (ending === "reject") guest.puzzle.rejectSuppose();
+			else if (ending === "new-game") host.session.start(0x12345678);
+			else host.session.removePeer("alice");
+			assert(!third.puzzle.suppose && !third.session.watchingBranch && !host.session.branches.size);
+		}
+	} finally {
+		stopAll(host, guest, third);
+	}
+});
+
+Deno.test("pending watch requests block private entry until the host replies", function() {
+	const host = makeSession("host", "host"), guest = makeSession("guest", "alice");
+	const network = new InMemoryMultiplayerNetwork(host.session);
+	try {
+		host.session.start(0x12345678);
+		network.addGuest(guest.session);
+		host.puzzle.enterSuppose();
+		const branchId = host.session.branchForPlayer().id;
+		let request;
+		guest.session.connectHost(message => { if (message.type === "branch-watch") request = message; });
+		assert(guest.session.watchSuppose(branchId));
+		const move = wrongMove(host.puzzle);
+		host.puzzle.requestTileAction(move.slot, move.value, "remove");
+		assert(guest.session.watchRequest === branchId, "an unrelated branch update acknowledged the join");
+		guest.puzzle.enterSuppose();
+		assert(!guest.puzzle.suppose, "private entry raced with joining");
+		host.puzzle.leaveSuppose();
+		host.session.receive("alice", request);
+		assert(!guest.session.watchRequest && !guest.puzzle.suppose);
+		guest.puzzle.enterSuppose();
+		assert(guest.puzzle.suppose, "rejected join left private entry locked");
+	} finally {
+		stopAll(host, guest);
+	}
+});
+
+Deno.test("moves made before branch registration reach watchers and stale updates cannot resurrect branches", function() {
+	const host = makeSession("host", "host"), guest = makeSession("guest", "alice");
+	const network = new InMemoryMultiplayerNetwork(host.session);
+	try {
+		host.session.start(0x12345678);
+		network.addGuest(guest.session);
+		const outbound = [];
+		guest.session.connectHost(message => outbound.push(message));
+		guest.puzzle.enterSuppose();
+		const move = wrongMove(guest.puzzle);
+		guest.puzzle.requestTileAction(move.slot, move.value, "remove");
+		assert(!host.session.branchForPlayer("alice"));
+		let update;
+		while (outbound.length) {
+			const message = outbound.shift();
+			if (message.type === "branch-update") update = message;
+			host.session.receive("alice", message);
+		}
+		const branchId = host.session.branchForPlayer("alice").id;
+		assert(update && host.session.branches.get(branchId).snapshot.position === 1);
+		host.session.watchSuppose(branchId);
+		assert(host.puzzle.suppose.position === 1);
+		guest.puzzle.leaveSuppose();
+		while (outbound.length) host.session.receive("alice", outbound.shift());
+		assert(!host.puzzle.suppose && !host.session.branches.size);
+		host.session.receive("alice", update);
+		assert(!host.session.branches.size, "stale update resurrected a branch");
+	} finally {
+		stopAll(host, guest);
+	}
+});
+
+Deno.test("active fork entries survive later shared activity", function() {
+	const host = makeSession("host", "host"), guest = makeSession("guest", "alice");
+	const network = new InMemoryMultiplayerNetwork(host.session);
+	try {
+		host.session.start(0x12345678);
+		network.addGuest(guest.session);
+		host.puzzle.enterSuppose();
+		const branchId = host.session.branchForPlayer().id;
+		for (let i = 0; i < 16; i++) host.puzzle.togglePause();
+		for (const game of [host, guest]) {
+			const actions = game.session.recentActions.get("host");
+			assert(actions.length === 12 && actions[0].type === "suppose-enter" &&
+			       actions[0].branchId === branchId);
+		}
+		assert(guest.session.watchSuppose(branchId));
+	} finally {
+		stopAll(host, guest);
+	}
+});
+
+Deno.test("branch snapshots reject malformed domains and symbol references", function() {
+	const host = makeSession("host", "host"), guest = makeSession("guest", "alice");
+	const network = new InMemoryMultiplayerNetwork(host.session);
+	try {
+		host.session.start(0x12345678);
+		network.addGuest(guest.session);
+		guest.puzzle.enterSuppose();
+		const branchId = guest.session.branchForPlayer().id;
+		const version = host.session.branches.get(branchId).version;
+		for (const invalid of [
+			{ domains: [] }, { conflictDomains: [[1]] }, { sharedConflictMessages: [] },
+			{ message: "\ue00099:99\ue001" }, { previousConflicts: { bad: 42 } },
+		]) {
+			host.session.receive("alice", { type: "branch-update", gameId: host.session.gameId, branchId,
+				snapshot: { ...guest.puzzle.supposeSnapshot(), ...invalid } });
+			assert(host.session.branches.get(branchId).version === version);
+		}
+	} finally {
+		stopAll(host, guest);
+	}
+});
+
+Deno.test("a delayed leave acknowledgment does not reopen the watched view", function() {
+	const host = makeSession("host", "host"), guest = makeSession("guest", "alice");
+	const network = new InMemoryMultiplayerNetwork(host.session);
+	try {
+		host.session.start(0x12345678);
+		network.addGuest(guest.session);
+		host.puzzle.enterSuppose();
+		guest.session.watchSuppose(host.session.branchForPlayer().id);
+		const requests = [];
+		guest.session.connectHost(message => requests.push(message));
+		guest.puzzle.leaveSuppose();
+		assert(!guest.puzzle.suppose);
+		const move = wrongMove(host.puzzle);
+		host.puzzle.requestTileAction(move.slot, move.value, "remove");
+		assert(!guest.puzzle.suppose, "a late snapshot reopened the watched view");
+		for (const message of requests) host.session.receive("alice", message);
+		assert(!guest.session.watchingBranch && !guest.session.watchLeaving);
+		guest.puzzle.enterSuppose();
+		assert(guest.puzzle.suppose, "leaving kept private entry locked");
 	} finally {
 		stopAll(host, guest);
 	}
