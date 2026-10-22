@@ -2225,7 +2225,7 @@ Deno.test("suppose activity logs outer transitions and survives resync and late 
 			       "suppose-enter,suppose-leave");
 		guest.puzzle.enterSuppose();
 		host.session.start(42);
-		assert(!host.session.supposingPlayers.size && !actions(guest).length,
+		assert(!host.session.branches.size && !actions(guest).length,
 		       "new game retained old suppose activity");
 	} finally {
 		stopAll(host, guest, late);

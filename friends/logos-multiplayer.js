@@ -190,7 +190,6 @@ class MultiplayerSession {
 		this.history = [];
 		this.initialPosition = null;
 		this.recentActions = new Map();
-		this.supposingPlayers = new Set();
 		this.branches = new Map();
 		this.nextBranch = 1;
 		this.watchingBranch = null;
@@ -325,7 +324,6 @@ class MultiplayerSession {
 		this.history = [];
 		this.initialPosition = null;
 		this.recentActions.clear();
-		this.supposingPlayers.clear();
 		this.branches.clear();
 		this.watchingBranch = this.watchRequest = this.branchSnapshot = null;
 		this.watchLeaving = false;
@@ -390,7 +388,6 @@ class MultiplayerSession {
 		this.receiveSuppose(playerId, { gameId: this.gameId, active: false });
 		this.players = this.players.filter(player => player.id != playerId);
 		this.recentActions.delete(playerId);
-		this.supposingPlayers.delete(playerId);
 		this.hovers.delete(playerId);
 		this.onHoverChanged();
 		this.playersChanged();
@@ -480,8 +477,6 @@ class MultiplayerSession {
 	}
 
 	recordSupposeActivity(actor, active, branchId) {
-		if (active) this.supposingPlayers.add(actor);
-		else this.supposingPlayers.delete(actor);
 		const activity = { type: "suppose-activity", gameId: this.gameId, actor,
 			action: { type: active ? "suppose-enter" : "suppose-leave", branchId } };
 		this.recordActivity(actor, activity.action);
@@ -1032,7 +1027,6 @@ class MultiplayerSession {
 		this.history = copyMessage(message.history);
 		this.initialPosition = copyMessage(message.initialPosition || null);
 		this.recentActions.clear();
-		this.supposingPlayers.clear();
 		this.hovers.clear();
 		this.onHoverChanged();
 		for (var entry of message.recentActions || [])
@@ -1248,7 +1242,6 @@ class MultiplayerSession {
 		this.peers.clear();
 		this.players = [];
 		this.recentActions.clear();
-		this.supposingPlayers.clear();
 		this.branches.clear();
 		this.watchingBranch = this.watchRequest = this.branchSnapshot = null;
 		this.watchLeaving = false;
