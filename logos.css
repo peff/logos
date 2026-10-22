@@ -475,6 +475,11 @@ body[data-custom-cursor="false"] {
 
 #board {
 	--chalk-mark: rgb(240 232 211 / 88%);
+	/* A darker halo contrasts with the cream dividers; the pale outline
+	 * contrasts with the tile itself. */
+	--tile-highlight-glow:
+		0 0 0.12rem 0.06rem rgb(133 77 18 / 85%),
+		0 0 0.38rem 0.12rem rgb(190 111 17 / 85%);
 }
 
 :is(#board, #hclues, #vclues) {
@@ -3424,6 +3429,14 @@ body.proof-active :is(#hclues, #vclues) .clue.proof-current {
 	visibility: hidden;
 }
 
+/* Raise both the recess and its slot so later table cells do not paint
+ * over a highlighted tile's outline and glow. */
+#board .slot:has(.proof-change),
+#board .tile-recess:has(> .proof-change) {
+	position: relative;
+	z-index: 1;
+}
+
 #board .proof .possibility.proof-impossible.proof-change {
 	visibility: visible;
 	opacity: 1;
@@ -3431,13 +3444,13 @@ body.proof-active :is(#hclues, #vclues) .clue.proof-current {
 	background-color: transparent;
 	background-image: none;
 	color: transparent;
-	box-shadow: 0 0 0.26rem rgb(215 168 62 / 72%);
+	box-shadow: var(--tile-highlight-glow);
 }
 
 #board .single.proof-change {
 	outline: 2px solid #f1d47a;
 	outline-offset: 1px;
-	box-shadow: 0 0 0.34rem rgb(215 168 62 / 82%);
+	box-shadow: var(--tile-highlight-glow);
 }
 
 .arrow {
