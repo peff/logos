@@ -2745,6 +2745,38 @@ Deno.test("watching requires the shared board and survives resync and late joins
 	}
 });
 
+Deno.test("resync refreshes watched state and roster together after missed updates", function() {
+	const host = makeSession("host", "host"), guest = makeSession("guest", "alice");
+	const network = new InMemoryMultiplayerNetwork(host.session);
+	try {
+		host.session.start(0x12345678);
+		network.addGuest(guest.session);
+		host.puzzle.enterSuppose();
+		guest.session.watchSuppose(host.session.branchForPlayer().id);
+		host.session.peers.set("alice", () => {});
+		const move = wrongMove(host.puzzle);
+		host.puzzle.requestTileAction(move.slot, move.value, "remove");
+		host.puzzle.enterSuppose();
+		host.session.setPlayerName("Renamed");
+		host.puzzle.togglePause();
+		const expected = JSON.stringify(host.puzzle.supposeSnapshot());
+		let refreshes = 0;
+		guest.session.onPlayersChanged = function() {
+			refreshes++;
+			assert(guest.puzzle.paused, "roster refreshed before the shared pause was restored");
+			assert(JSON.stringify(guest.puzzle.supposeSnapshot()) === expected,
+			       "roster refreshed with an obsolete watched position");
+			assert(guest.puzzle.supposeControls.querySelector(".proof-position").textContent ===
+			       "Renamed's Suppose · Nested");
+		};
+		guest.session.receiveSync(host.session.syncMessage());
+		assert(refreshes === 1, "resync refreshed the roster more than once");
+	} finally {
+		guest.session.onPlayersChanged = () => {};
+		stopAll(host, guest);
+	}
+});
+
 Deno.test("watchers follow shared conflicts and every animated rewind step", async function() {
 	const host = makeSession("host", "host"), guest = makeSession("guest", "alice");
 	const network = new InMemoryMultiplayerNetwork(host.session);

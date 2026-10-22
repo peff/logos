@@ -452,8 +452,7 @@ class MultiplayerSession {
 		for (var id of this.recentActions.keys())
 			if (!players.some(player => player.id == id))
 				this.recentActions.delete(id);
-		this.updateBranchView();
-		this.onPlayersChanged(copyMessage(this.players));
+		this.refreshBranchView();
 	}
 
 	branchForPlayer(id = this.playerId) {
@@ -592,18 +591,24 @@ class MultiplayerSession {
 
 	branchesChanged() {
 		const branches = copyMessage([...this.branches.values()]);
-		this.updateBranchView();
-		this.onPlayersChanged(copyMessage(this.players));
+		this.refreshBranchView();
 		this.broadcast({ type: "branches", gameId: this.gameId, branches });
 	}
 
 	receiveBranches(branches) {
 		if (!Array.isArray(branches)) return;
 		this.branches = new Map(branches.map(branch => [branch.id, copyMessage(branch)]));
-		this.updateBranchView();
-		this.onPlayersChanged(copyMessage(this.players));
+		this.refreshBranchView();
 		/* Flush edits made while the host was registering our branch. */
 		this.publishSuppose();
+	}
+
+	/* A resync installs several related pieces of state before refreshing
+	 * the watched position and roster together. */
+	refreshBranchView() {
+		if (this.updatingBranches) return;
+		this.updateBranchView();
+		this.onPlayersChanged(copyMessage(this.players));
 	}
 
 	updateBranchView() {
@@ -1035,7 +1040,9 @@ class MultiplayerSession {
 		this.branches = new Map((message.branches || []).map(branch => [branch.id, copyMessage(branch)]));
 		this.updatingBranches = true;
 		this.ready = true;
-		if (supposition && !this.puzzle.gameOver)
+		/* Local history survives resync; watched positions come from the
+		 * host's branch snapshot in the final refresh below. */
+		if (supposition && !supposition.watched && !this.puzzle.gameOver)
 			this.puzzle.restoreSuppose(supposition);
 		if (this.pendingSuppose && [...message.history, ...(message.acceptedSupposes || [])].some(commit =>
 		    commit.commandId === this.pendingSuppose.commandId && commit.actor === this.playerId))
@@ -1046,7 +1053,7 @@ class MultiplayerSession {
 		this.updatingBranches = false;
 		this.watchedVersion = null;
 		this.watchRequest = null;
-		this.receiveBranches(message.branches || []);
+		this.refreshBranchView();
 		this.publishSuppose();
 		this.sendPlayerName();
 		this.saveResult();
