@@ -75,7 +75,9 @@ after a conflict, so backing out always returns to the current shared position.
 already resolved on the shared board, and stops at the first mistake (also in
 Zen mode). **Reject** shares only the inverse of the initial assumption.
 Players in Suppose do not broadcast hover highlights, but can still see other
-players pointing at tiles or clues.
+players pointing at tiles or clues. The multiplayer log marks entry into and
+exit from Suppose with a fork and a slashed fork. Nested branches stay private;
+an accepted Apply logs the exit before its replayed moves.
 
 Other players continue on their own boards. While application is pending, the
 branch stays visible and its controls are locked until the host acknowledges

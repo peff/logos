@@ -260,6 +260,15 @@ function renderRecentAction(actions) {
 		icon.textContent = "∵";
 		description = actions.length == 1 ? "Asked for a hint" :
 			"Asked for a hint " + actions.length + " times";
+	} else if (action.type == "suppose-enter" || action.type == "suppose-leave") {
+		var fork = document.querySelector("#suppose-button svg").cloneNode(true);
+		if (action.type == "suppose-leave") {
+			var slash = document.createElementNS("http://www.w3.org/2000/svg", "path");
+			slash.setAttribute("d", "M4 3L21 20");
+			fork.append(slash);
+		}
+		icon.append(fork);
+		description = action.type == "suppose-enter" ? "Entered suppose mode" : "Left suppose mode";
 	} else if (action.type == "new-game") {
 		icon.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">' +
 			'<g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round">' +

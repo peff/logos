@@ -187,6 +187,7 @@ class MultiplayerSession {
 		this.history = [];
 		this.initialPosition = null;
 		this.recentActions = new Map();
+		this.supposingPlayers = new Set();
 		this.lastPaused = false;
 		this.pauseActor = null;
 		this.committedCommands = new Map();
@@ -312,6 +313,7 @@ class MultiplayerSession {
 		this.history = [];
 		this.initialPosition = null;
 		this.recentActions.clear();
+		this.supposingPlayers.clear();
 		this.hovers.clear();
 		this.onHoverChanged();
 		this.lastPaused = false;
@@ -372,6 +374,7 @@ class MultiplayerSession {
 			return;
 		this.players = this.players.filter(player => player.id != playerId);
 		this.recentActions.delete(playerId);
+		this.supposingPlayers.delete(playerId);
 		this.hovers.delete(playerId);
 		this.onHoverChanged();
 		this.playersChanged();
@@ -436,6 +439,27 @@ class MultiplayerSession {
 			if (!players.some(player => player.id == id))
 				this.recentActions.delete(id);
 		this.onPlayersChanged(copyMessage(this.players));
+	}
+
+	supposeChanged(active) {
+		if (!this.ready || this.seed === null) return;
+		const message = { type: "suppose", gameId: this.gameId, active };
+		if (this.role == "host") this.receiveSuppose(this.playerId, message);
+		else if (this.hostSender) this.hostSender(message);
+	}
+
+	receiveSuppose(from, message) {
+		if (!this.ready || message.gameId !== this.gameId ||
+		    typeof message.active != "boolean" ||
+		    !this.players.some(player => player.id == from) ||
+		    this.supposingPlayers.has(from) === message.active)
+			return;
+		if (message.active) this.supposingPlayers.add(from);
+		else this.supposingPlayers.delete(from);
+		const activity = { type: "suppose-activity", gameId: this.gameId,
+			actor: from, action: { type: message.active ? "suppose-enter" : "suppose-leave" } };
+		this.recordActivity(activity.actor, activity.action);
+		this.broadcast(activity);
 	}
 
 	requestHover(target) {
@@ -563,7 +587,13 @@ class MultiplayerSession {
 	receive(from, message) {
 		if (!message || typeof message.type != "string")
 			return;
-		if (message.type == "hover")
+		if (this.role == "host" && message.type == "suppose")
+			this.receiveSuppose(from, message);
+		else if (this.role == "guest" && message.type == "suppose-activity" &&
+		         message.gameId === this.gameId &&
+		         ["suppose-enter", "suppose-leave"].includes(message.action?.type))
+			this.recordActivity(message.actor, message.action);
+		else if (message.type == "hover")
 			this.receiveHover(from, message);
 		else if (this.role == "host" && message.type == "command")
 			this.receiveCommand(from, message);
@@ -615,6 +645,11 @@ class MultiplayerSession {
 			this.reject(from, message.commandId, "stale-or-inapplicable");
 			return false;
 		}
+
+		/* Announce an accepted branch's exit before its replayed moves.
+		 * The later local exit notification is redundant. */
+		if (message.action.type == "suppose-apply")
+			this.receiveSuppose(from, { gameId: this.gameId, active: false });
 
 		const actorColor = playerColor(this.players.find(player => player.id == from));
 		this.updatingTimer = true;
@@ -730,6 +765,7 @@ class MultiplayerSession {
 		this.history = copyMessage(message.history);
 		this.initialPosition = copyMessage(message.initialPosition || null);
 		this.recentActions.clear();
+		this.supposingPlayers.clear();
 		this.hovers.clear();
 		this.onHoverChanged();
 		for (var entry of message.recentActions || [])
@@ -928,6 +964,7 @@ class MultiplayerSession {
 		this.peers.clear();
 		this.players = [];
 		this.recentActions.clear();
+		this.supposingPlayers.clear();
 		this.hovers.clear();
 		this.onHoverChanged();
 		this.onPlayersChanged([]);

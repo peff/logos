@@ -2180,3 +2180,90 @@ Deno.test("shared placement hides conflict markers at superseded tentative place
 		}
 	}
 });
+
+Deno.test("suppose activity logs outer transitions and survives resync and late joins", function() {
+	const host = makeSession("host", "host"), guest = makeSession("guest", "alice");
+	const late = makeSession("guest", "bob");
+	const network = new InMemoryMultiplayerNetwork(host.session);
+	const actions = game => (game.session.recentActions.get("alice") || []).map(a => a.type);
+	try {
+		host.session.start(0x12345678);
+		network.addGuest(guest.session);
+		guest.puzzle.enterSuppose();
+		const move = wrongMove(guest.puzzle);
+		guest.puzzle.requestTileAction(move.slot, move.value, "remove");
+		guest.puzzle.enterSuppose();
+		guest.puzzle.leaveSuppose();
+		guest.session.requestSync();
+		assert(guest.puzzle.suppose, "resync lost the branch");
+		network.addGuest(late.session);
+		for (const game of [host, guest, late])
+			assert(JSON.stringify(actions(game)) === '["suppose-enter"]',
+			       "private moves, nesting or resync added log entries");
+		guest.puzzle.leaveSuppose();
+		for (const game of [host, guest, late])
+			assert(JSON.stringify(actions(game)) === '["suppose-enter","suppose-leave"]');
+		assert(host.session.revision === 0, "presence changed the board revision");
+		host.session.receive("alice", { type: "suppose", gameId: host.session.gameId, active: false });
+		host.session.receive("alice", { type: "suppose", gameId: host.session.gameId - 1, active: true });
+		host.session.receive("unknown", { type: "suppose", gameId: host.session.gameId, active: true });
+		assert(actions(host).length === 2, "duplicate or stale presence was logged");
+		host.puzzle.enterSuppose();
+		host.puzzle.leaveSuppose();
+		for (const game of [host, guest, late])
+			assert(game.session.recentActions.get("host").slice(-2).map(a => a.type).join() ===
+			       "suppose-enter,suppose-leave");
+		guest.puzzle.enterSuppose();
+		host.session.start(42);
+		assert(!host.session.supposingPlayers.size && !actions(guest).length,
+		       "new game retained old suppose activity");
+	} finally {
+		stopAll(host, guest, late);
+	}
+});
+
+Deno.test("accepted suppose applications log departure before moves for every player", async function() {
+	const host = makeSession("host", "host"), guest = makeSession("guest", "alice");
+	const other = makeSession("guest", "bob");
+	const network = new InMemoryMultiplayerNetwork(host.session);
+	try {
+		host.session.start(0x12345678);
+		network.addGuest(guest.session);
+		network.addGuest(other.session);
+		for (const player of [host, guest]) {
+			player.puzzle.enterSuppose();
+			const move = wrongMove(player.puzzle);
+			player.puzzle.requestTileAction(move.slot, move.value, "remove");
+			await player.puzzle.acceptSuppose();
+			for (const game of [host, guest, other])
+				assert(game.session.recentActions.get(player.session.playerId).slice(-3)
+				       .map(a => a.type).join() === "suppose-enter,suppose-leave,remove",
+				       "branch exit was missing, duplicated or followed the replay");
+		}
+	} finally {
+		stopAll(host, guest, other);
+	}
+});
+
+Deno.test("rejected suppose applications do not log departure", async function() {
+	const host = makeSession("host", "host"), guest = makeSession("guest", "alice");
+	const network = new InMemoryMultiplayerNetwork(host.session);
+	try {
+		host.session.start(0x12345678);
+		network.addGuest(guest.session);
+		guest.puzzle.enterSuppose();
+		const move = wrongMove(guest.puzzle);
+		guest.puzzle.requestTileAction(move.slot, move.value, "remove");
+		host.puzzle.proof = {};
+		await guest.puzzle.acceptSuppose();
+		host.puzzle.proof = null;
+		assert(guest.puzzle.suppose && !guest.puzzle.suppose.pending);
+		for (const game of [host, guest])
+			assert(game.session.recentActions.get("alice").map(a => a.type).join() === "suppose-enter");
+		guest.puzzle.leaveSuppose();
+		assert(host.session.recentActions.get("alice").at(-1).type === "suppose-leave");
+	} finally {
+		host.puzzle.proof = null;
+		stopAll(host, guest);
+	}
+});

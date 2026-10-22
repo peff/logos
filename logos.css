@@ -3752,7 +3752,7 @@ body.multiplayer #logo {
 	color: #cfb779;
 }
 
-.friends-roster-action:is([data-action="pause"], [data-action="resume"], [data-action="new-game"], [data-action="hint"]) {
+.friends-roster-action:is([data-action="pause"], [data-action="resume"], [data-action="new-game"], [data-action="hint"], [data-action="suppose-enter"], [data-action="suppose-leave"]) {
 	color: #cfb779;
 	border: 1px solid #706b5e;
 	border-radius: 0.1rem;
@@ -4072,6 +4072,7 @@ body.suppose-active #board .possibility { transition: opacity 180ms ease; }
 	background: rgb(89 79 66 / 12%);
 	color: #263238;
 }
+.friends-roster-action:is([data-action="suppose-enter"], [data-action="suppose-leave"]) svg,
 .suppose-launch svg {
 	display: block;
 	width: 100%;

@@ -2132,6 +2132,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.saveSupposeStep();
 		document.body.classList.add("suppose-active");
 		this.actionController?.requestHover(null);
+		if (!parent)
+			this.actionController?.supposeChanged(true);
 		this.updateSupposeControls();
 		this.updateChalkControls();
 		this.updateActionCursor();
@@ -2597,6 +2599,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			return;
 		}
 		this.suppose = null;
+		this.actionController?.supposeChanged(false);
 		document.body.classList.remove("suppose-active");
 		for (var row of this.rows)
 			for (var slot of row.slots) {
