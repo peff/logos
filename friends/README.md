@@ -57,6 +57,19 @@ Once connected, committed moves and manual clue dismissal/restoration appear
 for every player, including guests who join later. Chalk marks and automatic
 clue dismissal preferences remain local. The same room link accepts additional guests while the invitation is open.
 
+Suppose explores a private branch, including nested suppositions. Shared
+moves update every saved step of that branch; conflicting rows are highlighted,
+and the step controls let you rewind before the conflicting assumption.
+**Apply moves** sends the explored moves to the host in order, skips moves
+already resolved on the shared board, and stops at the first mistake (also in
+Zen mode). **Reject** shares only the inverse of the initial assumption.
+Other players continue on their own boards. While application is pending, the
+branch stays visible and its controls are locked until the host acknowledges
+it. Rejection unlocks the branch for retry; shared pauses and the host viewing
+a proof can prevent application. Resyncing the same game preserves branches
+and recovers missed acknowledgments. A new game or ending multiplayer closes
+private branches. Branch sharing and roster indicators are not yet implemented.
+
 The host’s practice mode and continue-after-loss preferences apply to the
 shared game. With continuation enabled, a mistake switches everyone to
 practice mode; starting a new shared game restores the host’s original rules.

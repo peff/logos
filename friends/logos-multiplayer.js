@@ -49,9 +49,21 @@ function slotForAction(puzzle, action) {
 	return row.slots[action.column] || null;
 }
 
+function validSupposeMoves(puzzle, action) {
+	return Array.isArray(action.moves) && action.moves.length <= 4096 &&
+		action.moves.every(move => {
+			var slot = slotForAction(puzzle, move);
+			return slot && ["place", "remove"].includes(move.type) &&
+				move.value >= 0 && move.value < slot.possible.length;
+		}) && Array.isArray(action.clues) && action.clues.length <= puzzle.clues.length &&
+		action.clues.every(index => Number.isInteger(index) && !!puzzle.clues[index]?.display);
+}
+
 function applicableAction(puzzle, action) {
 	if (!action)
 		return false;
+	if (action.type == "suppose-apply")
+		return !puzzle.gameOver && !puzzle.paused && !puzzle.proof && validSupposeMoves(puzzle, action);
 	if (action.type == "hint")
 		return puzzle.seed !== undefined && !puzzle.gameOver && !puzzle.paused &&
 			Number.isInteger(action.stage) && action.stage >= 1 && action.stage <= 3;
@@ -81,6 +93,32 @@ function applicableAction(puzzle, action) {
 }
 
 function applyAction(puzzle, action, playerAction, actor, actorColor) {
+	try {
+		return applySharedAction(puzzle, action, playerAction, actor, actorColor);
+	} finally {
+		puzzle.reconcileSuppose();
+	}
+}
+
+function applySharedAction(puzzle, action, playerAction, actor, actorColor) {
+	if (action.type == "suppose-apply") {
+		const applied = [];
+		for (const move of action.moves) {
+			const slot = slotForAction(puzzle, move);
+			if (slot.single || !slot.possible[move.value])
+				continue;
+			applySharedAction(puzzle, move, playerAction, actor, actorColor);
+			applied.push(move);
+			if ((slot.value == move.value) == (move.type == "remove") || puzzle.gameOver) {
+				action.clues = [];
+				break;
+			}
+		}
+		action.moves = applied;
+		for (const index of action.clues)
+			puzzle.applyClueAction(puzzle.clues[index], false);
+		return;
+	}
 	if (action.type == "chalk-clear") {
 		puzzle.clearPencilMarks();
 		if (puzzle.expandedSlot)
@@ -262,6 +300,7 @@ class MultiplayerSession {
 			this.ready = wasReady;
 			return false;
 		}
+		this.pendingSuppose = null;
 		this.applyRoomRules();
 		this.seed = this.puzzle.seed;
 		this.gameId++;
@@ -481,7 +520,8 @@ class MultiplayerSession {
 	}
 
 	requestAction(action) {
-		if (!this.ready || this.seed === null)
+		if (!this.ready || this.seed === null || this.pendingSuppose ||
+		    this.role == "guest" && !this.hostSender)
 			return false;
 		var command = {
 			type: "command",
@@ -490,12 +530,34 @@ class MultiplayerSession {
 			expectedRevision: this.revision,
 			action: action,
 		};
-		if (this.role == "host")
-			return this.receiveCommand(this.playerId, command);
-		if (!this.hostSender)
-			return false;
+		if (action.type == "suppose-apply" && this.puzzle.suppose) {
+			this.pendingSuppose = { commandId: command.commandId, state: this.puzzle.suppose };
+			this.puzzle.suppose.pending = true;
+			this.puzzle.renderSuppose();
+		}
+		if (this.role == "host") {
+			const accepted = this.receiveCommand(this.playerId, command);
+			this.finishSuppose(command.commandId, accepted);
+			return accepted;
+		}
 		this.hostSender(copyMessage(command));
 		return true;
+	}
+
+	finishSuppose(commandId, accepted) {
+		const pending = this.pendingSuppose;
+		if (!pending || pending.commandId !== commandId)
+			return;
+		this.pendingSuppose = null;
+		delete pending.state.pending;
+		if (this.puzzle.suppose === pending.state) {
+			if (accepted)
+				this.puzzle.leaveSuppose(true);
+			else {
+				this.puzzle.renderSuppose();
+				this.puzzle.say("The host could not apply these moves. Your supposition is saved; try again when the shared game is ready.");
+			}
+		}
 	}
 
 	receive(from, message) {
@@ -541,8 +603,10 @@ class MultiplayerSession {
 		}
 		/* Chalk expresses intent, so independent concurrent edits can be ordered
 		 * even when their senders have not seen the latest revision yet.
+		 * Branch application also tolerates intervening moves: it rechecks
+		 * each move against the live board and skips resolved tiles.
 		 */
-		const revisionOK = isChalkAction(message.action) ?
+		const revisionOK = (isChalkAction(message.action) || message.action?.type == "suppose-apply") ?
 			Number.isInteger(message.expectedRevision) && message.expectedRevision >= 0 &&
 			message.expectedRevision <= this.revision : message.expectedRevision == this.revision;
 		if (message.gameId !== this.gameId ||
@@ -603,6 +667,8 @@ class MultiplayerSession {
 		} finally {
 			this.updatingTimer = false;
 		}
+		if (message.actor === this.playerId)
+			this.finishSuppose(message.commandId, true);
 		this.receiveClock(message.clock);
 		this.revision = message.revision;
 		this.history.push(copyMessage(message));
@@ -618,6 +684,10 @@ class MultiplayerSession {
 		    (message.extreme !== undefined && typeof message.extreme !== "boolean") ||
 		    (message.seed === null && message.extreme))
 			return;
+		var sameGame = message.gameId === this.gameId && message.seed === this.seed;
+		var supposition = sameGame ? this.puzzle.suppose : null;
+		if (!sameGame)
+			this.pendingSuppose = null;
 		var session = this;
 		var wasReady = this.ready;
 		var oldRules = this.rules;
@@ -666,6 +736,11 @@ class MultiplayerSession {
 			if (Array.isArray(entry) && typeof entry[0] == "string" && Array.isArray(entry[1]))
 				this.recentActions.set(entry[0], copyMessage(entry[1].slice(-recentActionLimit)));
 		this.ready = true;
+		if (supposition && !this.puzzle.gameOver)
+			this.puzzle.restoreSuppose(supposition);
+		if (this.pendingSuppose && message.history.some(commit =>
+		    commit.commandId === this.pendingSuppose.commandId && commit.actor === this.playerId))
+			this.finishSuppose(this.pendingSuppose.commandId, true);
 		this.receiveClock(message.clock);
 		this.receivePlayers(message.players);
 		this.sendPlayerName();
@@ -676,6 +751,7 @@ class MultiplayerSession {
 		this.lastRejection = copyMessage(message);
 		if (message.sync)
 			this.receiveSync(message.sync);
+		this.finishSuppose(message.commandId, false);
 	}
 
 	reject(playerId, commandId, reason) {
@@ -746,6 +822,11 @@ class MultiplayerSession {
 
 	recordMove(commit) {
 		var action = commit.action;
+		if (action.type == "suppose-apply") {
+			for (const move of action.moves)
+				this.recordMove({ ...commit, action: move });
+			return;
+		}
 		if (action.type == "hint" || action.type == "reveal-clue") {
 			this.recordActivity(commit.actor, action);
 			return;
@@ -837,6 +918,7 @@ class MultiplayerSession {
 	}
 
 	leave() {
+		this.pendingSuppose = null;
 		if (this.puzzle.actionController == this)
 			this.puzzle.setActionController(null);
 		this.puzzle.practiceModePreference = this.localRules.practiceMode;

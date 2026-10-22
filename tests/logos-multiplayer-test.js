@@ -1642,3 +1642,236 @@ Deno.test("shared Extreme results retain mode, host time, and JSON-safe skull ra
 		stopAll(host, guest);
 	}
 });
+
+Deno.test("multiplayer suppositions stay private and incorporate shared moves when rewound", function() {
+	const host = makeSession("host", "host");
+	const guest = makeSession("guest", "guest");
+	const network = new InMemoryMultiplayerNetwork(host.session);
+	try {
+		host.session.start(0x12345678);
+		network.addGuest(guest.session);
+		const p = guest.puzzle;
+		const before = boardState(p);
+		p.enterSuppose();
+		const move = wrongMove(p);
+		p.requestTileAction(move.slot, move.value, "place");
+		assert(p.suppose && !host.puzzle.suppose);
+		assert(boardState(p) == before && host.session.revision == 0);
+		const root = p.suppose;
+		p.enterSuppose();
+		const row = p.rows.indexOf(move.slot.row);
+		const column = move.slot.row.slots.indexOf(move.slot);
+		host.puzzle.requestTileAction(host.puzzle.rows[row].slots[column], move.value, "remove");
+		assert(p.suppose.parent == root, "shared update closed a private branch");
+		assert(!(root.domains[row][move.value] & (1 << column)));
+		assert(move.slot.row.elem.classList.contains("pencil-conflict"), "conflict was not highlighted");
+		p.leaveSuppose();
+		p.moveSuppose(-1);
+		assert(!(root.domains[row][move.value] & (1 << column)), "rewind resurrected a shared discard");
+		assert(!move.slot.row.elem.classList.contains("pencil-conflict"));
+		p.leaveSuppose();
+		assert(boardState(p) == boardState(host.puzzle));
+	} finally {
+		stopAll(host, guest);
+	}
+});
+
+Deno.test("multiplayer applies private moves through the host and skips redundant moves", async function() {
+	const host = makeSession("host", "host");
+	const guest = makeSession("guest", "guest");
+	const network = new InMemoryMultiplayerNetwork(host.session);
+	try {
+		host.session.start(0x12345678);
+		network.addGuest(guest.session);
+		const p = guest.puzzle;
+		p.enterSuppose();
+		const a = wrongMove(p, 0), b = wrongMove(p, 1);
+		p.requestTileAction(a.slot, a.value, "remove");
+		p.requestTileAction(b.slot, b.value, "remove");
+		const row = p.rows.indexOf(a.slot.row), column = a.slot.row.slots.indexOf(a.slot);
+		host.puzzle.enterSuppose();
+		host.session.requestTileAction(host.puzzle.rows[row].slots[column], a.value, "remove");
+		assert(p.suppose && !a.slot.possible[a.value]);
+		await p.acceptSuppose();
+		assert(!p.suppose && !b.slot.possible[b.value]);
+		assert(host.puzzle.suppose, "accepting a guest branch closed the host branch");
+		assert(boardState(p) == boardState(host.puzzle));
+		assert(host.session.history.at(-1).action.moves.length == 1);
+		guest.session.receiveSync(host.session.syncMessage());
+		assert(boardState(p) == boardState(host.puzzle), "batch did not survive resync");
+	} finally {
+		stopAll(host, guest);
+	}
+});
+
+Deno.test("multiplayer branch application stops at a mistake in Zen mode", async function() {
+	const host = makeSession("host", "host");
+	const guest = makeSession("guest", "guest");
+	const network = new InMemoryMultiplayerNetwork(host.session);
+	try {
+		host.session.rules.practiceMode = true;
+		host.session.start(0x12345678);
+		network.addGuest(guest.session);
+		const p = guest.puzzle;
+		p.enterSuppose();
+		const a = wrongMove(p, 0), b = wrongMove(p, 1);
+		p.requestTileAction(a.slot, a.value, "place");
+		p.requestTileAction(b.slot, b.value, "remove");
+		await p.acceptSuppose();
+		assert(p.losses == 1 && host.puzzle.losses == 1);
+		assert(b.slot.possible[b.value], "moves continued after a mistake");
+		assert(host.session.history.at(-1).action.moves.length == 1);
+		assert(boardState(p) == boardState(host.puzzle));
+	} finally {
+		stopAll(host, guest);
+	}
+});
+
+Deno.test("rejecting a multiplayer supposition shares only the inverse assumption", function() {
+	const host = makeSession("host", "host");
+	const guest = makeSession("guest", "guest");
+	const network = new InMemoryMultiplayerNetwork(host.session);
+	try {
+		host.session.start(0x12345678);
+		network.addGuest(guest.session);
+		const p = host.puzzle;
+		p.enterSuppose();
+		const a = wrongMove(p, 0), b = wrongMove(p, 1);
+		p.requestTileAction(a.slot, a.value, "place");
+		p.requestTileAction(b.slot, b.value, "remove");
+		p.rejectSuppose();
+		assert(!p.suppose && !a.slot.possible[a.value] && b.slot.possible[b.value]);
+		assert(host.session.revision == 1 && boardState(p) == boardState(guest.puzzle));
+	} finally {
+		stopAll(host, guest);
+	}
+});
+
+Deno.test("branch batches tolerate intervening moves but validate the entire request", async function() {
+	const host = makeSession("host", "host");
+	const guest = makeSession("guest", "guest");
+	const network = new InMemoryMultiplayerNetwork(host.session);
+	try {
+		host.session.start(0x12345678);
+		network.addGuest(guest.session);
+		const p = guest.puzzle;
+		const a = wrongMove(p, 0), b = wrongMove(p, 1);
+		p.enterSuppose();
+		p.requestTileAction(a.slot, a.value, "remove");
+		p.requestTileAction(b.slot, b.value, "remove");
+		let pending;
+		guest.session.connectHost(message => { pending = message; });
+		await p.acceptSuppose();
+		const row = p.rows.indexOf(a.slot.row), column = a.slot.row.slots.indexOf(a.slot);
+		host.puzzle.requestTileAction(host.puzzle.rows[row].slots[column], a.value, "remove");
+		assert(pending.expectedRevision == 0 && host.session.revision == 1);
+		host.session.receive("guest", pending);
+		assert(host.session.revision == 2 && !b.slot.possible[b.value]);
+		assert(boardState(p) == boardState(host.puzzle));
+		const before = boardState(p);
+		for (const moves of [[null], [{ type: "place", row: 99, column: 0, value: 0 }],
+			[{ type: "suppose-apply", moves: [], clues: [] }]]) {
+			host.session.receive("guest", { type: "command", gameId: host.session.gameId,
+				commandId: "bad-" + JSON.stringify(moves), expectedRevision: 2,
+				action: { type: "suppose-apply", moves, clues: [] } });
+			assert(host.session.revision == 2 && boardState(host.puzzle) == before);
+		}
+	} finally {
+		stopAll(host, guest);
+	}
+});
+
+Deno.test("branch application retains and locks the exploration until its own acknowledgment", async function() {
+	const host = makeSession("host", "host");
+	const guest = makeSession("guest", "guest");
+	const network = new InMemoryMultiplayerNetwork(host.session);
+	try {
+		host.session.start(0x12345678);
+		network.addGuest(guest.session);
+		const p = guest.puzzle, a = wrongMove(p), b = wrongMove(p, 1);
+		p.enterSuppose();
+		p.requestTileAction(a.slot, a.value, "remove");
+		const branch = p.suppose;
+		const commands = [];
+		guest.session.connectHost(message => commands.push(message));
+		await p.acceptSuppose();
+		assert(p.suppose === branch && branch.pending);
+		await p.acceptSuppose();
+		p.requestTileAction(b.slot, b.value, "remove");
+		p.moveSuppose(-1);
+		p.rejectSuppose();
+		p.leaveSuppose();
+		assert(commands.length == 1 && branch.position == 1 && branch.history.length == 2);
+		assert(p.supposeControls.querySelector(".suppose-accept").disabled);
+		const move = wrongMove(host.puzzle, 2);
+		host.puzzle.requestTileAction(move.slot, move.value, "remove");
+		assert(p.suppose === branch && branch.pending, "another player's commit cleared the branch");
+		host.session.receive("guest", commands[0]);
+		assert(!p.suppose && !guest.session.pendingSuppose && !a.slot.possible[a.value]);
+		assert(boardState(p) == boardState(host.puzzle));
+	} finally {
+		stopAll(host, guest);
+	}
+});
+
+Deno.test("a host proof rejects normal moves and retains a rejected branch for retry", async function() {
+	const host = makeSession("host", "host");
+	const guest = makeSession("guest", "guest");
+	const network = new InMemoryMultiplayerNetwork(host.session);
+	try {
+		host.session.start(0x12345678);
+		network.addGuest(guest.session);
+		const p = guest.puzzle;
+		let a = wrongMove(p);
+		/* The applicability gate only needs the presence of a proof. */
+		host.puzzle.proof = {};
+		p.requestTileAction(a.slot, a.value, "remove");
+		assert(host.session.revision == 0 && guest.session.lastRejection);
+		a = wrongMove(p);
+		p.enterSuppose();
+		p.requestTileAction(a.slot, a.value, "remove");
+		const branch = p.suppose;
+		await p.acceptSuppose();
+		assert(p.suppose === branch && !branch.pending && !guest.session.pendingSuppose);
+		assert(branch.history.length == 2 && branch.position == 1);
+		assert(!p.supposeControls.querySelector(".suppose-accept").disabled);
+		host.puzzle.proof = null;
+		await p.acceptSuppose();
+		assert(!p.suppose && host.session.revision == 1);
+		assert(boardState(p) == boardState(host.puzzle));
+	} finally {
+		host.puzzle.proof = null;
+		stopAll(host, guest);
+	}
+});
+
+Deno.test("resync preserves nested explorations and recovers a missed branch acknowledgment", async function() {
+	const host = makeSession("host", "host");
+	const guest = makeSession("guest", "guest");
+	const network = new InMemoryMultiplayerNetwork(host.session);
+	try {
+		host.session.start(0x12345678);
+		network.addGuest(guest.session);
+		const p = guest.puzzle, a = wrongMove(p);
+		p.enterSuppose();
+		p.requestTileAction(a.slot, a.value, "remove");
+		const root = p.suppose;
+		p.enterSuppose();
+		const nested = p.suppose;
+		guest.session.receiveSync(host.session.syncMessage());
+		assert(p.suppose === nested && nested.parent === root);
+		p.leaveSuppose();
+		host.session.peers.set("guest", () => {});
+		await p.acceptSuppose();
+		assert(p.suppose === root && root.pending && host.session.revision == 1);
+		guest.session.receiveSync(host.session.syncMessage());
+		assert(!p.suppose && !guest.session.pendingSuppose);
+		assert(boardState(p) == boardState(host.puzzle));
+		p.enterSuppose();
+		host.session.start(0x12345678);
+		guest.session.receiveSync(host.session.syncMessage());
+		assert(!p.suppose, "replacement game retained an obsolete branch");
+	} finally {
+		stopAll(host, guest);
+	}
+});

@@ -857,7 +857,7 @@ body[data-chalk-cursor="true"][data-discard-cursor="true"]:not([data-custom-curs
 	visibility: hidden;
 }
 
-body:is(.proof-active, :has(#proof-controls.hint-explanation)) :is(#logo, #friends-roster) {
+body:is(.proof-active, .suppose-active, :has(#proof-controls.hint-explanation)) :is(#logo, #friends-roster) {
 	display: none;
 }
 
@@ -3546,7 +3546,7 @@ body.proof-active :is(#hclues, #vclues) .clue.proof-current {
 	margin-top: 0.5em;
 }
 
-/* The roster and proof controls share a panel above the footer. */
+/* The roster, proof, and suppose controls share a panel above the footer. */
 body.multiplayer {
 	--friends-panel-height: max(3.7rem, 60px);
 }
@@ -4000,7 +4000,6 @@ body.multiplayer #logo {
 	text-underline-offset: 0.1em;
 }
 #suppose-controls .suppose-actions button:disabled { color: rgb(80 48 30 / 28%); }
-body.suppose-active #logo { display: none; }
 #board .suppose-placed > .single { opacity: 0.6; }
 #board .possibility.suppose-removed {
 	visibility: visible;

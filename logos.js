@@ -2103,10 +2103,10 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	/* Nested, local explorations. All hypothetical moves stay in
 	 * domains; Slot.value and the committed board are never modified. */
 	this.enterSuppose = function(button) {
-		if (this.supposeReplay || this.actionController || this.gameOver || this.paused ||
+		if (this.supposeReplay || this.gameOver || this.paused ||
 		    this.proof || this.pendingSeed !== undefined)
 			return;
-		if (this.suppose && !this.suppose.assumption)
+		if (this.suppose && (!this.suppose.assumption || this.suppose.pending))
 			return;
 		var parent = this.suppose;
 		this.recordMoveEvent("suppose-enter");
@@ -2135,8 +2135,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.supposeFooter.hidden = this.supposeButton.hidden;
 		for (var button of [this.supposeButton, this.supposeTap, this.supposeFooter]) {
 			button.disabled = !!(this.gameOver || this.paused || this.proof || this.supposeReplay ||
-				this.actionController || this.pendingSeed !== undefined ||
-				this.suppose && !this.suppose.assumption);
+				this.pendingSeed !== undefined ||
+				this.suppose && (!this.suppose.assumption || this.suppose.pending));
 			button.setAttribute("aria-expanded", String(!!this.suppose));
 		}
 		this.supposeControls.hidden = !this.suppose;
@@ -2162,7 +2162,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.applySupposeAction = function(slot, symbol, action) {
-		if (!this.suppose || this.paused || this.gameOver || slot.single)
+		if (!this.suppose || this.suppose.pending || this.paused || this.gameOver || slot.single)
 			return;
 		var row = this.rows.indexOf(slot.row), column = slot.row.slots.indexOf(slot);
 		var domains = this.suppose.domains, bit = 1 << column;
@@ -2186,7 +2186,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.toggleSupposeClue = function(clue) {
-		if (this.paused || !this.suppose || !clue.active)
+		if (this.paused || !this.suppose || this.suppose.pending || !clue.active)
 			return;
 		var index = this.clues.indexOf(clue), dismissed = this.suppose.dismissed;
 		if (dismissed.includes(index))
@@ -2229,7 +2229,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.moveSuppose = function(offset) {
-		if (!this.suppose || this.paused)
+		if (!this.suppose || this.suppose.pending || this.paused)
 			return;
 		var state = this.suppose;
 		var position = Math.max(0, Math.min(state.history.length - 1, state.position + offset));
@@ -2240,6 +2240,37 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		Object.assign(state, { position, domains: copyDomains(step.domains),
 			assumption: step.assumption, dismissed: step.dismissed.slice(), message: step.message });
 		this.recordMoveEvent("suppose-rewind");
+		this.renderSuppose();
+	}
+
+	this.restoreSuppose = function(state) {
+		this.suppose = state;
+		document.body.classList.add("suppose-active");
+		this.updateChalkControls();
+		this.updateActionCursor();
+		this.reconcileSuppose();
+	}
+
+	/* Intersect every saved position so rewinding cannot resurrect a
+	 * possibility removed from the shared board. Keep empty domains: they
+	 * explain where the private exploration now contradicts real moves. */
+	this.reconcileSuppose = function() {
+		if (!this.suppose)
+			return;
+		var base = domainsFromSlots(this);
+		var merge = domains => domains.map((row, r) => {
+			var merged = row.map((bits, v) => bits & base[r][v]);
+			propagatePencilRow(merged);
+			return merged;
+		});
+		for (var state = this.suppose; state; state = state.parent) {
+			state.base = base;
+			state.domains = merge(state.domains);
+			for (var step of state.history)
+				step.domains = merge(step.domains);
+			/* Shared actions may have repainted hypothetical tiles. */
+			state.displayed = null;
+		}
 		this.renderSuppose();
 	}
 
@@ -2258,8 +2289,11 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			}
 			for (var c = 0; c < row.slots.length; c++) {
 				var slot = row.slots[c];
-				if (slot.single)
+				if (slot.single) {
+					slot.elem.classList.remove("suppose-placed");
+					renderTileSymbol(slot.singleElem, slot.symbols[slot.value]);
 					continue;
+				}
 				var placed = state.domains[r].findIndex(bits => bits == (1 << c));
 				slot.elem.classList.remove("suppose-placed");
 				if (placed >= 0) {
@@ -2291,7 +2325,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			if (state.dismissed.includes(index))
 				clue.display.classList.add("suppose-dismissed");
 		}
-		var message = state.message || "Choose or discard a tile to begin your supposition.";
+		var message = state.pending ? "Waiting for the host to apply these moves." : state.message || "Choose or discard a tile to begin your supposition.";
 		if (conflict)
 			message += " These possibilities conflict within a row.";
 		renderProofMessage(this, this.supposeControls.querySelector(".suppose-assumption"), message, false);
@@ -2299,14 +2333,15 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			state.position ? "Suppose · Step " + state.history[state.position].label :
 			state.parent ? "Nested supposition" : "Suppose";
 		this.updateSupposeControls();
-		this.supposeControls.querySelector(".proof-previous").disabled = !state.position;
-		this.supposeControls.querySelector(".proof-next").disabled = state.position == state.history.length - 1;
+		this.supposeControls.querySelector(".proof-previous").disabled = !!state.pending || !state.position;
+		this.supposeControls.querySelector(".proof-next").disabled = !!state.pending || state.position == state.history.length - 1;
 		var accept = this.supposeControls.querySelector(".suppose-accept");
 		accept.textContent = state.parent ? "Keep moves" : "Apply moves";
 		accept.title = state.parent ? "Keep these moves in the enclosing supposition" :
 			"Apply the moves through this step to the real board";
-		accept.disabled = !state.position && !state.dismissed.length;
-		this.supposeControls.querySelector(".suppose-reject").disabled = !state.assumption;
+		accept.disabled = !!state.pending || !state.position && !state.dismissed.length;
+		this.supposeControls.querySelector(".suppose-reject").disabled = !!state.pending || !state.assumption;
+		this.supposeControls.querySelector(".suppose-leave").disabled = !!state.pending;
 		if (this.expandedSlot)
 			this.renderSlotTray();
 	}
@@ -2326,7 +2361,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.acceptSuppose = async function() {
-		if (!this.suppose || this.paused)
+		if (!this.suppose || this.suppose.pending || this.paused)
 			return;
 		var state = this.suppose;
 		this.recordMoveEvent("suppose-keep");
@@ -2347,6 +2382,11 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			this.playSound("clue");
 			return;
 		}
+		if (this.actionController)
+			return this.actionController.requestAction({ type: "suppose-apply",
+				moves: steps.map(({ move }) => ({ type: move.discard ? "remove" : "place",
+					row: move.row, column: move.column, value: move.symbol })),
+				clues: state.dismissed.slice() });
 		this.leaveSuppose(true);
 		var replay = this.supposeReplay = {};
 		this.updatePauseControl();
@@ -2384,7 +2424,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.rejectSuppose = function() {
-		if (!this.suppose?.assumption || this.paused)
+		if (!this.suppose?.assumption || this.suppose.pending || this.paused)
 			return;
 		var assumption = this.suppose.assumption;
 		this.recordMoveEvent("suppose-reject", { ...assumption });
@@ -2394,7 +2434,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.leaveSuppose = function(all = false) {
-		if (!this.suppose)
+		if (!this.suppose || this.suppose.pending && !all)
 			return;
 		this.recordMoveEvent("suppose-leave", { all });
 		this.closeSlotTray();
