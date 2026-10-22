@@ -2666,9 +2666,11 @@ Deno.test("watchers join the same branch through any participant and follow nest
 				       .querySelector(".suppose-watcher-count").textContent === 2);
 			}
 			owner.puzzle.enterSuppose();
+			assert(watcher.puzzle.supposeControls.querySelector(".proof-position").textContent.includes(" · Nested"));
 			owner.puzzle.requestTileAction(b.slot, b.value, "remove");
 			for (const game of [watcher, third]) {
-				assert(game.puzzle.suppose.watchNested && game.puzzle.suppose.position === 1);
+				assert(game.puzzle.suppose.nested && game.puzzle.suppose.position === 1);
+				assert(game.puzzle.supposeControls.querySelector(".proof-position").textContent.includes(" · Step 1.1"));
 				assert(game.puzzle.supposeControls.querySelector(".proof-position").textContent.includes("'s Suppose"));
 				const before = JSON.stringify(game.puzzle.supposeSnapshot());
 				game.puzzle.moveSuppose(-1);
@@ -2690,7 +2692,7 @@ Deno.test("watchers join the same branch through any participant and follow nest
 			assert(!watcher.puzzle.suppose && !watcher.session.branchForPlayer(), "leaving only backed out of a nested branch");
 			assert(owner.session.branchForPlayer().participants.length === 2);
 			await owner.puzzle.acceptSuppose();
-			assert(!third.puzzle.suppose.watchNested && third.puzzle.suppose.position === 2);
+			assert(!third.puzzle.suppose.nested && third.puzzle.suppose.position === 2);
 			assert(host.session.revision === 0, "watching committed tentative moves");
 			owner.puzzle.leaveSuppose();
 			assert(!third.puzzle.suppose && !third.session.watchingBranch);
@@ -2758,8 +2760,12 @@ Deno.test("watchers follow shared conflicts and every animated rewind step", asy
 		host.session.commitAction("host", "conflict", {
 			type: "remove", row: 3, column: a.slot.row.slots.indexOf(a.slot), value: a.value });
 		assert(host.puzzle.hasSupposeConflict() && p.hasSupposeConflict());
+		assert(JSON.stringify(host.puzzle.supposeSnapshot()) === JSON.stringify(p.supposeSnapshot()),
+		       "watcher displayed a different conflict position");
 		p.rewindSupposeConflict();
 		assert(p.suppose.position === 1 && host.puzzle.suppose.position === 1);
+		assert(JSON.stringify(host.puzzle.supposeSnapshot()) === JSON.stringify(p.supposeSnapshot()),
+		       "watcher lost the conflict explanation when rewinding");
 		await waitForConflictRewind(p);
 		assert(host.puzzle.suppose.position === 0 && !host.puzzle.hasSupposeConflict());
 		assert(boardState(p) === boardState(host.puzzle));

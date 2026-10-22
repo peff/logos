@@ -619,9 +619,7 @@ class MultiplayerSession {
 				this.watchRequest = null;
 				if (changed) {
 					this.watchedVersion = branch.version;
-					const state = { ...copyMessage(branch.snapshot), parent: null, history: [], watched: true,
-						watchLabel: branch.snapshot.label, watchNested: branch.snapshot.nested,
-						watchPreviousConflicts: copyMessage(branch.snapshot.previousConflicts) };
+					const state = { ...copyMessage(branch.snapshot), parent: null, history: [], watched: true };
 					state.displayed = this.puzzle.suppose?.displayed;
 					this.puzzle.clearHint();
 					this.puzzle.closeSlotTray();

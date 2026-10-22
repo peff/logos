@@ -2134,19 +2134,32 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		return !!this.suppose?.sharedConflicts.some(Boolean);
 	}
 
+	/* Local explorations retain history; watched ones only have the
+	 * displayed position. Keep that distinction out of display consumers. */
+	this.supposePositionInfo = function() {
+		const state = this.suppose;
+		if (state.watched) {
+			const { label, previousConflicts, nested } = state;
+			return { label, previousConflicts, nested };
+		}
+		const preceding = state.position ? state.history[state.position - 1] : state.parent;
+		return {
+			label: state.history[state.position].label,
+			previousConflicts: preceding?.sharedConflictMessages || {},
+			nested: !!state.parent,
+		};
+	}
+
 	this.supposeSnapshot = function() {
 		/* Watchers follow the displayed position, not an independently
 		 * navigable copy of the entire exploration. Keep updates bounded. */
 		const state = this.suppose;
-		const preceding = state.position ? state.history[state.position - 1] : state.parent;
 		const fields = ["base", "domains", "assumption", "sharedConflicts",
 			"sharedConflictMessages", "conflictDomains", "conflictTiles", "dismissed",
 			"message", "prefix", "position"];
 		return JSON.parse(JSON.stringify({
 			...Object.fromEntries(fields.map(key => [key, state[key]])),
-			label: state.watched ? state.watchLabel : state.history[state.position].label,
-			previousConflicts: state.watched ? state.watchPreviousConflicts : preceding?.sharedConflictMessages || {},
-			nested: state.watched ? state.watchNested : !!state.parent,
+			...this.supposePositionInfo(),
 		}));
 	}
 
@@ -2538,10 +2551,9 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		var sharedConflict = this.hasSupposeConflict();
 		/* Later deductions inherit the conflict, but retain their own
 		 * descriptions. Explain it at the step which introduced it. */
-		var preceding = state.watched ? { sharedConflictMessages: state.watchPreviousConflicts } :
-			state.position ? state.history[state.position - 1] : state.parent;
+		var info = this.supposePositionInfo();
 		var stepConflict = Object.entries(state.sharedConflictMessages).find(([tile]) =>
-			!preceding?.sharedConflictMessages[tile]);
+			!info.previousConflicts[tile]);
 		if (!state.pending && stepConflict)
 			message = stepConflict[1];
 		else if (conflict && !sharedConflict)
@@ -2551,8 +2563,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		var controller = this.actionController?.players.find(player => player.id == branch?.controller);
 		var title = watching ? (controller?.name || "Player") + "'s Suppose" : "Suppose";
 		var position = this.supposeControls.querySelector(".proof-position");
-		position.textContent = (state.position ? title + " · Step " + (state.watched ? state.watchLabel : state.history[state.position].label) :
-			(state.parent || state.watchNested) ? title + " · Nested" : title) + (sharedConflict ? " · Conflict" : "");
+		position.textContent = (state.position ? title + " · Step " + info.label :
+			info.nested ? title + " · Nested" : title) + (sharedConflict ? " · Conflict" : "");
 		position.title = position.textContent;
 		var watchers = branch?.participants.filter(id => id != branch.controller) || [];
 		var names = watchers.map(id => this.actionController.players.find(player => player.id == id)?.name || "Player");
