@@ -444,11 +444,11 @@ body #timer::after {
  * Use the same scale for the clues and their grid tracks to keep them in sync.
  */
 @media (orientation: portrait) {
-	body.game-started:is(.multiplayer, .proof-active, :has(#proof-controls.hint-explanation)) {
+	body.game-started:is(.multiplayer, .proof-active, .suppose-active, :has(#proof-controls.hint-explanation)) {
 		--portrait-clue-scale: 0.78;
 	}
 
-	body:is(.multiplayer, .proof-active, :has(#proof-controls.hint-explanation)) :is(#hclues, #vclues) {
+	body:is(.multiplayer, .proof-active, .suppose-active, :has(#proof-controls.hint-explanation)) :is(#hclues, #vclues) {
 		justify-self: center;
 		transform: scale(var(--portrait-clue-scale));
 		transform-origin: top center;
