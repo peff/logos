@@ -1265,9 +1265,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.playExtreme = function() {
-		var status = this.options.querySelector("#extreme-status");
 		var controller = this.actionController;
-		status.textContent = "";
+		this.updateSeedDifficulty();
 		try {
 			for (var attempt = 1; attempt <= 100; attempt++) {
 				var seed = randomSeed();
@@ -1276,7 +1275,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 					continue;
 				if (controller) {
 					if (!controller.requestNewGame(seed, true)) {
-						status.textContent = "Could not start a shared puzzle. Try again when connected.";
+						this.showSeedStatus("Could not start a shared puzzle.",
+							"Try again when connected.");
 						return;
 					}
 				} else {
@@ -1285,10 +1285,12 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 				this.toggleOptions();
 				return;
 			}
-			status.textContent = "No extreme puzzle found in 100 attempts. Try again.";
+			this.showSeedStatus("No Extreme puzzle found. Try again.",
+				"No extreme puzzle found in 100 attempts. Try again.");
 		} catch (error) {
 			console.error(error);
-			status.textContent = "Could not generate an extreme puzzle. Try again.";
+			this.showSeedStatus("Could not generate an Extreme puzzle.",
+				"Try again.");
 		}
 	}
 
@@ -1614,9 +1616,17 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		return this.extremeDifficultyCache.rating;
 	}
 
+	this.showSeedStatus = function(message, explanation) {
+		var display = this.options.querySelector("#seed-difficulty");
+		display.textContent = message;
+		display.title = explanation;
+		display.disabled = true;
+	}
+
 	this.updateSeedDifficulty = function() {
 		var display = this.options.querySelector("#seed-difficulty");
 		display.textContent = "";
+		display.title = "";
 		display.disabled = true;
 		var value = this.options.querySelector("#game-seed").value.trim();
 		var seed = parseSeed(value);
