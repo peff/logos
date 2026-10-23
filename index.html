@@ -468,6 +468,10 @@
 					       <span>Continue after loss
 					             <small>Enter Zen mode instead of revealing the solution.</small></span></label>
 					<div class="seed-options">
+						<label><input id="extreme-mode" type="checkbox"
+						              onChange="puzzle.setExtremeMode(this.checked)">
+						       <span>Extreme mode
+						             <small>Puzzles that require more than ordinary deductions.</small></span></label>
 						<div class="difficulty-options">
 							<div class="random-difficulties" role="group" aria-label="Random puzzle difficulties"
 							     title="New random games use these difficulty levels. Entering a seed always plays that exact puzzle.">
@@ -479,13 +483,6 @@
 									<label><input id="random-hard" type="checkbox" checked onChange="puzzle.changeRandomDifficulties()">Hard</label>
 								</div>
 							</div>
-							<button id="extreme-button" type="button"
-							        title="Generate a new extreme puzzle (experimental)"
-							        aria-label="Generate a new extreme puzzle (experimental)"
-							        onClick="puzzle.playExtreme()">
-								<span class="extreme-badge-title">Extreme</span>
-								<small class="extreme-badge-experimental">experimental!</small>
-							</button>
 						</div>
 						<label for="game-seed">Puzzle seed
 						       <small id="seed-help">Replay or share a particular puzzle.</small></label>

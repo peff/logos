@@ -1233,7 +1233,18 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.invitation.classList.remove("revealing");
 	}
 
-	this.randomPuzzleSeed = function() {
+	this.randomPuzzleSeed = function(extreme = this.extremeMode) {
+		if (extreme) {
+			for (var attempt = 0; attempt < 100; attempt++) {
+				var seed = randomSeed();
+				if (extremeClueIndices(puzzleFromSeed(seed)))
+					return seed;
+			}
+			var message = "No extreme puzzle found in 100 attempts. Try again.";
+			this.showSeedStatus("No Extreme puzzle found. Try again.", message);
+			this.say(message);
+			return null;
+		}
 		if (!this.randomDifficulties.length) {
 			this.gameIdentity = {};
 			this.seed = this.pendingSeed = undefined;
@@ -1264,40 +1275,12 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		}
 	}
 
-	this.playExtreme = function() {
-		var controller = this.actionController;
-		this.updateSeedDifficulty();
-		try {
-			for (var attempt = 1; attempt <= 100; attempt++) {
-				var seed = randomSeed();
-				var indices = extremeClueIndices(puzzleFromSeed(seed));
-				if (!indices)
-					continue;
-				if (controller) {
-					if (!controller.requestNewGame(seed, true)) {
-						this.showSeedStatus("Could not start a shared puzzle.",
-							"Try again when connected.");
-						return;
-					}
-				} else {
-					this.newGame(seed, false, false, true);
-				}
-				this.toggleOptions();
-				return;
-			}
-			this.showSeedStatus("No Extreme puzzle found. Try again.",
-				"No extreme puzzle found in 100 attempts. Try again.");
-		} catch (error) {
-			console.error(error);
-			this.showSeedStatus("Could not generate an Extreme puzzle.",
-				"Try again.");
-		}
-	}
-
 	this.newGame = function(seed, awaitStart = false, dailyPreview = false, extreme = false) {
 		if (typeof extreme !== "boolean")
 			return false;
-		seed = arguments.length ? parseSeed(seed) : this.randomPuzzleSeed();
+		if (!arguments.length)
+			extreme = this.extremeMode;
+		seed = arguments.length ? parseSeed(seed) : this.randomPuzzleSeed(extreme);
 		/* Reject seeds which do not produce an extreme puzzle before touching
 		 * the current game. Peers reconstruct this same deterministic pruning. */
 		var indices = extreme && seed !== null ? extremeClueIndices(puzzleFromSeed(seed)) : null;
@@ -1598,7 +1581,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		var seed = parseSeed(value);
 		this.options.querySelector("#start-game-button").value =
 			!value ? "Random" :
-			seed === this.seed && this.pendingSeed === undefined ? "Restart" : "Start";
+			seed === this.seed && !!this.extreme === this.extremeMode &&
+			this.pendingSeed === undefined ? "Restart" : "Start";
 		var copy = this.options.querySelector("#copy-seed-link");
 		copy.disabled = seed === null;
 		copy.value = "Copy link";
@@ -1792,9 +1776,10 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		var seed = parseSeed(input.value.trim());
 		if (seed === null)
 			return;
+		var extreme = seed === this.seed ? this.extreme : this.extremeMode;
 		var url = new URL(window.location.href);
 		url.hash = "seed=" + formatSeed(seed) +
-			(this.extreme && seed === this.seed ? "&extreme" : "");
+			(extreme ? "&extreme" : "");
 		try {
 			await navigator.clipboard.writeText(url.href);
 			if (parseSeed(input.value.trim()) === seed)
@@ -1808,28 +1793,36 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.updateSeedDifficulty();
 		var input = this.options.querySelector("#game-seed");
 		var value = input.value.trim();
+		var seed = value ? parseSeed(value) : undefined;
+		if (value && seed === null) {
+			input.setCustomValidity("Enter up to eight hexadecimal digits.");
+			input.reportValidity();
+			return;
+		}
+		if (value && this.extremeMode && !extremeClueIndices(puzzleFromSeed(seed))) {
+			this.showSeedStatus("No Extreme variant for this seed.",
+				"This seed can’t be made Extreme. Turn off Extreme to play it.");
+			return;
+		}
 		if (this.actionController) {
-			var seed = value ? parseSeed(value) : undefined;
-			if (seed === null) {
-				input.setCustomValidity("Enter up to eight hexadecimal digits.");
-				input.reportValidity();
-				return;
-			}
 			input.setCustomValidity("");
-			if (this.actionController.requestNewGame(seed, !!this.extreme && seed === this.seed))
+			if (this.actionController.requestNewGame(seed, this.extremeMode))
 				this.toggleOptions();
 			return;
 		}
-		if (this.pendingSeed !== undefined && parseSeed(value) === this.pendingSeed) {
+		if (this.pendingSeed !== undefined && seed === this.pendingSeed &&
+		    !!this.extreme === this.extremeMode) {
 			this.startGame();
 			input.setCustomValidity("");
 			this.toggleOptions();
 			return;
 		}
 		var started = value ? this.newGame(value, false, false,
-			!!this.extreme && parseSeed(value) === this.seed) : this.newGame();
+			this.extremeMode) : this.newGame();
 		if (!started) {
 			if (!value) {
+				if (this.extremeMode)
+					return;
 				input.setCustomValidity("");
 				this.toggleOptions();
 				return;
@@ -4369,6 +4362,17 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.saveOption("autoDismissClues", enabled);
 	}
 
+	this.setExtremeMode = function(enabled) {
+		this.extremeMode = enabled;
+		this.options.querySelector("#extreme-mode").checked = enabled;
+		for (var level of difficultyLevels)
+			this.options.querySelector("#random-" + level).disabled = enabled;
+		this.options.querySelector(".random-difficulties").setAttribute("aria-disabled", String(enabled));
+		this.updateSeedControls();
+		this.updateSeedDifficulty();
+		this.saveOption("extremeMode", enabled);
+	}
+
 	this.setRandomDifficulties = function(levels) {
 		this.randomDifficulties = difficultyLevels.filter(level => levels.includes(level));
 		for (var level of difficultyLevels)
@@ -4630,6 +4634,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	/* Applying saved preferences must not write a stale snapshot back. */
 	this.loadingOptions = true;
 	this.setRandomDifficulties(randomDifficulties);
+	this.setExtremeMode(readOption("extremeMode", false));
 	this.setCustomCursor(readOption("customCursor", true));
 	this.setMilestones(readOption(
 		"showMilestones", this.showMilestones));

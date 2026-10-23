@@ -345,16 +345,16 @@ class MultiplayerSession {
 		return true;
 	}
 
-	requestNewGame(seed, extreme = false) {
+	requestNewGame(seed, extreme = this.puzzle.extremeMode) {
 		if (!this.ready || this.role == "guest" && !this.hostSender)
 			return false;
 		if (seed === undefined) {
 			/* No selected difficulties means contemplation in single-player. */
-			if (!this.puzzle.randomDifficulties.length) {
+			if (!extreme && !this.puzzle.randomDifficulties.length) {
 				this.puzzle.say("Choose a difficulty in Options before starting a shared game.");
 				return false;
 			}
-			seed = this.puzzle.randomPuzzleSeed();
+			seed = this.puzzle.randomPuzzleSeed(extreme);
 		}
 		if (!Number.isInteger(seed) || seed < 0 || seed > 0xffffffff)
 			return false;

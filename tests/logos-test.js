@@ -6133,12 +6133,17 @@ Deno.test("extreme games reconstruct their clues and record their own rating", a
 	puzzle.say("");
 });
 
-Deno.test("extreme button synchronously starts a uniquely solvable puzzle", function() {
+Deno.test("Extreme mode generates random puzzles independently of ordinary difficulties", function() {
 	const puzzle = makePuzzle(6);
 	puzzle.newGame(1);
 	puzzle.options.hidden = true;
 	puzzle.toggleOptions();
-	puzzle.playExtreme();
+	puzzle.setExtremeMode(true);
+	puzzle.setRandomDifficulties([]);
+	puzzle.options.querySelector("#game-seed").value = "";
+	puzzle.playSeed();
+	puzzle.setExtremeMode(false);
+	puzzle.setRandomDifficulties(["easy", "medium", "hard"]);
 	assert(puzzle.extreme && puzzle.options.hidden);
 	assert(!Logos.cluesSolve(puzzle, puzzle.clues));
 	assert(Logos.countSolutions(puzzle, puzzle.clues) === 1);
@@ -6157,14 +6162,17 @@ Deno.test("extreme links, restarts and position copies preserve the mode", async
 		value: { writeText: async text => { copied = text; } } });
 	try {
 		window.location.href = "https://example.com/#seed=123";
+		puzzle.setExtremeMode(true);
 		puzzle.newGame(0, false, false, true);
 		puzzle.options.hidden = true;
 		puzzle.toggleOptions();
+		puzzle.setExtremeMode(false);
 		await puzzle.copySeedLink();
 		assert(copied === "https://example.com/#seed=00000000&extreme");
 		assert(receiver.loadURLSeed(copied));
 		assert(receiver.extreme && receiver.pendingSeed === 0);
 		assert(puzzleSignature(receiver) === puzzleSignature(puzzle));
+		puzzle.setExtremeMode(true);
 		puzzle.playSeed();
 		assert(puzzle.extreme && !Logos.cluesSolve(puzzle, puzzle.clues));
 		const slot = puzzle.rows[0].slots.find(slot => !slot.single);
@@ -6181,7 +6189,17 @@ Deno.test("extreme links, restarts and position copies preserve the mode", async
 		assert(JSON.stringify(puzzle.positionSnapshot()) === before);
 		assert(receiver.loadURLSeed("https://example.com/#seed=0"));
 		assert(!receiver.extreme);
+		receiver.setExtremeMode(true);
+		await receiver.copySeedLink();
+		assert(copied === "https://example.com/#seed=00000000");
+		receiver.options.querySelector("#game-seed").value = "1";
+		await receiver.copySeedLink();
+		assert(copied === "https://example.com/#seed=00000001&extreme");
+		receiver.setExtremeMode(false);
+		await receiver.copySeedLink();
+		assert(copied === "https://example.com/#seed=00000001");
 	} finally {
+		puzzle.setExtremeMode(false);
 		globalThis.window = oldWindow;
 		if (clipboard) Object.defineProperty(navigator, "clipboard", clipboard);
 		else delete navigator.clipboard;
@@ -6939,4 +6957,69 @@ Deno.test("Chronicle displays, filters, links, and refreshes Extreme ratings", a
 		       puzzle.historyBody.children.length === 4);
 		await puzzle.historyDifficultyTask;
 	}, initial);
+});
+
+Deno.test("Extreme preference persists without changing invitations or the current board", function() {
+	const puzzle = makePuzzle(6);
+	try {
+		puzzle.newGame(0);
+		puzzle.stopTimer();
+		const identity = puzzle.gameIdentity;
+		puzzle.setRandomDifficulties(["medium"]);
+		puzzle.setExtremeMode(true);
+		assert(puzzle.gameIdentity === identity && !puzzle.extreme);
+		assert(puzzle.options.querySelector("#start-game-button").value === "Start");
+		for (const level of ["easy", "medium", "hard"])
+			assert(puzzle.options.querySelector("#random-" + level).disabled);
+		const restored = makePuzzle(6);
+		assert(restored.extremeMode && restored.randomDifficulties.join() === "medium");
+		restored.newGame();
+		assert(restored.extreme);
+		restored.stopTimer();
+		restored.say("");
+		assert(puzzle.loadURLSeed("https://example.com/#seed=0"));
+		assert(!puzzle.extreme && puzzle.extremeMode);
+		puzzle.setExtremeMode(false);
+		assert(puzzle.randomDifficulties.join() === "medium" &&
+		       !puzzle.options.querySelector("#random-medium").disabled);
+	} finally {
+		puzzle.setExtremeMode(false);
+		puzzle.setRandomDifficulties(["easy", "medium", "hard"]);
+		puzzle.stopTimer();
+		puzzle.say("");
+	}
+});
+
+Deno.test("seed starts use the selected mode and reject unavailable Extreme variants", function() {
+	const puzzle = makePuzzle(6);
+	try {
+		puzzle.newGame(0);
+		puzzle.options.hidden = false;
+		puzzle.setExtremeMode(true);
+		const identity = puzzle.gameIdentity;
+		const input = puzzle.options.querySelector("#game-seed");
+		input.value = "2";
+		puzzle.playSeed();
+		assert(puzzle.gameIdentity === identity && !puzzle.options.hidden);
+		assert(puzzle.options.querySelector("#seed-difficulty").textContent ===
+		       "No Extreme variant for this seed.");
+		const display = puzzle.options.querySelector("#seed-difficulty");
+		assert(display.disabled && display.title ===
+		       "This seed can’t be made Extreme. Turn off Extreme to play it.");
+		puzzle.setExtremeMode(false);
+		assert(display.textContent === "" && display.title === "");
+		puzzle.setExtremeMode(true);
+		input.value = "0";
+		puzzle.playSeed();
+		assert(puzzle.extreme && puzzle.options.hidden && puzzle.seed === 0);
+		assert(puzzle.options.querySelector("#start-game-button").value === "Restart");
+		puzzle.setExtremeMode(false);
+		puzzle.options.hidden = false;
+		puzzle.playSeed();
+		assert(!puzzle.extreme && puzzle.seed === 0);
+	} finally {
+		puzzle.setExtremeMode(false);
+		puzzle.stopTimer();
+		puzzle.say("");
+	}
 });

@@ -1574,7 +1574,10 @@ Deno.test("guests can start extreme games, replay moves and return to ordinary g
 		network.addGuest(guest.session);
 		guest.puzzle.options.hidden = true;
 		guest.puzzle.toggleOptions();
-		guest.puzzle.playExtreme();
+		guest.puzzle.setExtremeMode(true);
+		guest.puzzle.options.querySelector("#game-seed").value = "0";
+		guest.puzzle.playSeed();
+		guest.puzzle.setExtremeMode(false);
 		assert(host.puzzle.extreme && guest.puzzle.extreme);
 		const slot = guest.puzzle.rows[0].slots[0];
 		guest.puzzle.requestTileAction(slot, slot.value, "place");
@@ -3179,6 +3182,33 @@ Deno.test("a delayed leave acknowledgment does not reopen the watched view", fun
 		guest.puzzle.enterSuppose();
 		assert(guest.puzzle.suppose, "leaving kept private entry locked");
 	} finally {
+		stopAll(host, guest);
+	}
+});
+
+Deno.test("random multiplayer starts use the requester’s Extreme preference", function() {
+	const host = makeSession("host", "host"), guest = makeSession("guest", "guest");
+	try {
+		new InMemoryMultiplayerNetwork(host.session).addGuest(guest.session);
+		guest.puzzle.setExtremeMode(true);
+		guest.puzzle.setRandomDifficulties([]);
+		guest.puzzle.randomPuzzleSeed = extreme => {
+			assert(extreme === true);
+			return 0;
+		};
+		assert(guest.session.requestNewGame());
+		assert(host.puzzle.extreme && guest.puzzle.extreme && !host.puzzle.extremeMode);
+		const identity = host.puzzle.gameIdentity;
+		guest.puzzle.options.hidden = false;
+		guest.puzzle.options.querySelector("#game-seed").value = "2";
+		guest.puzzle.playSeed();
+		assert(host.puzzle.gameIdentity === identity && !guest.puzzle.options.hidden &&
+		       guest.puzzle.options.querySelector("#seed-difficulty").textContent === "No Extreme variant for this seed.");
+		assert(host.session.requestNewGame(0));
+		assert(!guest.puzzle.extreme && guest.puzzle.extremeMode);
+	} finally {
+		guest.puzzle.setExtremeMode(false);
+		guest.puzzle.setRandomDifficulties(["easy", "medium", "hard"]);
 		stopAll(host, guest);
 	}
 });
