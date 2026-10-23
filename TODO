@@ -13,5 +13,3 @@
      button could appear only when there's chalk)
    - if chalk is retired, consider using shift-click to enter suppose
      mode
- - extend shared suppositions from read-only watching to equal participants
-   who can make tentative moves, navigate, apply, and reject together.

@@ -252,8 +252,8 @@ function renderRecentAction(actions, playerId, activeFork) {
 	var icon = document.createElement(join ? "button" : "span");
 	if (join) {
 		icon.type = "button";
-		icon.disabled = !session.canWatch(branch.id);
-		icon.addEventListener("click", () => session.watchSuppose(branch.id));
+		icon.disabled = !session.canJoinSuppose(branch.id);
+		icon.addEventListener("click", () => session.joinSuppose(branch.id));
 	}
 	icon.className = "friends-roster-action";
 	icon.dataset.action = action.type;
@@ -294,7 +294,7 @@ function renderRecentAction(actions, playerId, activeFork) {
 		icon.append(columns);
 		description = action.type == "pause" ? "Paused the game" : "Resumed the game";
 	}
-	if (join) description = "Watch " + (session.players.find(player => player.id == branch.controller)?.name || "player") + "'s supposition";
+	if (join) description = "Join " + (session.players.find(player => player.id == playerId)?.name || "player") + "'s supposition";
 	icon.title = description;
 	if (!join) icon.setAttribute("role", "img");
 	icon.setAttribute("aria-label", description);

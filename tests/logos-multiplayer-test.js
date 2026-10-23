@@ -42,9 +42,9 @@ function stopAll(...games) {
 }
 
 async function waitForConflictRewind(puzzle) {
-	for (let i = 0; puzzle.supposeRewindTimer !== null && i < 60; i++)
+	for (let i = 0; (puzzle.supposeRewindTimer !== null || puzzle.actionController?.branchForPlayer()?.rewinding) && i < 60; i++)
 		await new Promise(resolve => setTimeout(resolve, 50));
-	assert(puzzle.supposeRewindTimer === null, "conflict rewind did not finish");
+	assert(puzzle.supposeRewindTimer === null && !puzzle.actionController?.branchForPlayer()?.rewinding, "conflict rewind did not finish");
 }
 
 function wrongMove(puzzle, rowStart = 0) {
@@ -1712,7 +1712,7 @@ Deno.test("multiplayer applies private moves through the host and skips redundan
 		p.requestTileAction(b.slot, b.value, "remove");
 		const row = p.rows.indexOf(a.slot.row), column = a.slot.row.slots.indexOf(a.slot);
 		host.puzzle.enterSuppose();
-		host.session.requestTileAction(host.puzzle.rows[row].slots[column], a.value, "remove");
+		host.session.commitAction("host", "in-flight", { type: "remove", row, column, value: a.value });
 		assert(p.suppose && !a.slot.possible[a.value]);
 		await p.acceptSuppose();
 		assert(!p.suppose && !b.slot.possible[b.value]);
@@ -1782,12 +1782,15 @@ Deno.test("branch batches tolerate intervening moves but validate the entire req
 		p.requestTileAction(a.slot, a.value, "remove");
 		p.requestTileAction(b.slot, b.value, "remove");
 		let pending;
-		guest.session.connectHost(message => { if (message.type == "command") pending = message; });
+		guest.session.connectHost(message => { if (message.type == "branch-action") pending = message; });
 		await p.acceptSuppose();
 		const row = p.rows.indexOf(a.slot.row), column = a.slot.row.slots.indexOf(a.slot);
 		host.puzzle.requestTileAction(host.puzzle.rows[row].slots[column], a.value, "remove");
-		assert(pending.expectedRevision == 0 && host.session.revision == 1);
+		assert(pending.version < host.session.branchForPlayer("guest").version && host.session.revision == 1);
 		host.session.receive("guest", pending);
+		assert(p.suppose && !guest.session.pendingSuppose, "stale Apply was not retained for review");
+		guest.session.connectHost(message => host.session.receive("guest", message));
+		await p.acceptSuppose();
 		assert(host.session.revision == 2 && !b.slot.possible[b.value]);
 		assert(boardState(p) == boardState(host.puzzle));
 		const before = boardState(p);
@@ -1829,6 +1832,9 @@ Deno.test("branch application retains and locks the exploration until its own ac
 		host.puzzle.requestTileAction(move.slot, move.value, "remove");
 		assert(p.suppose === branch && branch.pending, "another player's commit cleared the branch");
 		host.session.receive("guest", commands[0]);
+		assert(p.suppose && !guest.session.pendingSuppose, "stale Apply did not unlock the saved branch");
+		guest.session.connectHost(message => host.session.receive("guest", message));
+		await p.acceptSuppose();
 		assert(!p.suppose && !guest.session.pendingSuppose && !a.slot.possible[a.value]);
 		assert(boardState(p) == boardState(host.puzzle));
 	} finally {
@@ -1882,7 +1888,7 @@ Deno.test("resync preserves nested explorations and recovers a missed branch ack
 		const nested = p.suppose;
 		guest.session.receiveSync(host.session.syncMessage());
 		assert(p.suppose === nested && nested.parent === root);
-		p.leaveSuppose();
+		await p.acceptSuppose();
 		host.session.peers.set("guest", () => {});
 		await p.acceptSuppose();
 		assert(p.suppose === root && root.pending && host.session.revision == 1);
@@ -1937,8 +1943,8 @@ Deno.test("branch participants share hover highlights without leaking to other v
 			const target = { row: 0, column: 1, value: 2 };
 			owner.puzzle.enterSuppose();
 			const branchId = owner.session.branchForPlayer().id;
-			watcher.session.watchSuppose(branchId);
-			other.session.watchSuppose(branchId);
+			watcher.session.joinSuppose(branchId);
+			other.session.joinSuppose(branchId);
 			outsider.puzzle.enterSuppose();
 			for (const sender of [owner, watcher, other]) {
 				sender.session.requestHover(target);
@@ -1961,6 +1967,7 @@ Deno.test("branch participants share hover highlights without leaking to other v
 			host.session.receive("bob", { type: "hover", gameId: host.session.gameId, branchId, target: { clue } });
 			assert(owner.session.hoverForPlayer("bob")?.value === 2, "stale branch hover was accepted");
 			owner.puzzle.leaveSuppose();
+			other.puzzle.leaveSuppose();
 			for (const game of [host, guest, watcher, outsider]) {
 				assert(!game.session.hoverForPlayer(owner.session.playerId), "closing branch retained owner hover");
 				assert(!game.session.hoverForPlayer(other.session.playerId), "closing branch retained watcher hover");
@@ -2089,9 +2096,12 @@ Deno.test("private row contradictions are not attributed to unrelated shared mov
 		const p = guest.puzzle;
 		p.enterSuppose();
 		/* Make an intrinsically contradictory row, as tentative deductions can. */
-		p.suppose.domains[0][0] = 0;
-		p.saveSupposeStep();
-		p.renderSuppose();
+		const branch = host.session.branchForPlayer("guest");
+		const model = host.puzzle.supposeModel(branch.state);
+		model.suppose.domains[0][0] = 0;
+		model.saveSupposeStep();
+		host.session.saveBranchState(branch, model);
+		host.session.branchesChanged();
 		const a = wrongMove(host.puzzle, 1);
 		host.puzzle.requestTileAction(a.slot, a.value, "remove");
 		assert(p.rows[0].elem.classList.contains("pencil-conflict"));
@@ -2265,7 +2275,7 @@ Deno.test("suppose activity logs outer transitions and survives resync and late 
 		const move = wrongMove(guest.puzzle);
 		guest.puzzle.requestTileAction(move.slot, move.value, "remove");
 		guest.puzzle.enterSuppose();
-		guest.puzzle.leaveSuppose();
+		guest.puzzle.acceptSuppose();
 		guest.session.requestSync();
 		assert(guest.puzzle.suppose, "resync lost the branch");
 		network.addGuest(late.session);
@@ -2440,7 +2450,7 @@ Deno.test("replay acceptance survives missed messages and duplicate requests wit
 		}
 		let command;
 		guest.session.connectHost(message => {
-			if (message.type === "command") command = message;
+			if (message.type === "branch-action") command = message;
 			host.session.receive("alice", message);
 		});
 		host.session.peers.set("alice", () => {});
@@ -2555,11 +2565,14 @@ Deno.test("an entirely redundant branch still acknowledges acceptance across res
 		guest.puzzle.requestTileAction(move.slot, move.value, "remove");
 		let command;
 		guest.session.connectHost(message => {
-			if (message.type === "command") command = message;
+			if (message.type === "branch-action") command = message;
 		});
 		await guest.puzzle.acceptSuppose();
-		const action = command.action.moves[0];
+		const action = { type: "remove", row: 0, column: move.slot.row.slots.indexOf(move.slot), value: move.value };
 		host.session.requestAction(action);
+		host.session.receive("alice", command);
+		assert(guest.puzzle.suppose && !guest.session.pendingSuppose);
+		await guest.puzzle.acceptSuppose();
 		host.session.peers.set("alice", () => {});
 		host.session.receive("alice", command);
 		assert(host.session.revision === 1 && !host.session.replay && guest.puzzle.suppose.pending);
@@ -2643,7 +2656,7 @@ Deno.test("animated conflict rewind follows newly exposed earlier conflicts", as
 	}
 });
 
-Deno.test("leaving or resyncing a supposition cancels animated rewind", async function() {
+Deno.test("leaving cancels branch rewind while resync follows the host animation", async function() {
 	const host = makeSession("host", "host"), guest = makeSession("guest", "alice");
 	const network = new InMemoryMultiplayerNetwork(host.session);
 	try {
@@ -2657,14 +2670,14 @@ Deno.test("leaving or resyncing a supposition cancels animated rewind", async fu
 			host.puzzle.requestTileAction(host.puzzle.rows[0].slots[a.slot.row.slots.indexOf(a.slot)],
 				a.value, "remove");
 			p.rewindSupposeConflict();
-			assert(p.suppose.position === 1 && p.supposeRewindTimer !== null);
+			assert(p.suppose.position === 1 && guest.session.branchForPlayer().rewinding);
 			if (exit === "resync") guest.session.requestSync();
 			else if (exit === "leave") p.leaveSuppose();
 			else host.session.start(0x12345678);
 			assert(p.supposeRewindTimer === null);
 			const state = p.suppose;
 			await new Promise(resolve => setTimeout(resolve, 350));
-			assert(p.suppose === state && (!state || state.position === 1));
+			assert(p.suppose === state && (!state || state.position === (exit === "resync" ? 0 : 1)));
 			p.leaveSuppose();
 		}
 	} finally {
@@ -2679,7 +2692,7 @@ Deno.test("suppose redraws stay local while clue changes reach watchers", functi
 		host.session.start(0x12345678);
 		network.addGuest(guest.session);
 		host.puzzle.enterSuppose();
-		assert(guest.session.watchSuppose(host.session.branchForPlayer().id));
+		assert(guest.session.joinSuppose(host.session.branchForPlayer().id));
 		const snapshot = host.puzzle.supposeSnapshot;
 		let snapshots = 0;
 		host.puzzle.supposeSnapshot = function() {
@@ -2697,14 +2710,127 @@ Deno.test("suppose redraws stay local while clue changes reach watchers", functi
 		assert(guest.puzzle.suppose.dismissed.includes(index), "watcher missed clue dismissal");
 		host.puzzle.toggleSupposeClue(clue);
 		assert(!guest.puzzle.suppose.dismissed.includes(index), "watcher missed clue restoration");
-		assert(snapshots > 0, "clue changes did not publish branch state");
+		assert(snapshots === 0, "branch commands serialized the displayed client state");
 	} finally {
 		stopAll(host, guest);
 	}
 });
 
-Deno.test("watchers join the same branch through any participant and follow nested history read-only", async function() {
-	for (const controllerIsHost of [true, false]) {
+Deno.test("the host orders concurrent branch moves and rejects stale navigation and resolution", async function() {
+	const host = makeSession("host", "host"), alice = makeSession("guest", "alice");
+	const bob = makeSession("guest", "bob"), outsider = makeSession("guest", "outside");
+	const network = new InMemoryMultiplayerNetwork(host.session);
+	try {
+		host.session.start(0x12345678);
+		for (const game of [alice, bob, outsider]) network.addGuest(game.session);
+		alice.puzzle.enterSuppose();
+		const id = alice.session.branchForPlayer().id;
+		bob.session.joinSuppose(id);
+		const commands = [];
+		for (const game of [alice, bob]) game.session.connectHost(message => {
+			if (message.type === "branch-action") commands.push([game.session.playerId, message]);
+		});
+		const a = wrongMove(alice.puzzle, 0), b = wrongMove(bob.puzzle, 1);
+		alice.puzzle.requestTileAction(a.slot, a.value, "remove");
+		bob.puzzle.requestTileAction(b.slot, b.value, "remove");
+		assert(commands.length === 2 && commands[0][1].version === commands[1][1].version);
+		for (const [actor, command] of commands.splice(0)) {
+			host.session.receive(actor, command);
+			host.session.receive(actor, command);
+		}
+		assert(alice.puzzle.suppose.position === 2 && bob.puzzle.suppose.position === 2,
+		       "independent concurrent moves were lost or duplicated");
+		assert(host.session.revision === 0 && !host.puzzle.suppose);
+		alice.puzzle.moveSuppose(-1);
+		const clue = bob.puzzle.clues.find(c => c.active);
+		bob.puzzle.toggleSupposeClue(clue);
+		const oldNavigation = commands.shift(), clueEdit = commands.shift();
+		host.session.receive(...clueEdit);
+		host.session.receive(...oldNavigation);
+		assert(alice.puzzle.suppose.position === 2, "stale navigation moved the shared cursor");
+		bob.puzzle.toggleSupposeClue(clue);
+		host.session.receive(...commands.shift());
+
+		await alice.puzzle.acceptSuppose();
+		bob.puzzle.enterSuppose();
+		const apply = commands.shift(), nest = commands.shift();
+		host.session.receive(...nest);
+		host.session.receive(...apply);
+		assert(alice.puzzle.suppose.parent && !alice.session.pendingSuppose && host.session.revision === 0,
+		       "stale Apply resolved a different position");
+		await bob.puzzle.acceptSuppose();
+		host.session.receive(...commands.shift());
+		assert(!alice.puzzle.suppose.parent);
+
+		bob.puzzle.moveSuppose(-1);
+		await alice.puzzle.acceptSuppose();
+		const navigate = commands.shift(), oldApply = commands.shift();
+		host.session.receive(...navigate);
+		host.session.receive(...oldApply);
+		assert(alice.puzzle.suppose.position === 1 && !alice.session.pendingSuppose);
+		const before = JSON.stringify(host.session.branches.get(id));
+		host.session.receive("outside", { ...oldApply[1], commandId: "forged" });
+		assert(JSON.stringify(host.session.branches.get(id)) === before, "outsider edited a branch");
+
+		await alice.puzzle.acceptSuppose();
+		bob.puzzle.rejectSuppose();
+		const winner = commands.shift(), loser = commands.shift();
+		host.session.receive(...winner);
+		host.session.receive(...loser);
+		host.session.receive(...winner);
+		assert(!alice.puzzle.suppose && !bob.puzzle.suppose && !host.session.branches.size);
+		assert(host.session.revision === 1 && !host.session.replay,
+		       "competing resolution applied more than one outcome");
+	} finally { stopAll(host, alice, bob, outsider); }
+});
+
+Deno.test("Back out abandons a nested branch while leaving the group preserves it", async function() {
+	const host = makeSession("host", "host"), alice = makeSession("guest", "alice");
+	const bob = makeSession("guest", "bob");
+	const network = new InMemoryMultiplayerNetwork(host.session);
+	try {
+		host.session.start(0x12345678);
+		network.addGuest(alice.session);
+		network.addGuest(bob.session);
+		alice.puzzle.enterSuppose();
+		const id = alice.session.branchForPlayer().id;
+		bob.session.joinSuppose(id);
+		const a = wrongMove(alice.puzzle);
+		alice.puzzle.requestTileAction(a.slot, a.value, "remove");
+		bob.puzzle.enterSuppose();
+		const abandoned = wrongMove(bob.puzzle, 2);
+		bob.puzzle.requestTileAction(abandoned.slot, abandoned.value, "remove");
+		alice.puzzle.leaveSuppose();
+		assert(alice.puzzle.suppose && !bob.puzzle.suppose.parent && bob.puzzle.suppose.position === 1,
+		       "Back out did not return the group to the enclosing branch");
+		assert(bob.session.branchForPlayer().participants.length === 2);
+		const column = abandoned.slot.row.slots.indexOf(abandoned.slot);
+		assert(bob.puzzle.suppose.domains[2][abandoned.value] & (1 << column),
+		       "Back out retained the abandoned deductions");
+		assert(!alice.puzzle.supposeControls.querySelector(".suppose-exit").hidden);
+		bob.puzzle.enterSuppose();
+		const b = wrongMove(bob.puzzle, 1);
+		bob.puzzle.requestTileAction(b.slot, b.value, "place");
+		alice.puzzle.leaveSuppose(true);
+		assert(!alice.puzzle.suppose && bob.puzzle.suppose.parent && bob.puzzle.suppose.position === 1);
+		assert(bob.puzzle.supposeControls.querySelector(".proof-position").textContent === "· Step 1.1");
+		assert(bob.puzzle.supposeControls.querySelector(".suppose-watchers").hidden);
+		assert(bob.puzzle.supposeControls.querySelector(".suppose-exit").hidden);
+		alice.session.joinSuppose(id);
+		assert(bob.puzzle.supposeControls.querySelector(".proof-position").textContent === "· Step 1.1");
+		assert(!bob.puzzle.supposeControls.querySelector(".suppose-exit").hidden);
+		alice.puzzle.leaveSuppose(true);
+		bob.puzzle.rejectSuppose();
+		assert(!bob.puzzle.suppose.parent && bob.puzzle.suppose.position === 2);
+		assert(host.session.revision === 0, "nested rejection affected the shared board");
+		await bob.puzzle.acceptSuppose();
+		host.session.advanceSupposeReplay();
+		assert(host.session.revision === 2 && !host.session.branches.size);
+	} finally { stopAll(host, alice, bob); }
+});
+
+Deno.test("equal participants share moves, navigation, nesting and resolution", async function() {
+	for (const creatorIsHost of [true, false]) {
 		const host = makeSession("host", "host"), guest = makeSession("guest", "alice");
 		const third = makeSession("guest", "bob");
 		const network = new InMemoryMultiplayerNetwork(host.session);
@@ -2712,55 +2838,54 @@ Deno.test("watchers join the same branch through any participant and follow nest
 			host.session.start(0x12345678);
 			network.addGuest(guest.session);
 			network.addGuest(third.session);
-			const owner = controllerIsHost ? host : guest, watcher = controllerIsHost ? guest : host;
-			owner.puzzle.enterSuppose();
-			const branchId = owner.session.branchForPlayer().id;
-			const a = wrongMove(owner.puzzle, 0), b = wrongMove(owner.puzzle, 1);
-			owner.puzzle.requestTileAction(a.slot, a.value, "remove");
-			assert(watcher.session.watchSuppose(branchId));
-			assert(watcher.puzzle.isWatchingSuppose() && watcher.puzzle.suppose.position === 1);
-			assert(third.session.watchSuppose(third.session.branchForPlayer(watcher.session.playerId).id));
+			const creator = creatorIsHost ? host : guest, peer = creatorIsHost ? guest : host;
+			creator.puzzle.enterSuppose();
+			const id = creator.session.branchForPlayer().id;
+			assert(peer.session.joinSuppose(id));
+			assert(third.session.joinSuppose(third.session.branchForPlayer(peer.session.playerId).id));
 			for (const game of [host, guest, third]) {
-				const branch = game.session.branchForPlayer();
-				assert(branch.id === branchId && branch.controller === owner.session.playerId &&
-				       branch.participants.length === 3);
-				assert(game.puzzle.supposeControls.querySelector(".suppose-watchers")
-				       .querySelector(".suppose-watcher-count").textContent === 2);
+				game.puzzle.renderSuppose();
+				const entries = game.puzzle.supposeControls.querySelector(".suppose-watchers").querySelector(".suppose-watcher-names").children;
+				const others = game.session.branchForPlayer().participants.filter(id => id !== game.session.playerId);
+				assert(entries.length === others.length, "mini-roster included the local player or missed a participant");
+				for (const [index, id] of others.entries()) {
+					const player = game.session.players.find(player => player.id === id);
+					assert(entries[index].querySelector(".suppose-participant-name").textContent === player.name);
+					assert(entries[index].querySelector(".suppose-participant-color").style["background-color"] ===
+					       globalThis.LogosFriends.playerColor(player), "mini-roster color differs from cursor color");
+				}
 			}
-			owner.puzzle.enterSuppose();
-			assert(watcher.puzzle.supposeControls.querySelector(".proof-position").textContent.includes(" · Nested"));
-			owner.puzzle.requestTileAction(b.slot, b.value, "remove");
-			for (const game of [watcher, third]) {
-				assert(game.puzzle.suppose.nested && game.puzzle.suppose.position === 1);
-				assert(game.puzzle.supposeControls.querySelector(".proof-position").textContent.includes(" · Step 1.1"));
-				assert(game.puzzle.supposeControls.querySelector(".proof-position").textContent.includes("'s Suppose"));
-				const before = JSON.stringify(game.puzzle.supposeSnapshot());
-				game.puzzle.moveSuppose(-1);
-				game.puzzle.enterSuppose();
-				game.puzzle.requestTileAction(game.puzzle.rows[2].slots[0], 0, "remove");
-				game.puzzle.requestClueAction(game.puzzle.clues.find(clue => clue.active), false);
-				game.puzzle.rewindSupposeConflict();
-				await game.puzzle.acceptSuppose();
-				game.puzzle.rejectSuppose();
-				assert(JSON.stringify(game.puzzle.supposeSnapshot()) === before, "watcher edited the branch");
-				assert(game.puzzle.supposeControls.querySelector(".suppose-accept").hidden);
-				assert(game.puzzle.supposeControls.querySelector(".proof-previous").disabled);
+			const same = () => {
+				const expected = JSON.stringify(creator.puzzle.supposeModel().serialize());
+				for (const game of [peer, third])
+					assert(JSON.stringify(game.puzzle.supposeModel().serialize()) === expected);
+			};
+			const a = wrongMove(peer.puzzle, 0), b = wrongMove(third.puzzle, 1);
+			peer.puzzle.requestTileAction(a.slot, a.value, "remove");
+			same();
+			third.puzzle.enterSuppose();
+			third.puzzle.requestTileAction(b.slot, b.value, "remove");
+			same();
+			for (const game of [host, guest, third]) {
+				assert(game.puzzle.supposeControls.querySelector(".proof-position").textContent === "· Step 1.1");
+				assert(!game.puzzle.supposeControls.querySelector(".suppose-accept").hidden);
+				assert(!game.puzzle.supposeControls.querySelector(".proof-previous").disabled);
 			}
-			owner.puzzle.moveSuppose(-1);
-			assert(watcher.puzzle.suppose.position === 0 && third.puzzle.suppose.position === 0);
-			owner.puzzle.moveSuppose(1);
-			assert(watcher.puzzle.suppose.position === 1);
-			watcher.puzzle.leaveSuppose();
-			assert(!watcher.puzzle.suppose && !watcher.session.branchForPlayer(), "leaving only backed out of a nested branch");
-			assert(owner.session.branchForPlayer().participants.length === 2);
-			await owner.puzzle.acceptSuppose();
-			assert(!third.puzzle.suppose.nested && third.puzzle.suppose.position === 2);
-			assert(host.session.revision === 0, "watching committed tentative moves");
-			owner.puzzle.leaveSuppose();
-			assert(!third.puzzle.suppose && !third.session.watchingBranch);
-		} finally {
-			stopAll(host, guest, third);
-		}
+			peer.puzzle.moveSuppose(-1);
+			same();
+			creator.puzzle.moveSuppose(1);
+			same();
+			await third.puzzle.acceptSuppose();
+			same();
+			assert(!peer.puzzle.suppose.parent && peer.puzzle.suppose.position === 2);
+			creator.puzzle.leaveSuppose();
+			assert(!creator.puzzle.suppose && peer.puzzle.suppose && third.puzzle.suppose);
+			assert(peer.session.branchForPlayer().participants.length === 2);
+			await peer.puzzle.acceptSuppose();
+			assert(!third.puzzle.suppose && !host.session.branches.size);
+			host.session.advanceSupposeReplay();
+			assert(host.session.revision === 2 && boardState(host.puzzle) === boardState(third.puzzle));
+		} finally { stopAll(host, guest, third); }
 	}
 });
 
@@ -2776,19 +2901,21 @@ Deno.test("watching requires the shared board and survives resync and late joins
 		host.puzzle.requestTileAction(move.slot, move.value, "place");
 		const branchId = host.session.branchForPlayer().id;
 		guest.puzzle.enterSuppose();
-		assert(!guest.session.watchSuppose(branchId), "watching replaced a private branch");
+		assert(!guest.session.joinSuppose(branchId), "watching replaced a private branch");
 		guest.puzzle.leaveSuppose();
 		host.puzzle.togglePause();
-		assert(!guest.session.watchSuppose(branchId));
+		assert(!guest.session.joinSuppose(branchId));
 		host.puzzle.togglePause();
-		assert(guest.session.watchSuppose(branchId));
+		assert(guest.session.joinSuppose(branchId));
 		guest.session.requestSync();
-		assert(guest.session.watchingBranch === branchId && guest.puzzle.suppose.position === 1);
+		assert(guest.session.viewingBranch === branchId && guest.puzzle.suppose.position === 1);
 		network.addGuest(late.session);
 		assert(late.session.branchForPlayer("alice").id === branchId);
-		assert(late.session.watchSuppose(branchId));
+		assert(late.session.joinSuppose(branchId));
 		host.session.setPlayerName("Renamed");
-		assert(guest.puzzle.supposeControls.querySelector(".proof-position").textContent.startsWith("Renamed's"));
+		assert(guest.puzzle.supposeControls.querySelector(".suppose-watchers").querySelector(".suppose-watcher-names").querySelectorAll(".suppose-participant-name")
+		       .some(name => name.textContent === "Renamed"), "mini-roster missed a name change");
+		assert(guest.puzzle.supposeControls.querySelector(".proof-position").textContent.startsWith("· Step"));
 		const before = JSON.stringify(host.session.branches.get(branchId).snapshot);
 		host.session.receive("alice", { type: "branch-update", gameId: host.session.gameId,
 			branchId, snapshot: guest.puzzle.supposeSnapshot() });
@@ -2796,11 +2923,13 @@ Deno.test("watching requires the shared board and survives resync and late joins
 		const action = { type: "remove", row: 0, column: move.slot.row.slots.indexOf(move.slot), value: move.value };
 		host.session.receive("alice", { type: "command", gameId: host.session.gameId,
 			commandId: "watcher-edit", expectedRevision: 0, action });
-		assert(host.session.revision === 0 && guest.puzzle.isWatchingSuppose(), "watcher sent a shared edit");
+		assert(host.session.revision === 0 && !!guest.session.branchForPlayer(), "watcher sent a shared edit");
 		host.puzzle.leaveSuppose();
+		guest.puzzle.leaveSuppose();
+		late.puzzle.leaveSuppose();
 		assert(!guest.puzzle.suppose && !late.puzzle.suppose && !host.session.branches.size);
-		assert(!guest.session.watchSuppose(branchId), "historical fork remained joinable");
-		host.session.receive("alice", { type: "branch-watch", gameId: host.session.gameId, branchId });
+		assert(!guest.session.joinSuppose(branchId), "historical fork remained joinable");
+		host.session.receive("alice", { type: "branch-join", gameId: host.session.gameId, branchId });
 		assert(!host.session.branches.size, "stale request resurrected a branch");
 	} finally {
 		stopAll(host, guest, late);
@@ -2814,7 +2943,7 @@ Deno.test("resync refreshes watched state and roster together after missed updat
 		host.session.start(0x12345678);
 		network.addGuest(guest.session);
 		host.puzzle.enterSuppose();
-		guest.session.watchSuppose(host.session.branchForPlayer().id);
+		guest.session.joinSuppose(host.session.branchForPlayer().id);
 		host.session.peers.set("alice", () => {});
 		const move = wrongMove(host.puzzle);
 		host.puzzle.requestTileAction(move.slot, move.value, "remove");
@@ -2829,7 +2958,7 @@ Deno.test("resync refreshes watched state and roster together after missed updat
 			assert(JSON.stringify(guest.puzzle.supposeSnapshot()) === expected,
 			       "roster refreshed with an obsolete watched position");
 			assert(guest.puzzle.supposeControls.querySelector(".proof-position").textContent ===
-			       "Renamed's Suppose · Nested");
+			       "· Nested");
 		};
 		guest.session.receiveSync(host.session.syncMessage());
 		assert(refreshes === 1, "resync refreshed the roster more than once");
@@ -2849,7 +2978,7 @@ Deno.test("watchers follow shared conflicts and every animated rewind step", asy
 		p.enterSuppose();
 		p.requestTileAction(a.slot, a.value, "place");
 		p.requestTileAction(b.slot, b.value, "remove");
-		host.session.watchSuppose(guest.session.branchForPlayer().id);
+		host.session.joinSuppose(guest.session.branchForPlayer().id);
 		/* A shared command already in flight can still contradict the branch. */
 		host.session.commitAction("host", "conflict", {
 			type: "remove", row: 3, column: a.slot.row.slots.indexOf(a.slot), value: a.value });
@@ -2882,14 +3011,14 @@ Deno.test("applying a watched branch releases watchers before paced shared repla
 			guest.puzzle.requestTileAction(move.slot, move.value, "remove");
 		}
 		const branchId = guest.session.branchForPlayer().id;
-		third.session.watchSuppose(branchId);
+		third.session.joinSuppose(branchId);
 		host.puzzle.proof = {};
 		await guest.puzzle.acceptSuppose();
 		host.puzzle.proof = null;
-		assert(guest.puzzle.suppose && third.puzzle.isWatchingSuppose(), "rejected Apply closed the watched branch");
+		assert(guest.puzzle.suppose && !!third.session.branchForPlayer(), "rejected Apply closed the watched branch");
 		await guest.puzzle.acceptSuppose();
 		for (const game of [guest, third])
-			assert(!game.puzzle.suppose && !game.session.watchingBranch && game.session.replay);
+			assert(!game.puzzle.suppose && !game.session.viewingBranch && game.session.replay);
 		assert(host.session.revision === 1 && !host.session.branches.size);
 		host.session.advanceSupposeReplay();
 		assert(host.session.revision === 2 && !third.session.replay);
@@ -2912,11 +3041,16 @@ Deno.test("watched branch membership closes on rejection, disconnect and replace
 			guest.puzzle.enterSuppose();
 			const move = wrongMove(guest.puzzle);
 			guest.puzzle.requestTileAction(move.slot, move.value, "place");
-			third.session.watchSuppose(guest.session.branchForPlayer().id);
+			third.session.joinSuppose(guest.session.branchForPlayer().id);
 			if (ending === "reject") guest.puzzle.rejectSuppose();
 			else if (ending === "new-game") host.session.start(0x12345678);
-			else host.session.removePeer("alice");
-			assert(!third.puzzle.suppose && !third.session.watchingBranch && !host.session.branches.size);
+			else {
+				host.session.removePeer("alice");
+				assert(third.puzzle.suppose && third.session.branchForPlayer().participants.length === 1,
+				       "creator departure closed the shared branch");
+				third.puzzle.leaveSuppose();
+			}
+			assert(!third.puzzle.suppose && !third.session.viewingBranch && !host.session.branches.size);
 		}
 	} finally {
 		stopAll(host, guest, third);
@@ -2932,16 +3066,16 @@ Deno.test("pending watch requests block private entry until the host replies", f
 		host.puzzle.enterSuppose();
 		const branchId = host.session.branchForPlayer().id;
 		let request;
-		guest.session.connectHost(message => { if (message.type === "branch-watch") request = message; });
-		assert(guest.session.watchSuppose(branchId));
+		guest.session.connectHost(message => { if (message.type === "branch-join") request = message; });
+		assert(guest.session.joinSuppose(branchId));
 		const move = wrongMove(host.puzzle);
 		host.puzzle.requestTileAction(move.slot, move.value, "remove");
-		assert(guest.session.watchRequest === branchId, "an unrelated branch update acknowledged the join");
+		assert(guest.session.joinRequest === branchId, "an unrelated branch update acknowledged the join");
 		guest.puzzle.enterSuppose();
 		assert(!guest.puzzle.suppose, "private entry raced with joining");
 		host.puzzle.leaveSuppose();
 		host.session.receive("alice", request);
-		assert(!guest.session.watchRequest && !guest.puzzle.suppose);
+		assert(!guest.session.joinRequest && !guest.puzzle.suppose);
 		guest.puzzle.enterSuppose();
 		assert(guest.puzzle.suppose, "rejected join left private entry locked");
 	} finally {
@@ -2964,15 +3098,17 @@ Deno.test("moves made before branch registration reach watchers and stale update
 		let update;
 		while (outbound.length) {
 			const message = outbound.shift();
-			if (message.type === "branch-update") update = message;
+			if (message.type === "branch-action") update = message;
 			host.session.receive("alice", message);
 		}
 		const branchId = host.session.branchForPlayer("alice").id;
 		assert(update && host.session.branches.get(branchId).snapshot.position === 1);
-		host.session.watchSuppose(branchId);
+		host.session.joinSuppose(branchId);
 		assert(host.puzzle.suppose.position === 1);
 		guest.puzzle.leaveSuppose();
 		while (outbound.length) host.session.receive("alice", outbound.shift());
+		assert(host.puzzle.suppose, "creator departure closed the branch");
+		host.puzzle.leaveSuppose();
 		assert(!host.puzzle.suppose && !host.session.branches.size);
 		host.session.receive("alice", update);
 		assert(!host.session.branches.size, "stale update resurrected a branch");
@@ -2995,13 +3131,13 @@ Deno.test("active fork entries survive later shared activity", function() {
 			assert(actions.length === 12 && actions[0].type === "suppose-enter" &&
 			       actions[0].branchId === branchId);
 		}
-		assert(guest.session.watchSuppose(branchId));
+		assert(guest.session.joinSuppose(branchId));
 	} finally {
 		stopAll(host, guest);
 	}
 });
 
-Deno.test("branch snapshots reject malformed domains and symbol references", function() {
+Deno.test("client snapshots cannot overwrite host-owned branch history", function() {
 	const host = makeSession("host", "host"), guest = makeSession("guest", "alice");
 	const network = new InMemoryMultiplayerNetwork(host.session);
 	try {
@@ -3030,7 +3166,7 @@ Deno.test("a delayed leave acknowledgment does not reopen the watched view", fun
 		host.session.start(0x12345678);
 		network.addGuest(guest.session);
 		host.puzzle.enterSuppose();
-		guest.session.watchSuppose(host.session.branchForPlayer().id);
+		guest.session.joinSuppose(host.session.branchForPlayer().id);
 		const requests = [];
 		guest.session.connectHost(message => requests.push(message));
 		guest.puzzle.leaveSuppose();
@@ -3039,7 +3175,7 @@ Deno.test("a delayed leave acknowledgment does not reopen the watched view", fun
 		host.puzzle.requestTileAction(move.slot, move.value, "remove");
 		assert(!guest.puzzle.suppose, "a late snapshot reopened the watched view");
 		for (const message of requests) host.session.receive("alice", message);
-		assert(!guest.session.watchingBranch && !guest.session.watchLeaving);
+		assert(!guest.session.viewingBranch && !guest.session.leavingBranch);
 		guest.puzzle.enterSuppose();
 		assert(guest.puzzle.suppose, "leaving kept private entry locked");
 	} finally {

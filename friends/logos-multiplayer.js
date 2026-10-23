@@ -192,10 +192,13 @@ class MultiplayerSession {
 		this.recentActions = new Map();
 		this.branches = new Map();
 		this.nextBranch = 1;
-		this.watchingBranch = null;
-		this.watchLeaving = false;
-		this.watchRequest = null;
-		this.branchSnapshot = null;
+		this.viewingBranch = null;
+		this.leavingBranch = false;
+		this.joinRequest = null;
+		this.branchCommands = new Map();
+		this.branchRewinds = new Map();
+		this.startingBranch = null;
+		this.queuedBranchActions = [];
 		this.updatingBranches = false;
 		this.lastPaused = false;
 		this.pauseActor = null;
@@ -324,9 +327,13 @@ class MultiplayerSession {
 		this.history = [];
 		this.initialPosition = null;
 		this.recentActions.clear();
+		for (const id of this.branchRewinds.keys()) this.cancelBranchRewind(id);
+		this.branchCommands.clear();
+		this.startingBranch = null;
+		this.queuedBranchActions = [];
 		this.branches.clear();
-		this.watchingBranch = this.watchRequest = this.branchSnapshot = null;
-		this.watchLeaving = false;
+		this.viewingBranch = this.joinRequest = null;
+		this.leavingBranch = false;
 		this.hovers.clear();
 		this.onHoverChanged();
 		this.lastPaused = false;
@@ -455,20 +462,24 @@ class MultiplayerSession {
 		this.refreshBranchView();
 	}
 
+	colorForPlayer(id) {
+		return playerColor(this.players.find(player => player.id == id));
+	}
+
 	branchForPlayer(id = this.playerId) {
 		return [...this.branches.values()].find(branch => branch.participants.includes(id));
 	}
 
 	supposeChanged(active) {
 		if (!this.ready || this.seed === null || this.updatingBranches) return;
-		if (!active && this.watchingBranch) this.watchLeaving = true;
+		if (!active && this.viewingBranch) this.leavingBranch = true;
 		const message = { type: "suppose", gameId: this.gameId, active };
 		if (active) {
 			message.branchId = this.playerId + ":" + this.nextBranch++;
-			message.snapshot = this.puzzle.supposeSnapshot();
-			this.branchSnapshot = JSON.stringify([message.branchId, message.snapshot]);
+			this.startingBranch = message.branchId;
 		}
 		this.sendBranchRequest(message);
+		if (this.role == "host") this.startingBranch = null;
 	}
 
 	sendBranchRequest(message) {
@@ -490,85 +501,250 @@ class MultiplayerSession {
 			return;
 		const branch = this.branchForPlayer(from);
 		if (message.active) {
-			if (branch || typeof message.branchId != "string" ||
-			    this.branches.has(message.branchId) || !this.validBranchSnapshot(message.snapshot))
+			if (branch || this.seed === null || this.puzzle.gameOver ||
+			    typeof message.branchId != "string" || message.branchId.length > 256 ||
+			    this.branches.has(message.branchId)) {
+				if (from != this.playerId) this.sendTo(from, this.syncMessage());
 				return;
-			this.branches.set(message.branchId, { id: message.branchId, controller: from,
-				participants: [from], snapshot: copyMessage(message.snapshot), version: 1 });
+			}
+			const model = this.puzzle.supposeModel(null);
+			model.enter();
+			this.branches.set(message.branchId, { id: message.branchId,
+				participants: [from], snapshot: model.snapshot(), state: model.serialize(),
+				version: 1, generation: 0 });
 			this.recordSupposeActivity(from, true, message.branchId);
 		} else {
 			if (!branch) return;
-			const leaving = branch.controller == from ? branch.participants.slice() : [from];
-			if (branch.controller == from) this.branches.delete(branch.id);
-			else branch.participants = branch.participants.filter(id => id != from);
-			for (const id of leaving) this.recordSupposeActivity(id, false, branch.id);
+			branch.participants = branch.participants.filter(id => id != from);
+			if (!branch.participants.length) {
+				this.cancelBranchRewind(branch.id);
+				this.branches.delete(branch.id);
+			}
+			this.recordSupposeActivity(from, false, branch.id);
 		}
 		this.branchesChanged();
 	}
 
-	validBranchSnapshot(snapshot) {
-		const rowDomains = (row, r) => Array.isArray(row) && row.length == this.puzzle.rows[r]?.slots.length &&
-			row.every(bits => Number.isInteger(bits) && bits >= 0 && bits < (1 << row.length));
-		const domains = rows => Array.isArray(rows) && rows.length == this.puzzle.rows.length &&
-			rows.every(rowDomains);
-		const text = value => typeof value == "string" && value.length <= 2048 &&
-			[...value.matchAll(/\ue000(\d+):(\d+)\ue001/g)].every(([, r, symbol]) =>
-				!!this.puzzle.rows[r]?.slots[0].symbols[symbol]);
-		const messages = value => value && typeof value == "object" && !Array.isArray(value) &&
-			Object.keys(value).length <= 256 && Object.values(value).every(text);
-		return snapshot && domains(snapshot.base) && domains(snapshot.domains) &&
-			Array.isArray(snapshot.dismissed) && snapshot.dismissed.length <= this.puzzle.clues.length &&
-			snapshot.dismissed.every(i => Number.isInteger(i) && !!this.puzzle.clues[i]) &&
-			Array.isArray(snapshot.sharedConflicts) && snapshot.sharedConflicts.length <= this.puzzle.rows.length &&
-			snapshot.sharedConflicts.every(value => value == null || typeof value == "boolean") &&
-			messages(snapshot.sharedConflictMessages) && messages(snapshot.previousConflicts) &&
-			Array.isArray(snapshot.conflictDomains) && snapshot.conflictDomains.length <= this.puzzle.rows.length &&
-			snapshot.conflictDomains.every((row, r) => row == null || rowDomains(row, r)) &&
-			domains(snapshot.conflictTiles) && (snapshot.message == null || text(snapshot.message)) &&
-			typeof snapshot.prefix == "string" && snapshot.prefix.length <= 256 &&
-			Number.isInteger(snapshot.position) && snapshot.position >= 0 && snapshot.position <= 4096 &&
-			typeof snapshot.label == "string" && snapshot.label.length <= 256 &&
-			typeof snapshot.nested == "boolean";
+	/* Shared moves reconcile every branch, including ones the host is not
+	 * viewing. Clients receive the resulting history from the host. */
+	reconcileBranches() {
+		if (this.role != "host" || !this.ready) return;
+		let changed = false;
+		for (const branch of this.branches.values()) {
+			const model = this.puzzle.supposeModel(branch.state);
+			const before = JSON.stringify(model.serialize());
+			model.reconcile();
+			if (JSON.stringify(model.serialize()) === before) continue;
+			this.saveBranchState(branch, model);
+			changed = true;
+		}
+		if (changed) this.branchesChanged();
 	}
 
-	publishSuppose() {
-		if (!this.ready || this.updatingBranches || this.watchingBranch ||
-		    !this.puzzle.suppose) return;
-		const branch = this.branchForPlayer();
-		if (!branch || branch.controller != this.playerId) return;
-		const snapshot = this.puzzle.supposeSnapshot();
-		const serialized = JSON.stringify([branch.id, snapshot]);
-		if (serialized === this.branchSnapshot) return;
-		this.branchSnapshot = serialized;
-		this.sendBranchRequest({ type: "branch-update", gameId: this.gameId,
-			branchId: branch.id, snapshot });
-	}
-
-	receiveBranchUpdate(from, message) {
-		const branch = this.branches.get(message.branchId);
-		if (!this.ready || message.gameId !== this.gameId || !branch ||
-		    branch.controller != from || !this.validBranchSnapshot(message.snapshot)) return;
-		branch.snapshot = copyMessage(message.snapshot);
+	saveBranchState(branch, model) {
+		branch.state = model.serialize();
+		branch.snapshot = model.snapshot();
 		branch.version++;
+	}
+
+	closeBranch(branch) {
+		this.cancelBranchRewind(branch.id);
+		this.branches.delete(branch.id);
+		for (const id of branch.participants) this.recordSupposeActivity(id, false, branch.id);
 		this.branchesChanged();
 	}
 
-	canWatch(branchId) {
+	requestBranchAction(action) {
+		if (!this.ready || this.joinRequest || this.leavingBranch || this.pendingSuppose) return false;
+		const branch = this.branchForPlayer();
+		if (!branch) {
+			if (this.startingBranch) this.queuedBranchActions.push(action);
+			return !!this.startingBranch;
+		}
+		const command = { type: "branch-action", gameId: this.gameId, branchId: branch.id,
+			commandId: this.playerId + ":" + this.nextCommand++,
+			version: branch.version, generation: branch.generation, action };
+		if (["apply", "reject"].includes(action.type)) {
+			this.pendingSuppose = { commandId: command.commandId, state: this.puzzle.suppose, command };
+			this.puzzle.suppose.pending = true;
+			this.puzzle.renderSuppose();
+		}
+		if (["place", "remove"].includes(action.type))
+			command.action = { ...action, autoDismissClues: this.puzzle.autoDismissClues };
+		if (action.type == "leave") {
+			this.leavingBranch = true;
+			this.updatingBranches = true;
+			try { this.puzzle.leaveSuppose(true); }
+			finally { this.updatingBranches = false; }
+		}
+		this.sendBranchRequest(command);
+		return true;
+	}
+
+	receiveBranchResult(message) {
+		if (message.gameId !== this.gameId) return;
+		if (this.pendingSuppose?.commandId === message.commandId) {
+			delete this.pendingSuppose.state.pending;
+			this.pendingSuppose = null;
+			if (this.puzzle.suppose) this.puzzle.renderSuppose();
+		}
+		if (!message.accepted) {
+			this.leavingBranch = false;
+			this.puzzle.say(message.reason == "changed" ?
+				"The supposition changed before that action arrived. Review the current step and try again." :
+				"That action is not available now. The supposition is saved.");
+		}
+	}
+
+	receiveBranchAction(from, message) {
+		if (!this.ready || message.gameId !== this.gameId ||
+		    !this.players.some(player => player.id == from) ||
+		    typeof message.commandId != "string" || message.commandId.length > 256) return;
+		const key = from + "\0" + message.commandId;
+		const reply = result => {
+			if (from == this.playerId) this.receiveBranchResult(result);
+			else this.sendTo(from, result);
+		};
+		if (this.branchCommands.has(key)) {
+			reply(this.branchCommands.get(key));
+			return;
+		}
+		const branch = this.branches.get(message.branchId), action = message.action;
+		const result = { type: "branch-result", gameId: this.gameId,
+			commandId: message.commandId, accepted: false, reason: "unavailable" };
+		let valid = branch?.participants.includes(from) && action && typeof action.type == "string";
+		const incremental = ["place", "remove", "clue"].includes(action?.type);
+		if (valid && action.type != "leave" &&
+		    (message.generation !== branch.generation || !Number.isInteger(message.version) ||
+		     message.version < 1 || message.version > branch.version ||
+		     !incremental && message.version !== branch.version)) {
+			valid = false;
+			result.reason = "changed";
+		}
+		/* Remember before executing: an in-memory transport can re-enter us
+		 * while broadcasting the resulting state. */
+		this.branchCommands.set(key, result);
+		if (valid && action.type == "leave") {
+			result.accepted = true;
+			this.receiveSuppose(from, { gameId: this.gameId, active: false });
+		} else if (valid && (action.type == "back-out" || !this.puzzle.paused && !this.puzzle.gameOver)) {
+			const model = this.puzzle.supposeModel(branch.state), state = model.suppose;
+			const conflict = state.sharedConflicts.some(Boolean);
+			let steps = 0, depth = 0;
+			for (let level = state; level; level = level.parent) {
+				steps += level.history.length;
+				depth++;
+			}
+			const fork = state.position < state.history.length - 1;
+			const slot = slotForAction(this.puzzle, action);
+			let changed = false, rewind = false;
+			if (incremental && !conflict && !branch.rewinding && steps < 4096) {
+				if (["place", "remove"].includes(action.type) && slot && !slot.single &&
+				    action.value >= 0 && action.value < slot.possible.length) {
+					if (typeof action.autoDismissClues == "boolean") model.autoDismissClues = action.autoDismissClues;
+					model.applySupposeAction(slot, action.value, action.type);
+					result.accepted = true;
+					changed = !!model.sound;
+				} else if (action.type == "clue" && Number.isInteger(action.clue) &&
+				           this.puzzle.clues[action.clue]?.active && typeof action.dismissed == "boolean") {
+					result.accepted = true;
+					if (state.dismissed.includes(action.clue) !== action.dismissed) {
+						model.toggleSupposeClue(this.puzzle.clues[action.clue]);
+						changed = true;
+					}
+				}
+			} else if (action.type == "back-out" && state.parent) {
+				model.suppose = state.parent;
+				changed = true;
+			} else if (action.type == "navigate" && Number.isInteger(action.position) &&
+			           action.position >= 0 && action.position < state.history.length) {
+				model.moveSuppose(action.position - state.position);
+				changed = true;
+			} else if (action.type == "nest" && !conflict && state.assumption && steps < 4096 && depth < 64) {
+				model.enter();
+				changed = true;
+			} else if (action.type == "rewind" && model.supposeRewindTarget()) {
+				rewind = model.rewindStep();
+				changed = true;
+			} else if (["apply", "reject"].includes(action.type) && !conflict &&
+			           (action.type != "reject" || state.assumption)) {
+				if (state.parent) {
+					if (action.type == "apply") model.keep();
+					else {
+						const a = state.assumption;
+						model.suppose = state.parent;
+						model.applySupposeAction(this.puzzle.rows[a.row].slots[a.column],
+							a.symbol, a.discard ? "place" : "remove");
+					}
+					changed = true;
+				} else {
+					const a = state.assumption;
+					const moves = action.type == "reject" ? [{ row: a.row, column: a.column,
+						value: a.symbol, type: a.discard ? "place" : "remove" }] :
+						state.history.slice(1, state.position + 1).map(({ move }) => ({
+							row: move.row, column: move.column, value: move.symbol,
+							type: move.discard ? "remove" : "place" }));
+					const apply = { type: "suppose-apply", moves,
+						clues: action.type == "reject" ? [] : state.dismissed.slice() };
+					if (!this.replay && applicableAction(this.puzzle, apply)) {
+						result.accepted = true;
+						this.startSupposeReplay(from, { commandId: message.commandId, action: apply });
+					}
+				}
+			}
+			if (changed) {
+				this.cancelBranchRewind(branch.id);
+				if (!incremental || fork && action.type != "clue") branch.generation++;
+				this.saveBranchState(branch, model);
+				result.accepted = true;
+				if (rewind) this.scheduleBranchRewind(branch);
+				this.branchesChanged({ branchId: branch.id, sound: model.sound, actor: from, action });
+			}
+		}
+		if (!result.accepted && from != this.playerId)
+			this.sendTo(from, { type: "branches", gameId: this.gameId,
+				branches: copyMessage([...this.branches.values()]) });
+		reply(result);
+	}
+
+	cancelBranchRewind(id) {
+		clearTimeout(this.branchRewinds.get(id));
+		this.branchRewinds.delete(id);
+		const branch = this.branches.get(id);
+		if (branch) branch.rewinding = false;
+	}
+
+	scheduleBranchRewind(branch) {
+		branch.rewinding = true;
+		this.branchRewinds.set(branch.id, setTimeout(() => {
+			this.cancelBranchRewind(branch.id);
+			if (!this.branches.has(branch.id)) return;
+			if (!this.puzzle.paused && !this.puzzle.gameOver) {
+				const model = this.puzzle.supposeModel(branch.state);
+				const more = model.rewindStep();
+				this.saveBranchState(branch, model);
+				if (more) this.scheduleBranchRewind(branch);
+			}
+			this.branchesChanged();
+		}, 300));
+	}
+
+	canJoinSuppose(branchId) {
 		const branch = this.branches.get(branchId);
-		return !!(this.ready && branch && !this.branchForPlayer() && !this.watchRequest &&
+		return !!(this.ready && branch && !this.branchForPlayer() && !this.joinRequest &&
 			!this.puzzle.suppose && !this.puzzle.proof && !this.puzzle.gameOver &&
 			!this.puzzle.paused && !this.replay);
 	}
 
-	watchSuppose(branchId) {
-		if (!this.canWatch(branchId)) return false;
-		this.watchRequest = branchId;
+	joinSuppose(branchId) {
+		if (!this.canJoinSuppose(branchId)) return false;
+		this.joinRequest = branchId;
 		this.puzzle.updateSupposeControls();
-		this.sendBranchRequest({ type: "branch-watch", gameId: this.gameId, branchId });
+		this.sendBranchRequest({ type: "branch-join", gameId: this.gameId, branchId });
 		return true;
 	}
 
-	receiveWatch(from, message) {
+	receiveJoin(from, message) {
 		const branch = this.branches.get(message.branchId);
 		if (this.ready && message.gameId === this.gameId && branch && !this.branchForPlayer(from) &&
 		    this.players.some(player => player.id == from) && !this.puzzle.gameOver &&
@@ -577,34 +753,49 @@ class MultiplayerSession {
 			this.recordSupposeActivity(from, true, branch.id);
 		}
 		this.branchesChanged();
-		const result = { type: "watch-result", gameId: this.gameId, branchId: message.branchId };
-		if (from == this.playerId) this.receiveWatchResult(result);
+		const result = { type: "join-result", gameId: this.gameId, branchId: message.branchId };
+		if (from == this.playerId) this.receiveJoinResult(result);
 		else this.sendTo(from, result);
 	}
 
-	receiveWatchResult(message) {
-		if (message.gameId !== this.gameId || message.branchId !== this.watchRequest) return;
-		this.watchRequest = null;
+	receiveJoinResult(message) {
+		if (message.gameId !== this.gameId || message.branchId !== this.joinRequest) return;
+		this.joinRequest = null;
 		this.puzzle.updateSupposeControls();
 		this.onPlayersChanged(copyMessage(this.players));
 	}
 
-	branchesChanged() {
-		const branches = copyMessage([...this.branches.values()]);
-		this.refreshBranchView();
-		this.broadcast({ type: "branches", gameId: this.gameId, branches });
+	recordBranchEvent(event) {
+		if (!event || this.branchForPlayer()?.id !== event.branchId) return;
+		if (event.sound) this.puzzle.playSound(event.sound);
+		this.puzzle.recordMoveEvent("suppose-shared", { actor: event.actor, action: event.action });
 	}
 
-	receiveBranches(branches) {
+	branchesChanged(event = null) {
+		const branches = copyMessage([...this.branches.values()]);
+		this.refreshBranchView();
+		this.broadcast({ type: "branches", gameId: this.gameId, branches, event });
+		this.recordBranchEvent(event);
+	}
+
+	receiveBranches(branches, event = null) {
 		if (!Array.isArray(branches)) return;
 		this.branches = new Map(branches.map(branch => [branch.id, copyMessage(branch)]));
 		this.refreshBranchView();
-		/* Flush edits made while the host was registering our branch. */
-		this.publishSuppose();
+		this.recordBranchEvent(event);
+		this.flushBranchActions();
+	}
+
+	flushBranchActions() {
+		if (this.startingBranch && this.branchForPlayer()?.id === this.startingBranch) {
+			this.startingBranch = null;
+			const actions = this.queuedBranchActions.splice(0);
+			for (const action of actions) this.requestBranchAction(action);
+		}
 	}
 
 	/* A resync installs several related pieces of state before refreshing
-	 * the watched position and roster together. */
+	 * the branch position and roster together. */
 	refreshBranchView() {
 		if (this.updatingBranches) return;
 		for (const [id, target] of this.hovers) {
@@ -621,24 +812,40 @@ class MultiplayerSession {
 		this.updatingBranches = true;
 		try {
 			const branch = this.branchForPlayer();
-			if (branch && branch.controller != this.playerId) {
-				if (this.watchLeaving) return;
-				const changed = this.watchingBranch != branch.id || this.watchedVersion != branch.version ||
+			if (branch) {
+				if (this.leavingBranch) return;
+				const changed = this.viewingBranch != branch.id || this.branchVersion != branch.version ||
 					!this.puzzle.suppose;
-				this.watchingBranch = branch.id;
-				this.watchRequest = null;
+				this.viewingBranch = branch.id;
+				this.joinRequest = null;
 				if (changed) {
-					this.watchedVersion = branch.version;
-					const state = { ...copyMessage(branch.snapshot), parent: null, history: [], watched: true };
+					this.branchVersion = branch.version;
+					const previous = this.puzzle.suppose || this.restoringSuppose;
+					const existing = new Map();
+					for (let state = previous; state; state = state.parent) existing.set(state.prefix, state);
+					const restore = incoming => {
+						if (!incoming) return null;
+						const parent = restore(incoming.parent);
+						const state = existing.get(incoming.prefix) || {};
+						return Object.assign(state, incoming, { parent });
+					};
+					const state = restore(copyMessage(branch.state));
+					if (this.pendingSuppose) {
+						delete this.pendingSuppose.state.pending;
+						state.pending = true;
+						this.pendingSuppose.state = state;
+					}
 					state.displayed = this.puzzle.suppose?.displayed;
 					this.puzzle.clearHint();
 					this.puzzle.closeSlotTray();
 					this.puzzle.restoreSuppose(state);
 				}
-			} else if (this.watchingBranch) {
+			} else if (this.viewingBranch) {
 				this.puzzle.leaveSuppose(true);
-				this.watchingBranch = null;
-				this.watchLeaving = false;
+				this.viewingBranch = null;
+				this.leavingBranch = false;
+				if (this.pendingSuppose) delete this.pendingSuppose.state.pending;
+				this.pendingSuppose = null;
 			}
 			if (this.puzzle.suppose) this.puzzle.renderSuppose();
 			else this.puzzle.updateSupposeControls();
@@ -746,7 +953,7 @@ class MultiplayerSession {
 	}
 
 	requestAction(action) {
-		if (!this.ready || this.seed === null || this.pendingSuppose || this.replay || this.watchingBranch || this.watchRequest ||
+		if (!this.ready || this.seed === null || this.pendingSuppose || this.replay || this.viewingBranch || this.joinRequest ||
 		    this.role == "guest" && !this.hostSender)
 			return false;
 		var command = {
@@ -789,14 +996,16 @@ class MultiplayerSession {
 	receive(from, message) {
 		if (!message || typeof message.type != "string")
 			return;
-		if (this.role == "host" && message.type == "branch-watch")
-			this.receiveWatch(from, message);
-		else if (this.role == "host" && message.type == "branch-update")
-			this.receiveBranchUpdate(from, message);
-		else if (this.role == "guest" && message.type == "watch-result")
-			this.receiveWatchResult(message);
+		if (this.role == "host" && message.type == "branch-join")
+			this.receiveJoin(from, message);
+		else if (this.role == "host" && message.type == "branch-action")
+			this.receiveBranchAction(from, message);
+		else if (this.role == "guest" && message.type == "branch-result")
+			this.receiveBranchResult(message);
+		else if (this.role == "guest" && message.type == "join-result")
+			this.receiveJoinResult(message);
 		else if (this.role == "guest" && message.type == "branches" && message.gameId === this.gameId)
-			this.receiveBranches(message.branches);
+			this.receiveBranches(message.branches, message.event);
 		else if (this.role == "host" && message.type == "suppose")
 			this.receiveSuppose(from, message);
 		else if (this.role == "guest" && message.type == "suppose-activity" &&
@@ -855,7 +1064,7 @@ class MultiplayerSession {
 			Number.isInteger(message.expectedRevision) && message.expectedRevision >= 0 &&
 			message.expectedRevision <= this.revision : message.expectedRevision == this.revision;
 		if (message.gameId !== this.gameId || this.replay ||
-		    this.branchForPlayer(from)?.controller != from && !!this.branchForPlayer(from) ||
+		    !!this.branchForPlayer(from) ||
 		    !revisionOK ||
 		    !applicableAction(this.puzzle, message.action)) {
 			this.reject(from, message.commandId, "stale-or-inapplicable");
@@ -895,7 +1104,7 @@ class MultiplayerSession {
 			this.committedCommands.set(from + "\0" + commandId, commit);
 		this.recordMove(commit);
 		this.broadcast(commit);
-		this.publishSuppose();
+		this.reconcileBranches();
 		this.saveResult();
 		return commit;
 	}
@@ -925,8 +1134,9 @@ class MultiplayerSession {
 		const accepted = { actor, commandId: command.commandId };
 		this.acceptedSupposes.push(accepted);
 		this.setReplay(replay);
-		/* Acceptance closes the private branch before anybody sees its moves. */
-		this.receiveSuppose(actor, { gameId: this.gameId, active: false });
+		/* Acceptance closes the branch before anybody sees its moves. */
+		const branch = this.branchForPlayer(actor);
+		if (branch) this.closeBranch(branch);
 		const message = { type: "replay", gameId: this.gameId, replay: accepted };
 		this.committedCommands.set(actor + "\0" + command.commandId, message);
 		this.acceptSupposeReplay(accepted);
@@ -995,7 +1205,6 @@ class MultiplayerSession {
 		this.revision = message.revision;
 		this.history.push(copyMessage(message));
 		this.recordMove(message);
-		this.publishSuppose();
 		this.result = copyMessage(message.result || null);
 		this.saveResult();
 	}
@@ -1008,7 +1217,8 @@ class MultiplayerSession {
 		    (message.seed === null && message.extreme))
 			return;
 		var sameGame = message.gameId === this.gameId && message.seed === this.seed;
-		var supposition = sameGame ? this.puzzle.suppose : null;
+		this.restoringSuppose = sameGame ? this.puzzle.suppose : null;
+
 		if (!sameGame)
 			this.pendingSuppose = null;
 		var session = this;
@@ -1061,10 +1271,6 @@ class MultiplayerSession {
 		this.branches = new Map((message.branches || []).map(branch => [branch.id, copyMessage(branch)]));
 		this.updatingBranches = true;
 		this.ready = true;
-		/* Local history survives resync; watched positions come from the
-		 * host's branch snapshot in the final refresh below. */
-		if (supposition && !supposition.watched && !this.puzzle.gameOver)
-			this.puzzle.restoreSuppose(supposition);
 		if (this.pendingSuppose && [...message.history, ...(message.acceptedSupposes || [])].some(commit =>
 		    commit.commandId === this.pendingSuppose.commandId && commit.actor === this.playerId))
 			this.finishSuppose(this.pendingSuppose.commandId, true);
@@ -1072,10 +1278,17 @@ class MultiplayerSession {
 		this.receiveClock(message.clock);
 		this.receivePlayers(message.players);
 		this.updatingBranches = false;
-		this.watchedVersion = null;
-		this.watchRequest = null;
+		this.branchVersion = null;
+		this.joinRequest = null;
 		this.refreshBranchView();
-		this.publishSuppose();
+		this.restoringSuppose = null;
+		this.flushBranchActions();
+		if (!this.branchForPlayer()) {
+			this.startingBranch = null;
+			this.queuedBranchActions = [];
+		}
+		if (this.pendingSuppose?.command && this.branchForPlayer())
+			this.sendBranchRequest(this.pendingSuppose.command);
 		this.sendPlayerName();
 		this.saveResult();
 	}
@@ -1214,6 +1427,10 @@ class MultiplayerSession {
 				this.recordActivity(message.activity.actor, message.activity.action);
 			}
 			this.broadcast(message);
+			if (this.puzzle.paused && this.branchRewinds.size) {
+				for (const id of this.branchRewinds.keys()) this.cancelBranchRewind(id);
+				this.branchesChanged();
+			}
 		}
 	}
 
@@ -1270,9 +1487,13 @@ class MultiplayerSession {
 		this.peers.clear();
 		this.players = [];
 		this.recentActions.clear();
+		for (const id of this.branchRewinds.keys()) this.cancelBranchRewind(id);
+		this.branchCommands.clear();
+		this.startingBranch = null;
+		this.queuedBranchActions = [];
 		this.branches.clear();
-		this.watchingBranch = this.watchRequest = this.branchSnapshot = null;
-		this.watchLeaving = false;
+		this.viewingBranch = this.joinRequest = null;
+		this.leavingBranch = false;
 		this.hovers.clear();
 		this.onHoverChanged();
 		this.onPlayersChanged([]);

@@ -445,7 +445,9 @@ function initializePortraitClueLayout() {
 	fit();
 }
 
-/* Tentative board operations are independent of rendering and timers. */
+/* The tentative board has no DOM or timers. Both solo play and the
+ * multiplayer host use this model; the host can maintain branches it is
+ * not itself viewing. */
 class SupposeModel {
 	constructor(puzzle, state = null) {
 		this.rows = puzzle.rows;
@@ -453,6 +455,11 @@ class SupposeModel {
 		this.autoDismissClues = puzzle.autoDismissClues;
 		this.suppose = state;
 		this.sound = null;
+	}
+
+	serialize() {
+		return JSON.parse(JSON.stringify(this.suppose, (key, value) =>
+			["displayed", "pending"].includes(key) ? undefined : value));
 	}
 
 	positionInfo() {
@@ -463,6 +470,17 @@ class SupposeModel {
 			previousConflicts: preceding?.sharedConflictMessages || {},
 			nested: !!state.parent,
 		};
+	}
+
+	snapshot() {
+		const state = this.suppose;
+		const fields = ["base", "domains", "assumption", "sharedConflicts",
+			"sharedConflictMessages", "conflictDomains", "conflictTiles", "dismissed",
+			"message", "prefix", "position"];
+		return JSON.parse(JSON.stringify({
+			...Object.fromEntries(fields.map(key => [key, state[key]])),
+			...this.positionInfo(),
+		}));
 	}
 
 	enter() {
@@ -547,6 +565,17 @@ class SupposeModel {
 		parent.history[parent.position].dismissed = parent.dismissed.slice();
 		this.suppose = parent;
 		this.sound = "clue";
+	}
+
+	rewindStep() {
+		var target = this.supposeRewindTarget();
+		if (!target) return false;
+		while (this.suppose !== target.state && !this.suppose.position)
+			this.suppose = this.suppose.parent;
+		if (this.suppose !== target.state || this.suppose.position > target.position)
+			this.moveSuppose(-1);
+		this.suppose.history.length = this.suppose.position + 1;
+		return this.suppose !== target.state || this.suppose.position > target.position;
 	}
 
 	reconcile() {
@@ -2366,47 +2395,30 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		return new SupposeModel(this, state);
 	}
 
-	/* Nested, local explorations. All hypothetical moves stay in
+	/* Nested explorations. All hypothetical moves stay in
 	 * domains; Slot.value and the committed board are never modified. */
 	this.hasSupposeConflict = function() {
 		return !!this.suppose?.sharedConflicts.some(Boolean);
 	}
 
-	/* Local explorations retain history; watched ones only have the
-	 * displayed position. Keep that distinction out of display consumers. */
+	/* Metadata for the displayed step, shared by rendering and snapshots. */
 	this.supposePositionInfo = function() {
-		const state = this.suppose;
-		if (state.watched) {
-			const { label, previousConflicts, nested } = state;
-			return { label, previousConflicts, nested };
-		}
 		return this.supposeModel().positionInfo();
 	}
 
 	this.supposeSnapshot = function() {
-		/* Watchers follow the displayed position, not an independently
-		 * navigable copy of the entire exploration. Keep updates bounded. */
-		const state = this.suppose;
-		const fields = ["base", "domains", "assumption", "sharedConflicts",
-			"sharedConflictMessages", "conflictDomains", "conflictTiles", "dismissed",
-			"message", "prefix", "position"];
-		return JSON.parse(JSON.stringify({
-			...Object.fromEntries(fields.map(key => [key, state[key]])),
-			...this.supposePositionInfo(),
-		}));
-	}
-
-	this.isWatchingSuppose = function() {
-		return !!this.actionController?.watchingBranch;
+		return this.supposeModel().snapshot();
 	}
 
 	this.enterSuppose = function(button) {
-		if (this.isWatchingSuppose() || this.actionController?.watchRequest) return;
+		if (this.actionController?.joinRequest) return;
 		if (this.supposeReplay || this.gameOver || this.paused ||
 		    this.proof || this.pendingSeed !== undefined)
 			return;
 		if (this.suppose && (!this.suppose.assumption || this.suppose.pending || this.hasSupposeConflict()))
 			return;
+		if (this.suppose && this.actionController)
+			return this.actionController.requestBranchAction({ type: "nest" });
 		var parent = this.suppose;
 		this.recordMoveEvent("suppose-enter");
 		this.supposeLauncher = button || this.supposeButton;
@@ -2424,8 +2436,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.updateChalkControls();
 		this.updateActionCursor();
 		this.renderSuppose();
-		if (parent)
-			this.actionController?.publishSuppose();
 	}
 
 	this.updateSupposeControls = function() {
@@ -2435,7 +2445,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.supposeTap.hidden = !this.showActionSelector;
 		this.supposeFooter.hidden = this.supposeButton.hidden;
 		for (var button of [this.supposeButton, this.supposeTap, this.supposeFooter]) {
-			button.disabled = !!(this.isWatchingSuppose() || this.actionController?.watchRequest ||
+			button.disabled = !!(this.actionController?.joinRequest ||
 				this.gameOver || this.paused || this.proof || this.supposeReplay ||
 				this.pendingSeed !== undefined ||
 				this.suppose && (!this.suppose.assumption || this.suppose.pending || this.hasSupposeConflict()));
@@ -2455,9 +2465,12 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.applySupposeAction = function(slot, symbol, action) {
-		if (this.isWatchingSuppose() || this.actionController?.watchRequest) return;
+		if (this.actionController?.joinRequest) return;
 		if (!this.suppose || this.suppose.pending || this.hasSupposeConflict() || this.paused || this.gameOver || slot.single)
 			return;
+		if (this.actionController)
+			return this.actionController.requestBranchAction({ type: action == "remove" || action == "pencil-remove" ? "remove" : "place",
+				row: this.rows.indexOf(slot.row), column: slot.row.slots.indexOf(slot), value: symbol });
 		var row = this.rows.indexOf(slot.row), column = slot.row.slots.indexOf(slot);
 		var discard = action == "remove" || action == "pencil-remove";
 		var model = this.supposeModel();
@@ -2466,18 +2479,21 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.playSound(model.sound);
 		this.recordMoveEvent("suppose-move", { row, column, symbol, discard });
 		this.renderSuppose();
-		this.actionController?.publishSuppose();
 	}
 
 	this.toggleSupposeClue = function(clue) {
-		if (this.isWatchingSuppose() || this.actionController?.watchRequest) return;
+		if (this.actionController?.joinRequest) return;
 		if (this.paused || !this.suppose || this.suppose.pending || this.hasSupposeConflict() || !clue.active)
 			return;
+		if (this.actionController) {
+			var index = this.clues.indexOf(clue);
+			return this.actionController.requestBranchAction({ type: "clue", clue: index,
+				dismissed: !this.suppose.dismissed.includes(index) });
+		}
 		var model = this.supposeModel();
 		model.toggleSupposeClue(clue);
 		if (model.sound) this.playSound(model.sound);
 		this.renderSuppose();
-		this.actionController?.publishSuppose();
 	}
 
 	/* Only judge a clue once all of its symbols have been placed. */
@@ -2490,10 +2506,15 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.moveSuppose = function(offset) {
-		if (this.isWatchingSuppose() || this.actionController?.watchRequest) return;
+		if (this.actionController?.joinRequest) return;
 		this.cancelSupposeRewind();
 		if (!this.suppose || this.suppose.pending || this.paused)
 			return;
+		if (this.actionController) {
+			var position = Math.max(0, Math.min(this.suppose.history.length - 1, this.suppose.position + offset));
+			if (position === this.suppose.position) return;
+			return this.actionController.requestBranchAction({ type: "navigate", position });
+		}
 		var state = this.suppose;
 		var position = Math.max(0, Math.min(state.history.length - 1, state.position + offset));
 		if (position == state.position)
@@ -2502,7 +2523,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.supposeModel().moveSuppose(offset);
 		this.recordMoveEvent("suppose-rewind");
 		this.renderSuppose();
-		this.actionController?.publishSuppose();
 	}
 
 	this.supposeRewindTarget = function() {
@@ -2515,10 +2535,12 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.rewindSupposeConflict = function() {
-		if (this.isWatchingSuppose() || this.actionController?.watchRequest) return;
+		if (this.actionController?.joinRequest) return;
 		this.cancelSupposeRewind();
 		if (!this.suppose || this.suppose.pending || this.paused)
 			return;
+		if (this.actionController)
+			return this.actionController.requestBranchAction({ type: "rewind" });
 		var target = this.supposeRewindTarget();
 		if (!target)
 			return;
@@ -2641,9 +2663,10 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			if (state.dismissed.includes(index))
 				clue.display.classList.add("suppose-dismissed");
 		}
-		var watching = this.isWatchingSuppose();
+		var branch = this.actionController?.branchForPlayer();
+		var shared = branch?.participants.length > 1;
 		var message = state.pending ? "Waiting for the host to apply these moves." : state.message ||
-			(watching ? "Watching a supposition." : "Choose or discard a tile to begin your supposition.");
+			"Choose or discard a tile to begin your supposition.";
 		var sharedConflict = this.hasSupposeConflict();
 		/* Later deductions inherit the conflict, but retain their own
 		 * descriptions. Explain it at the step which introduced it. */
@@ -2655,43 +2678,69 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		else if (conflict && !sharedConflict)
 			message += " These possibilities conflict within a row.";
 		renderProofMessage(this, this.supposeControls.querySelector(".suppose-assumption"), message, false);
-		var branch = this.actionController?.branchForPlayer();
-		var controller = this.actionController?.players.find(player => player.id == branch?.controller);
-		var title = watching ? (controller?.name || "Player") + "'s Suppose" : "Suppose";
 		var position = this.supposeControls.querySelector(".proof-position");
-		position.textContent = (state.position ? title + " · Step " + info.label :
-			info.nested ? title + " · Nested" : title) + (sharedConflict ? " · Conflict" : "");
+		position.textContent = (state.position ? "· Step " + info.label :
+			info.nested ? "· Nested" : "") + (sharedConflict ? " · Conflict" : "");
+		position.hidden = !position.textContent;
 		position.title = position.textContent;
-		var watchers = branch?.participants.filter(id => id != branch.controller) || [];
+		var reminder = this.supposeControls.querySelector(".suppose-reminder");
+		reminder.hidden = !state.assumption;
+		if (state.assumption) {
+			var { row, symbol, discard } = state.assumption;
+			var tile = document.createElement("span");
+			tile.className = "proof-tile " + this.rows[row].familyClass;
+			tile.setAttribute("data-discard", String(discard));
+			renderTileSymbol(tile, this.rows[row].slots[0].symbols[symbol]);
+			reminder.replaceChildren(tile);
+			var assumptionText = proofMessageText(this, this.supposeMoveMessage(state.assumption, true));
+			reminder.title = assumptionText;
+			reminder.setAttribute("aria-label", assumptionText);
+		}
+		var watchers = branch?.participants.filter(id => id != this.actionController.playerId) || [];
 		var names = watchers.map(id => this.actionController.players.find(player => player.id == id)?.name || "Player");
 		var presence = this.supposeControls.querySelector(".suppose-watchers");
 		presence.hidden = !watchers.length;
+		var exit = this.supposeControls.querySelector(".suppose-exit");
+		exit.hidden = !shared;
+		exit.disabled = !!state.pending;
 		var eye = presence.querySelector("button");
 		if (!watchers.length) eye.setAttribute("aria-expanded", "false");
-		eye.setAttribute("aria-label", "Watching: " + names.join(", "));
-		presence.querySelector(".suppose-watcher-count").textContent = watchers.length;
-		presence.querySelector(".suppose-watcher-names").textContent = names.join(", ");
+		eye.setAttribute("aria-label", "Participating: " + names.join(", "));
+		var roster = presence.querySelector(".suppose-watcher-names");
+		roster.replaceChildren(...watchers.map((id, index) => {
+			var entry = document.createElement("span");
+			entry.className = "suppose-participant";
+			var color = document.createElement("span");
+			color.className = "suppose-participant-color";
+			color.setAttribute("aria-hidden", "true");
+			color.style.setProperty("background-color", this.actionController.colorForPlayer(id));
+			var name = document.createElement("span");
+			name.className = "suppose-participant-name";
+			name.textContent = names[index];
+			entry.append(color, name);
+			return entry;
+		}));
 		this.updateSupposeControls();
-		this.supposeControls.querySelector(".proof-previous").disabled = watching || !!state.pending || !state.position;
-		this.supposeControls.querySelector(".proof-next").disabled = watching || !!state.pending || state.position == state.history.length - 1;
-		var target = watching ? null : this.supposeRewindTarget();
+		this.supposeControls.querySelector(".proof-previous").disabled = !!state.pending || !state.position;
+		this.supposeControls.querySelector(".proof-next").disabled = !!state.pending || state.position == state.history.length - 1;
+		var target = this.supposeRewindTarget();
 		var rewind = this.supposeControls.querySelector(".suppose-rewind");
-		rewind.hidden = watching || !target;
+		rewind.hidden = !target;
 		rewind.disabled = !!state.pending;
 		if (target)
 			rewind.title = "Discard conflicting steps and return to " + (target.position ?
 				"step " + target.state.history[target.position].label :
 				"the start of the supposition");
 		var accept = this.supposeControls.querySelector(".suppose-accept");
-		accept.hidden = watching || this.hasSupposeConflict();
+		accept.hidden = this.hasSupposeConflict();
 		accept.textContent = state.parent ? "Keep moves" : "Apply moves";
 		accept.title = state.parent ? "Keep these moves in the enclosing supposition" :
 			"Apply the moves through this step to the real board";
 		accept.disabled = !!state.pending || !state.parent && !!this.actionController?.replay || !state.position && !state.dismissed.length;
-		this.supposeControls.querySelector(".suppose-reject").hidden = watching || this.hasSupposeConflict();
+		this.supposeControls.querySelector(".suppose-reject").hidden = this.hasSupposeConflict();
 		this.supposeControls.querySelector(".suppose-reject").disabled = !!state.pending || !state.parent && !!this.actionController?.replay || !state.assumption;
 		this.supposeControls.querySelector(".suppose-leave").disabled = !!state.pending;
-		this.supposeControls.querySelector(".suppose-leave").textContent = watching ? "Stop watching" : "Back out";
+		this.supposeControls.querySelector(".suppose-leave").textContent = "Back out";
 		if (this.expandedSlot)
 			this.renderSlotTray();
 	}
@@ -2711,10 +2760,12 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.acceptSuppose = async function() {
-		if (this.isWatchingSuppose() || this.actionController?.watchRequest) return;
+		if (this.actionController?.joinRequest) return;
 		if (!this.suppose || this.suppose.pending || this.hasSupposeConflict() || this.paused ||
 		    !this.suppose.parent && this.actionController?.replay)
 			return;
+		if (this.actionController)
+			return this.actionController.requestBranchAction({ type: "apply" });
 		var state = this.suppose;
 		this.recordMoveEvent("suppose-keep");
 		var steps = state.history.slice(1, state.position + 1);
@@ -2724,11 +2775,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			this.playSound("clue");
 			return;
 		}
-		if (this.actionController)
-			return this.actionController.requestAction({ type: "suppose-apply",
-				moves: steps.map(({ move }) => ({ type: move.discard ? "remove" : "place",
-					row: move.row, column: move.column, value: move.symbol })),
-				clues: state.dismissed.slice() });
 		this.leaveSuppose(true);
 		var replay = this.supposeReplay = {};
 		this.updatePauseControl();
@@ -2766,10 +2812,12 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.rejectSuppose = function() {
-		if (this.isWatchingSuppose() || this.actionController?.watchRequest) return;
+		if (this.actionController?.joinRequest) return;
 		if (!this.suppose?.assumption || this.suppose.pending || this.hasSupposeConflict() || this.paused ||
 		    !this.suppose.parent && this.actionController?.replay)
 			return;
+		if (this.actionController)
+			return this.actionController.requestBranchAction({ type: "reject" });
 		var assumption = this.suppose.assumption;
 		this.recordMoveEvent("suppose-reject", { ...assumption });
 		this.leaveSuppose();
@@ -2778,17 +2826,18 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.leaveSuppose = function(all = false) {
+		if (this.actionController?.ready && !this.actionController.updatingBranches && this.suppose)
+			return this.actionController.requestBranchAction({ type: !all && this.suppose.parent ? "back-out" : "leave" });
 		this.cancelSupposeRewind();
 		if (!this.suppose || this.suppose.pending && !all)
 			return;
 		this.recordMoveEvent("suppose-leave", { all });
 		this.closeSlotTray();
-		if (!all && !this.isWatchingSuppose() && this.suppose.parent) {
+		if (!all && this.suppose.parent) {
 			var displayed = this.suppose.displayed;
 			this.suppose = this.suppose.parent;
 			this.suppose.displayed = displayed;
 			this.renderSuppose();
-			this.actionController?.publishSuppose();
 			return;
 		}
 		this.suppose = null;

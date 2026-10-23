@@ -182,17 +182,23 @@
 				<button class="proof-previous" type="button" onClick="puzzle.moveSuppose(-1)" aria-label="Previous supposed move">←</button>
 				<div class="proof-step">
 					<div class="suppose-heading">
-						<div class="proof-position">Suppose</div>
+						<span class="suppose-label">Suppose</span>
+						<span class="suppose-reminder" role="img" hidden></span>
+						<span class="proof-position"></span>
 						<span class="suppose-watchers" hidden>
-							<button type="button" aria-label="Watchers" aria-expanded="false" aria-controls="suppose-watcher-names">
+							<button type="button" aria-label="Participants" aria-expanded="false" aria-controls="suppose-watcher-names">
 								<svg viewBox="0 0 24 16" aria-hidden="true" focusable="false">
 									<path d="M2 8Q12-3 22 8Q12 19 2 8Z"/>
 									<circle cx="12" cy="8" r="3"/>
 								</svg>
-								<span class="suppose-watcher-count"></span>
 							</button>
 							<span id="suppose-watcher-names" class="suppose-watcher-names" role="tooltip"></span>
 						</span>
+						<button class="suppose-exit" type="button" onClick="puzzle.leaveSuppose(true)" aria-label="Leave shared supposition" title="Leave this supposition without changing the group's position" hidden>
+							<svg viewBox="0 0 24 18" aria-hidden="true" focusable="false">
+								<path d="M7 4L17 14M17 4L7 14"/>
+							</svg>
+						</button>
 					</div>
 					<div class="proof-deduction suppose-assumption">Choose or discard a tile to begin your supposition.</div>
 					<div class="suppose-actions">

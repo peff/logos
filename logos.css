@@ -821,7 +821,7 @@ body[data-chalk-cursor="true"][data-discard-cursor="true"]:not([data-custom-curs
 	text-underline-offset: 0.1em;
 }
 
-.proof-position {
+.proof-position, .suppose-label {
 	color: #74191d;
 	font: 600 0.62rem/1 Forum, Georgia, serif;
 	letter-spacing: 0.05em;
@@ -4120,15 +4120,31 @@ body.suppose-active #board .possibility { transition: opacity 180ms ease; }
 	min-width: 0;
 	position: relative;
 }
+.suppose-label { flex: none; }
 .suppose-heading .proof-position {
 	min-width: 0;
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
 }
+.suppose-reminder { display: inline-flex; flex: none; }
+.suppose-reminder[hidden] { display: none; }
+.suppose-reminder .proof-tile { position: relative; margin: 0; }
+.suppose-reminder .proof-tile[data-discard="true"]::after {
+	content: "";
+	position: absolute;
+	width: 2px;
+	height: 90%;
+	top: 5%;
+	left: calc(50% - 1px);
+	border-radius: 45%;
+	background: rgb(240 232 211 / 88%);
+	transform: rotate(38deg);
+}
 .suppose-watchers { flex: none; }
 .suppose-watchers[hidden] { display: none; }
-#suppose-controls .suppose-watchers button {
+#suppose-controls .suppose-watchers button,
+#suppose-controls .suppose-exit {
 	display: flex;
 	align-items: center;
 	gap: 0.12rem;
@@ -4143,6 +4159,28 @@ body.suppose-active #board .possibility { transition: opacity 180ms ease; }
 	touch-action: none;
 	user-select: none;
 	-webkit-touch-callout: none;
+}
+#suppose-controls .suppose-exit {
+	flex: none;
+	margin-left: -0.3rem;
+	/* Let the hit padding extend beyond the title's line box. */
+	margin-block: -0.2rem;
+	padding: 0.2rem;
+	touch-action: manipulation;
+}
+#suppose-controls .suppose-exit[hidden] { display: none; }
+.suppose-exit svg {
+	width: 0.85rem;
+	height: 0.62rem;
+	fill: none;
+	stroke: currentColor;
+	stroke-width: 1.6;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+}
+#suppose-controls .suppose-exit:focus-visible {
+	outline: 2px solid #cfb779;
+	outline-offset: 1px;
 }
 #suppose-controls .suppose-watchers button::before {
 	content: "·";
@@ -4174,6 +4212,20 @@ body.suppose-active #board .possibility { transition: opacity 180ms ease; }
 	font: 0.65rem/1.2 sans-serif;
 	overflow-wrap: anywhere;
 }
+.suppose-participant {
+	display: flex;
+	align-items: center;
+	gap: 0.22rem;
+	text-align: left;
+}
+.suppose-participant + .suppose-participant { margin-top: 0.18rem; }
+.suppose-participant-color {
+	flex: none;
+	width: 0.4rem;
+	height: 0.4rem;
+	border-radius: 50%;
+}
+.suppose-participant-name { min-width: 0; }
 .suppose-watchers button[data-hover="true"] + .suppose-watcher-names,
 .suppose-watchers button[aria-expanded="true"] + .suppose-watcher-names { display: block; }
 .friends-roster-event button.friends-roster-action {

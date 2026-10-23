@@ -67,14 +67,16 @@ consistent position and leaving nested branches if necessary. Pausing or
 manually navigating history stops the animation; click Rewind again to
 continue. The title marks conflicting positions;
 the step that introduces a conflict explains it, while later steps retain
-their original descriptions. Later shared moves can reveal additional
+their original descriptions. The heading keeps a small tile reminder of the
+current level’s initial assumption, with a discard slash when appropriate.
+Its tooltip includes the column. Later shared moves can reveal additional
 conflicting tiles, including within an already conflicting row. Each update
 that reveals new conflicts plays the gentle Zen mistake sound when sound
 effects are enabled. Shared placements remain visible; discarded tiles involved in a conflict appear as faded markers
 and cannot be played. Shared moves continue updating the committed board even
 after a conflict, so backing out always returns to the current shared position.
-**Apply moves** sends the explored moves to the host as a batch. On acceptance,
-the player leaves Suppose to watch the shared board. The host replays the moves
+**Apply moves** asks the host to apply the current exploration. On acceptance,
+all participants return to the shared board. The host replays the moves
 with a 300 ms delay between them, skips moves already resolved on the shared
 board, and stops at the first mistake (also in Zen mode). Shared board edits
 are blocked during replay, but pointing and private exploration remain
@@ -84,7 +86,7 @@ Late joiners receive the current board and follow the remaining moves.
 Players in the same supposition share hover highlights with each other. These
 stay within the branch, while highlights from the shared board remain visible
 to everyone. The multiplayer log marks entry into and
-exit from Suppose with a fork and a slashed fork. Nested branches stay private;
+exit from Suppose with a fork and a slashed fork. Nested branches stay within the supposition;
 an accepted Apply logs the exit before its replayed moves.
 
 Other players continue on their own boards. While application is pending, the
@@ -94,24 +96,32 @@ a proof can prevent application. Resyncing the same game preserves branches
 and recovers missed acknowledgments. A new game or ending multiplayer closes
 private branches.
 
-From the shared board, click a player's active fork tile to watch their
-supposition. Watchers also get a fork tile; clicking either participant's fork
-joins the same branch. Historical forks are not join links. You must leave
-your own supposition before watching another one.
+From the shared board, click a player's active fork tile to join their
+supposition. Every participant has a fork tile leading to the same branch;
+historical forks are not join links. You must leave your current supposition
+before joining another one.
 
-Watching follows the controller's current step, nested branches, clue
-dismissals, shared conflicts, and rewinds. This first version is read-only:
-only the controller can change the branch, navigate its history, or Apply or
-Reject it. Watchers can stop watching independently. If the controller leaves
-or disconnects, everyone returns to the shared board; an accepted Apply
-returns everyone before the shared replay starts. A rejected Apply keeps the
-branch open. Resync preserves participation.
-
-The watched panel is titled with the controller's name. An SVG eye and count
-show how many people are watching; hover or press and hold for their names.
+Participants are equals: tentative moves, clue dismissals, history navigation,
+nesting, and conflict rewinds all change one shared state. **Apply moves** and
+**Reject** resolve it for everyone (or keep/reject an inner supposition into
+its parent). **Back out** abandons the current nested supposition for everyone,
+returning to its parent just as in local play. At the outermost level it leaves
+your participation. The X beside the eye leaves the group at any depth
+without changing the others' position. The branch survives until its last
+participant leaves or disconnects. The panel keeps its **Suppose** title. The eye
+identifies a shared group; hover or press and hold for a compact roster of the
+other participants, with a dot beside each name matching their cursor color.
 Keyboard users can hold Space or Enter while the eye button is focused.
-Branch identity and participation are separate from control permission, so
-future versions can allow participants to edit the same branch as equals.
+When only one participant remains, the group controls disappear; the exploration and its history are preserved.
+
+The host retains the full history and orders branch commands. Independent
+concurrent tentative moves can both take effect. Navigation, nesting, Apply,
+and Reject require the branch version the requester saw; a stale request
+leaves the current exploration intact and asks the player to review it before
+trying again. Commands are deduplicated, so retries cannot replay an action.
+Resync restores the host's history and participation, including an ongoing
+conflict rewind. The host runs that animation; pausing or navigating stops it
+for everyone. Large history messages are split into ordered WebRTC fragments.
 
 The host’s practice mode and continue-after-loss preferences apply to the
 shared game. With continuation enabled, a mistake switches everyone to
