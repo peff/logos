@@ -104,12 +104,53 @@ function connectionDescription(peer) {
 	};
 }
 
-function parseChannelMessage(event) {
-	try {
-		return JSON.parse(event.data);
-	} catch (e) {
-		return null;
+/* Ordered data channels let us split large history snapshots without
+ * interleaving their fragments. Bound each frame even for non-ASCII text. */
+const channelFragmentSize = 4096;
+function sendChannelMessage(channel, message) {
+	const text = JSON.stringify(message);
+	if (text.length <= channelFragmentSize) {
+		channel.send(text);
+		return;
 	}
+	const count = Math.ceil(text.length / channelFragmentSize);
+	for (let index = 0; index < count; index++)
+		channel.send(JSON.stringify({ type: "fragment", index, count,
+			text: text.slice(index * channelFragmentSize, (index + 1) * channelFragmentSize) }));
+}
+
+function channelMessageReader() {
+	let fragments = [], count = 0;
+	return event => {
+		try {
+			const message = JSON.parse(event.data);
+			if (message?.type !== "fragment") {
+				fragments = [];
+				return message;
+			}
+			if (message.index === 0) {
+				fragments = [];
+				count = message.count;
+			}
+			if (!Number.isInteger(count) || count < 1 || count > 8192 ||
+			    message.count !== count || message.index !== fragments.length ||
+			    typeof message.text !== "string" || message.text.length > channelFragmentSize) {
+				fragments = [];
+				count = 0;
+				return null;
+			}
+			fragments.push(message.text);
+			if (fragments.length !== count) return null;
+			const text = fragments.join("");
+			fragments = [];
+			count = 0;
+			return JSON.parse(text);
+		} catch (e) {
+			fragments = [];
+			count = 0;
+			return null;
+		}
+	};
 }
 
 class WebRTCHostTransport {
@@ -208,12 +249,13 @@ class WebRTCHostTransport {
 			transport.connected.set(record.playerId, record);
 			transport.clearFailure(record);
 			transport.session.addPeer(record.playerId, function(message) {
-				record.channel.send(JSON.stringify(message));
+				sendChannelMessage(record.channel, message);
 			}, record.playerName);
 			transport.changed("connected", record);
 		};
+		const readMessage = channelMessageReader();
 		record.channel.onmessage = function(event) {
-			var message = parseChannelMessage(event);
+			var message = readMessage(event);
 			if (message?.type == "leave") {
 				record.intentionalDeparture = true;
 				transport.drop(record, "closed");
@@ -355,15 +397,16 @@ class WebRTCGuestTransport {
 	prepareChannel() {
 		var transport = this;
 		this.session.connectHost(function(message) {
-			transport.channel.send(JSON.stringify(message));
+			sendChannelMessage(transport.channel, message);
 		});
 		this.channel.onopen = function() {
 			transport.clearFailure();
 			transport.connected = true;
 			transport.onChange({ state: "connected", connected: true });
 		};
+		const readMessage = channelMessageReader();
 		this.channel.onmessage = function(event) {
-			var message = parseChannelMessage(event);
+			var message = readMessage(event);
 			if (message)
 				transport.session.receive(transport.hostId, message);
 		};

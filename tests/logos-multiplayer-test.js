@@ -422,6 +422,7 @@ function fakeWebRTCFactory(options) {
 		send(data) {
 			if (this.readyState != "open")
 				throw new Error("sent on a closed data channel");
+			assert(new TextEncoder().encode(data).length <= 16384, "oversized data-channel frame");
 			if (this.peer.onmessage)
 				this.peer.onmessage({ data });
 		}
@@ -620,6 +621,21 @@ Deno.test("WebRTC transports connect sessions through offer and answer", async f
 	assert(host.session.revision == 1 && guest.session.revision == 1 &&
 	       boardState(host.puzzle) == boardState(guest.puzzle),
 	       "the WebRTC data channel did not carry the guest move");
+	const large = { type: "test-history", text: "tiles: 🏛️ ".repeat(10000) };
+	const receiveHost = host.session.receive, receiveGuest = guest.session.receive;
+	const delivered = [];
+	try {
+		host.session.receive = (from, message) => delivered.push(message);
+		guest.session.receive = (from, message) => delivered.push(message);
+		host.session.sendTo("guest-id", large);
+		guest.session.hostSender(large);
+		assert(delivered.length === 2 && delivered.every(message => JSON.stringify(message) === JSON.stringify(large)),
+		       "large Unicode history did not survive channel fragmentation");
+	} finally {
+		host.session.receive = receiveHost;
+		guest.session.receive = receiveGuest;
+	}
+
 	factory.peers[0].setConnectionState("disconnected");
 	assert(host.session.players[1].state == "interrupted",
 	       "the transport did not mark the interrupted guest");
