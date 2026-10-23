@@ -445,6 +445,240 @@ function initializePortraitClueLayout() {
 	fit();
 }
 
+/* Tentative board operations are independent of rendering and timers. */
+class SupposeModel {
+	constructor(puzzle, state = null) {
+		this.rows = puzzle.rows;
+		this.clues = puzzle.clues;
+		this.autoDismissClues = puzzle.autoDismissClues;
+		this.suppose = state;
+		this.sound = null;
+	}
+
+	positionInfo() {
+		const state = this.suppose;
+		const preceding = state.position ? state.history[state.position - 1] : state.parent;
+		return {
+			label: state.history[state.position].label,
+			previousConflicts: preceding?.sharedConflictMessages || {},
+			nested: !!state.parent,
+		};
+	}
+
+	enter() {
+		var parent = this.suppose;
+		var base = parent ? parent.base : domainsFromSlots(this);
+		this.suppose = { base, parent,
+			prefix: parent ? parent.history[parent.position].label + "." : "",
+			domains: copyDomains(parent ? parent.domains : base), assumption: null,
+			sharedConflicts: parent ? parent.sharedConflicts.slice() : [],
+			sharedConflictMessages: { ...parent?.sharedConflictMessages },
+			conflictDomains: [],
+			conflictTiles: parent ? copyDomains(parent.conflictTiles) : base.map(row => row.map(() => 0)),
+			displayed: parent?.displayed,
+			dismissed: parent ? parent.dismissed.slice() : [],
+			history: [], position: -1, message: null };
+		this.saveSupposeStep();
+	}
+
+	applySupposeAction(slot, symbol, action) {
+		var row = this.rows.indexOf(slot.row), column = slot.row.slots.indexOf(slot);
+		var domains = this.suppose.domains, bit = 1 << column;
+		if (!(domains[row][symbol] & bit) || domains[row][symbol] === bit)
+			return;
+		var discard = action == "remove" || action == "pencil-remove";
+		var first = !this.suppose.assumption;
+		if (first)
+			this.suppose.assumption = { row, column, symbol, discard };
+		this.suppose.message = this.supposeMoveMessage({ row, column, symbol, discard }, first);
+		var before = domains[row].slice();
+		applyPencilMark(domains[row], { slot, value: symbol, discard });
+		propagatePencilRow(domains[row]);
+		var placed = domains[row].some((bits, v) => bits && !(bits & (bits - 1)) &&
+			bits != before[v]);
+		this.sound = placed ? "place" : "discard";
+		this.dismissSupposeClues();
+		this.saveSupposeStep({ row, column, symbol, discard });
+	}
+
+	toggleSupposeClue(clue) {
+		var index = this.clues.indexOf(clue), dismissed = this.suppose.dismissed;
+		if (dismissed.includes(index))
+			this.suppose.dismissed = dismissed.filter(i => i !== index);
+		else {
+			dismissed.push(index);
+			this.sound = "clue";
+		}
+		/* Clue bookkeeping belongs to this position, not a new proof step. */
+		this.suppose.history[this.suppose.position].dismissed = this.suppose.dismissed.slice();
+	}
+
+	moveSuppose(offset) {
+		var state = this.suppose;
+		var position = Math.max(0, Math.min(state.history.length - 1, state.position + offset));
+		if (position == state.position)
+			return;
+		var step = state.history[position];
+		Object.assign(state, { position, domains: copyDomains(step.domains),
+			sharedConflicts: step.sharedConflicts.slice(),
+			sharedConflictMessages: { ...step.sharedConflictMessages },
+			conflictDomains: step.conflictDomains.map(row => row?.slice()),
+			conflictTiles: copyDomains(step.conflictTiles),
+			assumption: step.assumption, dismissed: step.dismissed.slice(), message: step.message });
+	}
+
+	keep() {
+		var state = this.suppose;
+		var steps = state.history.slice(1, state.position + 1);
+		var parent = state.parent;
+		parent.history.length = parent.position + 1;
+		for (var step of steps)
+			parent.history.push({ ...step, assumption: parent.assumption,
+				label: parent.prefix + parent.history.length,
+				message: this.supposeMoveMessage(step.move) });
+		parent.position = parent.history.length - 1;
+		parent.domains = copyDomains(state.domains);
+		parent.sharedConflicts = state.sharedConflicts.slice();
+		parent.sharedConflictMessages = { ...state.sharedConflictMessages };
+		parent.conflictDomains = state.conflictDomains.map(row => row?.slice());
+		parent.conflictTiles = copyDomains(state.conflictTiles);
+		parent.dismissed = state.dismissed.slice();
+		parent.message = parent.history[parent.position].message;
+		parent.history[parent.position].dismissed = parent.dismissed.slice();
+		this.suppose = parent;
+		this.sound = "clue";
+	}
+
+	reconcile() {
+		var base = domainsFromSlots(this);
+		var merge = position => {
+			position.domains = position.domains.map((row, r) => {
+				var merged = row.map((bits, v) => bits & base[r][v]);
+				var conflict = propagatePencilRow(merged);
+				if (!position.conflictDomains[r]) {
+					if (!conflict || propagatePencilRow(row.slice()))
+						return merged;
+					/* Keep the tentative row as evidence. The displayed
+					 * domains continue following the shared board, but
+					 * must not erase guesses contradicted by later moves. */
+					position.conflictDomains[r] = row.slice();
+					position.sharedConflicts[r] = true;
+				}
+				var tentativeRow = position.conflictDomains[r];
+				var combined = tentativeRow.map((bits, v) => bits & base[r][v]);
+				propagatePencilRow(combined);
+				var mark = (v, bits, action, explanation, placementMessage = null) => {
+					position.conflictTiles[r][v] |= bits;
+					for (var c = 0; c < row.length; c++) {
+						if (!(bits & (1 << c)))
+							continue;
+						var key = r + ":" + v + ":" + c;
+						if (placementMessage)
+							position.sharedConflictMessages[key] = placementMessage;
+						else
+							position.sharedConflictMessages[key] ||=
+								"Another player " + action + " " + proofSymbolReference(this, r, v) +
+								(action == "placed" ? " in" : " from") + " column " + (c + 1) +
+								"; " + explanation;
+					}
+				};
+				for (var v = 0; v < row.length; v++) {
+					var tentative = tentativeRow[v], shared = base[r][v];
+					if (tentative && !(tentative & (tentative - 1)) &&
+					    shared && !(shared & (shared - 1)) && tentative != shared) {
+						var message = "You placed " + proofSymbolReference(this, r, v) +
+							" in column " + (Math.log2(tentative) + 1) +
+							"; another player placed it in column " + (Math.log2(shared) + 1) + ".";
+						mark(v, tentative | shared, null, null, message);
+						continue;
+					}
+					if (tentative && !(tentative & (tentative - 1)) && !(tentative & shared))
+						mark(v, tentative, "discarded", "you had placed it there.");
+					if (shared && !(shared & (shared - 1)) && !(tentative & shared))
+						mark(v, shared, "placed", "you had discarded it there.");
+				}
+				/* Exhausting a domain does not mean each former candidate
+				 * was a supposed placement. Only outline the definite
+				 * placement/discard contradictions above. */
+				if (!position.conflictTiles[r].some(Boolean)) {
+					var symbol = combined.findIndex(bits => !bits);
+					position.sharedConflictMessages[r + ":row"] ||= symbol >= 0 ?
+						"Another player's moves leave no place for " +
+						proofSymbolReference(this, r, symbol) + " in your supposition." :
+						"Another player's moves conflict with this row's supposed possibilities.";
+				}
+				return merged;
+			});
+		};
+		for (var state = this.suppose; state; state = state.parent) {
+			state.base = base;
+			merge(state);
+			for (var step of state.history)
+				merge(step);
+			/* Shared actions may have repainted hypothetical tiles. */
+			state.displayed = null;
+		}
+	}
+
+	saveSupposeStep(move = null) {
+		var state = this.suppose;
+		state.history.length = state.position + 1;
+		var label = state.prefix + (state.position + 1);
+		state.history.push({ label, domains: copyDomains(state.domains),
+			sharedConflicts: state.sharedConflicts.slice(),
+			sharedConflictMessages: { ...state.sharedConflictMessages },
+			conflictDomains: state.conflictDomains.map(row => row?.slice()),
+			conflictTiles: copyDomains(state.conflictTiles),
+			assumption: state.assumption, dismissed: state.dismissed.slice(),
+			message: state.message, move });
+		state.position++;
+	}
+
+	supposeMoveMessage({ row, column, symbol, discard }, first = false) {
+		return (first ? "Suppose " : discard ? "Discard " : "Place ") +
+			proofSymbolReference(this, row, symbol) +
+			(first ? (discard ? " is not in column " : " is in column ") :
+			 discard ? " from column " : " in column ") + (column + 1) + ".";
+	}
+
+	supposeClueSatisfied(clue) {
+		var domains = this.suppose.domains;
+		var variables = clueSlots(clue).map(slot => ({
+			row: this.rows.indexOf(slot.row), symbol: slot.value,
+		}));
+		if (!variables.length || !variables.every(({ row, symbol }) => {
+			var bits = domains[row][symbol];
+			return bits && !(bits & (bits - 1));
+		}))
+			return null;
+		var trial = copyDomains(domains);
+		clue.constrain(trial, (1 << trial[0].length) - 1);
+		return variables.every(({ row, symbol }) => trial[row][symbol] != 0);
+	}
+
+	dismissSupposeClues() {
+		if (!this.autoDismissClues)
+			return;
+		var state = this.suppose;
+		for (var [index, clue] of this.clues.entries()) {
+			if (!clue.display || !clue.active || state.dismissed.includes(index))
+				continue;
+			if (this.supposeClueSatisfied(clue) === true)
+				state.dismissed.push(index);
+		}
+	}
+
+	supposeRewindTarget() {
+		if (!this.suppose?.sharedConflicts.some(Boolean))
+			return null;
+		for (var state = this.suppose; state; state = state.parent)
+			for (var position = state.position; position >= 0; position--)
+				if (!state.history[position].domains.some(row => propagatePencilRow(row.slice())))
+					return { state, position };
+		return null;
+	}
+}
+
 function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		options, optionsButton, help, helpButton, scores, scoresButton,
 		about, logoButton) {
@@ -2128,6 +2362,10 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.showProofPosition();
 	}
 
+	this.supposeModel = function(state = this.suppose) {
+		return new SupposeModel(this, state);
+	}
+
 	/* Nested, local explorations. All hypothetical moves stay in
 	 * domains; Slot.value and the committed board are never modified. */
 	this.hasSupposeConflict = function() {
@@ -2142,12 +2380,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			const { label, previousConflicts, nested } = state;
 			return { label, previousConflicts, nested };
 		}
-		const preceding = state.position ? state.history[state.position - 1] : state.parent;
-		return {
-			label: state.history[state.position].label,
-			previousConflicts: preceding?.sharedConflictMessages || {},
-			nested: !!state.parent,
-		};
+		return this.supposeModel().positionInfo();
 	}
 
 	this.supposeSnapshot = function() {
@@ -2180,18 +2413,9 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.clearHint();
 		this.clearPracticeMistake();
 		this.closeSlotTray();
-		var base = parent ? parent.base : domainsFromSlots(this);
-		this.suppose = { base, parent,
-			prefix: parent ? parent.history[parent.position].label + "." : "",
-			domains: copyDomains(parent ? parent.domains : base), assumption: null,
-			sharedConflicts: parent ? parent.sharedConflicts.slice() : [],
-			sharedConflictMessages: { ...parent?.sharedConflictMessages },
-			conflictDomains: [],
-			conflictTiles: parent ? copyDomains(parent.conflictTiles) : base.map(row => row.map(() => 0)),
-			displayed: parent?.displayed,
-			dismissed: parent ? parent.dismissed.slice() : [],
-			history: [], position: -1, message: null };
-		this.saveSupposeStep();
+		var model = this.supposeModel();
+		model.enter();
+		this.suppose = model.suppose;
 		document.body.classList.add("suppose-active");
 		this.actionController?.requestHover(null);
 		if (!parent)
@@ -2223,24 +2447,11 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.saveSupposeStep = function(move = null) {
-		var state = this.suppose;
-		state.history.length = state.position + 1;
-		var label = state.prefix + (state.position + 1);
-		state.history.push({ label, domains: copyDomains(state.domains),
-			sharedConflicts: state.sharedConflicts.slice(),
-			sharedConflictMessages: { ...state.sharedConflictMessages },
-			conflictDomains: state.conflictDomains.map(row => row?.slice()),
-			conflictTiles: copyDomains(state.conflictTiles),
-			assumption: state.assumption, dismissed: state.dismissed.slice(),
-			message: state.message, move });
-		state.position++;
+		return this.supposeModel().saveSupposeStep(move);
 	}
 
 	this.supposeMoveMessage = function({ row, column, symbol, discard }, first = false) {
-		return (first ? "Suppose " : discard ? "Discard " : "Place ") +
-			proofSymbolReference(this, row, symbol) +
-			(first ? (discard ? " is not in column " : " is in column ") :
-			 discard ? " from column " : " in column ") + (column + 1) + ".";
+		return this.supposeModel().supposeMoveMessage({ row, column, symbol, discard }, first);
 	}
 
 	this.applySupposeAction = function(slot, symbol, action) {
@@ -2248,22 +2459,11 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		if (!this.suppose || this.suppose.pending || this.hasSupposeConflict() || this.paused || this.gameOver || slot.single)
 			return;
 		var row = this.rows.indexOf(slot.row), column = slot.row.slots.indexOf(slot);
-		var domains = this.suppose.domains, bit = 1 << column;
-		if (!(domains[row][symbol] & bit) || domains[row][symbol] === bit)
-			return;
 		var discard = action == "remove" || action == "pencil-remove";
-		var first = !this.suppose.assumption;
-		if (first)
-			this.suppose.assumption = { row, column, symbol, discard };
-		this.suppose.message = this.supposeMoveMessage({ row, column, symbol, discard }, first);
-		var before = domains[row].slice();
-		applyPencilMark(domains[row], { slot, value: symbol, discard });
-		propagatePencilRow(domains[row]);
-		var placed = domains[row].some((bits, v) => bits && !(bits & (bits - 1)) &&
-			bits != before[v]);
-		this.playSound(placed ? "place" : "discard");
-		this.dismissSupposeClues();
-		this.saveSupposeStep({ row, column, symbol, discard });
+		var model = this.supposeModel();
+		model.applySupposeAction(slot, symbol, action);
+		if (!model.sound) return;
+		this.playSound(model.sound);
 		this.recordMoveEvent("suppose-move", { row, column, symbol, discard });
 		this.renderSuppose();
 		this.actionController?.publishSuppose();
@@ -2273,45 +2473,20 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		if (this.isWatchingSuppose() || this.actionController?.watchRequest) return;
 		if (this.paused || !this.suppose || this.suppose.pending || this.hasSupposeConflict() || !clue.active)
 			return;
-		var index = this.clues.indexOf(clue), dismissed = this.suppose.dismissed;
-		if (dismissed.includes(index))
-			this.suppose.dismissed = dismissed.filter(i => i !== index);
-		else {
-			dismissed.push(index);
-			this.playSound("clue");
-		}
-		/* Clue bookkeeping belongs to this position, not a new proof step. */
-		this.suppose.history[this.suppose.position].dismissed = this.suppose.dismissed.slice();
+		var model = this.supposeModel();
+		model.toggleSupposeClue(clue);
+		if (model.sound) this.playSound(model.sound);
 		this.renderSuppose();
 		this.actionController?.publishSuppose();
 	}
 
 	/* Only judge a clue once all of its symbols have been placed. */
 	this.supposeClueSatisfied = function(clue) {
-		var domains = this.suppose.domains;
-		var variables = clueSlots(clue).map(slot => ({
-			row: this.rows.indexOf(slot.row), symbol: slot.value,
-		}));
-		if (!variables.length || !variables.every(({ row, symbol }) => {
-			var bits = domains[row][symbol];
-			return bits && !(bits & (bits - 1));
-		}))
-			return null;
-		var trial = copyDomains(domains);
-		clue.constrain(trial, (1 << trial[0].length) - 1);
-		return variables.every(({ row, symbol }) => trial[row][symbol] != 0);
+		return this.supposeModel().supposeClueSatisfied(clue);
 	}
 
 	this.dismissSupposeClues = function() {
-		if (!this.autoDismissClues)
-			return;
-		var state = this.suppose;
-		for (var [index, clue] of this.clues.entries()) {
-			if (!clue.display || !clue.active || state.dismissed.includes(index))
-				continue;
-			if (this.supposeClueSatisfied(clue) === true)
-				state.dismissed.push(index);
-		}
+		return this.supposeModel().dismissSupposeClues();
 	}
 
 	this.moveSuppose = function(offset) {
@@ -2324,26 +2499,14 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		if (position == state.position)
 			return;
 		this.closeSlotTray();
-		var step = state.history[position];
-		Object.assign(state, { position, domains: copyDomains(step.domains),
-			sharedConflicts: step.sharedConflicts.slice(),
-			sharedConflictMessages: { ...step.sharedConflictMessages },
-			conflictDomains: step.conflictDomains.map(row => row?.slice()),
-			conflictTiles: copyDomains(step.conflictTiles),
-			assumption: step.assumption, dismissed: step.dismissed.slice(), message: step.message });
+		this.supposeModel().moveSuppose(offset);
 		this.recordMoveEvent("suppose-rewind");
 		this.renderSuppose();
 		this.actionController?.publishSuppose();
 	}
 
 	this.supposeRewindTarget = function() {
-		if (!this.suppose?.sharedConflicts.some(Boolean))
-			return null;
-		for (var state = this.suppose; state; state = state.parent)
-			for (var position = state.position; position >= 0; position--)
-				if (!state.history[position].domains.some(row => propagatePencilRow(row.slice())))
-					return { state, position };
-		return null;
+		return this.supposeModel().supposeRewindTarget();
 	}
 
 	this.cancelSupposeRewind = function() {
@@ -2390,74 +2553,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		if (!this.suppose)
 			return;
 		var oldConflicts = Object.keys(this.suppose.sharedConflictMessages).length;
-		var base = domainsFromSlots(this);
-		var merge = position => {
-			position.domains = position.domains.map((row, r) => {
-				var merged = row.map((bits, v) => bits & base[r][v]);
-				var conflict = propagatePencilRow(merged);
-				if (!position.conflictDomains[r]) {
-					if (!conflict || propagatePencilRow(row.slice()))
-						return merged;
-					/* Keep the tentative row as evidence. The displayed
-					 * domains continue following the shared board, but
-					 * must not erase guesses contradicted by later moves. */
-					position.conflictDomains[r] = row.slice();
-					position.sharedConflicts[r] = true;
-				}
-				var tentativeRow = position.conflictDomains[r];
-				var combined = tentativeRow.map((bits, v) => bits & base[r][v]);
-				propagatePencilRow(combined);
-				var mark = (v, bits, action, explanation, placementMessage = null) => {
-					position.conflictTiles[r][v] |= bits;
-					for (var c = 0; c < row.length; c++) {
-						if (!(bits & (1 << c)))
-							continue;
-						var key = r + ":" + v + ":" + c;
-						if (placementMessage)
-							position.sharedConflictMessages[key] = placementMessage;
-						else
-							position.sharedConflictMessages[key] ||=
-								"Another player " + action + " " + proofSymbolReference(this, r, v) +
-								(action == "placed" ? " in" : " from") + " column " + (c + 1) +
-								"; " + explanation;
-					}
-				};
-				for (var v = 0; v < row.length; v++) {
-					var tentative = tentativeRow[v], shared = base[r][v];
-					if (tentative && !(tentative & (tentative - 1)) &&
-					    shared && !(shared & (shared - 1)) && tentative != shared) {
-						var message = "You placed " + proofSymbolReference(this, r, v) +
-							" in column " + (Math.log2(tentative) + 1) +
-							"; another player placed it in column " + (Math.log2(shared) + 1) + ".";
-						mark(v, tentative | shared, null, null, message);
-						continue;
-					}
-					if (tentative && !(tentative & (tentative - 1)) && !(tentative & shared))
-						mark(v, tentative, "discarded", "you had placed it there.");
-					if (shared && !(shared & (shared - 1)) && !(tentative & shared))
-						mark(v, shared, "placed", "you had discarded it there.");
-				}
-				/* Exhausting a domain does not mean each former candidate
-				 * was a supposed placement. Only outline the definite
-				 * placement/discard contradictions above. */
-				if (!position.conflictTiles[r].some(Boolean)) {
-					var symbol = combined.findIndex(bits => !bits);
-					position.sharedConflictMessages[r + ":row"] ||= symbol >= 0 ?
-						"Another player's moves leave no place for " +
-						proofSymbolReference(this, r, symbol) + " in your supposition." :
-						"Another player's moves conflict with this row's supposed possibilities.";
-				}
-				return merged;
-			});
-		};
-		for (var state = this.suppose; state; state = state.parent) {
-			state.base = base;
-			merge(state);
-			for (var step of state.history)
-				merge(step);
-			/* Shared actions may have repainted hypothetical tiles. */
-			state.displayed = null;
-		}
+		this.supposeModel().reconcile();
 		if (Object.keys(this.suppose.sharedConflictMessages).length > oldConflicts)
 			this.playSound("practice-mistake");
 		this.renderSuppose();
@@ -2623,21 +2719,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.recordMoveEvent("suppose-keep");
 		var steps = state.history.slice(1, state.position + 1);
 		if (state.parent) {
-			var parent = state.parent;
-			parent.history.length = parent.position + 1;
-			for (var step of steps)
-				parent.history.push({ ...step, assumption: parent.assumption,
-					label: parent.prefix + parent.history.length,
-					message: this.supposeMoveMessage(step.move) });
-			parent.position = parent.history.length - 1;
-			parent.domains = copyDomains(state.domains);
-			parent.sharedConflicts = state.sharedConflicts.slice();
-			parent.sharedConflictMessages = { ...state.sharedConflictMessages };
-			parent.conflictDomains = state.conflictDomains.map(row => row?.slice());
-			parent.conflictTiles = copyDomains(state.conflictTiles);
-			parent.dismissed = state.dismissed.slice();
-			parent.message = parent.history[parent.position].message;
-			parent.history[parent.position].dismissed = parent.dismissed.slice();
+			this.supposeModel().keep();
 			this.leaveSuppose();
 			this.playSound("clue");
 			return;
