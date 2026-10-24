@@ -1621,10 +1621,9 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			var rating = this.extremeDifficulty();
 			display.innerHTML = "Extreme " + extremeSkulls(rating);
 			display.disabled = false;
-			display.title = (rating.stalled ? "Beyond single-choice deductions" :
+			display.title = rating.stalled ? "Beyond single-choice deductions" :
 				rating.complete ? "Extreme score: " + rating.score.toFixed(0) :
-				"Extreme rating unavailable") +
-				(this.analysisUnlocked ? ". Puzzle analysis" : "");
+				"Extreme rating unavailable";
 			return;
 		}
 		if (!this.seedDifficultyCache || this.seedDifficultyCache.seed !== seed)
@@ -1632,7 +1631,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		var level = this.seedDifficultyCache.difficulty.level;
 		display.textContent = "Difficulty: " + level[0].toUpperCase() + level.slice(1);
 		display.disabled = false;
-		display.title = this.analysisUnlocked ? "Puzzle analysis" : "";
 	}
 
 	this.positionSnapshot = function() {
