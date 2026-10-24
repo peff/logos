@@ -1709,7 +1709,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		var snapshot = this.positionSnapshot();
 		var metrics = this.extreme ? null : measureDifficulty(this);
 		var rating = metrics ? difficultyRating(metrics) : null;
-		var available = difficultyOpportunities(this, snapshot.domains);
 		var extremeRating = this.extreme ? this.extremeDifficulty() : null;
 		this.analysisSnapshot = JSON.stringify(snapshot);
 		this.analysis.querySelector(".analysis-summary").textContent =
@@ -1718,31 +1717,13 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			(extremeRating.stalled ? "Skulls: ∞" :
 			 extremeRating.complete ? "Skulls: " + extremeRating.skulls + "\nScore: " + extremeRating.score.toFixed(2) +
 				"\nMean bottlenecks: " + extremeRating.bottlenecks.toFixed(1) :
-				"Extreme rating unavailable") + "\n\n" :
+				"Extreme rating unavailable") :
 			"Difficulty: " + rating.level + "\n" +
 			"Score: " + rating.score.toFixed(2) + " = excess discards + 5 × scarcity\n" +
 			"Cutoffs: Easy < 47; Medium < 70; otherwise Hard\n\n" +
 			"Ten-route averages (placement-first):\n" +
 			"Total scarcity: " + metrics.scarcity.toFixed(2) + "\n" +
-			"Excess discards (3 free per stretch): " + metrics.excessDiscards.toFixed(2) + "\n\n") +
-			"Available clue observations: " + available.length;
-		var list = this.analysis.querySelector(".analysis-deductions");
-		list.replaceChildren();
-		var count = 0;
-		for (var clue of this.clues) {
-			var step = clueProofStep(this, clue, snapshot.domains);
-			if (!step)
-				continue;
-			var before = snapshot.domains[step.row][step.symbol];
-			var after = before & ~step.removed;
-			var item = document.createElement("li");
-			renderProofMessage(this, item,
-				proofDeductionMessage(this, step, before, after, snapshot.domains), false);
-			list.appendChild(item);
-			if (++count == 3)
-				break;
-		}
-		this.analysis.querySelector(".analysis-empty").hidden = count != 0;
+			"Excess discards (3 free per stretch): " + metrics.excessDiscards.toFixed(2));
 		this.analysis.querySelector(".analysis-copy").textContent = "Copy position";
 		this.analysis.querySelector(".analysis-copy-moves").textContent = "Copy move history";
 		setDialogOpen(this.options, false);

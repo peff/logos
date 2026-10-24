@@ -3513,14 +3513,6 @@ body.proof-active :is(#hclues, #vclues) .clue.proof-current {
 	font-size: 0.75em;
 }
 
-.analysis-deductions {
-	padding-left: 1.4em;
-}
-
-.analysis-deductions li + li {
-	margin-top: 0.5em;
-}
-
 /* The roster, proof, and suppose controls share a panel above the footer. */
 body.multiplayer {
 	--friends-panel-height: max(3.7rem, 60px);

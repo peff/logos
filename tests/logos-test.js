@@ -5781,10 +5781,9 @@ Deno.test("analysis unlocks within one Options visit and refreshes the current p
 	assert(!puzzle.practiceMode && puzzle.scoreEligible &&
 	       puzzle.analysisSnapshot == before && JSON.stringify(puzzle.positionSnapshot()) == before,
 	       "analysis changed the board or scoring eligibility");
-	assert(puzzle.analysis.querySelector(".analysis-deductions").children.length <= 3 &&
-	       puzzle.analysis.querySelector(".analysis-summary").textContent.includes("Difficulty: easy") &&
+	assert(puzzle.analysis.querySelector(".analysis-summary").textContent.includes("Difficulty: easy") &&
 	       puzzle.analysis.querySelector(".analysis-summary").textContent.includes("Cutoffs: Easy < 47; Medium < 70;"),
-	       "analysis is missing its rating or has unbounded deductions");
+	       "analysis is missing its rating");
 	puzzle.closeAnalysis();
 	assert(puzzle.analysis.hidden && puzzle.options.hidden && !puzzle.paused &&
 	       puzzle.timerTimeout !== null, "closing analysis did not return to the running game");
