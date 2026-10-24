@@ -6471,7 +6471,7 @@ Deno.test("extreme Options ratings stay tied to the original seed after clue ass
 	puzzle.toggleOptions();
 	const display = puzzle.options.querySelector("#seed-difficulty");
 	assert(display.innerHTML === "Extreme " + Logos.extremeSkulls({ complete: true, skulls: 1 }));
-	assert(display.title.includes("Extreme score: 1375") && !display.disabled);
+	assert(display.title === "" && !display.disabled);
 	const rating = puzzle.extremeDifficulty();
 	const missing = puzzle.originalClues.findIndex(clue => !puzzle.clues.includes(clue));
 	puzzle.revealExtremeClue(missing, false);

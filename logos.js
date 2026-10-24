@@ -1622,8 +1622,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			display.innerHTML = "Extreme " + extremeSkulls(rating);
 			display.disabled = false;
 			display.title = rating.stalled ? "Beyond single-choice deductions" :
-				rating.complete ? "Extreme score: " + rating.score.toFixed(0) :
-				"Extreme rating unavailable";
+				rating.complete ? "" : "Extreme rating unavailable";
 			return;
 		}
 		if (!this.seedDifficultyCache || this.seedDifficultyCache.seed !== seed)
