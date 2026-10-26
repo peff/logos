@@ -18,6 +18,12 @@
 			await new Promise(resolve => setTimeout(resolve, 100));
 		}
 	}
+	async function settleLayout(app) {
+		await app.document.fonts.ready;
+		/* Measurements must follow the portrait layout's ResizeObserver. */
+		await new Promise(resolve => app.requestAnimationFrame(() =>
+			app.requestAnimationFrame(resolve)));
+	}
 	async function open(role, name) {
 		const frame = document.createElement("iframe");
 		frame.src = "../../index.html";
@@ -222,6 +228,7 @@
 		alice.puzzle.showActionSelector = true;
 		alice.puzzle.updateActionControls();
 		alice.puzzle.hintAcknowledged = true;
+		await settleLayout(alice);
 		const buttonTop = alice.document.querySelector('#new-game-button').getBoundingClientRect().top;
 		const rosterBox = alice.document.querySelector('#friends-roster').getBoundingClientRect();
 		assert(rosterBox.bottom <= buttonTop, "roster is not above the control buttons");
@@ -236,6 +243,7 @@
 				app.puzzle.actionController.recentActions.get(alice.puzzle.actionController.playerId)
 					.filter(action => action.type == "hint").length == stage),
 				"hint press recorded on all peers");
+			await settleLayout(alice);
 			assert((alice.getComputedStyle(alice.document.querySelector('#friends-roster')).display == "none") ==
 				(stage >= 2), "roster visibility did not follow the local proof controls");
 			assert(Math.abs(alice.document.querySelector('#new-game-button').getBoundingClientRect().top -
