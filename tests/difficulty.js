@@ -1,6 +1,6 @@
 import {
 	Logos, assert, makePuzzle, puzzleSignature,
-} from "./logos-test-helpers.js";
+} from "./helpers.js";
 
 Deno.test("puzzle difficulty rates generated puzzles without changing play state", () => {
 	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);

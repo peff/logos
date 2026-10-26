@@ -1,6 +1,6 @@
 import {
 	Logos, FakeElement, ColumnClue, assert, makePuzzle,
-} from "./logos-test-helpers.js";
+} from "./helpers.js";
 
 Deno.test("supposing keeps real moves and clue states intact until backed out", function() {
 	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);

@@ -1,7 +1,7 @@
 import {
 	WebRTCGuestTransport, WebRTCHostTransport, decodeSignal, encodeSignal,
 	normalizePlayerName, assert, boardState, makeSession, stopAll, wrongMove,
-} from "./logos-multiplayer-test-helpers.js";
+} from "./multiplayer-helpers.js";
 
 function fakeWebRTCFactory(options) {
 	options = options || {};

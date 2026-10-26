@@ -1,9 +1,9 @@
 import { mock } from "node:test";
-import { Logos } from "./logos-test-helpers.js";
+import { Logos } from "./helpers.js";
 import {
 	InMemoryMultiplayerNetwork, assert, boardState, makeSession, stopAll,
 	wrongMove,
-} from "./logos-multiplayer-test-helpers.js";
+} from "./multiplayer-helpers.js";
 
 async function waitForConflictRewind(puzzle, timers) {
 	for (let i = 0; (puzzle.supposeRewindTimer !== null || puzzle.actionController?.branchForPlayer()?.rewinding) && i < 60; i++)

@@ -27,7 +27,7 @@ Tests
 =====
 
 Run `./test` for the Deno test suite. Open
-`tests/logos-storage-test.html` in a browser to run the storage tests.
+`tests/storage.html` in a browser to run the storage tests.
 
 Puzzle links
 ============

@@ -1,6 +1,6 @@
 import {
 	Logos, assert, makePuzzle, puzzleSignature, withRunHistory,
-} from "./logos-test-helpers.js";
+} from "./helpers.js";
 
 Deno.test("extreme games reconstruct their clues and record their own rating", async function() {
 	const puzzle = makePuzzle(6);

@@ -1,10 +1,10 @@
 #!/bin/sh
 
 exec deno test --parallel --allow-read=logos.js,friends/logos-multiplayer.js,friends/logos-webrtc.js \
-	tests/debug-date-test.js tests/logos-game-test.js tests/logos-controls-test.js \
-	tests/logos-history-test.js tests/logos-proof-test.js tests/logos-hints-test.js \
-	tests/logos-difficulty-test.js tests/logos-suppose-test.js \
-	tests/logos-extreme-test.js tests/logos-extreme-hints-test.js \
-	tests/logos-multiplayer-test.js tests/logos-multiplayer-suppose-test.js \
-	tests/logos-multiplayer-extreme-test.js tests/logos-webrtc-test.js tests/logos-rooms-test.js \
+	tests/debug-date.js tests/game.js tests/controls.js \
+	tests/history.js tests/proof.js tests/hints.js \
+	tests/difficulty.js tests/suppose.js \
+	tests/extreme.js tests/extreme-hints.js \
+	tests/multiplayer.js tests/multiplayer-suppose.js \
+	tests/multiplayer-extreme.js tests/webrtc.js tests/rooms.js \
 	server/worker-test.js server/rooms-test.js server/scoreboards-test.js "$@"

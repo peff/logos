@@ -1,5 +1,5 @@
 /* Session fixtures shared by multiplayer suites; no test registration. */
-import { Logos, makePuzzle } from "./logos-test-helpers.js";
+import { Logos, makePuzzle } from "./helpers.js";
 import "../friends/logos-multiplayer.js";
 import "../friends/logos-webrtc.js";
 

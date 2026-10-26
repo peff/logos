@@ -1,6 +1,6 @@
 import {
 	Logos, assert, makePuzzle, exhaustPuzzleDeductions,
-} from "./logos-test-helpers.js";
+} from "./helpers.js";
 
 Deno.test("expanded extreme hints prove chalk lemmas and finish without changing the board", function() {
 	localStorage.setItem("hintAcknowledged", "true");

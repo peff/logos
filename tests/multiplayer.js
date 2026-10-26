@@ -1,10 +1,10 @@
 import {
 	Logos, makePuzzle,
-} from "./logos-test-helpers.js";
+} from "./helpers.js";
 import {
 	InMemoryMultiplayerNetwork, MultiplayerSession, assert, boardState,
 	makeSession, stopAll, wrongMove, captureMultiplayerRuns, finishSharedPuzzle,
-} from "./logos-multiplayer-test-helpers.js";
+} from "./multiplayer-helpers.js";
 
 Deno.test("multiplayer resync preserves seasonal symbols until the next game", function() {
 	let date = new Date(2026, 9, 26);

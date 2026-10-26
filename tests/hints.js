@@ -1,7 +1,7 @@
 import {
 	Logos, Adjacent2Clue, ColumnClue, assert, makePuzzle,
 	exhaustPuzzleDeductions,
-} from "./logos-test-helpers.js";
+} from "./helpers.js";
 
 Deno.test("hints find a placement beyond a clue's first target", () => {
 	const puzzle = makePuzzle(2);

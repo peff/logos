@@ -1,7 +1,7 @@
 import {
 	Logos, FakeElement, ExactClue, Adjacent2Clue, ColumnClue, source,
 	assert, makePuzzle,
-} from "./logos-test-helpers.js";
+} from "./helpers.js";
 
 /* These presentation fixtures need a particular route's deductions even when
  * another route now produces a shorter explanation of the same failed move.

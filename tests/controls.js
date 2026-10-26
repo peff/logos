@@ -1,7 +1,7 @@
 import {
 	Logos, FakeElement, ColumnClue, symbols, assert, selectTileAction,
 	makePuzzle,
-} from "./logos-test-helpers.js";
+} from "./helpers.js";
 
 Deno.test("the custom cursor is a saved boolean option", function() {
 	localStorage.removeItem("customCursor");

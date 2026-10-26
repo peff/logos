@@ -1,10 +1,10 @@
 import {
 	Logos, makePuzzle, exhaustPuzzleDeductions,
-} from "./logos-test-helpers.js";
+} from "./helpers.js";
 import {
 	InMemoryMultiplayerNetwork, MultiplayerSession, assert, boardState,
 	makeSession, stopAll, captureMultiplayerRuns, finishSharedPuzzle,
-} from "./logos-multiplayer-test-helpers.js";
+} from "./multiplayer-helpers.js";
 
 Deno.test("hosting an extreme solo puzzle shares its seed and mode", function() {
 	const puzzle = makePuzzle(6, true);

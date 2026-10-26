@@ -1,6 +1,6 @@
 import {
 	Logos, FakeElement, assert, makePuzzle, withRunHistory,
-} from "./logos-test-helpers.js";
+} from "./helpers.js";
 
 Deno.test("daily attempts remember the first result and share a fixed date", async function() {
 	const oldWindow = globalThis.window;

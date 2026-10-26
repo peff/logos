@@ -1,7 +1,7 @@
 import {
 	Logos, FakeElement, Puzzle, ExactClue, ColumnClue, symbols, assert,
 	selectTileAction, makePuzzle, resetPuzzle, withRandom, puzzleSignature,
-} from "./logos-test-helpers.js";
+} from "./helpers.js";
 
 function revealedTiles(puzzle) {
 	return puzzle.rows[3].slots[0].symbols.filter(symbol => typeof symbol != "string").length;
