@@ -211,6 +211,6 @@ are shareable addresses, not secrets.
 
 To exercise the complete browser flow locally, run `wrangler dev` on port
 8787, serve the repository root over HTTP, and open
-`tests/rooms.html`. The test uses the real local Worker and WebRTC
+`tests/browser/rooms.html`. The test uses the real local Worker and WebRTC
 between browser frames, without external STUN. The ordinary `./test` command
 also covers the room server and client lifecycle logic.

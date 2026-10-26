@@ -39,8 +39,8 @@ The signaling endpoint is configured by the `logos-rooms-endpoint` meta tag in
 `index.html`. See [the server instructions](../server/README.md) for deployment
 and local development. For local room testing, run the Worker with
 `wrangler dev`, serve the repository over HTTP, and open
-`tests/rooms.html` for signaling checks or
-`tests/friends.html` for roster and gameplay checks. Both tests point
+`tests/browser/rooms.html` for signaling checks or
+`tests/browser/friends.html` for roster and gameplay checks. Both tests point
 their clients at the local Worker on port 8787.
 
 WebRTC uses Cloudflare's public STUN server, but no TURN relay is configured.

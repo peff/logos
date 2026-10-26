@@ -20,7 +20,7 @@
 	}
 	async function open(role, name) {
 		const frame = document.createElement("iframe");
-		frame.src = "../index.html";
+		frame.src = "../../index.html";
 		frames.push(frame);
 		const loaded = new Promise(resolve => frame.onload = resolve);
 		document.body.append(frame);

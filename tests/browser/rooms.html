@@ -21,7 +21,7 @@
 	async function open(name, roomName = room, firstVisit = false) {
 		const frame = document.createElement("iframe");
 		frame.style = "width:390px;height:844px";
-		frame.src = "../index.html";
+		frame.src = "../../index.html";
 		frames.push(frame);
 		const loaded = new Promise(resolve => frame.onload = resolve);
 		document.body.append(frame);
