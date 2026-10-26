@@ -2149,6 +2149,69 @@ Deno.test("conflicting shared placements stay visible and later moves survive ba
 	}
 });
 
+Deno.test("shared placements keep displayed symbols correct across suppose navigation and resync", function() {
+	for (const ownerIsHost of [false, true]) for (const family of [0, 3])
+	for (const arriveRewound of [false, true]) {
+		const symbols = Logos.symbolsForDate(new Date(2026, 9, 31));
+		const host = makeSession("host", "host", symbols);
+		const guest = makeSession("guest", "alice", symbols);
+		const watcher = makeSession("guest", "bob", symbols);
+		const network = new InMemoryMultiplayerNetwork(host.session);
+		try {
+			host.session.start(0x12345678);
+			network.addGuest(guest.session);
+			network.addGuest(watcher.session);
+			const owner = ownerIsHost ? host : guest, other = ownerIsHost ? guest : host;
+			const p = owner.puzzle, move = wrongMove(p, family);
+			const row = p.rows.indexOf(move.slot.row), column = move.slot.row.slots.indexOf(move.slot);
+			assert(row === family, "fixture missed the requested symbol family");
+			p.enterSuppose();
+			p.requestTileAction(move.slot, move.value, "place");
+			const later = wrongMove(p, 1);
+			p.requestTileAction(later.slot, later.value, "remove");
+			watcher.session.joinSuppose(owner.session.branchForPlayer().id);
+			const check = () => {
+				assert(JSON.stringify(p.supposeSnapshot()) === JSON.stringify(watcher.puzzle.supposeSnapshot()));
+				for (const game of [owner, watcher])
+					for (const [r, row] of game.puzzle.rows.entries())
+						for (const [c, slot] of row.slots.entries()) {
+							const value = slot.single ? slot.value :
+								game.puzzle.suppose.domains[r].findIndex(bits => bits === (1 << c));
+							assert(slot.singleElem.hidden === (value < 0), "wrong tile visibility");
+							if (value < 0) continue;
+							const symbol = slot.symbols[value];
+							if (typeof symbol === "string")
+								assert(slot.singleElem.textContent === symbol, "stale text symbol");
+							else {
+								const image = slot.singleElem.children[0];
+								assert(image.src === symbol.src && image.alt === symbol.label, "stale image symbol");
+							}
+						}
+			};
+			check();
+			if (arriveRewound) { p.moveSuppose(-2); check(); }
+			const real = other.puzzle.rows[row].slots[column];
+			other.puzzle.requestTileAction(real, real.value, "place");
+			assert(move.slot.single, "shared placement was not applied");
+			check();
+			for (const offset of [-2, 1, 1, -1, -1, 2]) {
+				p.moveSuppose(offset);
+				check();
+			}
+			for (const game of [guest, watcher]) {
+				game.session.receiveSync(host.session.syncMessage());
+				check();
+			}
+			p.moveSuppose(-2);
+			check();
+			p.moveSuppose(2);
+			check();
+		} finally {
+			stopAll(host, guest, watcher);
+		}
+	}
+});
+
 Deno.test("later shared moves reveal additional conflicts in an already conflicting row", async function() {
 	const host = makeSession("host", "host");
 	const guest = makeSession("guest", "guest");

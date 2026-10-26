@@ -2592,7 +2592,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 					this.markSupposeConflict(tile, false);
 				if (slot.single) {
 					slot.elem.classList.remove("suppose-placed");
-					renderTileSymbol(slot.singleElem, slot.symbols[slot.value]);
 					continue;
 				}
 				var placed = state.domains[r].findIndex(bits => bits == (1 << c));
@@ -2830,7 +2829,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 				slot.elem.classList.remove("suppose-placed");
 				for (var tile of [slot.singleElem, ...slot.possibilityElems])
 					this.markSupposeConflict(tile, false);
-				renderTileSymbol(slot.singleElem, slot.symbols[slot.value]);
+				if (!slot.single)
+					renderTileSymbol(slot.singleElem, slot.symbols[slot.value]);
 				for (var tile of slot.possibilityElems)
 					tile.classList.remove("suppose-removed");
 			}
@@ -7478,6 +7478,10 @@ function Slot(row, symbols, display) {
 		this.row.puzzle.clearHint();
 		this.row.puzzle.clearPracticeMistake();
 		if (this.value == value) {
+			/* A shared move may replace a hypothetical symbol. Restore it
+			 * here so Suppose need not redraw committed tiles each turn. */
+			if (this.row.puzzle.suppose)
+				renderTileSymbol(this.singleElem, this.symbol());
 			if (playerAction || this.row.puzzle.placeSoundAllowed)
 				this.row.puzzle.playSound("place");
 			this.row.puzzle.placeSoundAllowed = false;

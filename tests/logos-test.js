@@ -6518,6 +6518,63 @@ Deno.test("supposing keeps real moves and clue states intact until backed out", 
 	puzzle.stopTimer();
 });
 
+Deno.test("suppose moves preserve unchanged text and image symbols", function() {
+	const puzzle = makePuzzle(6, false, Logos.symbolsForDate(new Date(2026, 9, 31)));
+	puzzle.newGame(0);
+	try {
+		const fixed = [puzzle.rows[0].slots[0], puzzle.rows[3].slots[0]];
+		for (const slot of fixed)
+			puzzle.applyTileAction(slot, slot.value, "place");
+		let writes = 0;
+		const text = fixed[0].singleElem;
+		let content = text.textContent;
+		Object.defineProperty(text, "textContent", {
+			get: () => content,
+			set: value => { content = value; writes++; },
+		});
+		const image = fixed[1].singleElem.children[0];
+		puzzle.enterSuppose();
+		const slot = puzzle.rows[1].slots[0];
+		const wrong = slot.possible.findIndex((possible, v) => possible && v != slot.value);
+		puzzle.requestTileAction(slot, wrong, "place");
+		assert(slot.singleElem.textContent === slot.symbols[wrong]);
+		puzzle.moveSuppose(-1);
+		puzzle.moveSuppose(1);
+		puzzle.leaveSuppose();
+		assert(slot.singleElem.textContent === slot.symbols[slot.value]);
+		assert(writes === 0, "unchanged text symbol was rewritten");
+		assert(fixed[1].singleElem.children[0] === image, "unchanged image was replaced");
+	} finally {
+		puzzle.stopTimer();
+	}
+});
+
+Deno.test("real placements restore symbols overwritten by a supposition", function() {
+	for (const family of [0, 3]) {
+		const puzzle = makePuzzle(6, false, Logos.symbolsForDate(new Date(2026, 9, 31)));
+		puzzle.newGame(0);
+		try {
+			const slot = puzzle.rows[family].slots[0];
+			const wrong = slot.possible.findIndex((possible, v) => possible && v != slot.value);
+			puzzle.enterSuppose();
+			puzzle.requestTileAction(slot, wrong, "place");
+			const shown = () => family === 0 ? slot.singleElem.textContent :
+				slot.singleElem.children[0].alt;
+			const label = value => family === 0 ? slot.symbols[value] : slot.symbols[value].label;
+			assert(shown() === label(wrong));
+			/* Shared moves bypass the tentative-action routing. */
+			puzzle.applyTileAction(slot, slot.value, "place");
+			assert(slot.single && shown() === label(slot.value));
+			puzzle.reconcileSuppose();
+			assert(shown() === label(slot.value));
+			puzzle.leaveSuppose();
+			assert(shown() === label(slot.value));
+		} finally {
+			puzzle.stopTimer();
+		}
+	}
+});
+
 Deno.test("accepting a supposition commits its moves and clue dismissals", async function() {
 	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
 	puzzle.newGame(0);
