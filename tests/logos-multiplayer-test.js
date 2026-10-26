@@ -1,3 +1,4 @@
+import { mock } from "node:test";
 import { Logos, makePuzzle, exhaustPuzzleDeductions } from "./logos-test-helpers.js";
 import "../friends/logos-multiplayer.js";
 import "../friends/logos-webrtc.js";
@@ -41,9 +42,9 @@ function stopAll(...games) {
 	}
 }
 
-async function waitForConflictRewind(puzzle) {
+async function waitForConflictRewind(puzzle, timers) {
 	for (let i = 0; (puzzle.supposeRewindTimer !== null || puzzle.actionController?.branchForPlayer()?.rewinding) && i < 60; i++)
-		await new Promise(resolve => setTimeout(resolve, 50));
+		await timers.tick(50);
 	assert(puzzle.supposeRewindTimer === null && !puzzle.actionController?.branchForPlayer()?.rewinding, "conflict rewind did not finish");
 }
 
@@ -1982,6 +1983,8 @@ Deno.test("branch participants share hover highlights without leaking to other v
 });
 
 Deno.test("shared conflicts offer a rewind that preserves earlier deductions and discards the suffix", async function() {
+	using timers = mock.timers;
+	timers.enable({ apis: ["Date", "setTimeout"], now: Date.now() });
 	const host = makeSession("host", "host");
 	const guest = makeSession("guest", "guest");
 	const network = new InMemoryMultiplayerNetwork(host.session);
@@ -2044,7 +2047,7 @@ Deno.test("shared conflicts offer a rewind that preserves earlier deductions and
 		assert(p.supposeControls.querySelector(".suppose-rewind").hidden);
 		p.moveSuppose(2);
 		p.rewindSupposeConflict();
-		await waitForConflictRewind(p);
+		await waitForConflictRewind(p, timers);
 		assert(p.suppose === state && state.position == 1 && state.history.length == 2);
 		assert(!state.sharedConflicts.some(Boolean));
 		assert(!b.slot.row.elem.classList.contains("pencil-conflict"));
@@ -2062,6 +2065,8 @@ Deno.test("shared conflicts offer a rewind that preserves earlier deductions and
 });
 
 Deno.test("conflict rewind can return from a nested branch to its enclosing supposition", async function() {
+	using timers = mock.timers;
+	timers.enable({ apis: ["Date", "setTimeout"], now: Date.now() });
 	const host = makeSession("host", "host");
 	const guest = makeSession("guest", "guest");
 	const network = new InMemoryMultiplayerNetwork(host.session);
@@ -2080,7 +2085,7 @@ Deno.test("conflict rewind can return from a nested branch to its enclosing supp
 		assert(p.supposeRewindTarget().state === root);
 		p.rewindSupposeConflict();
 		assert(p.suppose.parent === root && p.suppose.position === 0, "nested steps were skipped");
-		await waitForConflictRewind(p);
+		await waitForConflictRewind(p, timers);
 		assert(p.suppose === root && !root.assumption && root.position == 0 && root.history.length == 1);
 		assert(!root.sharedConflicts.some(Boolean));
 		assert(!p.rows[row].slots[column].possible[a.value]);
@@ -2213,6 +2218,8 @@ Deno.test("shared placements keep displayed symbols correct across suppose navig
 });
 
 Deno.test("later shared moves reveal additional conflicts in an already conflicting row", async function() {
+	using timers = mock.timers;
+	timers.enable({ apis: ["Date", "setTimeout"], now: Date.now() });
 	const host = makeSession("host", "host");
 	const guest = makeSession("guest", "guest");
 	const network = new InMemoryMultiplayerNetwork(host.session);
@@ -2250,7 +2257,7 @@ Deno.test("later shared moves reveal additional conflicts in an already conflict
 		assert(p.rows[row].slots[b.column].possibilityElems[b.value].classList.contains("suppose-conflict"));
 		assert(p.sounds.filter(sound => sound == "practice-mistake").length == 2, "resync repeated the alerts");
 		p.rewindSupposeConflict();
-		await waitForConflictRewind(p);
+		await waitForConflictRewind(p, timers);
 		assert(p.suppose.position == 0 && p.suppose.history.length == 1);
 		assert(!p.hasSupposeConflict() && !Object.keys(p.suppose.sharedConflictMessages).length);
 		assert(boardState(p) == boardState(host.puzzle));
@@ -2417,10 +2424,12 @@ Deno.test("rejected suppose applications do not log departure", async function()
 });
 
 Deno.test("host-paced suppose replay pauses between moves and resumes for every player", async function() {
+	using timers = mock.timers;
+	timers.enable({ apis: ["Date", "setTimeout"], now: Date.now() });
 	const host = makeSession("host", "host"), guest = makeSession("guest", "alice");
 	const late = makeSession("guest", "bob");
 	const network = new InMemoryMultiplayerNetwork(host.session);
-	const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+	const wait = async ms => timers.tick(ms);
 	try {
 		host.session.start(0x12345678);
 		network.addGuest(guest.session);
@@ -2537,6 +2546,8 @@ Deno.test("replay acceptance survives missed messages and duplicate requests wit
 });
 
 Deno.test("new games and leaving multiplayer cancel scheduled replay moves", async function() {
+	using timers = mock.timers;
+	timers.enable({ apis: ["Date", "setTimeout"], now: Date.now() });
 	const host = makeSession("host", "host"), guest = makeSession("guest", "alice");
 	const network = new InMemoryMultiplayerNetwork(host.session);
 	try {
@@ -2554,7 +2565,7 @@ Deno.test("new games and leaving multiplayer cancel scheduled replay moves", asy
 			else host.session.leave();
 			assert(!host.session.replay && host.session.replayTimer === null);
 			const before = boardState(host.puzzle);
-			await new Promise(resolve => setTimeout(resolve, 350));
+			await timers.tick(350);
 			assert(boardState(host.puzzle) === before, "cancelled replay changed the board");
 		}
 	} finally {
@@ -2563,6 +2574,8 @@ Deno.test("new games and leaving multiplayer cancel scheduled replay moves", asy
 });
 
 Deno.test("host and guest dialogs do not pause a shared replay", async function() {
+	using timers = mock.timers;
+	timers.enable({ apis: ["Date", "setTimeout"], now: Date.now() });
 	const host = makeSession("host", "host"), guest = makeSession("guest", "alice");
 	const network = new InMemoryMultiplayerNetwork(host.session);
 	try {
@@ -2577,7 +2590,7 @@ Deno.test("host and guest dialogs do not pause a shared replay", async function(
 		host.puzzle.toggleAbout();
 		guest.puzzle.toggleAbout();
 		assert(!host.puzzle.paused && !guest.puzzle.paused && host.session.revision === 1);
-		await new Promise(resolve => setTimeout(resolve, 350));
+		await timers.tick(350);
 		assert(!host.session.replay && host.session.revision === 2,
 		       "a dialog suspended the replay");
 		host.puzzle.toggleAbout();
@@ -2651,9 +2664,11 @@ Deno.test("an entirely redundant branch still acknowledges acceptance across res
 });
 
 Deno.test("animated conflict rewind stops on pause and manual navigation", async function() {
+	using timers = mock.timers;
+	timers.enable({ apis: ["Date", "setTimeout"], now: Date.now() });
 	const host = makeSession("host", "host"), guest = makeSession("guest", "alice");
 	const network = new InMemoryMultiplayerNetwork(host.session);
-	const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+	const wait = async ms => timers.tick(ms);
 	try {
 		host.session.start(0x12345678);
 		network.addGuest(guest.session);
@@ -2694,6 +2709,8 @@ Deno.test("animated conflict rewind stops on pause and manual navigation", async
 });
 
 Deno.test("animated conflict rewind follows newly exposed earlier conflicts", async function() {
+	using timers = mock.timers;
+	timers.enable({ apis: ["Date", "setTimeout"], now: Date.now() });
 	const host = makeSession("host", "host"), guest = makeSession("guest", "alice");
 	const network = new InMemoryMultiplayerNetwork(host.session);
 	try {
@@ -2713,7 +2730,7 @@ Deno.test("animated conflict rewind follows newly exposed earlier conflicts", as
 		assert(p.suppose.position === 2);
 		discard(a);
 		assert(p.supposeRewindTarget().position === 0);
-		await waitForConflictRewind(p);
+		await waitForConflictRewind(p, timers);
 		assert(p.suppose.position === 0 && p.suppose.history.length === 1);
 		assert(!p.hasSupposeConflict() && host.session.revision === 2);
 		assert(boardState(p) === boardState(host.puzzle));
@@ -2723,6 +2740,8 @@ Deno.test("animated conflict rewind follows newly exposed earlier conflicts", as
 });
 
 Deno.test("leaving cancels branch rewind while resync follows the host animation", async function() {
+	using timers = mock.timers;
+	timers.enable({ apis: ["Date", "setTimeout"], now: Date.now() });
 	const host = makeSession("host", "host"), guest = makeSession("guest", "alice");
 	const network = new InMemoryMultiplayerNetwork(host.session);
 	try {
@@ -2742,7 +2761,7 @@ Deno.test("leaving cancels branch rewind while resync follows the host animation
 			else host.session.start(0x12345678);
 			assert(p.supposeRewindTimer === null);
 			const state = p.suppose;
-			await new Promise(resolve => setTimeout(resolve, 350));
+			await timers.tick(350);
 			assert(p.suppose === state && (!state || state.position === (exit === "resync" ? 0 : 1)));
 			p.leaveSuppose();
 		}
@@ -3035,6 +3054,8 @@ Deno.test("resync refreshes watched state and roster together after missed updat
 });
 
 Deno.test("watchers follow shared conflicts and every animated rewind step", async function() {
+	using timers = mock.timers;
+	timers.enable({ apis: ["Date", "setTimeout"], now: Date.now() });
 	const host = makeSession("host", "host"), guest = makeSession("guest", "alice");
 	const network = new InMemoryMultiplayerNetwork(host.session);
 	try {
@@ -3055,7 +3076,7 @@ Deno.test("watchers follow shared conflicts and every animated rewind step", asy
 		assert(p.suppose.position === 1 && host.puzzle.suppose.position === 1);
 		assert(JSON.stringify(host.puzzle.supposeSnapshot()) === JSON.stringify(p.supposeSnapshot()),
 		       "watcher lost the conflict explanation when rewinding");
-		await waitForConflictRewind(p);
+		await waitForConflictRewind(p, timers);
 		assert(host.puzzle.suppose.position === 0 && !host.puzzle.hasSupposeConflict());
 		assert(boardState(p) === boardState(host.puzzle));
 	} finally {
