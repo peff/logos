@@ -204,6 +204,8 @@ function makePuzzle(numRows, checkWin, puzzleSymbols) {
 		puzzleSymbols || Array(numRows).fill(symbols),
 		elem(), elem(), help, elem(),
 		elem(), elem(), elem(), elem());
+	/* The fake DOM reuses these inputs across games and tests. */
+	selectTileAction(puzzle, "place");
 	/* Hand-built boards need not be solvable or have a reproducible seed.
 	 * Only generated games exercise the real rating and record creation.
 	 */
