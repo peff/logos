@@ -4,7 +4,7 @@
 <style>iframe { width: 390px; height: 844px; }</style>
 <pre id="result">Running (serve the repository and run wrangler dev on port 8787)…</pre>
 <script>
-(async function() {
+var browserTestsDone = (async function() {
 	const result = document.querySelector("#result");
 	const frames = [];
 	const room = "browser-test-" + crypto.randomUUID();
@@ -35,7 +35,8 @@
 		/* Same-machine peers need no external STUN service. */
 		const Peer = app.RTCPeerConnection;
 		app.RTCPeerConnection = function() { return new Peer({ iceServers: [] }); };
-		doc.querySelector('meta[name="logos-rooms-endpoint"]').content = "http://127.0.0.1:8787/api/rooms";
+		doc.querySelector('meta[name="logos-rooms-endpoint"]').content =
+			new URLSearchParams(location.search).get("rooms") || "http://127.0.0.1:8787/api/rooms";
 		await app.puzzle.onlineReady;
 		/* Each iframe represents a separate player's browser profile. */
 		const openDatabase = app.indexedDB.open.bind(app.indexedDB);
@@ -400,5 +401,6 @@
 		result.textContent = "FAIL: " + error.stack;
 	}
 	console.log("ROSTER_TEST_RESULT " + result.textContent);
+	return result.textContent.startsWith("PASS:");
 })();
 </script>

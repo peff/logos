@@ -3,7 +3,7 @@
 <title>Logos room browser tests</title>
 <pre id="result">Running (serve the repository and run wrangler dev on port 8787)…</pre>
 <script>
-(async function() {
+var browserTestsDone = (async function() {
 	const result = document.querySelector("#result");
 	const room = "browser-room-" + crypto.randomUUID();
 	const frames = [];
@@ -42,7 +42,8 @@
 		app.WebSocket = class extends Socket {
 			constructor(url) { super(url); app.testRoomSockets.push(this); }
 		};
-		doc.querySelector('meta[name="logos-rooms-endpoint"]').content = "http://127.0.0.1:8787/api/rooms";
+		doc.querySelector('meta[name="logos-rooms-endpoint"]').content =
+			new URLSearchParams(location.search).get("rooms") || "http://127.0.0.1:8787/api/rooms";
 		await app.puzzle.onlineReady;
 		/* Each iframe represents a separate player's browser profile. */
 		const openDatabase = app.indexedDB.open.bind(app.indexedDB);
@@ -223,5 +224,6 @@
 		result.textContent = "FAIL: " + error.stack;
 	}
 	console.log("ROOM_TEST_RESULT " + result.textContent);
+	return result.textContent.startsWith("PASS:");
 })();
 </script>

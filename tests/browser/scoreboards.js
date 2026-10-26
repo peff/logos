@@ -1,4 +1,4 @@
-(async function() {
+var browserTestsDone = (async function() {
 	const output = document.querySelector("#results");
 	const assert = (value, message) => { if (!value) throw new Error(message); };
 	const { ScoreboardClient, localDate, compareScores, groupScores } = LogosScoreboards;
@@ -140,7 +140,8 @@
 		assert(backfilled.length === 2 && backfilled[1].record.continuationOf === backfilled[0].record.id,
 		       "explicit backfill did not queue the loss and its completion together"); checks++;
 		output.textContent = `PASS: ${checks} scoreboard checks`;
-	} catch (error) { output.textContent = "FAIL: " + error.stack; }
+		return true;
+	} catch (error) { output.textContent = "FAIL: " + error.stack; return false; }
 	finally {
 		for (const id of groups) await store.leave(id);
 		await store.setName(originalName);

@@ -1,10 +1,153 @@
 #!/bin/sh
 
-exec deno test --parallel --allow-read=logos.js,friends/logos-multiplayer.js,friends/logos-webrtc.js \
-	tests/debug-date.js tests/game.js tests/controls.js \
-	tests/history.js tests/proof.js tests/hints.js \
-	tests/difficulty.js tests/suppose.js \
-	tests/extreme.js tests/extreme-hints.js \
-	tests/multiplayer.js tests/multiplayer-suppose.js \
-	tests/multiplayer-extreme.js tests/webrtc.js tests/rooms.js \
-	server/worker-test.js server/rooms-test.js server/scoreboards-test.js "$@"
+set -eu
+cd "$(dirname "$0")"
+
+case "${1:-}" in
+-h|--help)
+	cat <<-HELP
+	Usage: ./test [deno|storage|scoreboards|rooms|friends|all] ...
+
+	Run the named suites (default: deno). Use all to run all five suites.
+	Browser suites need Python 3, setsid, and Chromium (or set CHROMIUM).
+	Rooms and friends also need curl and Wrangler: npm ci --prefix server
+	Each run uses temporary browser profiles and local Worker state.
+	HELP
+	exit 0
+	;;
+esac
+
+test "$#" != 0 || set -- deno
+if test "$#" = 1 && test "$1" = all; then
+	set -- deno storage scoreboards rooms friends
+fi
+need_worker=false
+for suite do
+	case "$suite" in
+	deno|storage|scoreboards) ;;
+	rooms|friends) need_worker=true ;;
+	*) echo "Unknown suite: $suite (see ./test --help)" >&2; exit 1 ;;
+	esac
+done
+
+start_browser_services() {
+	if test -z "${CHROMIUM:-}"; then
+		for candidate in chromium chromium-browser google-chrome; do
+			if command -v "$candidate" >/dev/null 2>&1; then
+				CHROMIUM=$candidate
+				break
+			fi
+		done
+	fi
+	: "${CHROMIUM:?Install Chromium or set CHROMIUM to its executable}"
+	command -v python3 >/dev/null
+	command -v setsid >/dev/null
+	if "$need_worker"; then
+		command -v curl >/dev/null
+		if ! test -x server/node_modules/.bin/wrangler; then
+			echo "Install Wrangler first: npm ci --prefix server" >&2
+			exit 1
+		fi
+	fi
+
+	browser_test_dir=$(mktemp -d "${TMPDIR:-/tmp}/logos-browser-XXXXXX")
+	service_pids=
+	browser_pid=
+	stop() {
+		# Each service has its own process group and disposable state.
+		kill -KILL "-$1" 2>/dev/null || :
+		wait "$1" 2>/dev/null || :
+	}
+	cleanup() {
+		for pid in $browser_pid $service_pids; do stop "$pid"; done
+		rm -rf "$browser_test_dir"
+	}
+	trap cleanup EXIT
+	trap 'exit 130' INT
+	trap 'exit 143' TERM
+
+	wait_for() {
+		attempts=$1
+		shift
+		until "$@"; do
+			for pid in $service_pids $browser_pid; do
+				kill -0 "$pid" 2>/dev/null || return 1
+			done
+			test "$attempts" -gt 0 || return 1
+			attempts=$((attempts - 1))
+			sleep 0.1
+		done
+	}
+
+	setsid python3 tests/browser/serve.py "$browser_test_dir" 2>"$browser_test_dir/server.log" &
+	service_pids=$!
+	if ! wait_for 100 test -s "$browser_test_dir/ports"; then
+		cat "$browser_test_dir/server.log" >&2
+		exit 1
+	fi
+	read -r http_port worker_port <"$browser_test_dir/ports"
+	rooms="http://127.0.0.1:$worker_port/api/rooms"
+	if "$need_worker"; then
+		(
+			cd server
+			export WRANGLER_SEND_METRICS=false WRANGLER_LOG_PATH="$browser_test_dir/wrangler.log"
+			exec setsid ./node_modules/.bin/wrangler dev --local --ip 127.0.0.1 \
+				--port "$worker_port" --inspector-port 0 \
+				--persist-to "$browser_test_dir/worker" --show-interactive-dev-session=false
+		) >"$browser_test_dir/worker.log" 2>&1 &
+		service_pids="$service_pids $!"
+		worker_ready() {
+			test "$(curl -s -o /dev/null -w '%{http_code}' --max-time 1 "$rooms/browser-runner")" = 426
+		}
+		if ! wait_for 300 worker_ready; then
+			echo "Worker did not become ready:" >&2
+			cat "$browser_test_dir/worker.log" >&2
+			exit 1
+		fi
+	fi
+}
+
+run_deno() {
+	deno test --parallel --allow-read=logos.js,friends/logos-multiplayer.js,friends/logos-webrtc.js \
+		tests/debug-date.js tests/game.js tests/controls.js \
+		tests/history.js tests/proof.js tests/hints.js \
+		tests/difficulty.js tests/suppose.js \
+		tests/extreme.js tests/extreme-hints.js \
+		tests/multiplayer.js tests/multiplayer-suppose.js \
+		tests/multiplayer-extreme.js tests/webrtc.js tests/rooms.js \
+		server/worker-test.js server/rooms-test.js server/scoreboards-test.js
+}
+
+failed=0
+browser_started=false
+for suite do
+	echo "Running $suite..."
+	if test "$suite" = deno; then
+		if ! run_deno; then failed=$((failed + 1)); fi
+		continue
+	fi
+	if ! "$browser_started"; then
+		start_browser_services
+		browser_started=true
+	fi
+	rm -f "$browser_test_dir/$suite.result"
+	profile=$(mktemp -d "$browser_test_dir/profile-$suite-XXXXXX")
+	setsid "$CHROMIUM" --headless --user-data-dir="$profile" \
+		--no-first-run --no-default-browser-check --disable-background-networking \
+		--disable-background-timer-throttling --disable-renderer-backgrounding \
+		--disable-backgrounding-occluded-windows --mute-audio --window-size=1440,1000 \
+		"http://127.0.0.1:$http_port/tests/browser/$suite.html?rooms=$rooms" \
+		>"$browser_test_dir/browser.log" 2>&1 &
+	browser_pid=$!
+	if ! wait_for 1200 test -s "$browser_test_dir/$suite.result"; then
+		echo "FAIL $suite: timed out or a test process exited" >&2
+		cat "$browser_test_dir/browser.log" "$browser_test_dir/server.log" >&2
+		failed=$((failed + 1))
+	elif test "$(cat "$browser_test_dir/$suite.result")" != 0; then
+		failed=$((failed + 1))
+	fi
+	stop "$browser_pid"
+	browser_pid=
+done
+echo "$(($# - failed)) suites passed, $failed failed"
+test "$failed" = 0

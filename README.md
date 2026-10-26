@@ -26,8 +26,8 @@ simplicity.
 Tests
 =====
 
-Run `./test` for the Deno test suite. Open
-`tests/browser/storage.html` in a browser to run the storage tests.
+Run `./test` for the Deno suite, or `./test all` for all five test suites.
+See `./test --help` for prerequisites and selecting individual suites.
 
 Puzzle links
 ============

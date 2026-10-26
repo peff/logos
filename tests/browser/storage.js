@@ -1,5 +1,5 @@
 /* Use real browser transactions to test migration and persistence. */
-var storageTestsDone = (async function() {
+var browserTestsDone = (async function() {
 	const output = document.querySelector("#results");
 	const factory = window.indexedDB;
 	const database = "logos-storage-test-" + Date.now();
