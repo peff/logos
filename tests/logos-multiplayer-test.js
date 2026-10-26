@@ -1,4 +1,4 @@
-import { Logos, makePuzzle, exhaustPuzzleDeductions } from "./logos-test.js";
+import { Logos, makePuzzle, exhaustPuzzleDeductions } from "./logos-test-helpers.js";
 import "../friends/logos-multiplayer.js";
 import "../friends/logos-webrtc.js";
 
