@@ -1681,7 +1681,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.copyMoveHistory = async function() {
-		var text = JSON.stringify(this.moveHistorySnapshot());
+		var text = JSON.stringify(this.moveHistorySnapshot(), null, 2);
 		try {
 			await navigator.clipboard.writeText(text);
 			this.analysis.querySelector(".analysis-copy-moves").textContent = "Copied";
