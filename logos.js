@@ -1691,7 +1691,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.openAnalysis = function() {
-		this.leaveSuppose(true);
 		var input = this.options.querySelector("#game-seed");
 		if (this.options.hidden || this.seed === undefined ||
 		    parseSeed(input.value.trim()) !== this.seed || this.pendingSeed !== undefined)

@@ -2,6 +2,44 @@ import {
 	Logos, FakeElement, ColumnClue, assert, makePuzzle,
 } from "./helpers.js";
 
+Deno.test("opening analysis preserves nested suppositions and their history", function() {
+	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
+	puzzle.newGame(0);
+	try {
+		const before = JSON.stringify(puzzle.positionSnapshot());
+		const slot = puzzle.rows[0].slots[0];
+		puzzle.enterSuppose();
+		puzzle.requestTileAction(slot, slot.value, "place");
+		const parent = puzzle.suppose;
+		puzzle.enterSuppose();
+		const other = puzzle.rows[1].slots[0];
+		puzzle.requestTileAction(other, other.value, "place");
+		const branch = puzzle.suppose;
+		puzzle.options.hidden = true;
+		puzzle.toggleOptions();
+		puzzle.analysisUnlocked = false;
+		for (let click = 0; click < 3; click++) {
+			puzzle.openAnalysis();
+			assert(puzzle.suppose === branch && branch.parent === parent,
+			       "analysis discarded the supposition");
+		}
+		assert(!puzzle.analysis.hidden && puzzle.analysisSnapshot === before);
+		puzzle.closeAnalysis();
+		assert(!puzzle.paused && puzzle.suppose === branch);
+		assert(other.elem.classList.contains("suppose-placed"));
+		puzzle.moveSuppose(-1);
+		assert(!other.elem.classList.contains("suppose-placed"));
+		puzzle.moveSuppose(1);
+		assert(other.elem.classList.contains("suppose-placed"));
+		puzzle.leaveSuppose();
+		assert(puzzle.suppose === parent && slot.elem.classList.contains("suppose-placed"));
+		assert(JSON.stringify(puzzle.positionSnapshot()) === before);
+	} finally {
+		puzzle.stopTimer();
+		localStorage.removeItem("analysisUnlocked");
+	}
+});
+
 Deno.test("supposing keeps real moves and clue states intact until backed out", function() {
 	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
 	puzzle.newGame(0);
