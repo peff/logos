@@ -6796,6 +6796,19 @@ function buildProofSteps(puzzle, base, basePlacements,
 		if (best.length == 1)
 			break;
 	}
+	if (!best.length && puzzle.extreme) {
+		var walkthrough = buildHintSteps(puzzle, null, base, basePlacements);
+		var end = walkthrough.findIndex(step =>
+			!step.stalled && !step.chalkBase &&
+			proofConclusionPresented(puzzle, step.domains, step.placements,
+				failedSlot, failedValue));
+		/* Hypothetical snapshots cannot establish the conclusion. Keep
+		 * each chalk lemma intact through its proved elimination. */
+		if (end >= 0) {
+			best = walkthrough.slice(0, end + 1);
+			best[end].conclusion = true;
+		}
+	}
 	return best;
 }
 

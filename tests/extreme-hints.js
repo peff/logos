@@ -213,3 +213,41 @@ Deno.test("extreme hints offer clue revelation separately from the walkthrough",
 	assert(puzzle.proofControls.querySelector(".proof-reveal").hidden);
 	puzzle.stopTimer();
 });
+
+Deno.test("extreme mistakes use chalk lemmas to explain placements and eliminations", function() {
+	for (const action of ["discard", "choose"]) {
+		const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
+		puzzle.say = function() {};
+		puzzle.setPracticeMode(true);
+		puzzle.newGame("33ebf04c", false, false, true);
+		const slot = puzzle.rows[3].slots[action == "discard" ? 5 : 3];
+		assert(puzzle.rows[3].slots[5].value == 0);
+		const before = JSON.stringify(puzzle.positionSnapshot());
+		slot[action](0);
+		assert(puzzle.pendingProof, "mistake did not offer an explanation");
+		puzzle.explainLoss();
+		assert(puzzle.proof, "extreme mistake did not open a proof");
+		const steps = puzzle.proof.steps;
+		assert(steps.some(step => step.lemmaStage == "contradiction"),
+		       "explanation did not include a chalk lemma");
+		const last = steps.at(-1);
+		assert(last.conclusion && !last.stalled && !last.chalkBase &&
+		       Logos.proofConclusionPresented(puzzle, last.domains,
+			last.placements, slot, 0),
+		       "explanation did not establish the mistake on the real board");
+		assert(!steps.slice(0, -1).some(step => !step.chalkBase &&
+		       Logos.proofConclusionPresented(puzzle, step.domains,
+			step.placements, slot, 0)),
+		       "explanation continued after proving the mistake");
+		while (puzzle.proof.position < steps.length)
+			puzzle.moveProof(1);
+		puzzle.closeProof();
+		assert(puzzle.pendingProof &&
+		       JSON.stringify(puzzle.positionSnapshot()) == before,
+		       "explanation changed the board or could not be reopened");
+		puzzle.explainLoss();
+		assert(puzzle.proof, "mistake explanation could not be reopened");
+		puzzle.stopTimer();
+		localStorage.removeItem("practiceMode");
+	}
+});
