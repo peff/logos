@@ -216,6 +216,24 @@ async function testForum(assert) {
 		}
 		assertCentered();
 		assert(center.width < navigation.clientWidth / 4, "All underline stretches beyond its label");
+		async function assertFades() {
+			await waitFor(() => [...navigation.querySelectorAll(".forum-group-label")].every(label =>
+				label.classList.contains("forum-group-overflow") === (label.scrollWidth > label.clientWidth)));
+			for (const label of navigation.querySelectorAll(".forum-group-label")) {
+				const style = app.getComputedStyle(label);
+				assert(style.textOverflow === "clip", "group name still reserves space for an ellipsis");
+				assert((style.maskImage !== "none") === (label.scrollWidth > label.clientWidth),
+				       "fade does not match label overflow");
+				const left = navigation.classList.contains("forum-groups-circular") && label.parentElement.dataset.step === "-1";
+				const offset = left ? label.scrollWidth - label.clientWidth : 0;
+				assert(Math.abs(label.scrollLeft - offset) <= 1, "group name clipped at the wrong end");
+				if (label.scrollWidth > label.clientWidth)
+					assert(style.maskImage.includes(left ? "to left" : "to right"), "group name fades at the wrong end");
+			}
+			for (const arrow of navigation.querySelectorAll(".forum-group-arrow"))
+				assert(app.getComputedStyle(arrow).maskImage === "none", "navigation arrow was faded");
+		}
+		await assertFades();
 		await store.rename(ids[0], "Cville Logos Club");
 		close();
 		await openDaily();
@@ -226,6 +244,7 @@ async function testForum(assert) {
 		await doc.fonts.ready;
 		const selectedLabel = navigation.querySelector('[aria-current="true"] .forum-group-label');
 		assert(selectedLabel.scrollWidth <= selectedLabel.clientWidth, "Cville Logos Club was truncated when selected");
+		await assertFades();
 		assertCentered();
 		close();
 		await openDaily();
@@ -233,6 +252,7 @@ async function testForum(assert) {
 		close();
 		await openDaily();
 		assertCentered();
+		await assertFades();
 		for (const arrow of navigation.querySelectorAll(".forum-group-arrow")) {
 			const bounds = arrow.getBoundingClientRect(), button = arrow.parentElement.getBoundingClientRect();
 			assert(bounds.width > 0 && bounds.left >= button.left && bounds.right <= button.right,
@@ -243,6 +263,7 @@ async function testForum(assert) {
 		await waitFor(() => current() === "Very long group name ".repeat(4));
 		await new Promise(resolve => setTimeout(resolve, 250));
 		assertCentered();
+		await assertFades();
 		const narrowNav = navigation.getBoundingClientRect();
 		for (const button of navigation.children) {
 			const bounds = button.getBoundingClientRect();
@@ -255,6 +276,8 @@ async function testForum(assert) {
 			       "narrow navigation hid a carousel arrow");
 		}
 		frame.style.width = "1000px";
+		await new Promise(resolve => setTimeout(resolve, 50));
+		await assertFades();
 		close();
 		await openDaily();
 		await store.rename(ids[0], "Group 0");

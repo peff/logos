@@ -16,6 +16,17 @@
 	let pantheonReturn;
 	const difficulties = new Map();
 	const groupLabel = group => group.label || "Unnamed group";
+	function updateGroupFades() {
+		const navigation = view(".forum-groups");
+		for (const label of navigation.querySelectorAll(".forum-group-label")) {
+			label.classList.toggle("forum-group-overflow", label.clientWidth > 0 && label.scrollWidth > label.clientWidth);
+			const left = navigation.classList.contains("forum-groups-circular") && label.parentElement.dataset.step === "-1";
+			label.scrollLeft = left ? label.scrollWidth : 0;
+		}
+	}
+	const groupResize = new ResizeObserver(updateGroupFades);
+	document.fonts.ready.then(updateGroupFades);
+	document.fonts.addEventListener("loadingdone", updateGroupFades);
 	const status = (text, panel = active) => {
 		const message = panel.querySelector(".online-status");
 		message.textContent = text;
@@ -101,6 +112,7 @@
 		const hadFocus = navigation.contains(document.activeElement);
 		const circular = boards.length > 3;
 		navigation.classList.toggle("forum-groups-circular", circular);
+		groupResize.disconnect();
 		navigation.replaceChildren();
 		const visible = circular ? [-1, 0, 1].map(step => ({
 			group: boards[(index + step + boards.length) % boards.length], step,
@@ -127,7 +139,9 @@
 			control.setAttribute("aria-label", (group.id === selected ? "Current group: " : "View ") + groupLabel(group));
 			control.onclick = attempt(() => moveGroup(step));
 			navigation.append(control);
+			groupResize.observe(label);
 		}
+		updateGroupFades();
 		if (hadFocus) {
 			const current = navigation.querySelector('[aria-current="true"]');
 			(current && !current.disabled ? current : navigation).focus({ preventScroll: true });
