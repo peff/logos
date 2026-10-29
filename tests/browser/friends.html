@@ -105,6 +105,34 @@ var browserTestsDone = (async function() {
 			assert(self.length == 1 && self[0].querySelector(".friends-roster-name").textContent ==
 				app.puzzle.actionController.playerName, "own player is not identified");
 		}
+		const longName = "Alexandria with a very long name";
+		host.puzzle.actionController.setPlayerName(longName);
+		await waitFor(() => [host, alice, bob].every(app =>
+			[...players(app).querySelectorAll(".friends-roster-name")].some(name => name.textContent == longName)),
+			"long player name reaches each roster");
+		for (const app of [host, alice, bob]) {
+			await settleLayout(app);
+			const name = [...players(app).querySelectorAll(".friends-roster-name")].find(name => name.textContent == longName);
+			await waitFor(() => app.getComputedStyle(name).maskImage != "none", "overflowing roster name fades");
+			assert(name.scrollWidth > name.clientWidth && app.getComputedStyle(name).textOverflow == "clip",
+				"long roster name did not clip without an ellipsis");
+			assert(name.title.includes(longName) && name.getAttribute("aria-label").includes(longName),
+				"fading lost the full player name");
+			// Changing the available width must clear and restore the fade.
+			name.parentElement.style.flexBasis = "1000px";
+			await waitFor(() => app.getComputedStyle(name).maskImage == "none", "expanded roster name stops fading");
+			name.parentElement.style.flexBasis = "";
+			await waitFor(() => app.getComputedStyle(name).maskImage != "none", "narrowed roster name fades again");
+		}
+		host.puzzle.actionController.setPlayerName("Helen");
+		await waitFor(() => [host, alice, bob].every(app =>
+			![...players(app).querySelectorAll(".friends-roster-name")].some(name => name.textContent == longName)),
+			"short player name restores the roster");
+		for (const app of [host, alice, bob]) {
+			await settleLayout(app);
+			for (const name of players(app).querySelectorAll(".friends-roster-name"))
+				assert(app.getComputedStyle(name).maskImage == "none", "fitting player name is faded");
+		}
 		for (const app of [host, alice, bob])
 			assert(app.puzzle.seed === undefined && !app.puzzle.timer.hidden &&
 			       app.puzzle.timerText.textContent === "—" &&

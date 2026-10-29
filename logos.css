@@ -3634,8 +3634,11 @@ body.multiplayer #logo {
 .friends-roster-name {
 	min-width: 0;
 	overflow: hidden;
-	text-overflow: ellipsis;
 	white-space: nowrap;
+}
+
+.friends-roster-name-overflow {
+	mask-image: linear-gradient(to right, black calc(100% - 1.5em), transparent);
 }
 
 .friends-roster-history {

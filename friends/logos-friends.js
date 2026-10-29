@@ -18,6 +18,13 @@ var nameInput = friendsMenu.querySelector("#online-name");
 var roster = document.querySelector("#friends-roster");
 var rosterPlayers = document.querySelector("#friends-roster-players");
 var rosterStatus = document.querySelector("#friends-roster-status");
+function updateRosterFades() {
+	for (const name of rosterPlayers.querySelectorAll(".friends-roster-name"))
+		name.classList.toggle("friends-roster-name-overflow", name.clientWidth > 0 && name.scrollWidth > name.clientWidth);
+}
+const rosterResize = new ResizeObserver(updateRosterFades);
+document.fonts.ready.then(updateRosterFades);
+document.fonts.addEventListener("loadingdone", updateRosterFades);
 var rosterConnection = "connecting";
 var session = null;
 var transport = null;
@@ -332,6 +339,7 @@ function renderPlayers(players) {
 	renderSharedHover();
 	clearHistoryHighlight();
 	newGameButton.disabled = !!session && !session.ready && rosterConnection != "closed";
+	rosterResize.disconnect();
 	rosterPlayers.replaceChildren();
 	var visiblePlayers = players;
 	if (players.length > 4)
@@ -374,7 +382,9 @@ function renderPlayers(players) {
 			history.prepend(renderRecentAction(group, player.id, activeFork));
 		entry.append(history);
 		rosterPlayers.append(entry);
+		rosterResize.observe(name);
 	}
+	updateRosterFades();
 	roster.dataset.state = rosterConnection;
 	if (rosterConnection == "disconnected")
 		rosterStatus.textContent = "Connection interrupted";
