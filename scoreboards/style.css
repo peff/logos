@@ -38,8 +38,19 @@
 .forum-panel > :not(.forum-results) { flex-shrink: 0; }
 .forum-groups { display: flex; justify-content: center; gap: .65rem; align-items: center; overflow: hidden; }
 .forum-groups:focus { outline: none; }
-.forum-groups-circular { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .35rem; }
+.forum-groups-circular {
+	display: grid;
+	grid-template-columns: minmax(0, 4fr) minmax(0, 5fr) minmax(0, 4fr);
+	gap: .35rem;
+	justify-items: center;
+}
+.forum-groups-circular button { max-width: 100%; }
+.forum-groups-circular button:first-child { justify-self: start; }
+.forum-groups-circular button:last-child { justify-self: end; }
 .forum-groups button {
+	display: flex;
+	align-items: center;
+	gap: .25em;
 	min-width: 0;
 	border: 0;
 	border-bottom: 1px solid transparent;
@@ -51,8 +62,13 @@
 	cursor: pointer;
 	white-space: nowrap;
 	overflow: hidden;
+}
+.forum-group-label {
+	min-width: 0;
+	overflow: hidden;
 	text-overflow: ellipsis;
 }
+.forum-group-arrow { flex: none; }
 .forum-groups [aria-current="true"] { color: #71552f; border-bottom-color: #a98c58; }
 .forum-groups button:hover { color: #71552f; background: rgb(128 99 58 / 6%); }
 .forum-panel .scoreboards-date { margin: .4rem 0 .1rem; }

@@ -203,6 +203,62 @@ async function testForum(assert) {
 		assert(current() === "All" && rows().length === 4, "daily entry did not combine all boards");
 		assert(rows()[0].cells[0].textContent === "Shared", "combined scores not ranked");
 		assert(doc.querySelector(".forum-groups").classList.contains("forum-groups-circular"), "All missing from circular navigation");
+		const navigation = doc.querySelector(".forum-groups");
+		const center = navigation.querySelector('[aria-current="true"]').getBoundingClientRect();
+		function assertCentered() {
+			const nav = navigation.getBoundingClientRect();
+			const buttons = [...navigation.children].map(button => button.getBoundingClientRect());
+			const centers = buttons.map(bounds => bounds.left + bounds.width / 2);
+			assert(Math.abs(centers[1] - nav.left - nav.width / 2) < 1,
+			       "selected board is not centered");
+			assert(Math.abs(buttons[0].left - nav.left) < 1 && Math.abs(buttons[2].right - nav.right) < 1,
+			       "neighboring boards are not aligned to the outside edges");
+		}
+		assertCentered();
+		assert(center.width < navigation.clientWidth / 4, "All underline stretches beyond its label");
+		await store.rename(ids[0], "Cville Logos Club");
+		close();
+		await openDaily();
+		assertCentered();
+		navigation.querySelector('[data-step="1"]').click();
+		await waitFor(() => current() === "Cville Logos Club" && rows().length === 2);
+		await new Promise(resolve => setTimeout(resolve, 250));
+		await doc.fonts.ready;
+		const selectedLabel = navigation.querySelector('[aria-current="true"] .forum-group-label');
+		assert(selectedLabel.scrollWidth <= selectedLabel.clientWidth, "Cville Logos Club was truncated when selected");
+		assertCentered();
+		close();
+		await openDaily();
+		await store.rename(ids[2], "Very long group name ".repeat(4));
+		close();
+		await openDaily();
+		assertCentered();
+		for (const arrow of navigation.querySelectorAll(".forum-group-arrow")) {
+			const bounds = arrow.getBoundingClientRect(), button = arrow.parentElement.getBoundingClientRect();
+			assert(bounds.width > 0 && bounds.left >= button.left && bounds.right <= button.right,
+			       "truncation hid a carousel arrow");
+		}
+		frame.style.width = "320px";
+		navigation.querySelector('[data-step="-1"]').click();
+		await waitFor(() => current() === "Very long group name ".repeat(4));
+		await new Promise(resolve => setTimeout(resolve, 250));
+		assertCentered();
+		const narrowNav = navigation.getBoundingClientRect();
+		for (const button of navigation.children) {
+			const bounds = button.getBoundingClientRect();
+			assert(bounds.left >= narrowNav.left - 1 && bounds.right <= narrowNav.right + 1,
+			       "long selected name overflowed narrow navigation");
+		}
+		for (const arrow of navigation.querySelectorAll(".forum-group-arrow")) {
+			const bounds = arrow.getBoundingClientRect(), button = arrow.parentElement.getBoundingClientRect();
+			assert(bounds.width > 0 && bounds.left >= button.left && bounds.right <= button.right,
+			       "narrow navigation hid a carousel arrow");
+		}
+		frame.style.width = "1000px";
+		close();
+		await openDaily();
+		await store.rename(ids[0], "Group 0");
+		await store.rename(ids[2], "Group 2");
 		doc.querySelector('.forum-groups [data-step="1"]').click();
 		await waitFor(() => current() === "Group 0" && rows().length === 2);
 		close();

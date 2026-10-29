@@ -109,7 +109,18 @@
 			const control = document.createElement("button");
 			control.type = "button";
 			control.dataset.step = step;
-			control.textContent = (circular && step < 0 ? "‹ " : "") + groupLabel(group) + (circular && step > 0 ? " ›" : "");
+			const label = document.createElement("span");
+			label.className = "forum-group-label";
+			label.textContent = groupLabel(group);
+			control.append(label);
+			if (circular && step) {
+				const arrow = document.createElement("span");
+				arrow.className = "forum-group-arrow";
+				arrow.setAttribute("aria-hidden", "true");
+				arrow.textContent = step < 0 ? "‹" : "›";
+				if (step < 0) control.prepend(arrow);
+				else control.append(arrow);
+			}
 			control.disabled = boards.length === 1;
 			control.title = groupLabel(group);
 			control.setAttribute("aria-current", String(group.id === selected));
