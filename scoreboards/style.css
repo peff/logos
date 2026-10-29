@@ -28,8 +28,8 @@
 .online-toolbar button:hover, .scoreboards-editor button:hover, .scoreboards-row-actions :is(a, button):hover { color: #9a7d3d; }
 
 .forum-panel {
-	width: 26rem;
-	height: min(30rem, calc(100dvh - 2rem));
+	width: 20rem;
+	height: min(24rem, calc(100dvh - 2rem));
 	box-sizing: border-box;
 	display: flex;
 	flex-direction: column;
@@ -73,9 +73,10 @@
 .forum-groups button:hover { color: #71552f; background: rgb(128 99 58 / 6%); }
 .forum-panel .scoreboards-date { margin: .4rem 0 .1rem; }
 .forum-results { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; touch-action: pan-y; }
-.forum-results table { font-size: .9rem; }
+.forum-results table { font-size: .75rem; }
+.forum-results th, .forum-results td { padding: .15rem .3rem; }
 .forum-results th { font-weight: normal; color: #746d60; font-variant: small-caps; }
-.forum-results td { padding: .45rem .3rem; font-variant-numeric: tabular-nums; }
+.forum-results td { font-variant-numeric: tabular-nums; }
 .forum-results thead { position: sticky; top: 0; background: #eee8da; }
 .forum-panel .online-status { margin: .35rem 0 0; font-size: .55rem; }
 .forum-panel .online-toolbar { margin-bottom: 0; font-size: .7rem; }
