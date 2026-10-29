@@ -436,6 +436,41 @@ Deno.test("the invitation keeps play paused until its reveal finishes", async fu
 	delete puzzle.invitation.animate;
 });
 
+Deno.test("invitations work when the browser cannot animate backdrops", async function() {
+	for (const accept of [true, false]) {
+		const puzzle = makePuzzle(6);
+		puzzle.say = function() {};
+		puzzle.loadURLSeed("https://example.com/#seed=21");
+		let reveal;
+		puzzle.invitation.animate = function(frames, options) {
+			if (options.pseudoElement)
+				throw new SyntaxError("unsupported pseudo-element");
+			return { finished: new Promise(resolve => { reveal = resolve; }), cancel() {} };
+		};
+		try {
+			if (accept)
+				assert(puzzle.startGame());
+			else
+				puzzle.closeInvitation();
+			assert(puzzle.paused && puzzle.timerTimeout === null && !puzzle.invitation.hidden,
+			       "the invitation did not wait for its dialog animation");
+			reveal();
+			await Promise.resolve();
+			assert(puzzle.invitation.hidden &&
+			       !puzzle.invitation.classList.contains("invitation-exiting"),
+			       "the invitation remained after its animation finished");
+			assert(accept ? !puzzle.paused && puzzle.timerTimeout !== null &&
+			               puzzle.pendingSeed === undefined :
+			               puzzle.timerTimeout === null && puzzle.pendingSeed === 0x21 &&
+			               puzzle.invitationDeclined,
+			       "the invitation did not complete the chosen action");
+		} finally {
+			puzzle.stopTimer();
+			delete puzzle.invitation.animate;
+		}
+	}
+});
+
 Deno.test("opening Options during the reveal keeps the timer stopped", async function() {
 	const puzzle = makePuzzle(6);
 	puzzle.say = function() {};

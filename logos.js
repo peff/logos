@@ -1205,10 +1205,16 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			this.invitation.classList.add("revealing");
 		this.invitation.classList.add("invitation-exiting");
 		var timing = { duration: duration, easing: "ease-in-out", fill: "forwards" };
-		this.invitationBackdropAnimation = this.invitation.animate(
-			[{ backgroundColor: "rgb(20 25 25 / 45%)" },
-			 { backgroundColor: "rgb(20 25 25 / 0%)" }],
-			{ ...timing, pseudoElement: "::backdrop" });
+		try {
+			this.invitationBackdropAnimation = this.invitation.animate(
+				[{ backgroundColor: "rgb(20 25 25 / 45%)" },
+				 { backgroundColor: "rgb(20 25 25 / 0%)" }],
+				{ ...timing, pseudoElement: "::backdrop" });
+		} catch (error) {
+			/* Older Firefox can animate the dialog but rejects ::backdrop. */
+			if (error.name !== "SyntaxError")
+				throw error;
+		}
 		var animation = this.invitationAnimation = this.invitation.animate(
 			[{ opacity: 1 }, { opacity: 0 }], timing);
 		animation.finished.then(() => {
