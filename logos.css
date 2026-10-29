@@ -3409,6 +3409,10 @@ body.proof-active :is(#hclues, #vclues) .clue.proof-current {
 	box-shadow: var(--tile-highlight-glow);
 }
 
+#board .proof .possibility.proof-impossible.proof-change .possibility-symbol {
+	visibility: hidden;
+}
+
 #board .single.proof-change {
 	outline: 2px solid #f1d47a;
 	outline-offset: 1px;
