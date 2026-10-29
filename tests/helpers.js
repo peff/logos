@@ -156,6 +156,7 @@ const Logos = eval(source +
 	"adjacent3DeductionMessage: adjacent3DeductionMessage, " +
 	"clueProofStep: clueProofStep, " +
 	"refreshProofStep, proofStepSupported, buildProofSteps, buildProofRoute, " +
+	"lemmaProofDeductions, replayLemmaProof, pruneLemmaProof, domainsFromSlots, proofPlacementsFromSlots, " +
 	"orderDeductionMessage: orderDeductionMessage, " +
 	"proofMessageText: proofMessageText, " +
 	"practiceMistakeMessage: practiceMistakeMessage, " +

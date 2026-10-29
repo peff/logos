@@ -6421,6 +6421,10 @@ function extendHintWithLemmas(puzzle, steps, base, basePlacements, firstLemma) {
 			last = next;
 		}
 	}
+	numberWalkthroughSteps(steps);
+}
+
+function numberWalkthroughSteps(steps) {
 	var number = 0, substep = 0;
 	for (var step of steps) {
 		if (!step.lemmaStage || step.lemmaStage == "start") {
@@ -6580,22 +6584,35 @@ function replayProofSteps(puzzle, base, basePlacements, steps,
 }
 
 function pruneProofSteps(puzzle, base, basePlacements, steps,
-			 failedSlot, failedValue) {
+			 failedSlot, failedValue, measure) {
+	/* Ordinary proofs count clue deductions. Lemma proofs supply a replay
+	 * which counts the expanded explanation, including forced steps. */
+	measure = measure || function(trial) {
+		return replayProofSteps(puzzle, base, basePlacements, trial,
+			failedSlot, failedValue) ? trial.length : null;
+	};
 	var orders = [steps.slice(), steps.slice().reverse()];
 	var best = steps;
+	var initialCost = measure(best) ?? Infinity;
+	var bestCost = initialCost;
 	for (var pass = 0; pass < orders.length; pass++) {
 		var kept = steps.slice();
+		var keptCost = initialCost;
 		for (var i = 0; i < orders[pass].length; i++) {
 			var candidate = orders[pass][i];
 			var trial = kept.filter(function(step) {
 				return step != candidate;
 			});
-			if (replayProofSteps(puzzle, base, basePlacements, trial,
-					     failedSlot, failedValue))
+			var cost = measure(trial);
+			if (cost !== null && cost <= keptCost) {
 				kept = trial;
+				keptCost = cost;
+			}
 		}
-		if (kept.length < best.length)
+		if (keptCost < bestCost || keptCost == bestCost && kept.length < best.length) {
 			best = kept;
+			bestCost = keptCost;
+		}
 	}
 
 	/*
@@ -6619,9 +6636,10 @@ function pruneProofSteps(puzzle, base, basePlacements, steps,
 			var trial = best.filter(function(step) {
 				return step.row + ":" + step.symbol != subject;
 			});
-			if (replayProofSteps(puzzle, base, basePlacements, trial,
-					     failedSlot, failedValue)) {
+			var cost = measure(trial);
+			if (cost !== null && cost <= bestCost) {
 				best = trial;
+				bestCost = cost;
 				changed = true;
 				break;
 			}
@@ -6642,6 +6660,106 @@ function proofStepSubjects(puzzle, step) {
 			subjects.push(subject);
 	}
 	return subjects;
+}
+
+/* Collapse each hypothetical branch to its proved discard. Forced row steps
+ * are regenerated during replay, just as they are in ordinary mistake proofs. */
+function lemmaProofDeductions(puzzle, walkthrough) {
+	var deductions = [], lemmaClues;
+	for (var step of walkthrough) {
+		if (step.lemmaStage == "start")
+			lemmaClues = new Set();
+		if (step.lemmaStage) {
+			for (var clue of step.clues)
+				lemmaClues.add(clue);
+			if (step.lemmaStage == "end")
+				deductions.push({
+					rule: "lemma", row: step.row, symbol: step.symbol,
+					column: singleBitIndex(step.removed),
+					lemmaClues: puzzle.clues.filter(clue => lemmaClues.has(clue)),
+				});
+		} else if (step.rule == "clue") {
+			deductions.push(step);
+		}
+	}
+	return deductions;
+}
+
+function replayLemmaProof(puzzle, base, basePlacements, deductions,
+			  failedSlot, failedValue, maxSteps = Infinity) {
+	var current = copyDomains(base), placements = basePlacements.slice();
+	var steps = [];
+	function concluded() {
+		return proofConclusionPresented(puzzle, current, placements,
+			failedSlot, failedValue);
+	}
+	function record(step, before) {
+		step = Object.assign({}, step, {
+			domain: current[step.row][step.symbol],
+			domains: copyDomains(current), placements: placements.slice(),
+			conclusion: false,
+		});
+		step.message = step.rule == "clue" ?
+			proofDeductionMessage(puzzle, step, before, step.domain, current) :
+			forcedProofMessage(puzzle, step);
+		steps.push(step);
+	}
+	drainForcedProofSteps(current, placements, record, concluded);
+	for (var deduction of deductions) {
+		if (concluded())
+			break;
+		if (deduction.rule == "lemma") {
+			if (!(current[deduction.row][deduction.symbol] & (1 << deduction.column)))
+				continue;
+			/* Rebuild from this board, not the old hypothetical snapshots.
+			 * Any contradiction proves the same discard. Try the original
+			 * lemma's clues first to retain its internal simplification. */
+			var lemma = buildChalkLemma(puzzle, current, placements, deduction,
+				deduction.lemmaClues, maxSteps - steps.length);
+			var alternative = buildChalkLemma(puzzle, current, placements, deduction,
+				puzzle.clues, lemma.length || maxSteps - steps.length);
+			if (alternative.length && (!lemma.length || alternative.length < lemma.length))
+				lemma = alternative;
+			if (!lemma.length)
+				return null;
+			steps.push(...lemma);
+			current = copyDomains(lemma[lemma.length - 1].domains);
+			placements = lemma[lemma.length - 1].placements.slice();
+		} else {
+			var step = refreshProofStep(puzzle, deduction, current);
+			if (!step)
+				continue;
+			if (!proofStepSupported(puzzle, step, current, placements))
+				return null;
+			var before = current[step.row][step.symbol];
+			applyProofStep(current, placements, step);
+			record(step, before);
+		}
+		drainForcedProofSteps(current, placements, record, concluded);
+		if (steps.length > maxSteps)
+			return null;
+	}
+	return steps.length && steps.length <= maxSteps && concluded() ? steps : null;
+}
+
+function pruneLemmaProof(puzzle, base, basePlacements, walkthrough,
+			failedSlot, failedValue) {
+	var deductions = lemmaProofDeductions(puzzle, walkthrough);
+	var best = walkthrough;
+	function measure(trial) {
+		var replay = replayLemmaProof(puzzle, base, basePlacements, trial,
+			failedSlot, failedValue, walkthrough.length);
+		if (!replay)
+			return null;
+		if (replay.length <= best.length)
+			best = replay;
+		return replay.length;
+	}
+	pruneProofSteps(puzzle, base, basePlacements, deductions,
+		failedSlot, failedValue, measure);
+	numberWalkthroughSteps(best);
+	best[best.length - 1].conclusion = true;
+	return best;
 }
 
 function orderProofSteps(puzzle, base, basePlacements, steps,
@@ -6805,8 +6923,8 @@ function buildProofSteps(puzzle, base, basePlacements,
 		/* Hypothetical snapshots cannot establish the conclusion. Keep
 		 * each chalk lemma intact through its proved elimination. */
 		if (end >= 0) {
-			best = walkthrough.slice(0, end + 1);
-			best[end].conclusion = true;
+			best = pruneLemmaProof(puzzle, base, basePlacements,
+				walkthrough.slice(0, end + 1), failedSlot, failedValue);
 		}
 	}
 	return best;

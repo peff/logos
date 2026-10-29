@@ -251,3 +251,125 @@ Deno.test("extreme mistakes use chalk lemmas to explain placements and eliminati
 		localStorage.removeItem("practiceMode");
 	}
 });
+
+function ghostMistakeProof() {
+	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
+	puzzle.say = function() {};
+	puzzle.newGame("33ebf04c", false, false, true);
+	puzzle.stopTimer();
+	const base = Logos.domainsFromSlots(puzzle);
+	const placements = Logos.proofPlacementsFromSlots(puzzle);
+	const target = puzzle.rows[3].slots[5];
+	const full = Logos.buildHintSteps(puzzle, null, base, placements);
+	const end = full.findIndex(step => !step.chalkBase &&
+		Logos.proofConclusionPresented(puzzle, step.domains, step.placements, target, 0));
+	assert(end >= 0);
+	const original = full.slice(0, end + 1);
+	const pruned = Logos.pruneLemmaProof(puzzle, base, placements, original, target, 0);
+	return { puzzle, base, placements, target, original, pruned };
+}
+
+Deno.test("mistake pruning removes whole lemmas and preserves their hypothetical boundaries", function() {
+	const { puzzle, base, placements, target, original, pruned } = ghostMistakeProof();
+	assert(pruned.length < original.length, "lemma proof was not shortened");
+	assert(pruned.filter(s => s.lemmaStage == "start").length <
+	       original.filter(s => s.lemmaStage == "start").length,
+	       "unused lemma was retained");
+	let domains = structuredClone(base), placed = placements.slice();
+	let assumption, lemmaBase, lemmaPlacements;
+	let number = 0, substep = 0;
+	function same(actual, expected) {
+		assert(JSON.stringify(actual) == JSON.stringify(expected), "stale proof snapshot");
+	}
+	for (const step of pruned) {
+		if (!step.lemmaStage || step.lemmaStage == "start") {
+			number++;
+			substep = 0;
+			assert(step.walkthroughNumber == String(number));
+		} else {
+			assert(step.walkthroughNumber == number + "." + (++substep));
+		}
+		if (step.lemmaStage == "start") {
+			assert(!assumption, "nested or unfinished lemma");
+			lemmaBase = structuredClone(domains);
+			lemmaPlacements = placed.slice();
+		} else if (step.lemmaStage == "contradiction") {
+			assert(assumption && (Logos.chalkContradiction(puzzle, domains) ||
+			       Logos.chalkClueContradiction(puzzle, domains)),
+			       "lemma did not reach a contradiction");
+		} else if (step.lemmaStage == "end") {
+			assert(step.row == assumption.row && step.symbol == assumption.symbol &&
+			       step.removed == 1 << assumption.column);
+			domains = lemmaBase;
+			placed = lemmaPlacements;
+			domains[step.row][step.symbol] &= ~step.removed;
+			assumption = null;
+		} else {
+			if (step.lemmaStage == "assumption") {
+				assumption = step;
+			} else {
+				assert(Logos.proofStepSupported(puzzle, step, domains, placed),
+				       "deduction lost its prerequisites");
+				if (step.clue) {
+					const trial = structuredClone(domains);
+					step.clue.constrain(trial, 63);
+					assert(!(step.removed & trial[step.row][step.symbol]),
+					       "clue does not justify displayed removals");
+				}
+			}
+			domains[step.row][step.symbol] &= ~step.removed;
+			if (step.placement) {
+				placed[step.row] |= 1 << step.symbol;
+				for (let symbol = 0; symbol < 6; symbol++)
+					if (symbol != step.symbol)
+						domains[step.row][symbol] &= ~domains[step.row][step.symbol];
+			}
+		}
+		same(step.domains, domains);
+		same(step.placements, placed);
+		if (step.chalkBase) {
+			same(step.chalkBase, lemmaBase);
+			same(step.chalkBasePlacements, lemmaPlacements);
+		}
+	}
+	assert(!assumption && pruned.at(-1).conclusion &&
+	       Logos.proofConclusionPresented(puzzle, domains, placed, target, 0));
+});
+
+Deno.test("lemma replay can change contradictions but cannot assume missing prerequisites", function() {
+	const { puzzle, base, placements, pruned } = ghostMistakeProof();
+	const deductions = Logos.lemmaProofDeductions(puzzle, pruned);
+	const lemmas = deductions.filter(step => step.rule == "lemma");
+	const first = lemmas[0];
+	const target = puzzle.rows[first.row].slots[first.column];
+	const rebuilt = Logos.replayLemmaProof(puzzle, base, placements, [first], target, first.symbol);
+	assert(rebuilt, "a different contradiction could not prove the same discard");
+	assert(rebuilt.find(s => s.lemmaStage == "contradiction").message !=
+	       pruned.find(s => s.lemmaStage == "contradiction").message,
+	       "fixture no longer exercises a different contradiction");
+
+	const dependent = lemmas.find(step => step.row == 5 && step.symbol == 5);
+	assert(dependent);
+	const dependentTarget = puzzle.rows[dependent.row].slots[dependent.column];
+	assert(!Logos.replayLemmaProof(puzzle, base, placements, [dependent],
+		dependentTarget, dependent.symbol), "unproved lemma discard was accepted");
+	const assumption = pruned.find(s => s.lemmaStage == "assumption" &&
+		s.row == dependent.row && s.symbol == dependent.symbol);
+	assert(Logos.replayLemmaProof(puzzle, assumption.chalkBase,
+		assumption.chalkBasePlacements, [dependent], dependentTarget, dependent.symbol),
+		"lemma could not be rebuilt with its prerequisites");
+});
+
+Deno.test("lemma pruning counts expanded steps when considering a shorter outer proof", function() {
+	const { puzzle, base, placements, target, pruned } = ghostMistakeProof();
+	const deductions = Logos.lemmaProofDeductions(puzzle, pruned);
+	const index = deductions.findIndex(step => step.rule == "clue" &&
+		step.row == 5 && step.symbol == 3);
+	assert(index >= 0);
+	const trial = deductions.filter((step, i) => i != index);
+	const longer = Logos.replayLemmaProof(puzzle, base, placements, trial, target, 0);
+	assert(longer && longer.length > pruned.length,
+	       "fixture no longer trades an outer deduction for a longer lemma");
+	assert(!Logos.replayLemmaProof(puzzle, base, placements, trial,
+		target, 0, pruned.length), "expanded proof length limit was ignored");
+});
