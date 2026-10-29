@@ -1,5 +1,5 @@
 (function() {
-	const { ScoreboardClient, localDate, compareScores, groupScores, validId } = LogosScoreboards;
+	const { ScoreboardClient, localDate, compareScores, groupScores, combineScores, validId } = LogosScoreboards;
 	const modal = document.querySelector("#online-menu");
 	const button = document.querySelector("#online-button");
 	const query = selector => modal.querySelector(selector);
@@ -29,7 +29,8 @@
 		const groups = (await store.groups()).sort((a, b) => a.joinedAt - b.joinedAt || a.id.localeCompare(b.id));
 		if (generation !== rendering) return;
 		forumLink.hidden = !groups.length;
-		if (!groups.some(g => g.id === selected)) selected = groups[0]?.id;
+		const boards = groups.length > 1 ? [{ id: "all", label: "All" }, ...groups] : groups;
+		if (!boards.some(g => g.id === selected)) selected = boards[0]?.id;
 		const name = await store.getName();
 		if (generation !== rendering) return;
 		if (document.activeElement !== query("#online-name")) query("#online-name").value = name;
@@ -94,22 +95,22 @@
 				rows.append(row);
 			}
 		}
-		groupList = groups;
-		const index = groups.findIndex(g => g.id === selected);
+		groupList = boards;
+		const index = boards.findIndex(g => g.id === selected);
 		const navigation = view(".forum-groups");
 		const hadFocus = navigation.contains(document.activeElement);
-		const circular = groups.length > 3;
+		const circular = boards.length > 3;
 		navigation.classList.toggle("forum-groups-circular", circular);
 		navigation.replaceChildren();
 		const visible = circular ? [-1, 0, 1].map(step => ({
-			group: groups[(index + step + groups.length) % groups.length], step,
-		})) : groups.map((group, position) => ({ group, step: position - index }));
+			group: boards[(index + step + boards.length) % boards.length], step,
+		})) : boards.map((group, position) => ({ group, step: position - index }));
 		for (const { group, step } of visible) {
 			const control = document.createElement("button");
 			control.type = "button";
 			control.dataset.step = step;
 			control.textContent = (circular && step < 0 ? "‹ " : "") + groupLabel(group) + (circular && step > 0 ? " ›" : "");
-			control.disabled = groups.length === 1;
+			control.disabled = boards.length === 1;
 			control.title = groupLabel(group);
 			control.setAttribute("aria-current", String(group.id === selected));
 			control.setAttribute("aria-label", (group.id === selected ? "Current group: " : "View ") + groupLabel(group));
@@ -155,14 +156,19 @@
 				attemptLink.textContent = level[0].toUpperCase() + level.slice(1) + " difficulty";
 			}
 		}
-		const records = await store.records(selected);
-		const uploads = await store.uploads(selected);
+		const sources = selected === "all" ? groups : groups.filter(group => group.id === selected);
+		const scores = (await Promise.all(sources.map(async group => {
+			const [records, uploads] = await Promise.all([store.records(group.id), store.uploads(group.id)]);
+			const ids = new Set(records.map(record => record.id));
+			const localRuns = new Map(uploads.map(item => [item.record.id, item.runId]));
+			const entries = records.concat(uploads.filter(item => !ids.has(item.record.id))
+				.map(item => ({ ...item.record, pending: !item.sent })));
+			return groupScores(entries.filter(r => r.date === date))
+				.map(record => ({ ...record, runId: localRuns.get(record.id) }));
+		}))).flat();
 		if (generation !== rendering) return;
-		const ids = new Set(records.map(record => record.id));
-		const localRuns = new Map(uploads.map(item => [item.record.id, item.runId]));
-		const entries = records.concat(uploads.filter(item => !ids.has(item.record.id)).map(item => ({ ...item.record, pending: !item.sent })));
 		const body = view("tbody"); body.replaceChildren();
-		for (const record of groupScores(entries.filter(r => r.date === date)).sort(compareScores)) {
+		for (const record of (selected === "all" ? combineScores(scores) : scores).sort(compareScores)) {
 			const row = document.createElement("tr");
 			for (const text of [record.name, record.outcome === "won" ? "Win" : "Loss",
 				record.elapsed === null ? "" : formatTime(record.elapsed), ""]) {
@@ -187,7 +193,7 @@
 					'role="img" aria-label="Untimed completion" focusable="false">' +
 					'<use href="#infinity-shape"/></svg>';
 			}
-			if (localRuns.has(record.id)) {
+			if (record.runId !== undefined) {
 				const time = row.children[2];
 				const link = document.createElement("button");
 				link.type = "button";
@@ -195,7 +201,7 @@
 				link.title = "View your run in the Chronicle";
 				link.setAttribute("aria-label", "View your run in the Chronicle: " + (time.textContent || "untimed"));
 				link.append(...time.childNodes);
-				link.onclick = attempt(() => openChronicle(localRuns.get(record.id)));
+				link.onclick = attempt(() => openChronicle(record.runId));
 				time.append(link);
 			}
 			body.append(row);
@@ -254,6 +260,7 @@
 	}
 	async function open(fromDaily = false, fromPantheon = false) {
 		const destination = fromPantheon || fromDaily && (await store.groups()).length ? forum : modal;
+		if (destination === forum) selected = "all";
 		pantheonReturn = null;
 		if (fromPantheon) {
 			pantheonReturn = { identity: puzzle.gameIdentity,

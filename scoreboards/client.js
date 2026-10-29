@@ -85,5 +85,23 @@
 		}
 		return [...scores.values()];
 	}
-	root.LogosScoreboards = { ScoreboardClient, localDate, compareScores, groupScores, validId: id => uuid.test(id) };
+	// Group-specific record IDs cannot identify shared results across boards.
+	// Combine the displayed scores after resolving each board's continuations.
+	function combineScores(records) {
+		const scores = new Map();
+		for (const record of records) {
+			const key = JSON.stringify([record.date, record.name, record.outcome,
+				record.elapsed, record.generatorVersion]);
+			const existing = scores.get(key);
+			if (!existing) scores.set(key, { ...record });
+			else {
+				existing.completed ||= record.completed;
+				existing.pending ||= record.pending;
+				existing.runId ??= record.runId;
+			}
+		}
+		return [...scores.values()];
+	}
+
+	root.LogosScoreboards = { ScoreboardClient, localDate, compareScores, groupScores, combineScores, validId: id => uuid.test(id) };
 })(globalThis);

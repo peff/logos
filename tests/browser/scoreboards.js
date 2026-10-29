@@ -1,7 +1,7 @@
 var browserTestsDone = (async function() {
 	const output = document.querySelector("#results");
 	const assert = (value, message) => { if (!value) throw new Error(message); };
-	const { ScoreboardClient, localDate, compareScores, groupScores } = LogosScoreboards;
+	const { ScoreboardClient, localDate, compareScores, groupScores, combineScores } = LogosScoreboards;
 	const store = new ScoreboardStore();
 	const groups = [crypto.randomUUID(), crypto.randomUUID()];
 	const rows = new Map(); let sequence = 0, offline = false, lostReply = false, posts = 0;
@@ -139,6 +139,19 @@ var browserTestsDone = (async function() {
 		const backfilled = await store.uploads(lateGroup);
 		assert(backfilled.length === 2 && backfilled[1].record.continuationOf === backfilled[0].record.id,
 		       "explicit backfill did not queue the loss and its completion together"); checks++;
+		const score = { id: "one", date: localDate(), name: "Ada", outcome: "lost", elapsed: 123000, generatorVersion: 1 };
+		const combined = combineScores([score, { ...score, id: "two", completed: true, pending: true, runId: 42 }]);
+		assert(combined.length === 1 && combined[0].completed && combined[0].pending && combined[0].runId === 42,
+		       "combined score lost completion, pending status, or Chronicle link"); checks++;
+		assert(!score.completed && !score.pending, "combining mutated a group score"); checks++;
+		for (const different of [{ name: "Grace" }, { date: "19990101" }, { outcome: "won" },
+			{ elapsed: 123001 }, { elapsed: null }, { generatorVersion: 2 }]) {
+			assert(combineScores([score, { ...score, ...different }]).length === 2,
+			       "combined distinct scores: " + JSON.stringify(different)); checks++;
+		}
+		await testForum(assert);
+		checks++;
+
 		output.textContent = `PASS: ${checks} scoreboard checks`;
 		return true;
 	} catch (error) { output.textContent = "FAIL: " + error.stack; return false; }
@@ -147,3 +160,81 @@ var browserTestsDone = (async function() {
 		await store.setName(originalName);
 	}
 })();
+
+async function testForum(assert) {
+	const frame = document.createElement("iframe");
+	frame.src = "../../index.html";
+	frame.style.width = "1000px";
+	frame.style.height = "800px";
+	const loaded = new Promise(resolve => frame.onload = resolve);
+	document.body.append(frame);
+	await loaded;
+	const app = frame.contentWindow, doc = app.document;
+	await app.puzzle.onlineReady;
+	const endpoint = doc.querySelector('meta[name="logos-scoreboards-endpoint"]').content;
+	const store = new app.ScoreboardStore("logos-scoreboards:" + endpoint);
+	const ids = [crypto.randomUUID(), crypto.randomUUID(), crypto.randomUUID()];
+	const today = app.LogosScoreboards.localDate();
+	// Exercise cached and pending rows without a live scoreboard service.
+	app.fetch = async () => { throw Error("offline"); };
+	const current = () => doc.querySelector('.forum-groups [aria-current="true"]')?.title;
+	const rows = () => [...doc.querySelectorAll("#forum-menu tbody tr")];
+	async function waitFor(test) {
+		const deadline = Date.now() + 5000;
+		while (!test()) {
+			if (Date.now() > deadline) throw Error("Timed out waiting for Forum render");
+			await new Promise(resolve => setTimeout(resolve, 20));
+		}
+	}
+	async function openDaily() {
+		app.puzzle.showDailyResult({ date: today, outcome: "lost", difficulty: "easy" });
+		await doc.querySelector(".daily-scoreboards").onclick();
+	}
+	function close() { doc.querySelector("#forum-menu .modal-close").click(); }
+	try {
+		for (const [i, id] of ids.entries()) {
+			await store.join({ id, label: "Group " + i, joinedAt: i, joinDate: today });
+			await store.merge(id, { cursor: 1, records: [
+				{ id: crypto.randomUUID(), date: today, name: "Shared", outcome: "won", elapsed: 1000, generatorVersion: 1 },
+				{ id: crypto.randomUUID(), date: today, name: "Player " + i, outcome: "won", elapsed: 2000 + i, generatorVersion: 1 },
+			] });
+		}
+		await openDaily();
+		assert(current() === "All" && rows().length === 4, "daily entry did not combine all boards");
+		assert(rows()[0].cells[0].textContent === "Shared", "combined scores not ranked");
+		assert(doc.querySelector(".forum-groups").classList.contains("forum-groups-circular"), "All missing from circular navigation");
+		doc.querySelector('.forum-groups [data-step="1"]').click();
+		await waitFor(() => current() === "Group 0" && rows().length === 2);
+		close();
+		await openDaily();
+		assert(current() === "All", "daily entry retained previous group selection");
+		doc.querySelector(".forum-manage").click();
+		await doc.querySelector('.scoreboards-groups li[data-group="' + ids[1] + '"] button').onclick();
+		await waitFor(() => current() === "Group 1" && rows().length === 2);
+		assert(!doc.querySelector('#online-menu').textContent.includes("All"), "virtual board appeared in Friends management");
+		close();
+		doc.querySelector("#online-menu .modal-close").click();
+		app.puzzle.toggleModal(app.puzzle.scores, app.puzzle.scoresButton, "Close");
+		await doc.querySelector(".pantheon-forum-link button").onclick();
+		assert(current() === "All" && rows().length === 4, "Pantheon entry did not default to All");
+		await store.leave(ids[2]);
+		close();
+		await doc.querySelector(".pantheon-forum-link button").onclick();
+		assert(current() === "All" && rows().length === 3 && doc.querySelector(".forum-groups").children.length === 3,
+		       "All did not update after leaving a group");
+		await store.leave(ids[1]);
+		close();
+		await doc.querySelector(".pantheon-forum-link button").onclick();
+		assert(current() === "Group 0" && rows().length === 2 && doc.querySelector(".forum-groups").children.length === 1,
+		       "single group still offered All");
+		assert(doc.querySelector(".forum-groups button").disabled, "single group navigation not disabled");
+		await store.leave(ids[0]);
+		close();
+		await doc.querySelector(".pantheon-forum-link button").onclick();
+		assert(!doc.querySelector(".forum-no-groups").hidden && !doc.querySelector(".forum-groups").children.length,
+		       "empty membership retained virtual board");
+	} finally {
+		for (const id of ids) await store.leave(id);
+		frame.remove();
+	}
+}
