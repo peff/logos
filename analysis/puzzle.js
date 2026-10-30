@@ -201,14 +201,17 @@ function analyzePuzzle(game, seed, snapshot, trace, extreme) {
 		validatePosition(game, puzzle, snapshot);
 	if (extreme) {
 		const rating = game.measureExtremeDifficulty(puzzle);
-		console.log(`Seed ${game.formatSeed(seed)} — extreme`);
-		console.log(rating.stalled ? "Skulls: ∞" : rating.complete ? `Skulls: ${rating.skulls}\nScore: ${rating.score.toFixed(2)}\nMean bottlenecks: ${rating.bottlenecks.toFixed(1)}` :
-			"Extreme rating unavailable");
+		const summary = rating.stalled ? "∞ (∞ skulls)" : rating.complete ?
+			`${rating.score.toFixed(2)} (${rating.skulls} ${rating.skulls === 1 ? "skull" : "skulls"})` :
+			"extreme rating unavailable";
+		console.log(`Seed ${game.formatSeed(seed)} — ${summary}`);
+		if (rating.complete)
+			console.log(`Mean bottlenecks: ${rating.bottlenecks.toFixed(1)}`);
 	} else {
 		const metrics = game.measureDifficulty(puzzle);
 		const rating = game.difficultyRating(metrics);
-		console.log(`Seed ${game.formatSeed(seed)} — ${rating.level}`);
-		console.log(`Score: ${rating.score.toFixed(2)} = excess discards + 5 × scarcity`);
+		console.log(`Seed ${game.formatSeed(seed)} — ${rating.score.toFixed(2)} (${rating.level.toLowerCase()})`);
+		console.log("Score = excess discards + 5 × scarcity");
 		console.log("Cutoffs: Easy < 47; Medium < 70; otherwise Hard");
 		console.log("Ten-route averages (placement-first):");
 		console.log(`  Total scarcity:               ${metrics.scarcity.toFixed(2)}`);

@@ -16,8 +16,10 @@ Multiple seeds or URLs produce separate reports in command-line order;
 `--trace` applies to each puzzle. The stdin `--position` mode still accepts
 one snapshot and cannot be combined with seed arguments.
 
-The output includes the label, numeric score, and ten-route averages of the
-placement-first scoring metrics. The score is excess discards + 5 × scarcity,
+Each puzzle gets a stanza headed by its seed, numeric score, and label,
+such as `Seed 3f1ad099 — 52.63 (medium)`, followed by ten-route averages of
+the placement-first scoring metrics. Blank lines separate puzzles.
+The score is excess discards + 5 × scarcity, averaged over ten routes,
 with Easy below 47 and Medium below 70. This default output does not reveal
 clues or moves.
 See [DIFFICULTY.md](DIFFICULTY.md) for the methodology.
@@ -29,8 +31,9 @@ For extreme puzzles, use `--extreme` or a URL containing the `extreme` flag:
 ./analysis/puzzle 'file:///home/peff/work/logos/index.html#seed=0e2b42be&extreme'
 ```
 
-These report the original extreme puzzle's skull count and score instead
-of a normal difficulty score. Seeds without an extreme variant are reported
+These report the original extreme puzzle's numeric score and skull count,
+such as `Seed 0e2b42be — 51.99 (1 skull)`, instead of a normal difficulty
+score, followed by the mean bottleneck count. Seeds without an extreme variant are reported
 as such, and processing continues with the remaining inputs.
 `--extreme` applies to every input; URL flags apply only to their own input.
 Snapshots automatically select extreme mode and restore any revealed clues;
