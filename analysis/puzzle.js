@@ -187,8 +187,10 @@ function analyzePuzzle(game, seed, snapshot, trace, extreme) {
 	const originalClues = puzzle.clues;
 	if (extreme) {
 		const indices = game.extremeClueIndices(puzzle);
-		if (!indices)
-			throw new Error(`seed ${game.formatSeed(seed)} has no extreme variant`);
+		if (!indices) {
+			console.log(`Seed ${game.formatSeed(seed)} — no extreme variant`);
+			return;
+		}
 		puzzle.clues = indices.map(index => originalClues[index]);
 	}
 	// The DOM-free generator omits display names, which proof messages use.

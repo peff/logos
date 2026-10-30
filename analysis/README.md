@@ -30,7 +30,8 @@ For extreme puzzles, use `--extreme` or a URL containing the `extreme` flag:
 ```
 
 These report the original extreme puzzle's skull count and score instead
-of a normal difficulty score. Seeds without an extreme variant are rejected.
+of a normal difficulty score. Seeds without an extreme variant are reported
+as such, and processing continues with the remaining inputs.
 `--extreme` applies to every input; URL flags apply only to their own input.
 Snapshots automatically select extreme mode and restore any revealed clues;
 the difficulty rating still describes the original puzzle without assistance.
