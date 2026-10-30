@@ -415,7 +415,7 @@ function initializePortraitClueLayout() {
 	var portrait = window.matchMedia("(orientation: portrait)");
 	function fit() {
 		if (!portrait.matches || !body.matches(".game-started:is(" +
-		    ".multiplayer, .proof-active, .suppose-active, " +
+		    ".multiplayer, .proof-active, .suppose-active, .suppose-result, " +
 		    ":has(#proof-controls.hint-explanation))")) {
 			body.style.removeProperty("--portrait-clue-scale");
 			return;
@@ -2405,6 +2405,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			return;
 		if (this.suppose && this.actionController)
 			return this.actionController.requestBranchAction({ type: "nest" });
+		this.clearSupposeResult();
 		var parent = this.suppose;
 		this.recordMoveEvent("suppose-enter");
 		this.supposeLauncher = button || this.supposeButton;
@@ -2437,7 +2438,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 				this.suppose && (!this.suppose.assumption || this.suppose.pending || this.hasSupposeConflict()));
 			button.setAttribute("aria-expanded", String(!!this.suppose));
 		}
-		this.supposeControls.hidden = !this.suppose;
+		this.supposeControls.hidden = !this.suppose && !this.supposeResult;
 		if (this.suppose)
 			this.explainButton.disabled = true;
 	}
@@ -2547,6 +2548,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.restoreSuppose = function(state) {
+		this.clearSupposeResult();
 		this.suppose = state;
 		document.body.classList.add("suppose-active");
 		this.updateChalkControls();
@@ -2668,19 +2670,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			info.nested ? "· Nested" : "") + (sharedConflict ? " · Conflict" : "");
 		position.hidden = !position.textContent;
 		position.title = position.textContent;
-		var reminder = this.supposeControls.querySelector(".suppose-reminder");
-		reminder.hidden = !state.assumption;
-		if (state.assumption) {
-			var { row, symbol, discard } = state.assumption;
-			var tile = document.createElement("span");
-			tile.className = "proof-tile " + this.rows[row].familyClass;
-			tile.setAttribute("data-discard", String(discard));
-			renderTileSymbol(tile, this.rows[row].slots[0].symbols[symbol]);
-			reminder.replaceChildren(tile);
-			var assumptionText = proofMessageText(this, this.supposeMoveMessage(state.assumption, true));
-			reminder.title = assumptionText;
-			reminder.setAttribute("aria-label", assumptionText);
-		}
+		this.renderSupposeReminder(state.assumption);
 		var watchers = branch?.participants.filter(id => id != this.actionController.playerId) || [];
 		var names = watchers.map(id => this.actionController.players.find(player => player.id == id)?.name || "Player");
 		var presence = this.supposeControls.querySelector(".suppose-watchers");
@@ -2804,13 +2794,64 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		if (this.actionController)
 			return this.actionController.requestBranchAction({ type: "reject" });
 		var assumption = this.suppose.assumption;
+		var nested = !!this.suppose.parent;
 		this.recordMoveEvent("suppose-reject", { ...assumption });
 		this.leaveSuppose();
 		this.requestTileAction(this.rows[assumption.row].slots[assumption.column],
 			assumption.symbol, assumption.discard ? "place" : "remove");
+		if (!nested)
+			this.showSupposeResult({ ...assumption, discard: !assumption.discard });
+	}
+
+	this.renderSupposeReminder = function(assumption) {
+		var reminder = this.supposeControls.querySelector(".suppose-reminder");
+		reminder.hidden = !assumption;
+		if (assumption) {
+			var { row, symbol, discard } = assumption;
+			var tile = document.createElement("span");
+			tile.className = "proof-tile " + this.rows[row].familyClass;
+			tile.setAttribute("data-discard", String(discard));
+			renderTileSymbol(tile, this.rows[row].slots[0].symbols[symbol]);
+			reminder.replaceChildren(tile);
+			var assumptionText = proofMessageText(this, this.supposeMoveMessage(assumption, true));
+			reminder.title = assumptionText;
+			reminder.setAttribute("aria-label", assumptionText);
+		}
+	}
+
+	/* A completed rejection is a receipt, not an active supposition. */
+	this.showSupposeResult = function(move) {
+		if (this.suppose || this.proof)
+			return;
+		this.supposeResult = move;
+		document.body.classList.add("suppose-result");
+		this.supposeControls.classList.add("suppose-result");
+		this.supposeControls.querySelector(".proof-previous").disabled = true;
+		this.supposeControls.querySelector(".proof-next").disabled = true;
+		this.renderSupposeReminder({ ...move, discard: !move.discard });
+		var position = this.supposeControls.querySelector(".proof-position");
+		position.textContent = "· Rejected";
+		position.title = position.textContent;
+		position.hidden = false;
+		renderProofMessage(this, this.supposeControls.querySelector(".suppose-assumption"),
+			this.supposeMoveMessage(move), false);
+		var close = this.supposeControls.querySelector(".suppose-leave");
+		close.textContent = "Close";
+		close.disabled = false;
+		this.updateSupposeControls();
+	}
+
+	this.clearSupposeResult = function() {
+		if (!this.supposeResult)
+			return;
+		this.supposeResult = null;
+		document.body.classList.remove("suppose-result");
+		this.supposeControls.classList.remove("suppose-result");
+		this.updateSupposeControls();
 	}
 
 	this.leaveSuppose = function(all = false) {
+		this.clearSupposeResult();
 		if (this.actionController?.ready && !this.actionController.updatingBranches && this.suppose)
 			return this.actionController.requestBranchAction({ type: !all && this.suppose.parent ? "back-out" : "leave" });
 		this.cancelSupposeRewind();
@@ -3028,6 +3069,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.applyTileAction = function(slot, value, action, options) {
+		this.clearSupposeResult();
 		options = options || {};
 		var playerAction = options.playerAction !== false;
 		if (action == "place")

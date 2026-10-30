@@ -158,6 +158,18 @@ Deno.test("rejecting a supposition commits only the opposite initial move", func
 		assert(discard ? slot.single : !slot.possible[value]);
 		assert(!other.single && other.possible.every(Boolean));
 		assert(clue.active);
+		assert(!puzzle.supposeControls.hidden && puzzle.supposeResult);
+		assert(puzzle.supposeResult.discard === !discard);
+		assert(puzzle.supposeControls.querySelector(".proof-previous").disabled);
+		assert(puzzle.supposeControls.querySelector(".proof-next").disabled);
+		assert(puzzle.supposeControls.querySelector(".proof-position").textContent === "· Rejected");
+		assert(!puzzle.supposeControls.querySelector(".proof-position").hidden);
+		const reminder = puzzle.supposeControls.querySelector(".suppose-reminder");
+		assert(!reminder.hidden);
+		assert(reminder.children[0].attributes["data-discard"] === String(discard));
+		assert(!document.body.classList.contains("suppose-active"));
+		puzzle.requestTileAction(other, other.value, "place");
+		assert(!puzzle.supposeResult && puzzle.supposeControls.hidden);
 		puzzle.stopTimer();
 	}
 });
@@ -490,4 +502,24 @@ Deno.test("move recordings retain nested explorations and rewound branches", asy
 	assert(puzzle.moveRecording.events.at(-1).domains[0][slot.value] === 1);
 	puzzle.stopTimer();
 	puzzle.say("");
+});
+
+Deno.test("rejection results close and give way to a new supposition or game", function() {
+	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
+	puzzle.newGame(0);
+	try {
+		const move = { row: 0, column: 0, symbol: 0, discard: true };
+		puzzle.showSupposeResult(move);
+		puzzle.leaveSuppose();
+		assert(!puzzle.supposeResult && puzzle.supposeControls.hidden);
+		puzzle.showSupposeResult(move);
+		puzzle.enterSuppose();
+		assert(!puzzle.supposeResult && puzzle.suppose);
+		puzzle.leaveSuppose();
+		puzzle.showSupposeResult(move);
+		puzzle.newGame(1);
+		assert(!puzzle.supposeResult && puzzle.supposeControls.hidden);
+	} finally {
+		puzzle.stopTimer();
+	}
 });

@@ -110,6 +110,10 @@ Deno.test("rejecting a multiplayer supposition shares only the inverse assumptio
 		p.rejectSuppose();
 		assert(!p.suppose && !a.slot.possible[a.value] && b.slot.possible[b.value]);
 		assert(host.session.revision == 1 && boardState(p) == boardState(guest.puzzle));
+		assert(p.supposeResult);
+		assert(!guest.puzzle.supposeResult, "unrelated player saw a rejection result");
+		p.requestTileAction(b.slot, b.slot.value, "place");
+		assert(!p.supposeResult && p.supposeControls.hidden);
 	} finally {
 		stopAll(host, guest);
 	}

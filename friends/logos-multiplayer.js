@@ -150,6 +150,10 @@ function applySharedAction(puzzle, action, playerAction, actor, actorColor) {
 	puzzle.applyTileAction(slot, action.value, action.type, {
 		playerAction,
 	});
+	if (puzzle.actionController?.ready &&
+	    action.rejectedFor?.includes(puzzle.actionController.playerId))
+		puzzle.showSupposeResult({ row: action.row, column: action.column,
+			symbol: action.value, discard: action.type == "remove" });
 }
 
 class MultiplayerSession {
@@ -680,7 +684,8 @@ class MultiplayerSession {
 				} else {
 					const a = state.assumption;
 					const moves = action.type == "reject" ? [{ row: a.row, column: a.column,
-						value: a.symbol, type: a.discard ? "place" : "remove" }] :
+						value: a.symbol, type: a.discard ? "place" : "remove",
+						rejectedFor: branch.participants.slice() }] :
 						state.history.slice(1, state.position + 1).map(({ move }) => ({
 							row: move.row, column: move.column, value: move.symbol,
 							type: move.discard ? "remove" : "place" }));

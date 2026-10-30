@@ -444,7 +444,7 @@ body #timer::after {
  * Use the same scale for the clues and their grid tracks to keep them in sync.
  */
 @media (orientation: portrait) {
-	body:is(.multiplayer, .proof-active, .suppose-active, :has(#proof-controls.hint-explanation)) :is(#hclues, #vclues) {
+	body:is(.multiplayer, .proof-active, .suppose-active, .suppose-result, :has(#proof-controls.hint-explanation)) :is(#hclues, #vclues) {
 		justify-self: center;
 		transform: scale(var(--portrait-clue-scale));
 		transform-origin: top center;
@@ -862,7 +862,7 @@ body[data-chalk-cursor="true"][data-discard-cursor="true"]:not([data-custom-curs
 	visibility: hidden;
 }
 
-body:is(.proof-active, .suppose-active, :has(#proof-controls.hint-explanation)) :is(#logo, #friends-roster) {
+body:is(.proof-active, .suppose-active, .suppose-result, :has(#proof-controls.hint-explanation)) :is(#logo, #friends-roster) {
 	display: none;
 }
 
@@ -4197,4 +4197,10 @@ body.suppose-active #board .possibility { transition: opacity 180ms ease; }
 .friends-roster-event button.friends-roster-action:focus-visible {
 	outline: 2px solid #cfb779;
 	outline-offset: 1px;
+}
+
+/* Retain the final deduction without the controls for an active branch. */
+#suppose-controls.suppose-result :is(.suppose-watchers, .suppose-exit,
+	.suppose-rewind, .suppose-accept, .suppose-reject) {
+	display: none;
 }
