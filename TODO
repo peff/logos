@@ -10,6 +10,19 @@
      button could appear only when there's chalk)
    - if chalk is retired, consider using shift-click to enter suppose
      mode
+ - custom tiles
+   - now that the Halloween tiles are out, we might consider allowing
+     you to pick them at will, along with other possible options (e.g.,
+     future holiday tiles, or alternate tile sets like Greek letters, or
+     others that some may find more readable).
+   - one possible mental model: you can pick a pre-made tileset (like
+     Halloween), or make your own, picking each row individually. Or
+     even design your own row (arbitrary characters? SVG?).
+   - if tileset selection gets complicated, it probably needs its own
+     dialog off of Options
+   - one complication: in multiplayer is a tileset shared, or does
+     everyone play with their own (and agree to match if they want to be
+     able to discuss)?
  - howto/help improvements
    - tips
      - ordinary puzzles solvable by deduction
