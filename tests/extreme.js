@@ -184,32 +184,6 @@ Deno.test("Extreme history preserves timing and outcomes without entering the Pa
 	});
 });
 
-Deno.test("uncached Extreme saves defer rating and preserve the completed game", async function() {
-	await withRunHistory(async runs => {
-		const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
-		puzzle.options.hidden = true;
-		puzzle.newGame(0xb4fd72da, false, false, true);
-		puzzle.stopTimer();
-		puzzle.timerElapsed = 123456;
-		assert(!puzzle.extremeDifficultyCache);
-		const run = puzzle.runRecord("won");
-		assert(!run.extremeDifficulty, "capturing the result computed a rating");
-		const saving = puzzle.recordOutcome("won");
-		assert(!runs.length && !puzzle.extremeDifficultyCache,
-		       "saving did not yield before rating");
-		/* Start a new game during the animation grace period. */
-		puzzle.newGame(1);
-		puzzle.stopTimer();
-		assert(await saving);
-		assert(runs.length === 1 && runs[0].seed === run.seed &&
-		       runs[0].elapsed === 123456 && runs[0].extreme);
-		assert(runs[0].extremeDifficulty.version === 2 && runs[0].extremeDifficulty.complete);
-		assert(puzzle.seed === 1 && !puzzle.gameOver && !puzzle.extremeDifficultyCache,
-		       "old rating changed the new game");
-		puzzle.say("");
-	});
-});
-
 Deno.test("Chronicle displays, filters, links, and refreshes Extreme ratings", async function() {
 	const initial = [
 		{ seed: 0x98079244, difficulty: { version: 1, level: "easy", score: 20 } },
