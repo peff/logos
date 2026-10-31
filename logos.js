@@ -3,7 +3,7 @@ var puzzleGeneratorVersion = 1;
 
 /* Increment when the difficulty formula, route policy/count, or cutoffs change. */
 var puzzleDifficultyVersion = 1;
-var extremeDifficultyVersion = 2;
+var extremeDifficultyVersion = 3;
 
 const difficultyLevels = ["easy", "medium", "hard"];
 const pantheonLevels = ["all", ...difficultyLevels];
@@ -1628,7 +1628,9 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			display.innerHTML = "Extreme " + extremeSkulls(rating);
 			display.disabled = false;
 			display.title = rating.stalled ? "Beyond single-choice deductions" :
-				rating.complete ? "" : "Extreme rating unavailable";
+				rating.complete ? (rating.skulls == 0 ?
+					"Solvable with two-clue deductions; no assumptions needed" : "") :
+					"Extreme rating unavailable";
 			return;
 		}
 		if (!this.seedDifficultyCache || this.seedDifficultyCache.seed !== seed)
@@ -1722,6 +1724,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			(extremeRating.stalled ? "Skulls: ∞" :
 			 extremeRating.complete ? "Skulls: " + extremeRating.skulls + "\nScore: " + extremeRating.score.toFixed(2) +
 				"\nMean bottlenecks: " + extremeRating.bottlenecks.toFixed(1) +
+				"\nMean two-clue deductions: " + extremeRating.pairDeductions.toFixed(1) +
 				"\nMaximum assumption depth: " + extremeRating.maxDepth :
 				"Extreme rating unavailable") :
 			"Difficulty: " + rating.level + "\n" +
@@ -5033,24 +5036,110 @@ function extremeClueIndices(puzzle) {
 	return cluesSolve(puzzle, indices.map(index => puzzle.clues[index])) ? null : indices;
 }
 
-/* Count interruptions to ordinary propagation along a deterministic route.
+/* Enumerate the joint support of two clues, including row uniqueness.
+ * This stronger deduction is for rating only: seed reconstruction must keep
+ * using the original ordinary solver. */
+function cluePairTuples(puzzle, clue) {
+	var size = puzzle.rows[0].slots.length;
+	var slots = clueSlots(clue);
+	var variables = slots.map(s => puzzle.rows.indexOf(s.row) * size + s.value);
+	var tuples = [];
+	function enumerate(cols) {
+		if (cols.length < slots.length) {
+			for (var col = 0; col < size; col++) enumerate([...cols, col]);
+			return;
+		}
+		var valid;
+		switch (clue.constructor.name) {
+		case 'ExactClue': valid = cols[0] === clue.row.slots.indexOf(clue.slot); break;
+		case 'ColumnClue': valid = cols[0] === cols[1]; break;
+		case 'OrderClue': valid = cols[0] < cols[1]; break;
+		case 'Adjacent2Clue': valid = Math.abs(cols[0] - cols[1]) === 1; break;
+		case 'Adjacent3Clue': valid = Math.abs(cols[0] - cols[1]) === 1 &&
+			cols[0] + cols[2] === 2 * cols[1]; break;
+		default: throw new Error('unknown clue');
+		}
+		if (valid) tuples.push(variables.map((v, i) => [v, cols[i]]));
+	}
+	enumerate([]);
+	return tuples;
+}
+
+function compileCluePairs(puzzle) {
+	var size = puzzle.rows[0].slots.length;
+	var clues = puzzle.clues.map(c => cluePairTuples(puzzle, c));
+	var pairs = [];
+	for (var i = 0; i < clues.length; i++) {
+		for (var j = i + 1; j < clues.length; j++) {
+			var variables = [...new Set([...clues[i][0], ...clues[j][0]].map(([v]) => v))];
+			// Disjoint rows cannot interact through equality or row uniqueness.
+			if (!clues[i][0].some(([a]) => clues[j][0].some(([b]) => (a / size | 0) === (b / size | 0))))
+				continue;
+			var tuples = [];
+			for (var a of clues[i]) for (var b of clues[j]) {
+				var merged = new Map();
+				var valid = true;
+				for (var [v, col] of [...a, ...b]) {
+					if (merged.has(v) && merged.get(v) !== col) { valid = false; break; }
+					for (var [w, other] of merged) {
+						if (v !== w && (v / size | 0) === (w / size | 0) && col === other)
+							valid = false;
+					}
+					merged.set(v, col);
+				}
+				if (valid) tuples.push(variables.map(v => 1 << merged.get(v)));
+			}
+			if (!tuples.length) throw new Error('inconsistent clue pair');
+			pairs.push({ variables, tuples });
+		}
+	}
+	return pairs;
+}
+
+function applyCluePairDeduction(pairs, domains) {
+	var size = domains[0].length;
+	for (var { variables, tuples } of pairs) {
+		var current = variables.map(v => domains[v / size | 0][v % size]);
+		var supported = variables.map(() => 0);
+		for (var tuple of tuples) {
+			if (tuple.every((bit, i) => bit & current[i]))
+				tuple.forEach((bit, i) => supported[i] |= bit);
+		}
+		if (supported.some(bits => !bits)) throw new Error('pair has no support');
+		if (supported.some((bits, i) => bits !== current[i])) {
+			variables.forEach((v, i) => domains[v / size | 0][v % size] = supported[i]);
+			return true;
+		}
+	}
+	return false;
+}
+
+/* Count interruptions after ordinary and two-clue deductions along a route.
  * At each stall, reject the trial that unlocks the most candidate removals.
  * This is a reproducible estimate, not the minimum over all solving routes.
  * Fall back to bounded nested contradictions when single trials fail. */
 function traceExtremeDifficulty(puzzle, maxTrials = 10000, options = {}) {
 	var size = puzzle.rows[0].slots.length;
 	var domains = puzzle.rows.map(() => Array(size).fill((1 << size) - 1));
-	var result = { bottlenecks: 0, complete: false, maxDepth: 0 };
+	var result = { bottlenecks: 0, complete: false, maxDepth: 0, pairDeductions: 0 };
 	var budget = { remaining: maxTrials };
 	var trialCache = [];
 	if (options.measureCost)
 		result.costs = [];
 	var route = options.route || 0;
 	var clues = clueRouteOrder(puzzle.clues, route);
+	var pairs = options.twoClueDeductions === false ? [] :
+		clueRouteOrder(options.cluePairs || compileCluePairs(puzzle), route);
 	var candidates = data => data.flat().reduce((sum, bits) => sum + countBits(bits), 0);
 	if (!cluesAllow(puzzle, clues, domains))
 		return result;
 	while (candidates(domains) > puzzle.rows.length * size) {
+		if (applyCluePairDeduction(pairs, domains)) {
+			result.pairDeductions++;
+			if (!cluesAllow(puzzle, clues, domains))
+				return result;
+			continue;
+		}
 		var best = null, chosen;
 		var bestSize = candidates(domains);
 		var trials = [];
@@ -5147,19 +5236,21 @@ function traceExtremeDifficulty(puzzle, maxTrials = 10000, options = {}) {
 function measureExtremeDifficulty(puzzle, maxTrials = 10000, routes = 10, options = {}) {
 	if (!Number.isInteger(routes) || routes < 1)
 		throw new Error("difficulty analysis needs a positive route count");
-	var score = 0, bottlenecks = 0, maxDepth = 0;
+	var score = 0, bottlenecks = 0, maxDepth = 0, pairDeductions = 0;
+	var cluePairs = options.twoClueDeductions === false ? [] : compileCluePairs(puzzle);
 	for (var route = 0; route < routes; route++) {
-		var run = traceExtremeDifficulty(puzzle, maxTrials, { ...options, route, measureCost: true });
+		var run = traceExtremeDifficulty(puzzle, maxTrials, { ...options, cluePairs, route, measureCost: true });
 		maxDepth = Math.max(maxDepth, run.maxDepth);
 		if (!run.complete)
 			return run.stalled ? { complete: false, stalled: true, skulls: Infinity, maxDepth } :
 				{ complete: false, maxDepth };
 		score += run.costs.reduce((sum, cost) => sum + contradictionLemmaScore(cost), 0);
 		bottlenecks += run.bottlenecks;
+		pairDeductions += run.pairDeductions;
 	}
 	score /= routes;
 	return { complete: true, score, skulls: Math.ceil(score / 1500),
-		bottlenecks: bottlenecks / routes, maxDepth };
+		bottlenecks: bottlenecks / routes, maxDepth, pairDeductions: pairDeductions / routes };
 }
 
 function contradictionLemmaScore(lemma) {
@@ -5253,7 +5344,7 @@ function extremeSkulls(rating) {
 			skull + ' × ∞</span>';
 	return '<span class="extreme-skulls" role="img" aria-label="' +
 		rating.skulls + (rating.skulls == 1 ? ' skull' : ' skulls') + '">' +
-		(rating.skulls > 5 ? skull + " × " + rating.skulls :
+		(rating.skulls == 0 || rating.skulls > 5 ? skull + " × " + rating.skulls :
 			skull.repeat(rating.skulls)) + '</span>';
 }
 

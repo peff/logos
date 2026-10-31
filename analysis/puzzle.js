@@ -207,6 +207,7 @@ function analyzePuzzle(game, seed, snapshot, trace, extreme) {
 		console.log(`Seed ${game.formatSeed(seed)} — ${summary}`);
 		if (rating.complete) {
 			console.log(`Mean bottlenecks: ${rating.bottlenecks.toFixed(1)}`);
+			console.log(`Mean two-clue deductions: ${rating.pairDeductions.toFixed(1)}`);
 			console.log(`Maximum assumption depth: ${rating.maxDepth}`);
 		}
 	} else {

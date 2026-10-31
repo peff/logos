@@ -111,7 +111,7 @@ run_deno() {
 	deno test --parallel --allow-read=logos.js,friends/logos-multiplayer.js,friends/logos-webrtc.js \
 		tests/debug-date.js tests/game.js tests/controls.js \
 		tests/history.js tests/proof.js tests/hints.js \
-		tests/difficulty.js tests/suppose.js \
+		tests/difficulty.js tests/clue-pairs.js tests/suppose.js \
 		tests/extreme.js tests/extreme-hints.js \
 		tests/multiplayer.js tests/multiplayer-suppose.js \
 		tests/multiplayer-extreme.js tests/webrtc.js tests/rooms.js \

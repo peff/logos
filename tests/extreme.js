@@ -13,7 +13,7 @@ Deno.test("extreme games reconstruct their clues and record their own rating", a
 	assert(!Logos.cluesSolve(puzzle, puzzle.clues));
 	assert(Logos.countSolutions(puzzle, puzzle.clues) === 1);
 	assert(puzzle.scoreEligible && !puzzle.runRecord("won").difficulty);
-	assert(puzzle.runRecord("won").extremeDifficulty.version === 2);
+	assert(puzzle.runRecord("won").extremeDifficulty.version === 3);
 	puzzle.toggleOptions();
 	assert(puzzle.options.querySelector("#game-seed").value === "00000000");
 	assert(!puzzle.options.querySelector("#copy-seed-link").disabled);
@@ -139,13 +139,13 @@ Deno.test("extreme Options ratings stay tied to the original seed after clue ass
 	puzzle.options.hidden = true;
 	puzzle.toggleOptions();
 	const display = puzzle.options.querySelector("#seed-difficulty");
-	assert(display.innerHTML === "Extreme " + Logos.extremeSkulls({ complete: true, skulls: 1 }));
+	assert(display.innerHTML === "Extreme " + Logos.extremeSkulls({ complete: true, skulls: 2 }));
 	assert(display.title === "" && !display.disabled);
 	const rating = puzzle.extremeDifficulty();
 	const missing = puzzle.originalClues.findIndex(clue => !puzzle.clues.includes(clue));
 	puzzle.revealExtremeClue(missing, false);
 	puzzle.updateSeedDifficulty();
-	assert(puzzle.extremeDifficulty() === rating && display.innerHTML.includes('aria-label="1 skull"'));
+	assert(puzzle.extremeDifficulty() === rating && display.innerHTML.includes('aria-label="2 skulls"'));
 	puzzle.analysisUnlocked = false;
 	puzzle.openAnalysis();
 	puzzle.openAnalysis();
@@ -153,9 +153,13 @@ Deno.test("extreme Options ratings stay tied to the original seed after clue ass
 	puzzle.openAnalysis();
 	assert(!puzzle.analysis.hidden && puzzle.analysisUnlocked);
 	localStorage.removeItem("analysisUnlocked");
-	assert(puzzle.analysis.querySelector(".analysis-summary").textContent.includes("Mean bottlenecks: 4.0"));
+	assert(puzzle.analysis.querySelector(".analysis-summary").textContent.includes("Mean bottlenecks: 3.0"));
 	puzzle.newGame(0xd40791eb, false, false, true);
-	assert(puzzle.extremeDifficulty().bottlenecks === 1);
+	assert(puzzle.extremeDifficulty().bottlenecks === 0);
+	puzzle.options.hidden = false;
+	puzzle.updateSeedDifficulty();
+	assert(display.innerHTML === "Extreme " + Logos.extremeSkulls({ complete: true, skulls: 0 }));
+	assert(display.title === "Solvable with two-clue deductions; no assumptions needed");
 	puzzle.stopTimer();
 	puzzle.say("");
 });
@@ -173,7 +177,7 @@ Deno.test("Extreme history preserves timing and outcomes without entering the Pa
 		assert(runs.length === 2 && runs.every(run => run.extreme === true &&
 		       run.elapsed === 123456 && run.seed === 0 && run.generatorVersion === 1 &&
 		       run.rows === 6 && run.columns === 6 && !run.difficulty &&
-		       run.extremeDifficulty.version === 2 && run.extremeDifficulty.complete));
+		       run.extremeDifficulty.version === 3 && run.extremeDifficulty.complete));
 		assert(!puzzle.highScores.length && puzzle.scores.hidden,
 		       "Extreme result entered or opened the Pantheon");
 		puzzle.prepareHint();
@@ -202,9 +206,9 @@ Deno.test("Chronicle displays, filters, links, and refreshes Extreme ratings", a
 			assert(row.children[4].textContent === "Extreme");
 		assert(rows[1].children[3].children[0].href === "#seed=4c3f2a56&extreme");
 		await puzzle.historyDifficultyTask;
-		assert(puzzle.runHistory[3].extremeDifficulty.version === 2 &&
+		assert(puzzle.runHistory[3].extremeDifficulty.version === 3 &&
 		       puzzle.runHistory[3].extremeDifficulty.level !== 999 && !puzzle.runHistory[3].difficulty);
-		assert(puzzle.runHistory[2].extremeDifficulty.version === 2 &&
+		assert(puzzle.runHistory[2].extremeDifficulty.version === 3 &&
 		       puzzle.runHistory[2].extremeDifficulty.complete &&
 		       puzzle.runHistory[2].extremeDifficulty.level === 20 &&
 		       puzzle.runHistory[2].extremeDifficulty.maxDepth === 2);
@@ -285,4 +289,20 @@ Deno.test("seed starts use the selected mode and reject unavailable Extreme vari
 		puzzle.stopTimer();
 		puzzle.say("");
 	}
+});
+
+Deno.test("Chronicle upgrades version-2 ratings to a stored zero-skull rating", async function() {
+	await withRunHistory(async () => {
+		const puzzle = makePuzzle(6);
+		puzzle.scores.hidden = false;
+		await puzzle.showRunHistory();
+		await puzzle.historyDifficultyTask;
+		const run = puzzle.runHistory[0];
+		assert(run.extremeDifficulty.version === 3 && run.extremeDifficulty.complete);
+		assert(run.extremeDifficulty.level === 0 && run.extremeDifficulty.score === 0);
+		assert(Logos.hasRunDifficulty(run), "zero is a valid cached rating");
+		assert(puzzle.historyBody.children[0].children[4].textContent === "Extreme");
+	}, [{ seed: 0xa56f91ef, date: 0, elapsed: 1000, outcome: "won",
+		rows: 6, columns: 6, generatorVersion: 1, extreme: true,
+		extremeDifficulty: { version: 2, complete: true, level: 1, score: 119.44 } }]);
 });

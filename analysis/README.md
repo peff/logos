@@ -44,8 +44,16 @@ the candidate eliminations in its failed assumptions, raised individually to
 the power 1.5. Inner lemmas contribute their own scores, added to their parent's
 score rather than pooled before exponentiation. One skull represents 1,500
 points, rounded up, with no cap. Maximum assumption depth is reported separately
-and does not multiply the score. These ratings use Extreme difficulty version 2;
+and does not multiply the score. These ratings use Extreme difficulty version 3;
 older cached ratings are recomputed, including formerly infinite ratings.
+
+At each real-board stall, the rating first combines pairs of clues, enforcing
+both clues and row uniqueness. These deductions are free; a puzzle solved
+without assumptions has zero score and displays a skull followed by `× 0`.
+Analysis reports the mean number of useful two-clue deductions separately.
+Hypothetical branches still use ordinary propagation. Seed generation and
+hint explanations retain their existing solver, so a zero-skull puzzle's
+hint walkthrough may still explain a move through a chalk contradiction.
 
 Single-level contradictions retain their existing selection rules. When they
 cannot advance the board, the solver tries nested contradictions, currently
@@ -132,3 +140,62 @@ comparison.
 Incomplete routes suppress the averages. The game maps this score to
 `ceil(score / 1500)` skulls, without a cap. Reported time covers all ten rating
 routes, excluding puzzle generation.
+
+## Experimental two-clue deductions
+
+Compare the existing extreme rating with a pass that combines pairs of clues:
+
+```sh
+deno run --allow-read=logos.js analysis/two-clue-cost.js 1000 > /tmp/two-clue.jsonl
+deno run analysis/two-clue-summary.js < /tmp/two-clue.jsonl
+deno run analysis/two-clue-summary.js --csv < /tmp/two-clue.jsonl > /tmp/two-clue.csv
+```
+
+The count selects the first 1,000 seeds with an extreme variant, scanning
+upward from hexadecimal seed zero. An optional second argument changes that
+starting seed. To analyze one particular puzzle:
+
+```sh
+deno run --allow-read=logos.js analysis/two-clue-cost.js --seed a56f91ef
+```
+
+The tool compares legacy rating behavior with the integrated two-clue pass.
+The current game rating uses the latter, with zero cost for pair deductions.
+It tries pairs whenever ordinary propagation stalls on the real board,
+before searching for a contradiction.
+Each pair enumerates compatible assignments to its symbols, enforcing both
+clues, agreement on shared symbols, and distinct columns for different
+symbols in the same row. Pairs can interact through row uniqueness even
+without a shared symbol. Unsupported positions are removed; the first useful
+pair counts as one deduction, and ordinary propagation resumes. Pair order
+varies across the same ten deterministic routes used by the baseline.
+
+Hypothetical branches still use ordinary propagation. The experiment therefore
+measures the benefit of applying pair deductions before assumptions, rather
+than strengthening every part of the search. It retains the existing
+contradiction selection policy, work accounting, and trial budget. Stronger
+real-board deductions can change the selected route, so the heuristic score
+is not guaranteed to decrease for every puzzle.
+
+Raw output records contradiction scores and pair-deduction counts separately.
+The summary compares pair costs of 0, 10, 50, and 100 points; these are
+sensitivity checks, not calibrated difficulty weights. Score and skull
+comparisons use puzzles completed on all routes by both methods. With zero
+pair cost, a puzzle solved entirely by pairs has score zero and zero skulls;
+that is also the current game rating behavior. Timings
+cover all ten routes, with pair compilation included in the experimental
+summary, but exclude puzzle generation and extreme clue pruning.
+
+Check tuple enumeration, pair support, baseline agreement, and the recorded
+puzzle's one-deduction solution with the standard test suite:
+
+```sh
+./test deno
+```
+
+The initial 1,000-puzzle run examined 1,227
+consecutive seeds (`00000000` through `000004ca`); both methods completed
+all ten routes for every puzzle. 147 puzzles needed no assumptions with
+the pair pass. These results use the original generation version 1 and
+extreme rating version 2 as the baseline. Version 3 integrates the zero-cost
+pair pass; the other experimental deduction weights are not used in the game.
