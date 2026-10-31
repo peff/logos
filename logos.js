@@ -3469,7 +3469,10 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			run.daily = this.daily;
 		if (this.extreme) {
 			run.extreme = true;
-			run.extremeDifficulty = storedExtremeDifficulty(this.extremeDifficulty());
+			/* Capturing a result must not block the final placement animation.
+			 * An uncached rating is filled in asynchronously when saving. */
+			if (this.extremeDifficultyCache?.seed === this.seed)
+				run.extremeDifficulty = storedExtremeDifficulty(this.extremeDifficultyCache.rating);
 		} else
 			run.difficulty = puzzleDifficulty(this);
 		return run;
@@ -3483,6 +3486,17 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			return false;
 		var gameIdentity = this.gameIdentity;
 		var run = sharedRun || this.runRecord(outcome);
+		if (run.extreme && !hasRunDifficulty(run) && canRateRun(run)) {
+			/* Let the final tile animations (190ms) finish before rating.
+			 * Use the captured seed: another game may start while we wait. */
+			await new Promise(resolve => setTimeout(resolve, 250));
+			var puzzle = puzzleFromSeed(run.seed);
+			puzzle.clues = extremeClueIndices(puzzle).map(index => puzzle.clues[index]);
+			var rating = measureExtremeDifficulty(puzzle);
+			run.extremeDifficulty = storedExtremeDifficulty(rating);
+			if (this.gameIdentity === gameIdentity)
+				this.extremeDifficultyCache = { seed: run.seed, rating };
+		}
 		var saving = this.loadHistory(run,
 			outcome == "won" && run.difficulty ? run.difficulty.level : "all", !!run.multiplayer);
 		var request = this.pantheonRequest;
