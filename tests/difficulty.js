@@ -189,12 +189,17 @@ Deno.test("extreme bottleneck costs measure branch work separately from its assu
 	assert(puzzleSignature(puzzle) === before);
 });
 
-Deno.test("extremes that exhaust single-choice lemmas receive infinite skulls", function() {
+Deno.test("nested fallback rates formerly stalled extremes without changing single-level scores", function() {
 	for (const seed of [0x4c3f2a56, 0x78c9d796]) {
 		const puzzle = Logos.puzzleFromSeed(seed);
 		puzzle.clues = Logos.extremeClueIndices(puzzle).map(index => puzzle.clues[index]);
-		const rating = Logos.measureExtremeDifficulty(puzzle);
+		const rating = Logos.measureExtremeDifficulty(puzzle, 10000, 10, { depthLimit: 1 });
 		assert(!rating.complete && rating.stalled && rating.skulls === Infinity);
+		const nested = Logos.measureExtremeDifficulty(puzzle);
+		assert(nested.complete && nested.maxDepth === 2);
+		assert(nested.skulls === (seed === 0x4c3f2a56 ? 20 : 18));
+		const expected = seed === 0x4c3f2a56 ? 29498.95744725509 : 26597.65826765664;
+		assert(Math.abs(nested.score - expected) < 1e-8);
 		const html = Logos.extremeSkulls(rating);
 		assert(html.includes('aria-label="Infinite skulls"') && html.includes(' × ∞'));
 		assert(html.includes('href="#extreme-skull-icon"'));
@@ -202,4 +207,70 @@ Deno.test("extremes that exhaust single-choice lemmas receive infinite skulls", 
 		assert(!interrupted.complete && !interrupted.stalled);
 		assert(Logos.extremeSkulls(interrupted) === "(?)");
 	}
+});
+
+Deno.test("nested costs replay as scoped contradictions with additive work", function() {
+	const count = d => d.flat().reduce((sum, bits) => sum + Logos.countBits(bits), 0);
+	for (const seed of [0x4c3f2a56, 0x78c9d796]) {
+		const puzzle = Logos.puzzleFromSeed(seed);
+		puzzle.clues = Logos.extremeClueIndices(puzzle).map(i => puzzle.clues[i]);
+		function verify(base, cost) {
+			const d = base.map(row => row.slice());
+			assert(d[cost.row][cost.symbol] & (1 << cost.column));
+			d[cost.row][cost.symbol] = 1 << cost.column;
+			const before = count(d);
+			let valid = Logos.cluesAllow(puzzle, puzzle.clues, d);
+			let score = cost.eliminations ** 1.5, depth = 1;
+			for (const child of cost.children || []) {
+				assert(valid, "child proof continued after a contradiction");
+				const checked = verify(d, child);
+				score += checked.score;
+				depth = Math.max(depth, checked.depth + 1);
+				d[child.row][child.symbol] &= ~(1 << child.column);
+				valid = Logos.cluesAllow(puzzle, puzzle.clues, d);
+			}
+			assert(!valid, "certificate did not establish a contradiction");
+			assert(cost.eliminations === before - count(d), "outer work included hypothetical inner work");
+			assert(Math.abs(score - Logos.contradictionLemmaScore(cost)) < 1e-8);
+			if (cost.maxDepth !== undefined)
+				assert(cost.maxDepth === depth);
+			return { score, depth };
+		}
+		const run = Logos.traceExtremeDifficulty(puzzle, 10000, { measureCost: true });
+		assert(run.complete && run.maxDepth === 2);
+		const d = Array.from({ length: 6 }, () => Array(6).fill(63));
+		assert(Logos.cluesAllow(puzzle, puzzle.clues, d));
+		let nested = 0;
+		for (const cost of run.costs) {
+			const before = JSON.stringify(d);
+			const checked = verify(d, cost);
+			assert(JSON.stringify(d) === before, "certificate replay changed its parent");
+			if (checked.depth > 1) nested++;
+			d[cost.row][cost.symbol] &= ~(1 << cost.column);
+			assert(Logos.cluesAllow(puzzle, puzzle.clues, d));
+		}
+		assert(nested === (seed === 0x4c3f2a56 ? 4 : 2));
+		assert(count(d) === 36);
+	}
+});
+
+Deno.test("recursive contradiction search respects depth and a shared work budget", function() {
+	// An intentionally weak propagator notices the impossible first-row
+	// choice only after both other rows are fixed. It needs three levels.
+	const puzzle = { rows: Array.from({ length: 3 }, () => ({ slots: [{}, {}] })),
+		clues: [{ constrain(d) {
+			if (d[0][0] === 1 && Logos.countBits(d[1][0]) === 1 && Logos.countBits(d[2][0]) === 1) {
+				d[0][0] = 0;
+				return true;
+			}
+			return false;
+		} }] };
+	const base = [[3, 3], [3, 3], [3, 3]], before = JSON.stringify(base);
+	assert(!Logos.findContradictionLemma(puzzle, base, puzzle.clues, 2));
+	const budget = { remaining: 12 };
+	assert(!Logos.findContradictionLemma(puzzle, base, puzzle.clues, 3, budget));
+	assert(budget.exhausted && budget.remaining < 0);
+	const lemma = Logos.findContradictionLemma(puzzle, base, puzzle.clues, 3);
+	assert(lemma && lemma.maxDepth === 3 && lemma.row === 0 && lemma.symbol === 0 && lemma.column === 0);
+	assert(JSON.stringify(base) === before);
 });

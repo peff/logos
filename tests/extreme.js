@@ -13,7 +13,7 @@ Deno.test("extreme games reconstruct their clues and record their own rating", a
 	assert(!Logos.cluesSolve(puzzle, puzzle.clues));
 	assert(Logos.countSolutions(puzzle, puzzle.clues) === 1);
 	assert(puzzle.scoreEligible && !puzzle.runRecord("won").difficulty);
-	assert(puzzle.runRecord("won").extremeDifficulty.version === 1);
+	assert(puzzle.runRecord("won").extremeDifficulty.version === 2);
 	puzzle.toggleOptions();
 	assert(puzzle.options.querySelector("#game-seed").value === "00000000");
 	assert(!puzzle.options.querySelector("#copy-seed-link").disabled);
@@ -173,7 +173,7 @@ Deno.test("Extreme history preserves timing and outcomes without entering the Pa
 		assert(runs.length === 2 && runs.every(run => run.extreme === true &&
 		       run.elapsed === 123456 && run.seed === 0 && run.generatorVersion === 1 &&
 		       run.rows === 6 && run.columns === 6 && !run.difficulty &&
-		       run.extremeDifficulty.version === 1 && run.extremeDifficulty.complete));
+		       run.extremeDifficulty.version === 2 && run.extremeDifficulty.complete));
 		assert(!puzzle.highScores.length && puzzle.scores.hidden,
 		       "Extreme result entered or opened the Pantheon");
 		puzzle.prepareHint();
@@ -202,8 +202,12 @@ Deno.test("Chronicle displays, filters, links, and refreshes Extreme ratings", a
 			assert(row.children[4].textContent === "Extreme");
 		assert(rows[1].children[3].children[0].href === "#seed=4c3f2a56&extreme");
 		await puzzle.historyDifficultyTask;
-		assert(puzzle.runHistory[3].extremeDifficulty.version === 1 &&
+		assert(puzzle.runHistory[3].extremeDifficulty.version === 2 &&
 		       puzzle.runHistory[3].extremeDifficulty.level !== 999 && !puzzle.runHistory[3].difficulty);
+		assert(puzzle.runHistory[2].extremeDifficulty.version === 2 &&
+		       puzzle.runHistory[2].extremeDifficulty.complete &&
+		       puzzle.runHistory[2].extremeDifficulty.level === 20 &&
+		       puzzle.runHistory[2].extremeDifficulty.maxDepth === 2);
 		for (const level of ["easy", "medium", "hard"])
 			puzzle.scores.querySelector(".history-" + level).checked = false;
 		puzzle.renderRunHistory();

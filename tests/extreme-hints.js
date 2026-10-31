@@ -2,6 +2,88 @@ import {
 	Logos, assert, makePuzzle, exhaustPuzzleDeductions,
 } from "./helpers.js";
 
+Deno.test("nested walkthroughs prove both stalled seeds and restore every assumption scope", function() {
+	for (const seed of [0x4c3f2a56, 0x78c9d796]) {
+		const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
+		puzzle.say = function() {};
+		puzzle.newGame(seed, false, false, true);
+		puzzle.stopTimer();
+		puzzle.hintAcknowledged = true;
+		const live = JSON.stringify(puzzle.positionSnapshot());
+		puzzle.hint(3);
+		if (!puzzle.proof) puzzle.hint(3);
+		assert(puzzle.proof);
+		const steps = puzzle.proof.steps;
+		let domains = puzzle.proof.base.map(row => row.slice());
+		let placements = puzzle.proof.basePlacements.slice();
+		const scopes = [], numbers = new Set();
+		let nested = 0;
+		for (const [index, step] of steps.entries()) {
+			if (step.walkthroughNumber) {
+				assert(!numbers.has(step.walkthroughNumber), "duplicate nested step number");
+				numbers.add(step.walkthroughNumber);
+			}
+			if (step.lemmaStage === "start") {
+				scopes.push({ domains: domains.map(row => row.slice()), placements: placements.slice(),
+					trial: step.lemmaTrial });
+				assert(step.lemmaDepth === scopes.length);
+				if (scopes.length > 1) {
+					nested++;
+					assert(step.chalkBase && step.walkthroughNumber.includes("."));
+				}
+			} else if (step.lemmaStage === "end") {
+				const parent = scopes.pop();
+				domains = parent.domains;
+				placements = parent.placements;
+				domains[parent.trial.row][parent.trial.symbol] &= ~(1 << parent.trial.column);
+				assert(!!step.chalkBase === !!scopes.length, "inner rejection lost the parent chalk");
+			} else if (step.lemmaStage === "contradiction") {
+				assert(Logos.chalkContradiction(puzzle, domains) ||
+				       Logos.chalkClueContradiction(puzzle, domains, step.clues),
+				       "narrated contradiction is not present");
+			} else if (step.row !== undefined) {
+				if (step.rule === "clue") {
+					const constrained = domains.map(row => row.slice());
+					step.clue.constrain(constrained, 63);
+					assert(!(step.removed & constrained[step.row][step.symbol]), "unsupported clue deduction");
+				} else if (step.rule) {
+					assert(Logos.proofStepSupported(puzzle, step, domains, placements));
+				}
+				domains[step.row][step.symbol] &= ~step.removed;
+				if (step.placement) {
+					placements[step.row] |= 1 << step.symbol;
+					for (let symbol = 0; symbol < 6; symbol++)
+						if (symbol !== step.symbol)
+							domains[step.row][symbol] &= ~domains[step.row][step.symbol];
+				}
+			}
+			assert(JSON.stringify(domains) === JSON.stringify(step.domains), "incorrect scoped board snapshot");
+			assert(JSON.stringify(placements) === JSON.stringify(step.placements), "incorrect scoped placements");
+			if (step.lemmaDepth > 1 && step.lemmaStage !== "deduction") {
+				puzzle.moveProof(index + 1 - puzzle.proof.position);
+				assert(puzzle.proofControls.querySelector(".proof-position").textContent.includes(step.walkthroughNumber));
+				puzzle.moveProof(-1);
+				puzzle.moveProof(1);
+			}
+		}
+		assert(nested > 0 && !scopes.length && placements.every(bits => bits === 63));
+		assert(!steps.at(-1).stalled && !steps.at(-1).chalkBase);
+		// Mistake-proof pruning must treat a nested lemma as one parent
+		// discard, and preserve its certificate when rebuilding it.
+		const start = steps.findIndex(s => s.lemmaStage === "start" && s.lemmaTrial.children?.length);
+		const end = steps.findIndex((s, i) => i > start && s.lemmaStage === "end" && s.lemmaDepth === 1);
+		const branch = steps.slice(start, end + 1), base = branch[0];
+		const deductions = Logos.lemmaProofDeductions(puzzle, branch);
+		assert(deductions.length === 1 && deductions[0].children.length);
+		const trial = base.lemmaTrial;
+		const rebuilt = Logos.replayLemmaProof(puzzle, base.domains, base.placements, deductions,
+			puzzle.rows[trial.row].slots[trial.column], trial.symbol);
+		assert(rebuilt && rebuilt.some(s => s.lemmaDepth === 2) && !rebuilt.at(-1).chalkBase);
+		puzzle.closeProof();
+		assert(JSON.stringify(puzzle.positionSnapshot()) === live, "walkthrough changed the live board");
+	}
+});
+
 Deno.test("expanded extreme hints prove chalk lemmas and finish without changing the board", function() {
 	localStorage.setItem("hintAcknowledged", "true");
 	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);

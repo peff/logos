@@ -205,8 +205,10 @@ function analyzePuzzle(game, seed, snapshot, trace, extreme) {
 			`${rating.score.toFixed(2)} (${rating.skulls} ${rating.skulls === 1 ? "skull" : "skulls"})` :
 			"extreme rating unavailable";
 		console.log(`Seed ${game.formatSeed(seed)} — ${summary}`);
-		if (rating.complete)
+		if (rating.complete) {
 			console.log(`Mean bottlenecks: ${rating.bottlenecks.toFixed(1)}`);
+			console.log(`Maximum assumption depth: ${rating.maxDepth}`);
+		}
 	} else {
 		const metrics = game.measureDifficulty(puzzle);
 		const rating = game.difficultyRating(metrics);

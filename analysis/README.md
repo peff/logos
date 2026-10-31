@@ -41,8 +41,21 @@ the difficulty rating still describes the original puzzle without assistance.
 
 The extreme score averages ten deterministic solving routes. Each route sums
 the candidate eliminations in its failed assumptions, raised individually to
-the power 1.5. One skull represents 1,500 points, rounded up, with no cap.
-If a route cannot finish within the search limit, the rating is unavailable.
+the power 1.5. Inner lemmas contribute their own scores, added to their parent's
+score rather than pooled before exponentiation. One skull represents 1,500
+points, rounded up, with no cap. Maximum assumption depth is reported separately
+and does not multiply the score. These ratings use Extreme difficulty version 2;
+older cached ratings are recomputed, including formerly infinite ratings.
+
+Single-level contradictions retain their existing selection rules. When they
+cannot advance the board, the solver tries nested contradictions, currently
+limited to two assumption levels. It retains four distinct outer boards ranked
+by determined tiles, then remaining candidates. Inner searches prefer guesses
+with fewer symbol positions or slot candidates. Successful guessed solutions
+do not count as deductions. Recursive calls share the route's 10,000-trial
+budget. Exhausting that budget leaves the rating unavailable; exhausting the
+bounded search without progress still displays infinite skulls. That denotes a
+solver limitation, not a proof that deeper reasoning cannot solve the puzzle.
 
 ## A position where you wanted help
 
@@ -83,8 +96,12 @@ directly with the difficulty metrics.
 
 When ordinary deductions run out, the walkthrough inserts numbered lemmas
 with substeps for the chalk assumption, deductions, contradiction, and proven
-discard. It then resumes the main proof. If no single-assumption lemma can be
-proved, it prints the stalled board instead of claiming a complete solution.
+discard. If single-level lemmas cannot advance the board, the same bounded
+nested search supplies recursive certificates for the walkthrough. Inner steps
+use numbers such as `30.46.1`; rejecting the inner guess restores its enclosing
+chalk board, and only the outer rejection changes the real board. It then
+resumes the main proof. If the bounded search cannot prove a lemma, it prints
+the stalled board instead of claiming a complete solution.
 
 The tools reject unsupported generator versions and snapshots inconsistent
 with their seed. They do not change the game, run history, or stored settings.
@@ -105,9 +122,13 @@ Elimination counts exclude making the assumption itself. They measure solver
 work, not narrated proof steps or the shortest possible argument; a propagation
 sweep can continue after a clue has already become impossible.
 
-The score is the sum of each bottleneck's eliminations raised to 1.5, averaged
-over ten routes. This gives longer branches more weight. The output also keeps
-unweighted elimination totals for comparison.
+The score is the sum of each lemma's eliminations raised to 1.5, averaged
+over ten routes. Nested costs appear in `children`; their scores are added
+recursively. Parent eliminations exclude hypothetical inner work but include
+each proved inner discard once. Progress after rejecting the outer assumption
+is excluded as before. This gives longer branches more weight. The output also
+keeps recursive unweighted elimination totals and maximum assumption depth for
+comparison.
 Incomplete routes suppress the averages. The game maps this score to
 `ceil(score / 1500)` skulls, without a cap. Reported time covers all ten rating
 routes, excluding puzzle generation.

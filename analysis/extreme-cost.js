@@ -2,11 +2,13 @@
 // Run with: deno run --allow-read=logos.js analysis/extreme-cost.js SEED...
 const source = await Deno.readTextFile(new URL("../logos.js", import.meta.url));
 const game = new Function("document", source + `\nreturn {
-	parseSeed, puzzleFromSeed, extremeClueIndices, traceExtremeDifficulty
+	parseSeed, puzzleFromSeed, extremeClueIndices, traceExtremeDifficulty, contradictionLemmaScore
 };`)({ addEventListener() {} });
 
 if (!Deno.args.length)
 	throw new Error("usage: extreme-cost.js HEX_SEED...");
+const eliminations = cost => cost.eliminations +
+	(cost.children || []).reduce((sum, child) => sum + eliminations(child), 0);
 for (const input of Deno.args) {
 	const seed = game.parseSeed(input);
 	if (seed === null)
@@ -21,8 +23,8 @@ for (const input of Deno.args) {
 		const rating = game.traceExtremeDifficulty(puzzle, 10000,
 			{ route, measureCost: true });
 		routes.push({ ...rating,
-			eliminations: rating.costs.reduce((sum, c) => sum + c.eliminations, 0),
-			score: rating.costs.reduce((sum, c) => sum + c.eliminations ** 1.5, 0),
+			eliminations: rating.costs.reduce((sum, c) => sum + eliminations(c), 0),
+			score: rating.costs.reduce((sum, c) => sum + game.contradictionLemmaScore(c), 0),
 		});
 	}
 	const ms = performance.now() - start;
@@ -32,5 +34,5 @@ for (const input of Deno.args) {
 		bottlenecks: mean("bottlenecks"), eliminations: mean("eliminations"),
 		score: mean("score"),
 	} : null;
-	console.log(JSON.stringify({ seed: input, ms, averages, routes }));
+	console.log(JSON.stringify({ seed: input, ms, averages, maxDepth: Math.max(...routes.map(r => r.maxDepth)), routes }));
 }
