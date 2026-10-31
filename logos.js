@@ -5040,6 +5040,7 @@ function traceExtremeDifficulty(puzzle, maxTrials = 10000, options = {}) {
 	var size = puzzle.rows[0].slots.length;
 	var domains = puzzle.rows.map(() => Array(size).fill((1 << size) - 1));
 	var result = { bottlenecks: 0, complete: false };
+	var trialCache = [];
 	if (options.measureCost)
 		result.costs = [];
 	var route = options.route || 0;
@@ -5063,10 +5064,34 @@ function traceExtremeDifficulty(puzzle, maxTrials = 10000, options = {}) {
 		for (var trial of clueRouteOrder(trials, route)) {
 			if (--maxTrials < 0)
 				return result;
-			var assumed = copyDomains(domains);
-			assumed[trial.row][trial.symbol] = trial.bit;
-			if (cluesAllow(puzzle, clues, assumed))
-				continue;
+			var cacheIndex = (trial.row * size + trial.symbol) * size + Math.log2(trial.bit);
+			var cached = trialCache[cacheIndex];
+			/* The real board only loses candidates. A failed assumption
+			 * stays false; a consistent trial retains all its deductions.
+			 * Resume propagation only if the parent has narrowed it further.
+			 * Measure the chosen proof afresh below so costs and clue-order
+			 * effects are independent of this search cache. */
+			if (cached !== false) {
+				var assumed, changed = false;
+				if (cached) {
+					assumed = cached.map((row, r) => row.map((bits, s) => {
+						var value = bits & domains[r][s];
+						if (value != bits)
+							changed = true;
+						return value;
+					}));
+					if (!changed)
+						continue;
+				} else {
+					assumed = copyDomains(domains);
+					assumed[trial.row][trial.symbol] = trial.bit;
+				}
+				if (cluesAllow(puzzle, clues, assumed)) {
+					trialCache[cacheIndex] = assumed;
+					continue;
+				}
+				trialCache[cacheIndex] = false;
+			}
 			var after = copyDomains(domains);
 			after[trial.row][trial.symbol] &= ~trial.bit;
 			if (!cluesAllow(puzzle, clues, after))
