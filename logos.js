@@ -3,7 +3,7 @@ var puzzleGeneratorVersion = 1;
 
 /* Increment when the difficulty formula, route policy/count, or cutoffs change. */
 var puzzleDifficultyVersion = 1;
-var extremeDifficultyVersion = 3;
+var extremeDifficultyVersion = 4;
 
 const difficultyLevels = ["easy", "medium", "hard"];
 const pantheonLevels = ["all", ...difficultyLevels];
@@ -5260,7 +5260,7 @@ function contradictionLemmaScore(lemma) {
 
 /* Return a certificate for one failed assumption, never a guessed solution.
  * Inner searches prefer narrow symbol/slot choices. If no single trial fails,
- * retain four distinct boards, preferring placements then candidate reduction.
+ * rank all distinct boards, preferring placements then candidate reduction.
  * The same trial budget is shared across all branches and recursion levels.
  * A null result means unresolved, not a contradiction. */
 function findContradictionLemma(puzzle, base, clues = puzzle.clues,
@@ -5306,9 +5306,8 @@ function findContradictionLemma(puzzle, base, clues = puzzle.clues,
 		if (branches.some(branch => branch.key == key))
 			continue;
 		branches.push({ domains, key, placed, remaining: candidates(domains), lemma });
-		branches.sort((a, b) => b.placed - a.placed || a.remaining - b.remaining);
-		branches.length = Math.min(branches.length, 4);
 	}
+	branches.sort((a, b) => b.placed - a.placed || a.remaining - b.remaining);
 	for (var branch of branches) {
 		while (true) {
 			var child = findContradictionLemma(puzzle, branch.domains, clues, depthLimit - 1, budget);

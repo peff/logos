@@ -44,7 +44,7 @@ the candidate eliminations in its failed assumptions, raised individually to
 the power 1.5. Inner lemmas contribute their own scores, added to their parent's
 score rather than pooled before exponentiation. One skull represents 1,500
 points, rounded up, with no cap. Maximum assumption depth is reported separately
-and does not multiply the score. These ratings use Extreme difficulty version 3;
+and does not multiply the score. These ratings use Extreme difficulty version 4;
 older cached ratings are recomputed, including formerly infinite ratings.
 
 At each real-board stall, the rating first combines pairs of clues, enforcing
@@ -57,8 +57,10 @@ hint walkthrough may still explain a move through a chalk contradiction.
 
 Single-level contradictions retain their existing selection rules. When they
 cannot advance the board, the solver tries nested contradictions, currently
-limited to two assumption levels. It retains four distinct outer boards ranked
-by determined tiles, then remaining candidates. Inner searches prefer guesses
+limited to two assumption levels. It explores distinct outer boards ranked
+by determined tiles, then remaining candidates, until it proves a contradiction
+or exhausts the shared trial budget. There is no board-count cutoff: the most
+productive boards can all come from correct guesses. Inner searches prefer guesses
 with fewer symbol positions or slot candidates. Successful guessed solutions
 do not count as deductions. Recursive calls share the route's 10,000-trial
 budget. Exhausting that budget leaves the rating unavailable; exhausting the

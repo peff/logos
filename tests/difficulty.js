@@ -209,6 +209,21 @@ Deno.test("nested fallback rates formerly stalled extremes without changing sing
 	}
 });
 
+Deno.test("nested search continues past productive but correct outer guesses", function() {
+	// The top four distinct outer boards all reach valid solutions. The
+	// scorer must explore lower-ranked boards to prove a failed assumption.
+	for (const [seed, skulls, score] of [
+		[0xcd7c02f4, 17, 24091.891587492973],
+		[0x76d8e094, 16, 23766.532458545822],
+	]) {
+		const puzzle = Logos.puzzleFromSeed(seed);
+		puzzle.clues = Logos.extremeClueIndices(puzzle).map(i => puzzle.clues[i]);
+		const rating = Logos.measureExtremeDifficulty(puzzle);
+		assert(rating.complete && rating.maxDepth === 2 && rating.skulls === skulls);
+		assert(Math.abs(rating.score - score) < 1e-8);
+	}
+});
+
 Deno.test("nested costs replay as scoped contradictions with additive work", function() {
 	const count = d => d.flat().reduce((sum, bits) => sum + Logos.countBits(bits), 0);
 	for (const seed of [0x4c3f2a56, 0x78c9d796]) {

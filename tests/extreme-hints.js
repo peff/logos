@@ -2,8 +2,8 @@ import {
 	Logos, assert, makePuzzle, exhaustPuzzleDeductions,
 } from "./helpers.js";
 
-Deno.test("nested walkthroughs prove both stalled seeds and restore every assumption scope", function() {
-	for (const seed of [0x4c3f2a56, 0x78c9d796]) {
+Deno.test("nested walkthroughs prove stalled seeds and restore every assumption scope", function() {
+	for (const seed of [0x4c3f2a56, 0x78c9d796, 0xcd7c02f4, 0x76d8e094]) {
 		const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
 		puzzle.say = function() {};
 		puzzle.newGame(seed, false, false, true);
