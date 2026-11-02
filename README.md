@@ -26,7 +26,7 @@ simplicity.
 Tests
 =====
 
-Run `./test` for the Deno suite, or `./test all` for all five test suites.
+Run `./test` for the core suite, or `./test all` for all suites.
 See `./test --help` for prerequisites and selecting individual suites.
 
 Puzzle links
