@@ -449,8 +449,6 @@
 					              onChange="puzzle.setAutoDismissClues(this.checked)">
 					       <span>Dismiss exhausted clues
 					             <small>Hide clues after all symbols are placed.</small></span></label>
-					<input id="fullscreen-button" class="option-action" type="button"
-					       onClick="puzzle.toggleFullscreen()" value="Enter full screen">
 				</fieldset>
 				<fieldset class="game-options">
 					<legend>Game</legend>
@@ -502,8 +500,12 @@
 					   onClick="handleLinkClick(event, () => puzzle.openDaily())"><span aria-hidden="true">‹</span> Daily puzzle</a>
 					<button id="online-button" type="button" aria-controls="online-menu" aria-expanded="false">With friends <span aria-hidden="true">›</span></button>
 				</nav>
-				<input class="option-action modal-close" type="button"
-				       onClick="puzzle.toggleOptions()" value="Close" autofocus>
+				<div class="options-footer">
+					<input id="fullscreen-button" class="option-action" type="button"
+					       onClick="puzzle.toggleFullscreen()" value="Enter full screen">
+					<input class="option-action modal-close" type="button"
+					       onClick="puzzle.toggleOptions()" value="Close" autofocus>
+				</div>
 			</dialog>
 			<dialog id="help-menu" class="modal modal-panel help-panel" hidden
 			     aria-labelledby="help-title">

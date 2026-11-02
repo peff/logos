@@ -1503,6 +1503,18 @@ body:is(.proof-active, .suppose-active, .suppose-result, :has(#proof-controls.hi
 	overflow-y: auto;
 }
 
+.options-footer {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 0.6rem;
+	margin-top: 0.55rem;
+}
+
+.options-footer .option-action {
+	margin: 0;
+}
+
 #options-menu fieldset + fieldset {
 	margin-top: 0.35rem;
 	padding-top: 0.3rem;
