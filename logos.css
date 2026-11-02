@@ -3280,45 +3280,50 @@ body.proof-active :is(#hclues, #vclues) .clue.proof-current {
 	line-height: 1;
 }
 
+/* Every family has one color; its frame is a little darker and less saturated. */
+:is(.family-0, .family-1, .family-2, .family-3, .family-4, .family-5) {
+	--tile-accent: var(--tile-fg);
+}
+
+@supports (color: hsl(from red h s l)) {
+	:is(.family-0, .family-1, .family-2, .family-3, .family-4, .family-5) {
+		--tile-accent: hsl(from var(--tile-fg) h max(0, s - 5) max(0, l - 9));
+	}
+}
+
 .family-0 {
 	--tile-bg: #1c2223;
 	--tile-fg: #8eb9d8;
-	--tile-accent: #78a9cc;
 	--slate-family-x: 0rem;
 	--slate-family-y: 0rem;
 }
 .family-1 {
 	--tile-bg: #1c2223;
 	--tile-fg: #91c39a;
-	--tile-accent: #79ad83;
 	--slate-family-x: -0.75rem;
 	--slate-family-y: -1.35rem;
 }
 .family-2 {
 	--tile-bg: #1c2223;
 	--tile-fg: #bea4d1;
-	--tile-accent: #a98bc0;
 	--slate-family-x: -1.55rem;
 	--slate-family-y: -0.45rem;
 }
 .family-3 {
 	--tile-bg: #1c2223;
 	--tile-fg: #d8bb76;
-	--tile-accent: #c4a253;
 	--slate-family-x: -2.3rem;
 	--slate-family-y: -1.8rem;
 }
 .family-4 {
 	--tile-bg: #1c2223;
 	--tile-fg: #d69aa1;
-	--tile-accent: #c27e87;
 	--slate-family-x: -3.15rem;
 	--slate-family-y: -0.9rem;
 }
 .family-5 {
 	--tile-bg: #1c2223;
 	--tile-fg: #86c3bb;
-	--tile-accent: #6baaa2;
 	--slate-family-x: -3.85rem;
 	--slate-family-y: -2.45rem;
 }
