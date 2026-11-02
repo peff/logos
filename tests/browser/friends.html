@@ -194,6 +194,21 @@ var browserTestsDone = (async function() {
 			"roster bullets lack distinct player colors");
 		const slot = alice.puzzle.rows[0].slots.find(slot => !slot.single);
 		const value = slot.possible.findIndex((possible, value) => possible && value != slot.value);
+		const bobSymbols = bob.puzzle.symbols;
+		bob.puzzle.setSymbols(bobSymbols.map((row, family) =>
+			family < 2 ? bob.tileSets.halloween[3] : row));
+		function checkImageAction(type, family, value, columns) {
+			const icon = players(bob).querySelector('[data-action="' + type + '"]');
+			const symbol = bob.puzzle.symbols[family][value];
+			const image = icon.querySelector('img.tile-image');
+			const description = (type == "place" ? "Placed " : "Discarded ") +
+				symbol.label + (columns.length > 1 ? " in columns " : " in column ") + columns.join(", ");
+			assert(image && image.getAttribute("src") == symbol.src &&
+				image.alt == symbol.label && !image.draggable && icon.textContent == "",
+				"activity did not render the local image tile");
+			assert(icon.title == description && icon.getAttribute("aria-label") == description &&
+				icon.parentElement.title == description, "image activity lost its accessible description");
+		}
 		alice.puzzle.requestTileAction(slot, value, "remove");
 		await waitFor(() => [host, alice, bob].every(app =>
 			players(app).querySelectorAll('[data-action="remove"]').length == 1),
@@ -202,9 +217,10 @@ var browserTestsDone = (async function() {
 			const icon = players(app).querySelector('[data-action="remove"]');
 			assert(icon.closest("li").querySelector(".friends-roster-name").textContent == "Alice",
 				"discard attributed to the wrong player");
-			assert(icon.textContent == slot.symbols[value] && icon.title.includes("column"),
+			assert((app == bob || icon.textContent == slot.symbols[value]) && icon.title.includes("column"),
 				"discard is missing its tile or column tooltip");
 		}
+		checkImageAction("remove", 0, value, [slot.row.slots.indexOf(slot) + 1]);
 		const nextSlot = slot.row.slots.find(other => other != slot &&
 			!other.single && other.value != value && other.possible[value]);
 		alice.puzzle.requestTileAction(nextSlot, value, "remove");
@@ -218,6 +234,8 @@ var browserTestsDone = (async function() {
 				"grouped discard lost its columns");
 		}
 		const heldEvent = players(alice).querySelector('.friends-roster-tile-event');
+		checkImageAction("remove", 0, value,
+			[slot, nextSlot].map(s => s.row.slots.indexOf(s) + 1));
 		const marked = () => alice.document.querySelectorAll('#board .history-highlight');
 		/* Synthetic pointer events have no browser-owned pointer to capture. */
 		heldEvent.setPointerCapture = () => {};
@@ -246,6 +264,9 @@ var browserTestsDone = (async function() {
 		const placedSlot = host.puzzle.rows[1].slots.find(slot => !slot.single);
 		host.puzzle.requestTileAction(placedSlot, placedSlot.value, "place");
 		await waitFor(() => players(alice).querySelector('[data-action="place"]'), "placement history entry");
+		await waitFor(() => players(bob).querySelector('[data-action="place"]'), "image placement history entry");
+		checkImageAction("place", 1, placedSlot.value, [placedSlot.row.slots.indexOf(placedSlot) + 1]);
+		bob.puzzle.setSymbols(bobSymbols);
 		const placementEvent = players(alice).querySelector('[data-action="place"]').parentElement;
 		placementEvent.setPointerCapture = () => {};
 		press(placementEvent);

@@ -269,11 +269,11 @@ function renderRecentAction(actions, playerId, activeFork) {
 		var row = puzzle.rows[action.row];
 		var symbol = row.slots[action.column].symbols[action.value];
 		icon.classList.add("proof-tile", row.familyClass);
-		icon.textContent = symbol;
+		renderTileSymbol(icon, symbol);
 		icon.dataset.mistake = !!action.mistake;
 		description = (action.mistake ? "Mistake: " : "") +
 			(action.type == "place" ? "Placed " : "Discarded ") +
-			symbol + (actions.length > 1 ? " in columns " : " in column ") +
+			tileSymbolLabel(symbol) + (actions.length > 1 ? " in columns " : " in column ") +
 			actions.map(action => action.column + 1).join(", ");
 	} else if (action.type == "hint" || action.type == "reveal-clue") {
 		icon.textContent = "∵";
