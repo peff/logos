@@ -449,6 +449,14 @@
 					              onChange="puzzle.setAutoDismissClues(this.checked)">
 					       <span>Dismiss exhausted clues
 					             <small>Hide clues after all symbols are placed.</small></span></label>
+					<div class="tile-set-option">
+						<label for="tile-set">Symbols <small>A change of scenery for your tiles.</small></label>
+						<select id="tile-set" onChange="puzzle.setTileSet(this.value)">
+							<option value="automatic">Automatic</option>
+							<option value="classic">Classic</option>
+							<option value="halloween">Halloween</option>
+						</select>
+					</div>
 				</fieldset>
 				<fieldset class="game-options">
 					<legend>Game</legend>

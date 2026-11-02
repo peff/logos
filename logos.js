@@ -369,13 +369,13 @@ function initializeHistoryTable(table) {
 	table.appendChild(document.createElement("tbody"));
 }
 
-/* Read a boolean or numeric preference, using the fallback's type. */
+/* Read a preference, using the fallback's type. */
 function readOption(name, fallback) {
 	try {
 		var stored = localStorage.getItem(name);
 		if (stored !== null)
 			return typeof fallback == "boolean" ?
-				stored == "true" : Number(stored);
+				stored == "true" : typeof fallback == "string" ? stored : Number(stored);
 	} catch (e) {
 		/* Storage may be unavailable for local files. */
 	}
@@ -993,8 +993,12 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.refreshSymbols = function() {
-		if (symbolSource)
+		if (this.tileSet == "classic" || this.tileSet == "halloween")
+			this.setSymbols(tileSets[this.tileSet]);
+		else if (symbolSource)
 			this.setSymbols(symbolSource());
+		else
+			this.setSymbols(symbols);
 	}
 
 	this.clear = function() {
@@ -4377,6 +4381,31 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.saveOption("customCursor", enabled);
 	}
 
+	this.setTileSet = function(name) {
+		this.tileSet = ["automatic", "classic", "halloween"].includes(name) ? name : "automatic";
+		this.options.querySelector("#tile-set").value = this.tileSet;
+		this.saveOption("tileSet", this.tileSet);
+		if (this.loadingOptions)
+			return;
+		this.closeSlotTray();
+		this.refreshSymbols();
+		if (this.dailyReturn)
+			this.dailyReturn.symbols = this.symbols;
+		if (this.suppose)
+			this.suppose.displayed = null;
+		if (this.proof)
+			this.showProofPosition();
+		else if (this.suppose)
+			this.renderSuppose();
+		else if (this.seed === undefined || this.seed === null)
+			for (var row of this.rows)
+				for (var [value, slot] of row.slots.entries())
+					renderTileSymbol(slot.singleElem, slot.symbols[value]);
+		if (this.supposeResult)
+			this.showSupposeResult(this.supposeResult);
+		this.actionController?.onPlayersChanged(this.actionController.players);
+	}
+
 	this.setMilestones = function(show) {
 		this.showMilestones = show;
 		this.options.querySelector("#show-milestones").checked = show;
@@ -4662,6 +4691,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.gameStats = { won: 0, lost: 0 };
 	/* Applying saved preferences must not write a stale snapshot back. */
 	this.loadingOptions = true;
+	this.setTileSet(readOption("tileSet", "automatic"));
 	this.setRandomDifficulties(randomDifficulties);
 	this.setExtremeMode(readOption("extremeMode", false));
 	this.setCustomCursor(readOption("customCursor", true));
@@ -4682,6 +4712,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	initializePortraitClueLayout();
 	this.updateFullscreenButton();
 
+	this.refreshSymbols();
 	this.clear();
 }
 

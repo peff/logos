@@ -156,6 +156,29 @@ var browserTestsDone = (async function() {
 		host.puzzle.actionController.start(0x12345678);
 		await waitFor(() => [host, alice, bob].every(app => app.puzzle.actionController.gameId == 4),
 			"deterministic history test game");
+		const tileSelect = host.document.querySelector("#tile-set");
+		host.document.querySelector("#options-button").click();
+		await settleLayout(host);
+		const tileOption = tileSelect.closest(".tile-set-option").getBoundingClientRect();
+		const tileChoice = tileSelect.getBoundingClientRect();
+		assert(tileOption.left >= 0 && tileOption.right <= host.innerWidth &&
+			tileChoice.right <= tileOption.right && tileChoice.top >=
+				tileSelect.previousElementSibling.getBoundingClientRect().bottom,
+			"tile selector overflows or overlaps its label on a narrow screen");
+		const guestSymbols = alice.puzzle.symbols;
+		const beforeTiles = JSON.stringify(host.puzzle.positionSnapshot());
+		for (const preset of ["halloween", "classic", "automatic"]) {
+			tileSelect.value = preset;
+			tileSelect.dispatchEvent(new host.Event("change", { bubbles: true }));
+			const expected = preset == "automatic" ? host.symbolsForDate() : host.tileSets[preset];
+			assert(host.puzzle.symbols[3].every((symbol, value) => symbol === expected[3][value]),
+				"tile selector did not apply the preset");
+			assert(host.localStorage.getItem("tileSet") == preset, "tile preset was not saved");
+			assert(alice.puzzle.symbols === guestSymbols, "tile selection changed another player's tiles");
+			assert(JSON.stringify(host.puzzle.positionSnapshot()) == beforeTiles,
+				"tile selection changed the multiplayer position");
+		}
+		host.document.querySelector("#options-menu .modal-close").click();
 		const hoverCell = alice.puzzle.rows[0].slots[0].possibilityElems[0];
 		const pointerOver = (app, cell, pointerType = "mouse") => cell.dispatchEvent(
 			new app.PointerEvent("pointerover", { bubbles: true, pointerType }));

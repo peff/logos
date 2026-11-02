@@ -23,6 +23,89 @@ function imageTestSymbols() {
 	return symbols;
 }
 
+Deno.test("tile presets persist and preserve the current puzzle", function() {
+	let date = new Date(2026, 9, 27);
+	const source = () => Logos.symbolsForDate(date);
+	const puzzle = makePuzzle(6, false, source);
+	try {
+		puzzle.newGame(42);
+		const before = JSON.stringify(puzzle.positionSnapshot());
+		assert(revealedTiles(puzzle) == 2);
+		puzzle.setTileSet("halloween");
+		assert(revealedTiles(puzzle) == 6);
+		assert(localStorage.getItem("tileSet") == "halloween");
+		const loaded = makePuzzle(6, false, source);
+		assert(loaded.tileSet == "halloween" && revealedTiles(loaded) == 6);
+		puzzle.setTileSet("classic");
+		assert(revealedTiles(puzzle) == 0);
+		puzzle.setTileSet("automatic");
+		assert(revealedTiles(puzzle) == 2);
+		assert(JSON.stringify(puzzle.positionSnapshot()) == before,
+		       "changing tiles changed the puzzle position");
+		puzzle.setTileSet("halloween");
+		date = new Date(2026, 10, 1);
+		puzzle.newGame(42);
+		assert(revealedTiles(puzzle) == 6, "new game ignored the preset");
+		puzzle.setTileSet("automatic");
+		assert(revealedTiles(puzzle) == 0);
+		localStorage.setItem("tileSet", "unknown");
+		assert(makePuzzle(6, false, source).tileSet == "automatic");
+	} finally {
+		puzzle.stopTimer();
+		localStorage.removeItem("tileSet");
+	}
+});
+
+Deno.test("changing tiles updates suppositions and the suspended daily return", function() {
+	const puzzle = makePuzzle(6, false, () => Logos.defaultSymbols);
+	try {
+		puzzle.newGame(42);
+		const slot = puzzle.rows[3].slots.find(slot => !slot.single);
+		const wrong = (slot.value + 1) % 6;
+		puzzle.enterSuppose();
+		puzzle.requestTileAction(slot, wrong, "place");
+		const state = puzzle.suppose;
+		puzzle.setTileSet("halloween");
+		assert(puzzle.suppose === state && slot.singleElem.children[0].alt == slot.symbols[wrong].label,
+		       "changing tiles lost or misrendered the supposition");
+		puzzle.setTileSet("classic");
+		assert(slot.singleElem.textContent == slot.symbols[wrong]);
+		puzzle.leaveSuppose(true);
+		puzzle.saveDailyReturn();
+		puzzle.newGame("20261031", true, true);
+		puzzle.setTileSet("halloween");
+		assert(puzzle.restoreDailyReturn() && revealedTiles(puzzle) == 6,
+		       "returning from the daily restored the old preset");
+	} finally {
+		puzzle.stopTimer();
+		localStorage.removeItem("tileSet");
+	}
+});
+
+Deno.test("changing tiles preserves solution highlights and refreshes suppose receipts", function() {
+	const puzzle = makePuzzle(6, false, () => Logos.defaultSymbols);
+	try {
+		puzzle.newGame(42);
+		const slot = puzzle.rows[3].slots.find(slot => !slot.single);
+		puzzle.revealSolution();
+		puzzle.setTileSet("halloween");
+		assert(slot.possibleElem.className == "solution" &&
+		       slot.possibilityElems[slot.value].className == "possibility answer",
+		       "changing symbols hid the revealed solution");
+		puzzle.newGame(42);
+		puzzle.showSupposeResult({ row: 3, column: 0, symbol: 0, discard: true });
+		puzzle.setTileSet("classic");
+		const reminder = puzzle.supposeControls.querySelector(".suppose-reminder");
+		assert(reminder.children[0].textContent == Logos.defaultSymbols[3][0],
+		       "suppose receipt retained the old artwork");
+		puzzle.setTileSet("halloween");
+		assert(reminder.children[0].children[0].alt == "Ghost");
+	} finally {
+		puzzle.stopTimer();
+		localStorage.removeItem("tileSet");
+	}
+});
+
 Deno.test("seasonal symbols reveal left to right on October 26–31 in local time", function() {
 	const expected = ["Ghost", "Bat", "Witch", "Candy corn", "Skull", "Jack-o’-lantern"];
 	for (const year of [2026, 2027]) {

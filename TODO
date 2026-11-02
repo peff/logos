@@ -11,10 +11,9 @@
    - if chalk is retired, consider using shift-click to enter suppose
      mode
  - custom tiles
-   - now that the Halloween tiles are out, we might consider allowing
-     you to pick them at will, along with other possible options (e.g.,
-     future holiday tiles, or alternate tile sets like Greek letters, or
-     others that some may find more readable).
+   - expand the Automatic, Classic, and Halloween presets with future
+     holiday tiles or alternate tile sets like Greek letters, or others
+     that some may find more readable.
    - one possible mental model: you can pick a pre-made tileset (like
      Halloween), or make your own, picking each row individually. Or
      even design your own row (arbitrary characters? SVG?).

@@ -1543,6 +1543,26 @@ body:is(.proof-active, .suppose-active, .suppose-result, :has(#proof-controls.hi
 	flex-direction: column;
 }
 
+#options-menu .tile-set-option {
+	margin-top: 0.3em;
+}
+
+#options-menu .tile-set-option label {
+	align-items: baseline;
+}
+
+#tile-set {
+	font: inherit;
+	font-size: 0.8em;
+	color: inherit;
+	background: #e5ddcd;
+	border: 1px solid #a99b85;
+	border-radius: 0.15rem;
+	padding: 0.08em 0.25em;
+	margin-top: 0.15em;
+	max-width: 100%;
+}
+
 #options-menu label small,
 #options-menu .random-difficulties-heading small {
 	max-width: 18rem;
