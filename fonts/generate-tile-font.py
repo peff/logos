@@ -15,11 +15,7 @@ from fontTools.ttLib import TTFont
 UNITS_PER_EM = 1000
 ASCENT = 800
 DESCENT = -200
-TEXT_SYMBOLS = {
-	0: ["1", "2", "3", "4", "5", "6"],
-	1: ["A", "B", "C", "D", "E", "F"],
-	5: ["+", "\u2012", "\u00f7", "x", "=", "\u221a"],
-}
+TEXT_SYMBOLS = "123456ABCDEF+‒÷x=√"
 
 DICE_BASE = 0x2680
 SHAPE_CODEPOINTS = [0x25B3, 0x25BD, 0x25A1, 0x25C7, 0x2B20, 0x25CB]
@@ -299,38 +295,32 @@ def main():
 	cmap = {}
 	glyph_order = [".notdef"]
 
-	for family in range(6):
-		for index in range(6):
-			if family == 2:
-				continue
-			name = f"tile_{family}_{index}"
-			if family in TEXT_SYMBOLS:
-				text = TEXT_SYMBOLS[family][index]
-				codepoint = ord(text)
-				width = 760
-				height = 680
-				embolden = 0
-				extend_root = None
-				if family == 5:
-					width *= .9
-					height *= .9
-				if family == 5 and index == 5:
-					width = 850
-					height = 780
-					embolden = 9
-					extend_root = 860
-				glyph = text_glyph(source, text, width, height,
-				                   embolden=embolden,
-				                   extend_root=extend_root)
-			elif family == 3:
-				glyph = die_glyph(index + 1)
-				codepoint = DICE_BASE + index
-			else:
-				glyph = shape_glyph(index)
-				codepoint = SHAPE_CODEPOINTS[index]
-			glyphs[name] = glyph
-			glyph_order.append(name)
-			cmap[codepoint] = name
+	for text in TEXT_SYMBOLS:
+		name = f"text_{ord(text):04x}"
+		if text == "√":
+			# The root needs a larger, heavier outline and longer bar.
+			glyph = text_glyph(source, text, 850, 780,
+			                   embolden=9, extend_root=860)
+		elif text in "+‒÷x=":
+			# These look oversized at the usual bounds; shrink them by 10%.
+			glyph = text_glyph(source, text, 760 * .9, 680 * .9)
+		else:
+			glyph = text_glyph(source, text)
+		glyphs[name] = glyph
+		glyph_order.append(name)
+		cmap[ord(text)] = name
+
+	for value in range(1, 7):
+		name = f"die_{value}"
+		glyphs[name] = die_glyph(value)
+		glyph_order.append(name)
+		cmap[DICE_BASE + value - 1] = name
+
+	for index, codepoint in enumerate(SHAPE_CODEPOINTS):
+		name = f"shape_{codepoint:04x}"
+		glyphs[name] = shape_glyph(index)
+		glyph_order.append(name)
+		cmap[codepoint] = name
 
 	roman_advances = {}
 	for text in ["I", "V"]:
