@@ -46,6 +46,7 @@ const symbolRows = {
 	arrows: { name: "Arrows", symbols: ["↖", "↑", "↗", "↙", "↓", "↘"] },
 	chess: { name: "Chess pieces", symbols: ["♚", "♛", "♜", "♝", "♞", "♟"] },
 	sky: { name: "Sky", symbols: ["☀", "☽", "☁", "⚡", "❄", "🌬"] },
+	egyptian: { name: "Hieroglyphs", symbols: ["𓋹", "𓂀", "𓆣", "𓅓", "𓆗", "𓀠"] },
 };
 
 var tileSets = {
