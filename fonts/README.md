@@ -22,8 +22,8 @@ Regenerating the fonts
 ----------------------
 
 Generated fonts are included in the repository; these commands are only
-needed when changing them. Run them from the repository root with
-FontTools with WOFF2 support installed:
+needed when changing them. You'll need FontTools with WOFF2 support
+installed.
 
-    python3 fonts/generate-tile-font.py texgyrepagella-bold.otf fonts/logos-tiles.woff2
-    python3 fonts/generate-egyptian-font.py NotoSansEgyptianHieroglyphs-Regular.ttf fonts/logos-egyptian.woff2
+    python3 generate-tile-font.py texgyrepagella-bold.otf logos-tiles.woff2
+    python3 generate-egyptian-font.py NotoSansEgyptianHieroglyphs-Regular.ttf logos-egyptian.woff2
