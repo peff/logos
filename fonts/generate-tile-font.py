@@ -15,7 +15,8 @@ from fontTools.ttLib import TTFont
 UNITS_PER_EM = 1000
 ASCENT = 800
 DESCENT = -200
-TEXT_SYMBOLS = "123456ABCDEF+‒÷x=√αγδθψΩ"
+TEXT_SYMBOLS = "123456ABCDEF+‒÷x=√"
+GREEK_SYMBOLS = "αγδθψΩ"
 ARROW_SYMBOLS = "↖↑↗↙↓↘"
 
 DICE_BASE = 0x2680
@@ -306,11 +307,14 @@ def main():
 	cmap = {}
 	glyph_order = [".notdef"]
 
-	# A shared scale preserves arrow stroke weights. Independent fitting
-	# would enlarge the shorter diagonal arrows. Center each one separately.
+	# Shared scales preserve stroke weights within each group. Independent
+	# fitting would enlarge narrow letters and the shorter diagonal arrows.
+	# Each glyph is still centered individually.
+	# Enlarge the Greek row without changing its relative sizes.
+	greek_scale = shared_text_scale(source, GREEK_SYMBOLS) * 1.35
 	arrow_scale = shared_text_scale(source, ARROW_SYMBOLS)
 
-	for text in TEXT_SYMBOLS + ARROW_SYMBOLS:
+	for text in TEXT_SYMBOLS + GREEK_SYMBOLS + ARROW_SYMBOLS:
 		name = f"text_{ord(text):04x}"
 		if text == "√":
 			# The root needs a larger, heavier outline and longer bar.
@@ -319,6 +323,8 @@ def main():
 		elif text in "+‒÷x=":
 			# These look oversized at the usual bounds; shrink them by 10%.
 			glyph = text_glyph(source, text, 760 * .9, 680 * .9)
+		elif text in GREEK_SYMBOLS:
+			glyph = text_glyph(source, text, scale=greek_scale)
 		elif text in ARROW_SYMBOLS:
 			glyph = text_glyph(source, text, scale=arrow_scale)
 		else:
