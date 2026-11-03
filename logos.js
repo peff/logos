@@ -32,21 +32,35 @@ function halloweenSymbol(name, label) {
 }
 
 var tileSets = {
-	classic: defaultSymbols,
-	halloween: defaultSymbols.map(function(row, family) {
-		if (family != 3)
-			return row;
-		return [
-			["ghost", "Ghost"],
-			["bat", "Bat"],
-			["witch", "Witch"],
-			["candy", "Candy corn"],
-			["skull", "Skull"],
-			["pumpkin", "Jack-o’-lantern"],
-		].map(function(picture) {
-			return halloweenSymbol(picture[0], picture[1]);
-		});
-	}),
+	automatic: {
+		name: "Automatic",
+		description: "Classic symbols, plus seasonal inspiration.",
+		/* Resolved from the game's symbol source rather than fixed tiles. */
+		tiles: null,
+	},
+	classic: {
+		name: "Classic",
+		description: "Play as the ancients once did.",
+		tiles: defaultSymbols,
+	},
+	halloween: {
+		name: "Halloween",
+		description: "A spooky twist to your regular deductions.",
+		tiles: defaultSymbols.map(function(row, family) {
+			if (family != 3)
+				return row;
+			return [
+				["ghost", "Ghost"],
+				["bat", "Bat"],
+				["witch", "Witch"],
+				["candy", "Candy corn"],
+				["skull", "Skull"],
+				["pumpkin", "Jack-o’-lantern"],
+			].map(function(picture) {
+				return halloweenSymbol(picture[0], picture[1]);
+			});
+		}),
+	},
 };
 
 function symbolsForDate(date = new Date()) {
@@ -55,7 +69,7 @@ function symbolsForDate(date = new Date()) {
 	var revealed = date.getDate() - 25;
 	return defaultSymbols.map(function(row, family) {
 		return family == 3 ? row.map(function(symbol, value) {
-			return value < revealed ? tileSets.halloween[family][value] : symbol;
+			return value < revealed ? tileSets.halloween.tiles[family][value] : symbol;
 		}) : row;
 	});
 }
@@ -993,8 +1007,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.refreshSymbols = function() {
-		if (this.tileSet == "classic" || this.tileSet == "halloween")
-			this.setSymbols(tileSets[this.tileSet]);
+		if (this.tileSet != "automatic")
+			this.setSymbols(tileSets[this.tileSet].tiles);
 		else if (symbolSource)
 			this.setSymbols(symbolSource());
 		else
@@ -4381,8 +4395,19 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.saveOption("customCursor", enabled);
 	}
 
+	this.renderSymbolSets = function() {
+		const select = this.options.querySelector("#tile-set");
+		select.replaceChildren();
+		for (const [id, preset] of Object.entries(tileSets)) {
+			const option = document.createElement("option");
+			option.value = id;
+			option.textContent = preset.name;
+			select.append(option);
+		}
+	}
+
 	this.setTileSet = function(name) {
-		this.tileSet = ["automatic", "classic", "halloween"].includes(name) ? name : "automatic";
+		this.tileSet = Object.hasOwn(tileSets, name) ? name : "automatic";
 		this.options.querySelector("#tile-set").value = this.tileSet;
 		this.saveOption("tileSet", this.tileSet);
 		if (this.loadingOptions)
@@ -4691,6 +4716,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.gameStats = { won: 0, lost: 0 };
 	/* Applying saved preferences must not write a stale snapshot back. */
 	this.loadingOptions = true;
+	this.renderSymbolSets();
 	this.setTileSet(readOption("tileSet", "automatic"));
 	this.setRandomDifficulties(randomDifficulties);
 	this.setExtremeMode(readOption("extremeMode", false));

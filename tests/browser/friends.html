@@ -170,7 +170,7 @@ var browserTestsDone = (async function() {
 		for (const preset of ["halloween", "classic", "automatic"]) {
 			tileSelect.value = preset;
 			tileSelect.dispatchEvent(new host.Event("change", { bubbles: true }));
-			const expected = preset == "automatic" ? host.symbolsForDate() : host.tileSets[preset];
+			const expected = preset == "automatic" ? host.symbolsForDate() : host.tileSets[preset].tiles;
 			assert(host.puzzle.symbols[3].every((symbol, value) => symbol === expected[3][value]),
 				"tile selector did not apply the preset");
 			assert(host.localStorage.getItem("tileSet") == preset, "tile preset was not saved");
@@ -219,7 +219,7 @@ var browserTestsDone = (async function() {
 		const value = slot.possible.findIndex((possible, value) => possible && value != slot.value);
 		const bobSymbols = bob.puzzle.symbols;
 		bob.puzzle.setSymbols(bobSymbols.map((row, family) =>
-			family < 2 ? bob.tileSets.halloween[3] : row));
+			family < 2 ? bob.tileSets.halloween.tiles[3] : row));
 		function checkImageAction(type, family, value, columns) {
 			const icon = players(bob).querySelector('[data-action="' + type + '"]');
 			const symbol = bob.puzzle.symbols[family][value];
