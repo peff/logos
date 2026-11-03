@@ -13,3 +13,12 @@ Pagella Bold 2.501, distributed under the GUST Font License, along with
 geometric symbols drawn for Logos. See [GUST-FONT-LICENSE.txt](GUST-FONT-LICENSE.txt).
 The source font is available from:
 https://tug.ctan.org/fonts/tex-gyre/opentype/texgyrepagella-bold.otf
+
+Regenerating the fonts
+----------------------
+
+Generated fonts are included in the repository; these commands are only
+needed when changing them. Run them from the repository root with
+FontTools with WOFF2 support installed:
+
+    python3 fonts/generate-tile-font.py texgyrepagella-bold.otf fonts/logos-tiles.woff2
