@@ -15,7 +15,9 @@ from fontTools.ttLib import TTFont
 UNITS_PER_EM = 1000
 ASCENT = 800
 DESCENT = -200
-TEXT_SYMBOLS = "123456ABCDEF+‒÷x=√"
+NUMBER_SYMBOLS = "123456"
+CAPITAL_SYMBOLS = "ABCDEF"
+MATH_SYMBOLS = "+‒÷x="
 GREEK_SYMBOLS = "αγδθψΩ"
 LOWERCASE_SYMBOLS = "rtuvwz"
 ARROW_SYMBOLS = "↖↑↗↙↓↘"
@@ -311,40 +313,36 @@ def main():
 
 	# Shared scales preserve stroke weights within each group. Independent
 	# fitting would enlarge narrow letters and the shorter diagonal arrows.
-	# Greek letters and arrows remain individually centered.
-	# Enlarge the Greek row without changing its relative sizes.
-	greek_scale = shared_text_scale(source, GREEK_SYMBOLS) * 1.35
-	lowercase_scale = shared_text_scale(source, LOWERCASE_SYMBOLS) * 1.10
-	# Center the lowercase group's full vertical extent while preserving
-	# a common baseline.
-	lowercase_bounds = [run_bounds(source.getGlyphSet(), glyph_run(source, text))
-	                    for text in LOWERCASE_SYMBOLS]
-	lowercase_bottom = min(bounds[1] for bounds in lowercase_bounds)
-	lowercase_top = max(bounds[3] for bounds in lowercase_bounds)
-	lowercase_baseline = ASCENT - 500 - lowercase_scale * (lowercase_bottom + lowercase_top) / 2
-	arrow_scale = shared_text_scale(source, ARROW_SYMBOLS)
+	for family in (
+		NUMBER_SYMBOLS, CAPITAL_SYMBOLS, MATH_SYMBOLS,
+		GREEK_SYMBOLS, LOWERCASE_SYMBOLS, ARROW_SYMBOLS,
+	):
+		scale = shared_text_scale(source, family)
+		baseline = None
+		if family == GREEK_SYMBOLS:
+			# Enlarge the Greek row without changing its relative sizes.
+			scale *= 1.35
+		elif family == LOWERCASE_SYMBOLS:
+			scale *= 1.10
+			# Center the group's full vertical extent on a common baseline.
+			bounds = [run_bounds(source.getGlyphSet(), glyph_run(source, text))
+			          for text in family]
+			bottom = min(box[1] for box in bounds)
+			top = max(box[3] for box in bounds)
+			baseline = ASCENT - 500 - scale * (bottom + top) / 2
 
-	for text in TEXT_SYMBOLS + GREEK_SYMBOLS + LOWERCASE_SYMBOLS + ARROW_SYMBOLS:
-		name = f"text_{ord(text):04x}"
-		if text == "√":
-			# The root needs a larger, heavier outline and longer bar.
-			glyph = text_glyph(source, text, 850, 780,
-			                   embolden=9, extend_root=860)
-		elif text in "+‒÷x=":
-			# These look oversized at the usual bounds; shrink them by 10%.
-			glyph = text_glyph(source, text, 760 * .9, 680 * .9)
-		elif text in GREEK_SYMBOLS:
-			glyph = text_glyph(source, text, scale=greek_scale)
-		elif text in ARROW_SYMBOLS:
-			glyph = text_glyph(source, text, scale=arrow_scale)
-		elif text in LOWERCASE_SYMBOLS:
-			glyph = text_glyph(source, text, scale=lowercase_scale,
-			                   baseline=lowercase_baseline)
-		else:
-			glyph = text_glyph(source, text)
-		glyphs[name] = glyph
-		glyph_order.append(name)
-		cmap[ord(text)] = name
+		for text in family:
+			name = f"text_{ord(text):04x}"
+			glyphs[name] = text_glyph(source, text, scale=scale, baseline=baseline)
+			glyph_order.append(name)
+			cmap[ord(text)] = name
+
+	# The root needs a larger, heavier outline and longer bar.
+	name = "square_root"
+	glyphs[name] = text_glyph(source, "√", 850, 780,
+	                          embolden=9, extend_root=860)
+	glyph_order.append(name)
+	cmap[ord("√")] = name
 
 	for value in range(1, 7):
 		name = f"die_{value}"
