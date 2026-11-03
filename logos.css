@@ -1640,6 +1640,11 @@ body:is(.proof-active, .suppose-active, .suppose-result, :has(#proof-controls.hi
 	cursor: default;
 }
 
+.symbol-config-row :is(select, input):disabled {
+	opacity: .4;
+	cursor: default;
+}
+
 .symbol-set-details {
 	display: grid;
 	align-items: center;

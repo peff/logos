@@ -4638,6 +4638,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.renderSymbolConfig = function() {
+		this.symbolConfigDialog.querySelector(".symbol-config-duplicate").textContent =
+			this.symbolDraftReadOnly ? "Customize" : "Duplicate";
 		const list = this.symbolConfigDialog.querySelector(".symbol-config-rows");
 		list.replaceChildren();
 		const draft = this.symbolDraft;
