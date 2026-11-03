@@ -451,7 +451,11 @@
 					             <small>Hide clues after all symbols are placed.</small></span></label>
 					<div class="tile-set-option">
 						<label for="tile-set">Symbols <small>A change of scenery for your tiles.</small></label>
-						<select id="tile-set" onChange="puzzle.setTileSet(this.value)"></select>
+						<div class="symbol-set-controls">
+							<select id="tile-set" onChange="puzzle.setTileSet(this.value)"></select>
+							<button id="configure-symbols" type="button" onClick="puzzle.openSymbolConfig()"
+							        aria-haspopup="dialog" aria-controls="symbol-config">Configure</button>
+						</div>
 					</div>
 				</fieldset>
 				<fieldset class="game-options">
@@ -510,6 +514,28 @@
 					<input class="option-action modal-close" type="button"
 					       onClick="puzzle.toggleOptions()" value="Close" autofocus>
 				</div>
+			</dialog>
+			<dialog id="symbol-config" class="modal modal-panel symbol-config-panel" hidden aria-labelledby="symbol-config-title">
+				<header>
+					<h2 id="symbol-config-title">Symbols</h2>
+					<div class="symbol-manager-controls">
+						<select id="symbol-manager-set" aria-label="Symbol set" onChange="puzzle.selectSymbolSet(this.value)"></select>
+						<button class="symbol-config-duplicate" type="button" onClick="puzzle.duplicateSymbolSet()">Duplicate</button>
+						<button class="symbol-config-delete" type="button" onClick="puzzle.deleteSymbolSet()">Delete</button>
+					</div>
+				</header>
+				<ol class="symbol-config-rows" aria-label="Symbol rows"></ol>
+				<div class="symbol-set-details">
+					<label class="symbol-name-row">Name:
+						<input id="symbol-name" type="text" aria-label="Symbol set name"
+						       onInput="puzzle.updateSymbolName()" onChange="puzzle.commitSymbolName()"
+						       onKeyDown="if (event.key == 'Enter') { event.preventDefault(); puzzle.commitSymbolName(); }" autocomplete="off" spellcheck="false">
+					</label>
+					<p class="symbol-preset-description"></p>
+				</div>
+				<footer>
+					<button class="option-action modal-close" type="button" onClick="puzzle.closeSymbolConfig()">Close</button>
+				</footer>
 			</dialog>
 			<dialog id="help-menu" class="modal modal-panel help-panel" hidden
 			     aria-labelledby="help-title">

@@ -163,7 +163,7 @@ var browserTestsDone = (async function() {
 		const tileChoice = tileSelect.getBoundingClientRect();
 		assert(tileOption.left >= 0 && tileOption.right <= host.innerWidth &&
 			tileChoice.right <= tileOption.right && tileChoice.top >=
-				tileSelect.previousElementSibling.getBoundingClientRect().bottom,
+				host.document.querySelector('label[for="tile-set"]').getBoundingClientRect().bottom,
 			"tile selector overflows or overlaps its label on a narrow screen");
 		const guestSymbols = alice.puzzle.symbols;
 		const beforeTiles = JSON.stringify(host.puzzle.positionSnapshot());
@@ -178,6 +178,25 @@ var browserTestsDone = (async function() {
 			assert(JSON.stringify(host.puzzle.positionSnapshot()) == beforeTiles,
 				"tile selection changed the multiplayer position");
 		}
+		const guestColor = alice.getComputedStyle(alice.puzzle.rows[0].slots[0].possibilityElems[0]).color;
+		host.document.querySelector("#configure-symbols").click();
+		host.document.querySelector(".symbol-config-duplicate").click();
+		const customRow = host.document.querySelector("#symbol-row-0");
+		customRow.value = "math";
+		customRow.dispatchEvent(new host.Event("change", { bubbles: true }));
+		const customColor = host.document.querySelector('.symbol-config-row input[type="color"]');
+		customColor.value = "#abcdef";
+		customColor.dispatchEvent(new host.Event("input", { bubbles: true }));
+		host.document.querySelector("#symbol-config .modal-close").click();
+		assert(host.puzzle.symbols[0].join("") == "+‒÷x=√" && alice.puzzle.symbols === guestSymbols,
+			"custom configuration changed another player's symbols");
+		assert(host.getComputedStyle(host.puzzle.rows[0].slots[0].possibilityElems[0]).color == "rgb(171, 205, 239)" &&
+			alice.getComputedStyle(alice.puzzle.rows[0].slots[0].possibilityElems[0]).color == guestColor,
+			"custom colors were not local to the player");
+		assert(JSON.stringify(host.puzzle.positionSnapshot()) == beforeTiles,
+			"custom configuration changed the multiplayer position");
+		tileSelect.value = "automatic";
+		tileSelect.dispatchEvent(new host.Event("change", { bubbles: true }));
 		host.document.querySelector("#options-menu .modal-close").click();
 		const hoverCell = alice.puzzle.rows[0].slots[0].possibilityElems[0];
 		const pointerOver = (app, cell, pointerType = "mouse") => cell.dispatchEvent(

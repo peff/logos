@@ -1,0 +1,208 @@
+import { Logos, assert, makePuzzle } from "./helpers.js";
+
+function clearSettings() {
+	localStorage.removeItem("customSymbols");
+	localStorage.removeItem("tileSet");
+}
+
+function customConfig() {
+	const config = Logos.defaultSymbolConfig();
+	config.rows[0] = { set: "math", color: "#aabbcc" };
+	config.rows[3].set = "halloween";
+	[config.rows[0], config.rows[2]] = [config.rows[2], config.rows[0]];
+	return config;
+}
+
+Deno.test("custom symbol data is validated and detached from the saved object", function() {
+	const config = customConfig();
+	const copy = Logos.validateSymbolConfig(config);
+	assert(copy && copy !== config && copy.rows[0] !== config.rows[0]);
+	config.rows[0].color = "#000000";
+	assert(copy.rows[0].color != config.rows[0].color);
+	const repeated = customConfig();
+	repeated.rows[1].set = repeated.rows[0].set;
+	assert(Logos.validateSymbolConfig(repeated), "rows cannot independently select the same family");
+	for (const change of [
+		c => { c.version = 2; },
+		c => { c.rows.pop(); },
+		c => { c.rows[0].set = "unknown"; },
+		c => { c.rows[0].set = "__proto__"; },
+		c => { c.rows[0].color = "red; color: black"; },
+		c => { c.rows[0].color = ["#abcdef"]; },
+		c => { c.rows[0] = null; },
+	]) {
+		const broken = customConfig();
+		change(broken);
+		assert(Logos.validateSymbolConfig(broken) === null, "invalid custom data accepted");
+	}
+});
+
+Deno.test("earlier two-color drafts retain their symbol color", function() {
+	const config = customConfig();
+	config.rows[0] = { set: "roman", text: "#ABCDEF", frame: "#123456" };
+	const converted = Logos.validateSymbolConfig(config);
+	assert(converted.rows[0].color == "#abcdef");
+	assert(!("text" in converted.rows[0]) && !("frame" in converted.rows[0]));
+});
+
+Deno.test("invalid stored custom symbols fall back to Automatic without overwriting storage", function() {
+	try {
+		localStorage.setItem("tileSet", "custom");
+		for (const stored of ["{", "null", '{"version":1,"rows":[]}',
+			JSON.stringify({ ...customConfig(), version: 2 })]) {
+			localStorage.setItem("customSymbols", stored);
+			const puzzle = makePuzzle(6, false, () => Logos.defaultSymbols);
+			assert(puzzle.tileSet == "automatic" && !Object.keys(puzzle.symbolSets).length);
+			assert(localStorage.getItem("customSymbols") == stored);
+			assert(localStorage.getItem("tileSet") == "custom");
+		}
+	} finally {
+		clearSettings();
+	}
+});
+
+Deno.test("custom rows and colors persist without changing the puzzle", function() {
+	const puzzle = makePuzzle(6, false, () => Logos.defaultSymbols);
+	try {
+		puzzle.newGame(42);
+		const before = JSON.stringify(puzzle.positionSnapshot());
+		puzzle.symbolConfigDialog.hidden = false;
+		puzzle.symbolDraftName = "Custom";
+		puzzle.symbolDraft = customConfig();
+		puzzle.symbolConfigDialog.querySelector("#symbol-name").value = "Custom";
+		puzzle.commitSymbolName();
+		puzzle.saveSymbolDraft();
+		puzzle.closeSymbolConfig();
+		assert(puzzle.tileSet == "custom:Custom" && puzzle.symbols[0] === Logos.defaultSymbols[2]);
+		assert(puzzle.symbols[2] === Logos.symbolRows.math.symbols);
+		assert(puzzle.symbols[3][0].label == "Ghost");
+		assert(document.body.style["--symbol-row-2-text"] == "#aabbcc");
+		assert(JSON.stringify(puzzle.positionSnapshot()) == before);
+		const loaded = makePuzzle(6, false, () => Logos.defaultSymbols);
+		assert(loaded.tileSet == "custom:Custom" && loaded.symbols[2] === Logos.symbolRows.math.symbols);
+		puzzle.setTileSet("classic");
+		assert(puzzle.symbols === Logos.defaultSymbols);
+		assert(document.body.style["--symbol-row-2-text"] == "#bea4d1");
+		puzzle.setTileSet("custom");
+		assert(puzzle.symbols[2] === Logos.symbolRows.math.symbols);
+		assert(document.body.style["--symbol-row-2-text"] == "#aabbcc");
+		puzzle.newGame(43);
+		assert(puzzle.symbols[2] === Logos.symbolRows.math.symbols);
+	} finally {
+		puzzle.stopTimer();
+		clearSettings();
+	}
+});
+
+Deno.test("opening and closing a copy without edits leaves the saved set alone", function() {
+	const puzzle = makePuzzle(6, false, () => Logos.defaultSymbols);
+	try {
+		puzzle.symbolSets.Custom = customConfig();
+		puzzle.setTileSet("custom");
+		puzzle.options.hidden = false;
+		puzzle.openSymbolConfig();
+		assert(puzzle.symbolDraft !== puzzle.symbolSets.Custom);
+		const before = JSON.stringify(puzzle.symbolSets.Custom);
+		const symbols = puzzle.symbols;
+		puzzle.closeSymbolConfig();
+		assert(JSON.stringify(puzzle.symbolSets.Custom) == before && puzzle.symbols === symbols);
+		assert(puzzle.symbolConfigDialog.hidden && !puzzle.options.hidden && !puzzle.symbolDraft);
+	} finally {
+		clearSettings();
+	}
+});
+
+Deno.test("custom symbols refresh active suppositions and survive daily returns", function() {
+	const puzzle = makePuzzle(6, false, () => Logos.defaultSymbols);
+	try {
+		puzzle.newGame(42);
+		const slot = puzzle.rows[2].slots.find(slot => !slot.single);
+		const wrong = (slot.value + 1) % 6;
+		puzzle.enterSuppose();
+		puzzle.requestTileAction(slot, wrong, "place");
+		const suppose = puzzle.suppose;
+		puzzle.symbolSets.Custom = customConfig();
+		puzzle.setTileSet("custom");
+		assert(puzzle.suppose === suppose && slot.singleElem.textContent == Logos.symbolRows.math.symbols[wrong]);
+		puzzle.leaveSuppose(true);
+		puzzle.saveDailyReturn();
+		puzzle.newGame("20261031", true, true);
+		puzzle.setTileSet("classic");
+		puzzle.setTileSet("custom");
+		assert(puzzle.restoreDailyReturn() && puzzle.symbols[2] === Logos.symbolRows.math.symbols);
+	} finally {
+		puzzle.stopTimer();
+		clearSettings();
+	}
+});
+
+Deno.test("named sets can be copied, overwritten, deleted, and reloaded", function() {
+	const puzzle = makePuzzle(6, false, () => Logos.defaultSymbols);
+	const input = puzzle.symbolConfigDialog.querySelector("#symbol-name");
+	const open = () => { puzzle.options.hidden = false; puzzle.openSymbolConfig(); };
+	try {
+		open();
+		assert(puzzle.symbolDraftReadOnly);
+		puzzle.duplicateSymbolSet();
+		assert(input.value == "Custom");
+		puzzle.symbolDraft.rows[0].set = "math";
+		puzzle.commitSymbolName();
+		puzzle.saveSymbolDraft();
+		puzzle.closeSymbolConfig();
+		open();
+		assert(input.value == "Custom" && puzzle.symbolDraft.rows[0].set == "math");
+		input.value = "Custom 1";
+		puzzle.symbolDraft.rows[0].set = "shapes";
+		puzzle.commitSymbolName();
+		puzzle.saveSymbolDraft();
+		puzzle.closeSymbolConfig();
+		assert(puzzle.symbolSets.Custom.rows[0].set == "math");
+		open();
+		assert(input.value == "Custom 1");
+		input.value = " Custom ";
+		puzzle.commitSymbolName();
+		puzzle.saveSymbolDraft();
+		puzzle.closeSymbolConfig();
+		assert(Object.keys(puzzle.symbolSets).length == 2 && puzzle.symbolSets.Custom.rows[0].set == "shapes");
+		const loaded = makePuzzle(6, false, () => Logos.defaultSymbols);
+		assert(loaded.tileSet == "custom:Custom" && Object.keys(loaded.symbolSets).length == 2);
+		open();
+		input.value = "Custom 1";
+		puzzle.deleteSymbolSet();
+		assert(puzzle.tileSet == "custom:Custom");
+		assert(!puzzle.symbolConfigDialog.hidden && puzzle.options.hidden);
+		puzzle.closeSymbolConfig();
+		open();
+		input.value = "Custom";
+		puzzle.deleteSymbolSet();
+		assert(puzzle.tileSet == "automatic" && !Object.keys(puzzle.symbolSets).length);
+		puzzle.closeSymbolConfig();
+		assert(!Object.keys(makePuzzle(6).symbolSets).length);
+	} finally {
+		clearSettings();
+	}
+});
+
+Deno.test("preset definitions supply selection, descriptions, tiles, and editable copies", function() {
+	Logos.tileSets.example = {
+		name: "Example preset",
+		description: "An extra preset for the test.",
+		tiles: Logos.defaultSymbols.map((row, i) => i == 0 ? Logos.symbolRows.math.symbols : row),
+	};
+	const puzzle = makePuzzle(6, false, () => Logos.defaultSymbols);
+	try {
+		const option = puzzle.options.querySelector("#tile-set").children.find(option => option.value == "example");
+		assert(option.textContent == "Example preset");
+		puzzle.setTileSet("example");
+		assert(puzzle.symbols === Logos.tileSets.example.tiles);
+		puzzle.options.hidden = false;
+		puzzle.openSymbolConfig();
+		assert(puzzle.symbolDraftReadOnly && puzzle.symbolDraft.rows[0].set == "math");
+		assert(puzzle.symbolConfigDialog.querySelector(".symbol-preset-description").textContent == Logos.tileSets.example.description);
+		puzzle.duplicateSymbolSet();
+		assert(puzzle.symbolSets.Custom.rows[0].set == "math");
+	} finally {
+		delete Logos.tileSets.example;
+		clearSettings();
+	}
+});

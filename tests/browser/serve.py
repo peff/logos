@@ -12,7 +12,7 @@ from urllib.parse import urlsplit
 
 results = Path(sys.argv[1])
 root = Path(__file__).resolve().parents[2]
-suites = {"storage", "scoreboards", "rooms", "friends"}
+suites = {"storage", "scoreboards", "rooms", "friends", "symbols"}
 with socket.socket() as reservation:
     reservation.bind(("127.0.0.1", 0))
     worker_port = reservation.getsockname()[1]

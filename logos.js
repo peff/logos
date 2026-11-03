@@ -63,6 +63,64 @@ var tileSets = {
 	},
 };
 
+/* Row identities belong to the artwork, not to puzzle row/value indices. */
+const symbolRows = {
+	numbers: { name: "Numbers", symbols: defaultSymbols[0] },
+	letters: { name: "Letters", symbols: defaultSymbols[1] },
+	roman: { name: "Roman numerals", symbols: defaultSymbols[2] },
+	dice: { name: "Dice", symbols: defaultSymbols[3] },
+	shapes: { name: "Shapes", symbols: defaultSymbols[4] },
+	math: { name: "Mathematics", symbols: defaultSymbols[5] },
+	halloween: { name: "Halloween", symbols: tileSets.halloween.tiles[3] },
+};
+const symbolColors = [
+	"#8eb9d8", "#91c39a", "#bea4d1", "#d8bb76", "#d69aa1", "#86c3bb",
+];
+
+function defaultSymbolConfig(preset = "classic") {
+	return { version: 1, rows: tileSets[preset].tiles.map((tiles, row) => ({
+		set: Object.keys(symbolRows).find(set => symbolRows[set].symbols === tiles),
+		color: symbolColors[row],
+	})) };
+}
+
+/* Stored configurations are data, never markup or arbitrary image URLs. */
+function validateSymbolConfig(config) {
+	if (!config || config.version !== 1 || !Array.isArray(config.rows) || config.rows.length != 6)
+		return null;
+	const rows = [];
+	for (const row of config.rows) {
+		/* Accept the single color from the earlier two-picker draft, too. */
+		const color = row?.color ?? row?.text;
+		if (!row || typeof row.set != "string" || !Object.hasOwn(symbolRows, row.set) ||
+		    typeof color != "string" || !/^#[0-9a-f]{6}$/i.test(color))
+			return null;
+		rows.push({ set: row.set, color: color.toLowerCase() });
+	}
+	return { version: 1, rows };
+}
+
+function readSymbolSets() {
+	const sets = Object.create(null);
+	try {
+		const saved = JSON.parse(localStorage.getItem("customSymbols"));
+		if (saved?.version === 2 && Array.isArray(saved.sets)) {
+			for (const entry of saved.sets) {
+				const config = validateSymbolConfig(entry?.config);
+				if (typeof entry?.name == "string" && entry.name.trim() && config)
+					sets[entry.name.trim()] = config;
+			}
+		} else {
+			const config = validateSymbolConfig(saved);
+			if (config)
+				sets.Custom = config;
+		}
+	} catch (e) {
+		/* A broken preference must not prevent starting a game. */
+	}
+	return sets;
+}
+
 function symbolsForDate(date = new Date()) {
 	if (date.getMonth() != 9 || date.getDate() < 26)
 		return defaultSymbols;
@@ -735,6 +793,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.hClues = hClues;
 	this.vClues = vClues;
 	this.options = options;
+	this.symbolConfigDialog = document.querySelector("#symbol-config");
 	this.optionsButton = optionsButton;
 	this.newGameButton = document.querySelector("#new-game-button");
 	this.invitation = document.querySelector("#invitation-menu");
@@ -1007,7 +1066,14 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.refreshSymbols = function() {
-		if (this.tileSet != "automatic")
+		const config = this.tileSet.startsWith("custom:") ? this.symbolSets[this.tileSet.slice(7)] : null;
+		for (let row = 0; row < 6; row++) {
+			const color = config ? config.rows[row].color : symbolColors[row];
+			document.body.style.setProperty("--symbol-row-" + row + "-text", color);
+		}
+		if (config)
+			this.setSymbols(config.rows.map(row => symbolRows[row.set].symbols));
+		else if (this.tileSet != "automatic")
 			this.setSymbols(tileSets[this.tileSet].tiles);
 		else if (symbolSource)
 			this.setSymbols(symbolSource());
@@ -4210,6 +4276,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	for (var [dialog, close] of [
 		[this.analysis, () => this.closeAnalysis()],
 		[this.options, () => this.toggleOptions()],
+		[this.symbolConfigDialog, () => this.closeSymbolConfig()],
 		[this.hintNotice, () => this.finishHintNotice(false)],
 		[this.help, () => this.toggleHelp()],
 		[this.invitation, () => this.closeInvitation()],
@@ -4395,20 +4462,13 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		this.saveOption("customCursor", enabled);
 	}
 
-	this.renderSymbolSets = function() {
-		const select = this.options.querySelector("#tile-set");
-		select.replaceChildren();
-		for (const [id, preset] of Object.entries(tileSets)) {
-			const option = document.createElement("option");
-			option.value = id;
-			option.textContent = preset.name;
-			select.append(option);
-		}
-	}
-
 	this.setTileSet = function(name) {
-		this.tileSet = Object.hasOwn(tileSets, name) ? name : "automatic";
+		if (name == "custom" && this.symbolSets.Custom)
+			name = "custom:Custom";
+		this.tileSet = Object.hasOwn(tileSets, name) ||
+			name.startsWith("custom:") && Object.hasOwn(this.symbolSets, name.slice(7)) ? name : "automatic";
 		this.options.querySelector("#tile-set").value = this.tileSet;
+		this.symbolConfigDialog.querySelector("#symbol-manager-set").value = this.tileSet;
 		this.saveOption("tileSet", this.tileSet);
 		if (this.loadingOptions)
 			return;
@@ -4429,6 +4489,196 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		if (this.supposeResult)
 			this.showSupposeResult(this.supposeResult);
 		this.actionController?.onPlayersChanged(this.actionController.players);
+	}
+
+	this.renderSymbolSets = function() {
+		for (const select of [this.options.querySelector("#tile-set"),
+			this.symbolConfigDialog.querySelector("#symbol-manager-set")]) {
+			select.replaceChildren();
+			for (const [value, name] of [
+				...Object.entries(tileSets).map(([id, preset]) => [id, preset.name]),
+				...Object.keys(this.symbolSets).map(name => ["custom:" + name, name]),
+			]) {
+				const option = document.createElement("option");
+				option.value = value;
+				option.textContent = name;
+				select.append(option);
+			}
+			select.value = this.tileSet;
+		}
+	}
+
+	this.saveSymbolSets = function() {
+		this.saveOption("customSymbols", JSON.stringify({ version: 2,
+			sets: Object.entries(this.symbolSets).map(([name, config]) => ({ name, config })),
+		}));
+		this.renderSymbolSets();
+	}
+
+	this.updateSymbolName = function() {
+		const name = this.symbolConfigDialog.querySelector("#symbol-name").value.trim();
+		this.symbolConfigDialog.querySelector(".symbol-config-delete").disabled = !Object.hasOwn(this.symbolSets, name);
+	}
+
+	this.saveSymbolDraft = function() {
+		if (!this.symbolDraft || this.symbolDraftReadOnly)
+			return;
+		const config = validateSymbolConfig(this.symbolDraft);
+		if (!config)
+			return;
+		this.symbolSets[this.symbolDraftName] = config;
+		this.symbolDraftSaved = true;
+		this.saveSymbolSets();
+		this.setTileSet("custom:" + this.symbolDraftName);
+		this.updateSymbolName();
+	}
+
+	this.commitSymbolName = function() {
+		if (!this.symbolDraft || this.symbolDraftReadOnly)
+			return;
+		const input = this.symbolConfigDialog.querySelector("#symbol-name");
+		const name = input.value.trim() || this.symbolDraftName;
+		input.value = name;
+		if (name != this.symbolDraftName) {
+			if (this.symbolDraftSaved && this.symbolDraftName != this.symbolDraftBaseName)
+				delete this.symbolSets[this.symbolDraftName];
+			this.symbolDraftName = name;
+			this.saveSymbolDraft();
+		}
+		this.updateSymbolName();
+	}
+
+	this.deleteSymbolSet = function() {
+		const name = this.symbolConfigDialog.querySelector("#symbol-name").value.trim();
+		if (!Object.hasOwn(this.symbolSets, name))
+			return;
+		delete this.symbolSets[name];
+		this.saveSymbolSets();
+		if (this.tileSet == "custom:" + name)
+			this.setTileSet("automatic");
+		this.loadSymbolManager();
+		this.symbolConfigDialog.querySelector("#symbol-manager-set").focus();
+	}
+
+	this.unusedSymbolName = function() {
+		let name = "Custom";
+		for (let n = 1; Object.hasOwn(this.symbolSets, name); n++)
+			name = "Custom " + n;
+		return name;
+	}
+
+	this.selectSymbolSet = function(name) {
+		this.commitSymbolName();
+		this.setTileSet(name);
+		this.loadSymbolManager();
+	}
+
+	this.loadSymbolManager = function() {
+		const config = this.tileSet.startsWith("custom:") ? this.symbolSets[this.tileSet.slice(7)] : null;
+		this.symbolDraft = config ? validateSymbolConfig(config) : defaultSymbolConfig(
+			this.tileSet == "automatic" ?
+				(this.symbols[3].some(symbol => typeof symbol != "string") ? "halloween" : "classic") : this.tileSet);
+		this.symbolDraftReadOnly = !config;
+		this.symbolDraftName = config ? this.tileSet.slice(7) : null;
+		this.symbolDraftBaseName = this.symbolDraftName;
+		this.symbolDraftSaved = false;
+		const input = this.symbolConfigDialog.querySelector("#symbol-name");
+		input.value = this.symbolDraftName || "";
+		this.symbolConfigDialog.querySelector(".symbol-name-row").style.visibility = config ? "visible" : "hidden";
+		const description = this.symbolConfigDialog.querySelector(".symbol-preset-description");
+		description.style.visibility = config ? "hidden" : "visible";
+		if (!config)
+			description.textContent = tileSets[this.tileSet].description;
+		input.disabled = !config;
+		this.updateSymbolName();
+		this.renderSymbolConfig();
+	}
+
+	this.duplicateSymbolSet = function() {
+		this.commitSymbolName();
+		this.symbolDraftReadOnly = false;
+		this.symbolDraftName = this.unusedSymbolName();
+		this.symbolDraftBaseName = null;
+		const input = this.symbolConfigDialog.querySelector("#symbol-name");
+		input.value = this.symbolDraftName;
+		input.disabled = false;
+		this.symbolConfigDialog.querySelector(".symbol-name-row").style.visibility = "visible";
+		this.symbolConfigDialog.querySelector(".symbol-preset-description").style.visibility = "hidden";
+		this.saveSymbolDraft();
+		this.renderSymbolConfig();
+		input.focus();
+		input.select();
+	}
+
+	this.openSymbolConfig = function() {
+		if (this.options.hidden)
+			return;
+		this.loadSymbolManager();
+		setDialogOpen(this.options, false);
+		setDialogOpen(this.symbolConfigDialog, true);
+		this.symbolConfigDialog.querySelector("#symbol-manager-set").focus();
+	}
+
+	this.renderSymbolConfig = function() {
+		const list = this.symbolConfigDialog.querySelector(".symbol-config-rows");
+		list.replaceChildren();
+		const draft = this.symbolDraft;
+		for (const [index, row] of draft.rows.entries()) {
+			const item = document.createElement("li");
+			item.className = "symbol-config-row";
+			const select = document.createElement("select");
+			select.id = "symbol-row-" + index;
+			select.setAttribute("aria-label", "Row " + (index + 1) + " symbols");
+			select.className = "symbol-row-select";
+			select.disabled = this.symbolDraftReadOnly;
+			for (const [id, family] of Object.entries(symbolRows)) {
+				const option = document.createElement("option");
+				option.value = id;
+				option.textContent = family.name;
+				select.append(option);
+			}
+			select.value = row.set;
+			select.addEventListener("change", () => {
+				row.set = select.value;
+				this.saveSymbolDraft();
+				this.renderSymbolConfig();
+				this.symbolConfigDialog.querySelectorAll(".symbol-row-select")[index].focus();
+			});
+			const preview = document.createElement("div");
+			preview.className = "symbol-row-preview family-" + index;
+			preview.style.setProperty("--tile-fg", row.color);
+			preview.setAttribute("aria-label", "Row " + (index + 1) + " preview");
+			for (const symbol of symbolRows[row.set].symbols) {
+				const tile = document.createElement("span");
+				tile.className = "proof-tile";
+				renderTileSymbol(tile, symbol);
+				preview.append(tile);
+			}
+			const color = document.createElement("input");
+			color.type = "color";
+			color.disabled = this.symbolDraftReadOnly;
+			color.className = "symbol-row-color";
+			color.value = row.color;
+			color.setAttribute("aria-label", "Row " + (index + 1) + " color");
+			color.title = "Color";
+			color.addEventListener("input", () => {
+				row.color = color.value;
+				preview.style.setProperty("--tile-fg", row.color);
+				this.saveSymbolDraft();
+			});
+			item.append(select, preview, color);
+			list.append(item);
+		}
+	}
+
+	this.closeSymbolConfig = function() {
+		if (this.symbolConfigDialog.hidden)
+			return;
+		this.commitSymbolName();
+		this.symbolDraft = null;
+		setDialogOpen(this.symbolConfigDialog, false);
+		setDialogOpen(this.options, true);
+		this.options.querySelector("#configure-symbols").focus();
 	}
 
 	this.setMilestones = function(show) {
@@ -4716,6 +4966,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	this.gameStats = { won: 0, lost: 0 };
 	/* Applying saved preferences must not write a stale snapshot back. */
 	this.loadingOptions = true;
+	this.symbolSets = readSymbolSets();
 	this.renderSymbolSets();
 	this.setTileSet(readOption("tileSet", "automatic"));
 	this.setRandomDifficulties(randomDifficulties);

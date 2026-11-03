@@ -35,6 +35,34 @@ Deno.test("multiplayer resync preserves seasonal symbols until the next game", f
 	}
 });
 
+Deno.test("custom rows stay local across multiplayer moves, resyncs, and restarts", function() {
+	const host = makeSession("host", "host");
+	const guest = makeSession("guest", "guest");
+	const network = new InMemoryMultiplayerNetwork(host.session);
+	try {
+		host.session.start(42);
+		network.addGuest(guest.session);
+		guest.puzzle.symbolSets.Custom = Logos.defaultSymbolConfig();
+		guest.puzzle.symbolSets.Custom.rows[0].set = "math";
+		guest.puzzle.symbolSets.Custom.rows[0].color = "#abcdef";
+		guest.puzzle.setTileSet("custom");
+		const move = wrongMove(guest.puzzle);
+		guest.puzzle.requestTileAction(move.slot, move.value, "remove");
+		assert(boardState(host.puzzle) == boardState(guest.puzzle));
+		assert(host.puzzle.symbols === Logos.defaultSymbols &&
+			guest.puzzle.symbols[0] === Logos.symbolRows.math.symbols);
+		guest.session.receiveSync(host.session.syncMessage());
+		assert(guest.puzzle.symbols[0] === Logos.symbolRows.math.symbols);
+		host.session.start(43);
+		assert(host.puzzle.symbols === Logos.defaultSymbols &&
+			guest.puzzle.symbols[0] === Logos.symbolRows.math.symbols);
+		assert(boardState(host.puzzle) == boardState(guest.puzzle));
+	} finally {
+		stopAll(host, guest);
+		localStorage.removeItem("tileSet");
+	}
+});
+
 Deno.test("multiplayer routes host and guest actions through the host", function() {
 	const host = makeSession("host", "host");
 	const guest = makeSession("guest", "alice");

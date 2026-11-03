@@ -53,6 +53,7 @@ class FakeElement {
 	focus() {
 		this.focused = true;
 	}
+	select() { this.selected = true; }
 	setAttribute(name, value) {
 		this.attributes[name] = String(value);
 	}
@@ -151,6 +152,7 @@ const Logos = eval(source +
 	"OrderClue: OrderClue, " +
 	"defaultSymbols: defaultSymbols, accessRunHistory: accessRunHistory, " +
 	"renderProofMessage, symbolsForDate, clueSlots, " +
+	"tileSets, symbolRows, defaultSymbolConfig, validateSymbolConfig, " +
 	"setHistoryStorage: storage => { accessRunHistory = storage; }, " +
 	"setDebugDateActive: active => { debugDateActive = active; }, " +
 	"adjacent3DeductionMessage: adjacent3DeductionMessage, " +

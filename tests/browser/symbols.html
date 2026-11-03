@@ -1,0 +1,215 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Logos custom symbols browser tests</title>
+<style>iframe { width: 390px; height: 844px; border: 0; }</style>
+<pre id="results">Running…</pre>
+<script>
+var browserTestsDone = (async function() {
+	const output = document.querySelector("#results");
+	const frame = document.createElement("iframe");
+	const keys = ["tileSet", "customSymbols"];
+	const saved = keys.map(key => localStorage.getItem(key));
+	for (const key of keys) localStorage.removeItem(key);
+	let app, doc;
+	function assert(condition, message) {
+		if (!condition) throw new Error(message);
+	}
+	async function load() {
+		const loaded = new Promise(resolve => frame.onload = resolve);
+		frame.src = "../../index.html";
+		if (!frame.isConnected) document.body.append(frame);
+		await loaded;
+		app = frame.contentWindow;
+		doc = app.document;
+		await doc.fonts.ready;
+	}
+	async function layout() {
+		await new Promise(resolve => app.requestAnimationFrame(() => app.requestAnimationFrame(resolve)));
+	}
+	function change(select, value) {
+		select.value = value;
+		select.dispatchEvent(new app.Event("change", { bubbles: true }));
+	}
+	const rowSelect = row => doc.querySelector("#symbol-row-" + row);
+	const color = row => doc.querySelectorAll(".symbol-config-row")[row]
+		.querySelector('input[type="color"]');
+	function pickColor(row, value) {
+		const input = color(row);
+		input.value = value;
+		input.dispatchEvent(new app.Event("input", { bubbles: true }));
+	}
+	function configure() { doc.querySelector("#configure-symbols").click(); }
+	function cancel() { doc.querySelector("#symbol-config .modal-close").click(); }
+	function apply() { doc.querySelector("#symbol-config .modal-close").click(); }
+	function assertColor(elem, text, frameColor) {
+		const style = app.getComputedStyle(elem);
+		/* Relative colors serialize as color(srgb ...), not necessarily rgb(). */
+		const canvas = doc.createElement("canvas");
+		const context = canvas.getContext("2d");
+		function channels(color) {
+			context.fillStyle = color;
+			context.fillRect(0, 0, 1, 1);
+			return Array.from(context.getImageData(0, 0, 1, 1).data).join(",");
+		}
+		assert(channels(style.color) == channels(text) && channels(style.borderTopColor) == channels(frameColor),
+			"custom colors did not reach a tile");
+	}
+	try {
+		await load();
+		app.puzzle.newGame(42);
+		const before = JSON.stringify(app.puzzle.positionSnapshot());
+		doc.querySelector("#options-button").click();
+		assert(app.puzzle.paused && app.puzzle.timerTimeout === null, "Options did not pause the solo game");
+		configure();
+		assert(doc.querySelector("#symbol-config").open && doc.querySelector("#options-menu").hidden,
+			"Configure did not replace Options");
+		assert(doc.activeElement.id == "symbol-manager-set", "editor opening focus was lost");
+		assert(doc.querySelectorAll(".symbol-config-row").length == 6, "editor does not show six rows");
+		assert(!rowSelect(0).querySelector('option[value="letters"]').disabled,
+			"another row's family is unavailable in the selector");
+		cancel();
+		assert(app.puzzle.tileSet == "automatic" && localStorage.getItem("customSymbols") === null,
+			"opening and closing saved an unchanged draft");
+		configure();
+		assert(rowSelect(0).disabled && color(0).disabled && doc.querySelector(".symbol-config-delete").disabled, "preset is editable");
+		await layout();
+		const stableElements = [".symbol-config-rows", ".symbol-set-details", "#symbol-config footer"];
+		const positions = stableElements.map(selector => doc.querySelector(selector).getBoundingClientRect().top);
+		assert(doc.querySelector(".symbol-preset-description").textContent == app.tileSets.automatic.description, "Automatic description is missing");
+		doc.querySelector(".symbol-config-duplicate").click();
+		assert(app.getComputedStyle(doc.querySelector(".symbol-preset-description")).visibility == "hidden", "custom name overlaps preset description");
+		await layout();
+		stableElements.forEach((selector, i) => assert(
+			Math.abs(doc.querySelector(selector).getBoundingClientRect().top - positions[i]) < 1,
+			"duplicating a preset shifted " + selector));
+		change(rowSelect(0), "math");
+		pickColor(0, "#abcdef");
+		assert(app.puzzle.tileSet == "custom:Custom" && localStorage.getItem("customSymbols"),
+			"edits were not saved immediately");
+		change(rowSelect(1), "math");
+		change(rowSelect(0), "letters");
+		assert(color(0).value == "#abcdef", "changing a family changed the row's color");
+		pickColor(1, "#abcdef");
+		assert(rowSelect(1).value == "math" && color(1).value == "#abcdef",
+			"row selectors did not allow exchanging families");
+		assert(doc.activeElement === rowSelect(0), "changing a family lost keyboard focus");
+		change(rowSelect(3), "halloween");
+		assert(!color(3).disabled, "illustration frame color cannot be changed");
+		assert(doc.querySelectorAll('.symbol-config-row input[type="color"]').length == 6,
+			"editor does not have exactly one color per row");
+		change(rowSelect(4), "shapes");
+		change(rowSelect(5), "numbers");
+		await doc.fonts.ready;
+		for (const [width, height] of [[390, 844], [320, 640], [1440, 900], [3840, 2160]]) {
+			frame.style.width = width + "px";
+			frame.style.height = height + "px";
+			await layout();
+			const dialog = doc.querySelector("#symbol-config");
+			const rect = dialog.getBoundingClientRect();
+			const list = doc.querySelector(".symbol-config-rows");
+			const footer = dialog.querySelector("footer").getBoundingClientRect();
+			assert(rect.left >= 0 && rect.right <= width && rect.top >= 0 && rect.bottom <= height,
+				"editor exceeds viewport at " + width);
+			assert(dialog.scrollWidth <= dialog.clientWidth && list.scrollWidth <= list.clientWidth,
+				"editor has horizontal overflow at " + width);
+			assert(footer.bottom <= rect.bottom && footer.top >= list.getBoundingClientRect().bottom,
+				"scrolling rows obscure Apply/Cancel at " + width);
+			list.scrollTop = list.scrollHeight;
+			await layout();
+			assert(rowSelect(5).getBoundingClientRect().bottom <= footer.top,
+				"last row cannot be reached at " + width);
+		}
+		frame.style.width = "390px";
+		frame.style.height = "844px";
+		apply();
+		assert(app.puzzle.tileSet == "custom:Custom" && doc.querySelector("#tile-set").value == "custom:Custom",
+			"Apply did not select Custom");
+		assert(app.puzzle.symbols[1].join("") == "+‒÷x=√", "Math row was not applied");
+		assert(JSON.stringify(app.puzzle.positionSnapshot()) == before, "Apply changed puzzle state");
+		assert(app.puzzle.paused && app.puzzle.timerTimeout === null, "Apply resumed the game behind Options");
+		const tile = app.puzzle.rows[1].slots[0].possibilityElems[0];
+		assertColor(tile, "rgb(171, 205, 239)", "rgb(136, 182, 228)");
+		const clueTile = doc.querySelector('.tile.family-1');
+		assert(clueTile, "test puzzle has no Math clue tile");
+		assertColor(clueTile, "rgb(171, 205, 239)", "rgb(136, 182, 228)");
+		configure();
+		doc.querySelector(".symbol-config-duplicate").click();
+		assert(doc.querySelector("#symbol-name").value == "Custom 1" && app.puzzle.tileSet == "custom:Custom 1",
+			"Duplicate did not select a uniquely named set");
+		assert(doc.activeElement.id == "symbol-name", "copy name was not focused");
+		pickColor(1, "#123456");
+		assert(app.puzzle.symbolSets.Custom.rows[1].color == "#abcdef", "copy edits changed the original");
+		assert(app.puzzle.symbolSets["Custom 1"].rows[1].color == "#123456", "copy edit was not saved");
+		doc.querySelector(".symbol-config-delete").click();
+		assert(doc.activeElement.id == "symbol-manager-set", "manager selector did not regain focus");
+		change(doc.querySelector("#symbol-manager-set"), "custom:Custom");
+		cancel();
+		const stored = localStorage.getItem("customSymbols");
+		configure();
+		pickColor(1, "#000000");
+		doc.querySelector("#symbol-config").dispatchEvent(new app.Event("cancel", { cancelable: true }));
+		assert(localStorage.getItem("customSymbols") != stored && doc.activeElement.id == "configure-symbols",
+			"Escape lost edits or focus");
+		change(doc.querySelector("#tile-set"), "classic");
+		assert(app.puzzle.symbols === app.defaultSymbols, "Classic did not restore the original symbols");
+		configure();
+		assert(app.getComputedStyle(doc.querySelector(".symbol-name-row")).visibility == "hidden" && rowSelect(0).disabled, "preset is editable");
+		cancel();
+		assert(Object.keys(app.puzzle.symbolSets).length == 1, "opening a preset saved a new set");
+		change(doc.querySelector("#tile-set"), "custom:Custom");
+		assert(app.puzzle.symbols[1].join("") == "+‒÷x=√", "preset switching lost the saved custom set");
+		configure();
+		const name = doc.querySelector("#symbol-name");
+		const remove = doc.querySelector(".symbol-config-delete");
+		const save = doc.querySelector("#symbol-config .modal-close");
+		const rename = value => {
+			name.value = value;
+			name.dispatchEvent(new app.Event("input", { bubbles: true }));
+			name.dispatchEvent(new app.Event("change", { bubbles: true }));
+		};
+		assert(name.value == "Custom" && !remove.disabled, "existing set cannot be deleted directly");
+		assert(doc.activeElement.id == "symbol-manager-set", "manager selector was not focused");
+		pickColor(1, "#abcdef");
+		rename("   ");
+		assert(name.value == "Custom" && !remove.disabled, "empty name did not restore the existing name");
+		rename("Temporary name");
+		rename("Second set");
+		assert(!Object.hasOwn(app.puzzle.symbolSets, "Temporary name"), "renaming left an intermediate set");
+		save.click();
+		assert(doc.querySelector('#tile-set option[value="custom:Second set"]').textContent == "Second set",
+			"saved name missing from selector");
+		configure();
+		rename("Custom");
+		assert(!remove.disabled, "existing name cannot be deleted");
+		save.click();
+		assert(Object.keys(app.puzzle.symbolSets).length == 2, "overwrite made a third set");
+		change(doc.querySelector("#tile-set"), "custom:Second set");
+		configure();
+		assert(name.value == "Second set" && !remove.disabled, "Delete requires renaming");
+		remove.click();
+		assert(app.puzzle.tileSet == "automatic", "deleting the selected set did not fall back");
+		assert(!doc.querySelector("#symbol-config").hidden && rowSelect(0).disabled, "Delete closed the manager or left editing enabled");
+		change(doc.querySelector("#symbol-manager-set"), "custom:Custom");
+		cancel();
+		assert(doc.querySelector("#symbol-config").hidden && !doc.querySelector("#options-menu").hidden &&
+			doc.activeElement.id == "configure-symbols", "Delete did not return to Options with focus");
+		assert(!doc.querySelector('#tile-set option[value="custom:Second set"]'), "deleted option remains");
+		doc.querySelector("#options-menu .modal-close").click();
+		assert(!app.puzzle.paused && app.puzzle.timerTimeout !== null, "closing Options did not resume the game");
+		app.puzzle.stopTimer();
+		await load();
+		assert(app.puzzle.tileSet == "custom:Custom" && app.puzzle.symbols[1].join("") == "+‒÷x=√",
+			"reload lost the custom symbols");
+		assertColor(app.puzzle.rows[1].slots[0].singleElem, "rgb(171, 205, 239)", "rgb(136, 182, 228)");
+		output.textContent = "PASS: named custom symbols, autosave, rename, delete, close, persistence, focus, timer, and responsive layout";
+		return true;
+	} catch (error) {
+		output.textContent = "FAIL: " + error.stack;
+		throw error;
+	} finally {
+		app?.puzzle.stopTimer();
+		frame.remove();
+		keys.forEach((key, i) => saved[i] === null ? localStorage.removeItem(key) : localStorage.setItem(key, saved[i]));
+	}
+})();
+</script>

@@ -6,9 +6,9 @@ cd "$(dirname "$0")"
 case "${1:-}" in
 -h|--help)
 	cat <<-HELP
-	Usage: ./test [deno|storage|scoreboards|rooms|friends|all] ...
+	Usage: ./test [deno|storage|scoreboards|rooms|friends|symbols|all] ...
 
-	Run the named suites (default: deno). Use all to run all five suites.
+	Run the named suites (default: deno). Use all to run all six suites.
 	Browser suites need Python 3, setsid, and Chromium (or set CHROMIUM).
 	Rooms and friends also need curl and Wrangler: npm ci --prefix server
 	Each run uses temporary browser profiles and local Worker state.
@@ -19,12 +19,12 @@ esac
 
 test "$#" != 0 || set -- deno
 if test "$#" = 1 && test "$1" = all; then
-	set -- deno storage scoreboards rooms friends
+	set -- deno storage scoreboards rooms friends symbols
 fi
 need_worker=false
 for suite do
 	case "$suite" in
-	deno|storage|scoreboards) ;;
+	deno|storage|scoreboards|symbols) ;;
 	rooms|friends) need_worker=true ;;
 	*) echo "Unknown suite: $suite (see ./test --help)" >&2; exit 1 ;;
 	esac
@@ -109,7 +109,7 @@ start_browser_services() {
 
 run_deno() {
 	deno test --parallel --allow-read=logos.js,friends/logos-multiplayer.js,friends/logos-webrtc.js \
-		tests/debug-date.js tests/game.js tests/controls.js \
+		tests/debug-date.js tests/game.js tests/controls.js tests/symbols.js \
 		tests/history.js tests/proof.js tests/hints.js \
 		tests/difficulty.js tests/clue-pairs.js tests/suppose.js \
 		tests/extreme.js tests/extreme-hints.js \
