@@ -44,6 +44,7 @@ const symbolRows = {
 	greek: { name: "Greek letters", symbols: ["α", "γ", "δ", "θ", "ψ", "Ω"] },
 	lowercase: { name: "Lowercase letters", symbols: ["r", "t", "u", "v", "w", "z"] },
 	arrows: { name: "Arrows", symbols: ["↖", "↑", "↗", "↙", "↓", "↘"] },
+	chess: { name: "Chess pieces", symbols: ["♚", "♛", "♜", "♝", "♞", "♟"] },
 };
 
 var tileSets = {

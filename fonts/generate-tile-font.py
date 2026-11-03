@@ -22,6 +22,7 @@ GREEK_SYMBOLS = "αγδθψΩ"
 LOWERCASE_SYMBOLS = "rtuvwz"
 ARROW_SYMBOLS = "↖↑↗↙↓↘"
 
+CHESS_SYMBOLS = "♚♛♜♝♞♟"
 DICE_BASE = 0x2680
 SHAPE_CODEPOINTS = [0x25B3, 0x25BD, 0x25A1, 0x25C7, 0x2B20, 0x25CB]
 CLUE_ARROW = 0x2194
@@ -296,6 +297,62 @@ def shape_glyph(index):
 	return geometry_glyph(draw)
 
 
+def chess_glyph(piece):
+	def draw(pen):
+		# A common plinth ties the silhouettes together. Leave a small gap
+		# above it so the base does not merge with the body at small sizes.
+		add_polygon(pen, [(270, 790), (730, 790), (770, 870), (230, 870)])
+		if piece == "♚":
+			# The cross is deliberately broad enough for possibility tiles.
+			add_polygon(pen, [
+				(450, 120), (550, 120), (550, 210), (640, 210),
+				(640, 300), (550, 300), (550, 385), (710, 385),
+				(650, 505), (575, 540), (575, 620), (690, 745),
+				(310, 745), (425, 620), (425, 540), (350, 505),
+				(290, 385), (450, 385), (450, 300), (360, 300),
+				(360, 210), (450, 210),
+			])
+		elif piece == "♛":
+			add_polygon(pen, [
+				(220, 230), (385, 350), (500, 135), (615, 350),
+				(780, 230), (675, 510), (580, 550), (580, 625),
+				(690, 745), (310, 745), (420, 625), (420, 550),
+				(325, 510),
+			])
+		elif piece == "♜":
+			add_polygon(pen, [
+				(250, 200), (370, 200), (370, 300), (440, 300),
+				(440, 200), (560, 200), (560, 300), (630, 300),
+				(630, 200), (750, 200), (750, 420), (630, 485),
+				(630, 650), (700, 745), (300, 745), (370, 650),
+				(370, 485), (250, 420),
+			])
+		elif piece == "♝":
+			# Cut the mitre diagonally from the edge, avoiding a tiny detail.
+			add_polygon(pen, [
+				(500, 120), (590, 235), (440, 395), (505, 450),
+				(650, 300), (705, 425), (665, 510), (570, 570),
+				(570, 625), (690, 745), (310, 745), (430, 625),
+				(430, 570), (335, 510), (295, 425), (340, 305),
+			])
+		elif piece == "♞":
+			# A left-facing horse, with a long muzzle and a generous eye.
+			add_polygon(pen, [
+				(455, 145), (535, 230), (625, 245), (710, 355),
+				(745, 535), (700, 745), (300, 745), (345, 620),
+				(500, 440), (400, 475), (300, 535), (210, 465),
+				(260, 365), (395, 255),
+			])
+			add_circle(pen, 440, 335, 38, reverse=True)
+		elif piece == "♟":
+			add_circle(pen, 500, 310, 155)
+			add_polygon(pen, [
+				(410, 455), (590, 455), (555, 580), (590, 655),
+				(690, 745), (310, 745), (410, 655), (445, 580),
+			])
+	return geometry_glyph(draw)
+
+
 def empty_glyph():
 	return TTGlyphPen(None).glyph()
 
@@ -355,6 +412,12 @@ def main():
 		glyphs[name] = shape_glyph(index)
 		glyph_order.append(name)
 		cmap[codepoint] = name
+
+	for piece in CHESS_SYMBOLS:
+		name = f"chess_{ord(piece):04x}"
+		glyphs[name] = chess_glyph(piece)
+		glyph_order.append(name)
+		cmap[ord(piece)] = name
 
 	roman_advances = {}
 	for text in ["I", "V"]:
