@@ -41,7 +41,7 @@ const symbolRows = {
 			["pumpkin", "Jack-o’-lantern"],
 		].map(([name, label]) => halloweenSymbol(name, label)),
 	},
-	greek: { name: "Greek letters", symbols: ["α", "γ", "δ", "θ", "ψ", "Ω"] },
+	greek: { name: "Greek letters", symbols: ["α", "θ", "λ", "π", "ψ", "Ω"] },
 	lowercase: { name: "Lowercase letters", symbols: ["r", "t", "u", "v", "w", "z"] },
 	arrows: { name: "Arrows", symbols: ["↖", "↑", "↗", "↙", "↓", "↘"] },
 	chess: { name: "Chess pieces", symbols: ["♚", "♛", "♜", "♝", "♞", "♟"] },
