@@ -17,19 +17,31 @@ function handleLinkClick(event, action) {
 	action();
 }
 
-var defaultSymbols = [
-	["1", "2", "3", "4", "5", "6"],
-	["A", "B", "C", "D", "E", "F"],
-	["I", "II", "III", "IV", "V", "VI"],
-	["⚀", "⚁", "⚂", "⚃", "⚄", "⚅"],
-	["△", "▽", "□", "◇", "⬠", "○"],
-	["+", "‒", "÷", "x", "=", "√"],
-];
-
 /* Symbols are presentation only; puzzle state uses row and value indices. */
 function halloweenSymbol(name, label) {
 	return { label: label, src: "images/tiles/halloween/" + name + ".svg" };
 }
+
+/* Row identities belong to the artwork, not to puzzle row/value indices. */
+const symbolRows = {
+	numbers: { name: "Numbers", symbols: ["1", "2", "3", "4", "5", "6"] },
+	letters: { name: "Letters", symbols: ["A", "B", "C", "D", "E", "F"] },
+	roman: { name: "Roman numerals", symbols: ["I", "II", "III", "IV", "V", "VI"] },
+	dice: { name: "Dice", symbols: ["⚀", "⚁", "⚂", "⚃", "⚄", "⚅"] },
+	shapes: { name: "Shapes", symbols: ["△", "▽", "□", "◇", "⬠", "○"] },
+	math: { name: "Mathematics", symbols: ["+", "‒", "÷", "x", "=", "√"] },
+	halloween: {
+		name: "Halloween",
+		symbols: [
+			["ghost", "Ghost"],
+			["bat", "Bat"],
+			["witch", "Witch"],
+			["candy", "Candy corn"],
+			["skull", "Skull"],
+			["pumpkin", "Jack-o’-lantern"],
+		].map(([name, label]) => halloweenSymbol(name, label)),
+	},
+};
 
 var tileSets = {
 	automatic: {
@@ -41,38 +53,19 @@ var tileSets = {
 	classic: {
 		name: "Classic",
 		description: "Play as the ancients once did.",
-		tiles: defaultSymbols,
+		tiles: ["numbers", "letters", "roman", "dice", "shapes", "math"]
+			.map(row => symbolRows[row].symbols),
 	},
 	halloween: {
 		name: "Halloween",
 		description: "A spooky twist to your regular deductions.",
-		tiles: defaultSymbols.map(function(row, family) {
-			if (family != 3)
-				return row;
-			return [
-				["ghost", "Ghost"],
-				["bat", "Bat"],
-				["witch", "Witch"],
-				["candy", "Candy corn"],
-				["skull", "Skull"],
-				["pumpkin", "Jack-o’-lantern"],
-			].map(function(picture) {
-				return halloweenSymbol(picture[0], picture[1]);
-			});
-		}),
+		tiles: ["numbers", "letters", "roman", "halloween", "shapes", "math"]
+			.map(row => symbolRows[row].symbols),
 	},
 };
 
-/* Row identities belong to the artwork, not to puzzle row/value indices. */
-const symbolRows = {
-	numbers: { name: "Numbers", symbols: defaultSymbols[0] },
-	letters: { name: "Letters", symbols: defaultSymbols[1] },
-	roman: { name: "Roman numerals", symbols: defaultSymbols[2] },
-	dice: { name: "Dice", symbols: defaultSymbols[3] },
-	shapes: { name: "Shapes", symbols: defaultSymbols[4] },
-	math: { name: "Mathematics", symbols: defaultSymbols[5] },
-	halloween: { name: "Halloween", symbols: tileSets.halloween.tiles[3] },
-};
+var defaultSymbols = tileSets.classic.tiles;
+
 const symbolColors = [
 	"#8eb9d8", "#91c39a", "#bea4d1", "#d8bb76", "#d69aa1", "#86c3bb",
 ];
