@@ -130,6 +130,38 @@ Deno.test("seasonal symbols reveal left to right on October 26–31 in local tim
 	       "selection mutated the classic symbols");
 });
 
+Deno.test("seasonal reveal windows follow the number and positions of changed tiles", function() {
+	const original = Logos.tileSets.halloween.tiles;
+	const classic = Logos.tileSets.classic.tiles;
+	try {
+		/* Two rows start twelve days before the end, not at a fixed date. */
+		Logos.tileSets.halloween.tiles = classic.map((row, family) =>
+			family == 0 || family == 4 ? original[3] : row);
+		assert(Logos.symbolsForDate(new Date(2026, 9, 19, 23, 59)) === classic);
+		for (let count = 1; count <= 12; count++) {
+			const selected = Logos.symbolsForDate(new Date(2026, 9, 19 + count));
+			const changed = selected.flat().filter((symbol, i) => symbol !== classic.flat()[i]);
+			assert(changed.length == count, "wrong multi-row reveal count");
+			assert(selected[0][0] === original[3][0], "reveal did not start in the first changed row");
+			assert(selected[4][0] === (count > 6 ? original[3][0] : classic[4][0]),
+				"second row appeared out of order");
+		}
+		assert(Logos.symbolsForDate(new Date(2026, 10, 1)) === classic);
+
+		/* Unchanged positions within a changed row consume no reveal days. */
+		Logos.tileSets.halloween.tiles = classic.map((row, family) => row.map((symbol, value) =>
+			family == 2 && (value == 1 || value == 4) ? original[3][value] : symbol));
+		assert(Logos.symbolsForDate(new Date(2026, 9, 29)) === classic);
+		const first = Logos.symbolsForDate(new Date(2026, 9, 30));
+		assert(first[2][1] === original[3][1] && first[2][4] === classic[2][4]);
+		assert(Logos.symbolsForDate(new Date(2026, 9, 31))[2][4] === original[3][4]);
+		Logos.tileSets.halloween.tiles = classic;
+		assert(Logos.symbolsForDate(new Date(2026, 9, 31)) === classic);
+	} finally {
+		Logos.tileSets.halloween.tiles = original;
+	}
+});
+
 Deno.test("seasonal symbols refresh on load, new games, and accepting invitations", function() {
 	let date = new Date(2026, 9, 26);
 	const puzzle = makePuzzle(6, false, () => Logos.symbolsForDate(date));

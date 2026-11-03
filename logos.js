@@ -114,15 +114,34 @@ function readSymbolSets() {
 	return sets;
 }
 
+/* Reveal one differing tile per calendar day, finishing on the holiday. */
+function symbolsForHoliday(date, month, day, preset) {
+	const classic = tileSets.classic.tiles;
+	const holiday = tileSets[preset].tiles;
+	let changes = 0;
+	for (const [family, row] of holiday.entries())
+		for (const [value, symbol] of row.entries())
+			if (symbol !== classic[family][value])
+				changes++;
+
+	/* Compare local calendar dates without counting daylight-saving hours. */
+	const today = Date.UTC(date.getFullYear(), date.getMonth(), date.getDate());
+	let end = Date.UTC(date.getFullYear(), month - 1, day);
+	if (end < today)
+		end = Date.UTC(date.getFullYear() + 1, month - 1, day);
+	let revealed = changes - (end - today) / 86400000;
+	if (revealed <= 0)
+		return null;
+
+	return classic.map((row, family) => row.map((symbol, value) => {
+		if (symbol !== holiday[family][value] && revealed-- > 0)
+			return holiday[family][value];
+		return symbol;
+	}));
+}
+
 function symbolsForDate(date = new Date()) {
-	if (date.getMonth() != 9 || date.getDate() < 26)
-		return defaultSymbols;
-	var revealed = date.getDate() - 25;
-	return defaultSymbols.map(function(row, family) {
-		return family == 3 ? row.map(function(symbol, value) {
-			return value < revealed ? tileSets.halloween.tiles[family][value] : symbol;
-		}) : row;
-	});
+	return symbolsForHoliday(date, 10, 31, "halloween") || defaultSymbols;
 }
 
 function tileSymbolLabel(symbol) {
