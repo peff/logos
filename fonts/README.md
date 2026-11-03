@@ -1,0 +1,15 @@
+Font credits and licenses
+=========================
+
+`Forum-Regular.ttf` is Forum by Denis Masharov, distributed under
+the SIL Open Font License 1.1. See [Forum-OFL.txt](Forum-OFL.txt).
+
+`EBGaramond-Italic-subset.woff2` is a subset of EB Garamond Italic
+by the EB Garamond Project Authors, distributed under the SIL Open Font
+License 1.1. See [EBGaramond-OFL.txt](EBGaramond-OFL.txt).
+
+`logos-tiles.woff2` contains text glyphs derived from TeX Gyre
+Pagella Bold 2.501, distributed under the GUST Font License, along with
+geometric symbols drawn for Logos. See [GUST-FONT-LICENSE.txt](GUST-FONT-LICENSE.txt).
+The source font is available from:
+https://tug.ctan.org/fonts/tex-gyre/opentype/texgyrepagella-bold.otf

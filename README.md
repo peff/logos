@@ -41,3 +41,9 @@ Daily puzzles
 Open `#daily` (or choose "Today's puzzle" in Options) to open the daily
 puzzle, or browse to previous daily puzzles. Use `#daily=20261008` to
 link to a previous date's puzzle.
+
+Licensing
+=========
+
+The code is [MIT-licensed](LICENSE). Bundled fonts have separate licenses;
+see [font credits and licenses](fonts/README.md).
