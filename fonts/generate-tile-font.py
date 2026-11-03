@@ -15,7 +15,8 @@ from fontTools.ttLib import TTFont
 UNITS_PER_EM = 1000
 ASCENT = 800
 DESCENT = -200
-TEXT_SYMBOLS = "123456ABCDEF+‒÷x=√αγδθψΩ←↑→↓↖↗"
+TEXT_SYMBOLS = "123456ABCDEF+‒÷x=√αγδθψΩ"
+ARROW_SYMBOLS = "↖↑↗↙↓↘"
 
 DICE_BASE = 0x2680
 SHAPE_CODEPOINTS = [0x25B3, 0x25BD, 0x25A1, 0x25C7, 0x2B20, 0x25CB]
@@ -42,6 +43,15 @@ def run_bounds(glyphs, run):
 	return pen.bounds
 
 
+def shared_text_scale(font, symbols, max_width=760, max_height=680):
+	glyphs = font.getGlyphSet()
+	bounds = [run_bounds(glyphs, glyph_run(font, text)) for text in symbols]
+	return min(
+		min(max_width / (xmax - xmin), max_height / (ymax - ymin))
+		for xmin, ymin, xmax, ymax in bounds
+	)
+
+
 def draw_with_extended_right_edge(glyph, pen, old_xmax, new_xmax):
 	recording = RecordingPen()
 	glyph.draw(recording)
@@ -54,11 +64,12 @@ def draw_with_extended_right_edge(glyph, pen, old_xmax, new_xmax):
 
 
 def text_glyph(font, text, max_width=760, max_height=680, tracking=0,
-		embolden=0, extend_root=None):
+		embolden=0, extend_root=None, scale=None):
 	glyphs = font.getGlyphSet()
 	run = glyph_run(font, text, tracking)
 	xmin, ymin, xmax, ymax = run_bounds(glyphs, run)
-	scale = min(max_width / (xmax - xmin), max_height / (ymax - ymin))
+	if scale is None:
+		scale = min(max_width / (xmax - xmin), max_height / (ymax - ymin))
 	dx = 500 - scale * (xmin + xmax) / 2
 	dy = 500 + scale * (ymin + ymax) / 2
 
@@ -295,7 +306,11 @@ def main():
 	cmap = {}
 	glyph_order = [".notdef"]
 
-	for text in TEXT_SYMBOLS:
+	# A shared scale preserves arrow stroke weights. Independent fitting
+	# would enlarge the shorter diagonal arrows. Center each one separately.
+	arrow_scale = shared_text_scale(source, ARROW_SYMBOLS)
+
+	for text in TEXT_SYMBOLS + ARROW_SYMBOLS:
 		name = f"text_{ord(text):04x}"
 		if text == "√":
 			# The root needs a larger, heavier outline and longer bar.
@@ -304,6 +319,8 @@ def main():
 		elif text in "+‒÷x=":
 			# These look oversized at the usual bounds; shrink them by 10%.
 			glyph = text_glyph(source, text, 760 * .9, 680 * .9)
+		elif text in ARROW_SYMBOLS:
+			glyph = text_glyph(source, text, scale=arrow_scale)
 		else:
 			glyph = text_glyph(source, text)
 		glyphs[name] = glyph

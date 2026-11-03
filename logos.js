@@ -42,7 +42,7 @@ const symbolRows = {
 		].map(([name, label]) => halloweenSymbol(name, label)),
 	},
 	greek: { name: "Greek letters", symbols: ["α", "γ", "δ", "θ", "ψ", "Ω"] },
-	arrows: { name: "Arrows", symbols: ["←", "↑", "→", "↓", "↖", "↗"] },
+	arrows: { name: "Arrows", symbols: ["↖", "↑", "↗", "↙", "↓", "↘"] },
 };
 
 var tileSets = {
