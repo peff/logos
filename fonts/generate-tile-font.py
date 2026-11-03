@@ -17,6 +17,7 @@ ASCENT = 800
 DESCENT = -200
 TEXT_SYMBOLS = "123456ABCDEF+‒÷x=√"
 GREEK_SYMBOLS = "αγδθψΩ"
+LOWERCASE_SYMBOLS = "rtuvwz"
 ARROW_SYMBOLS = "↖↑↗↙↓↘"
 
 DICE_BASE = 0x2680
@@ -65,14 +66,15 @@ def draw_with_extended_right_edge(glyph, pen, old_xmax, new_xmax):
 
 
 def text_glyph(font, text, max_width=760, max_height=680, tracking=0,
-		embolden=0, extend_root=None, scale=None):
+		embolden=0, extend_root=None, scale=None, baseline=None):
 	glyphs = font.getGlyphSet()
 	run = glyph_run(font, text, tracking)
 	xmin, ymin, xmax, ymax = run_bounds(glyphs, run)
 	if scale is None:
 		scale = min(max_width / (xmax - xmin), max_height / (ymax - ymin))
 	dx = 500 - scale * (xmin + xmax) / 2
-	dy = 500 + scale * (ymin + ymax) / 2
+	dy = (500 + scale * (ymin + ymax) / 2
+	      if baseline is None else ASCENT - baseline)
 
 	pen = TTGlyphPen(None)
 	quadratic = Cu2QuPen(pen, max_err=0.5, reverse_direction=True)
@@ -309,12 +311,20 @@ def main():
 
 	# Shared scales preserve stroke weights within each group. Independent
 	# fitting would enlarge narrow letters and the shorter diagonal arrows.
-	# Each glyph is still centered individually.
+	# Greek letters and arrows remain individually centered.
 	# Enlarge the Greek row without changing its relative sizes.
 	greek_scale = shared_text_scale(source, GREEK_SYMBOLS) * 1.35
+	lowercase_scale = shared_text_scale(source, LOWERCASE_SYMBOLS) * 1.10
+	# Center the lowercase group's full vertical extent while preserving
+	# a common baseline.
+	lowercase_bounds = [run_bounds(source.getGlyphSet(), glyph_run(source, text))
+	                    for text in LOWERCASE_SYMBOLS]
+	lowercase_bottom = min(bounds[1] for bounds in lowercase_bounds)
+	lowercase_top = max(bounds[3] for bounds in lowercase_bounds)
+	lowercase_baseline = ASCENT - 500 - lowercase_scale * (lowercase_bottom + lowercase_top) / 2
 	arrow_scale = shared_text_scale(source, ARROW_SYMBOLS)
 
-	for text in TEXT_SYMBOLS + GREEK_SYMBOLS + ARROW_SYMBOLS:
+	for text in TEXT_SYMBOLS + GREEK_SYMBOLS + LOWERCASE_SYMBOLS + ARROW_SYMBOLS:
 		name = f"text_{ord(text):04x}"
 		if text == "√":
 			# The root needs a larger, heavier outline and longer bar.
@@ -327,6 +337,9 @@ def main():
 			glyph = text_glyph(source, text, scale=greek_scale)
 		elif text in ARROW_SYMBOLS:
 			glyph = text_glyph(source, text, scale=arrow_scale)
+		elif text in LOWERCASE_SYMBOLS:
+			glyph = text_glyph(source, text, scale=lowercase_scale,
+			                   baseline=lowercase_baseline)
 		else:
 			glyph = text_glyph(source, text)
 		glyphs[name] = glyph
