@@ -11,8 +11,6 @@
    - if chalk is retired, consider using shift-click to enter suppose
      mode
  - custom tiles
-   - more row families: sky or weather symbols could work with
-     consistent, readable artwork.
    - future holiday presets
    - let players design their own rows (arbitrary characters? SVG?)
    - export/import custom sets for sharing

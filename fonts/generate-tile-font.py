@@ -23,6 +23,7 @@ LOWERCASE_SYMBOLS = "rtuvwz"
 ARROW_SYMBOLS = "↖↑↗↙↓↘"
 
 CHESS_SYMBOLS = "♚♛♜♝♞♟"
+SKY_SYMBOLS = "☀☽☁⚡❄🌬"
 DICE_BASE = 0x2680
 SHAPE_CODEPOINTS = [0x25B3, 0x25BD, 0x25A1, 0x25C7, 0x2B20, 0x25CB]
 CLUE_ARROW = 0x2194
@@ -353,6 +354,72 @@ def chess_glyph(piece):
 	return geometry_glyph(draw)
 
 
+def add_stroke(pen, points, width):
+	# Outline a polyline so curved gusts need no font stroke support.
+	left, right = [], []
+	for i, (x, y) in enumerate(points):
+		before = points[max(0, i - 1)]
+		after = points[min(len(points) - 1, i + 1)]
+		dx, dy = after[0] - before[0], after[1] - before[1]
+		length = math.hypot(dx, dy)
+		ox, oy = -dy * width / (2 * length), dx * width / (2 * length)
+		left.append((x + ox, y + oy))
+		right.append((x - ox, y - oy))
+	add_polygon(pen, right + left[::-1])
+
+
+def sky_glyph(symbol):
+	def draw(pen):
+		if symbol == "☀":
+			add_circle(pen, 500, 500, 205)
+			for i in range(8):
+				angle = i * math.pi / 4
+				def point(radius, offset):
+					return (500 + radius * math.cos(angle) - offset * math.sin(angle),
+					        500 + radius * math.sin(angle) + offset * math.cos(angle))
+				add_polygon(pen, [point(285, -42), point(400, -42),
+				                  point(400, 42), point(285, 42)])
+		elif symbol == "☽":
+			pen.moveTo(font_point((635, 120)))
+			pen.curveTo(font_point((160, 90)), font_point((95, 710)), font_point((435, 855)))
+			pen.curveTo(font_point((665, 950)), font_point((875, 755)), font_point((875, 565)))
+			pen.curveTo(font_point((695, 785)), font_point((380, 625)), font_point((405, 390)))
+			pen.curveTo(font_point((415, 260)), font_point((505, 160)), font_point((635, 120)))
+			pen.closePath()
+		elif symbol == "☁":
+			pen.moveTo(font_point((250, 735)))
+			pen.curveTo(font_point((70, 735)), font_point((55, 475)), font_point((260, 470)))
+			pen.curveTo(font_point((245, 210)), font_point((650, 155)), font_point((695, 445)))
+			pen.curveTo(font_point((900, 380)), font_point((1010, 735)), font_point((790, 735)))
+			pen.closePath()
+		elif symbol == "⚡":
+			add_polygon(pen, [(540, 110), (800, 110), (565, 430),
+			                  (785, 430), (260, 900), (410, 555), (205, 555)])
+		elif symbol == "❄":
+			for i in range(6):
+				angle = i * math.pi / 3 - math.pi / 2
+				def point(radius, offset=0):
+					return (500 + radius * math.cos(angle) - offset * math.sin(angle),
+					        500 + radius * math.sin(angle) + offset * math.cos(angle))
+				add_stroke(pen, [point(0), point(385)], 65)
+				for side in [-1, 1]:
+					add_stroke(pen, [point(225), point(315, side * 105)], 60)
+		elif symbol == "🌬":
+			for start, end, y, radius, direction in [
+				(140, 620, 340, 100, -1),
+				(100, 780, 510, 85, 1),
+				(220, 530, 685, 70, 1),
+			]:
+				center_y = y + direction * radius
+				points = [(start, y)]
+				for step in range(31):
+					angle = -direction * math.pi / 2 + direction * step * math.pi / 20
+					points.append((end + radius * math.cos(angle),
+					               center_y + radius * math.sin(angle)))
+				add_stroke(pen, points, 65)
+	return geometry_glyph(draw)
+
+
 def empty_glyph():
 	return TTGlyphPen(None).glyph()
 
@@ -418,6 +485,12 @@ def main():
 		glyphs[name] = chess_glyph(piece)
 		glyph_order.append(name)
 		cmap[ord(piece)] = name
+
+	for symbol in SKY_SYMBOLS:
+		name = f"sky_{ord(symbol):04x}"
+		glyphs[name] = sky_glyph(symbol)
+		glyph_order.append(name)
+		cmap[ord(symbol)] = name
 
 	roman_advances = {}
 	for text in ["I", "V"]:
