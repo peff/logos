@@ -690,7 +690,7 @@ body[data-chalk-cursor="true"][data-discard-cursor="true"]:not([data-custom-curs
 	opacity: 0.5;
 }
 
-.board .family-2 .possibility {
+.board .possibility-symbol {
 	letter-spacing: -0.12em;
 	text-indent: -0.12em;
 }
