@@ -41,6 +41,7 @@ const symbolRows = {
 			["pumpkin", "Jack-o’-lantern"],
 		].map(([name, label]) => halloweenSymbol(name, label)),
 	},
+	greek: { name: "Greek letters", symbols: ["α", "γ", "δ", "θ", "ψ", "Ω"] },
 };
 
 var tileSets = {
