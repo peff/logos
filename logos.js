@@ -44,7 +44,7 @@ const symbolRows = {
 	greek: { name: "Greek letters", symbols: ["α", "θ", "λ", "π", "ψ", "Ω"] },
 	lowercase: { name: "Lowercase letters", symbols: ["k", "n", "r", "s", "t", "z"] },
 	arrows: { name: "Arrows", symbols: ["↖", "↑", "↗", "↙", "↓", "↘"] },
-	chess: { name: "Chess pieces", symbols: ["♚", "♛", "♜", "♝", "♞", "♟"] },
+	chess: { name: "Chess pieces", symbols: ["♟", "♞", "♝", "♜", "♛", "♚"] },
 	sky: { name: "Sky", symbols: ["☀", "☽", "☁", "⚡", "❄", "🌬"] },
 	egyptian: { name: "Hieroglyphs", symbols: ["𓋹", "𓂀", "𓆣", "𓅓", "𓆗", "𓀠"] },
 };
