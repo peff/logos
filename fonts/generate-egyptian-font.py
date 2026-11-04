@@ -6,6 +6,7 @@ import runpy
 
 from fontTools.fontBuilder import FontBuilder
 from fontTools.ttLib import TTFont
+from fontTools.ttLib.removeOverlaps import removeOverlaps
 
 
 def main():
@@ -52,6 +53,9 @@ def main():
 	builder.setupPost(keepGlyphNames=False)
 	builder.setupMaxp()
 	builder.setupHead(created=source["head"].created, modified=source["head"].modified)
+	# Thickening uses translated copies of each outline. Merge them so
+	# rasterizers see a single filled shape rather than overlapping contours.
+	removeOverlaps(builder.font)
 	builder.font.flavor = "woff2"
 	builder.save(args.output)
 
