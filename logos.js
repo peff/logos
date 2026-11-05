@@ -129,11 +129,9 @@ function symbolsForHoliday(date, month, day, preset) {
 
 	/* Compare local calendar dates without counting daylight-saving hours. */
 	const today = Date.UTC(date.getFullYear(), date.getMonth(), date.getDate());
-	let end = Date.UTC(date.getFullYear(), month - 1, day);
-	if (end < today)
-		end = Date.UTC(date.getFullYear() + 1, month - 1, day);
+	const end = Date.UTC(date.getFullYear(), month - 1, day);
 	let revealed = changes - (end - today) / 86400000;
-	if (revealed <= 0)
+	if (end < today || revealed <= 0)
 		return null;
 
 	return classic.map((row, family) => row.map((symbol, value) => {
