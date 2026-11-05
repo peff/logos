@@ -118,9 +118,8 @@ function readSymbolSets() {
 }
 
 /* Reveal one differing tile per calendar day, finishing on the holiday. */
-function symbolsForHoliday(date, month, day, preset) {
+function symbolsForHoliday(date, month, day, holiday) {
 	const classic = tileSets.classic.tiles;
-	const holiday = tileSets[preset].tiles;
 	let changes = 0;
 	for (const [family, row] of holiday.entries())
 		for (const [value, symbol] of row.entries())
@@ -142,7 +141,7 @@ function symbolsForHoliday(date, month, day, preset) {
 }
 
 function symbolsForDate(date = new Date()) {
-	return symbolsForHoliday(date, 10, 31, "halloween") || defaultSymbols;
+	return symbolsForHoliday(date, 10, 31, tileSets.halloween.tiles) || defaultSymbols;
 }
 
 function tileSymbolLabel(symbol) {
