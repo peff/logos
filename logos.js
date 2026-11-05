@@ -38,6 +38,20 @@ const symbolRows = {
 			label: label, src: "images/tiles/halloween/" + name + ".svg",
 		})),
 	},
+	thanksgiving: {
+		name: "Thanksgiving",
+		hidden: true, /* Make selectable manually after the holiday. */
+		symbols: [
+			["turkey", "Turkey"],
+			["cornucopia", "Cornucopia"],
+			["hat", "Pilgrim hat"],
+			["leaf", "Maple leaf"],
+			["cranberry", "Cranberry sauce"],
+			["pie", "Pumpkin pie"],
+		].map(([name, label]) => ({
+			label: label, src: "images/tiles/thanksgiving/" + name + ".svg",
+		})),
+	},
 	greek: { name: "Greek letters", symbols: ["α", "θ", "λ", "π", "ψ", "Ω"] },
 	lowercase: { name: "Lowercase letters", symbols: ["k", "n", "r", "s", "t", "z"] },
 	arrows: { name: "Arrows", symbols: ["↖", "↑", "↗", "↙", "↓", "↘"] },
@@ -63,6 +77,13 @@ var tileSets = {
 		name: "Halloween",
 		description: "A spooky twist to your regular deductions.",
 		tiles: ["numbers", "letters", "roman", "halloween", "shapes", "math"]
+			.map(row => symbolRows[row].symbols),
+	},
+	thanksgiving: {
+		name: "Thanksgiving",
+		description: "A harvest of clues for the holiday.",
+		hidden: true, /* Make selectable manually after the holiday. */
+		tiles: ["numbers", "letters", "roman", "thanksgiving", "shapes", "math"]
 			.map(row => symbolRows[row].symbols),
 	},
 };
@@ -141,7 +162,12 @@ function symbolsForHoliday(date, month, day, holiday) {
 }
 
 function symbolsForDate(date = new Date()) {
-	return symbolsForHoliday(date, 10, 31, tileSets.halloween.tiles) || defaultSymbols;
+	/* The fourth Thursday is the first Thursday on or after November 22. */
+	const november22 = new Date(date.getFullYear(), 10, 22);
+	const thanksgiving = 22 + (4 - november22.getDay() + 7) % 7;
+	return symbolsForHoliday(date, 10, 31, tileSets.halloween.tiles) ||
+		symbolsForHoliday(date, 11, thanksgiving, tileSets.thanksgiving.tiles) ||
+		defaultSymbols;
 }
 
 function tileSymbolLabel(symbol) {
@@ -4508,7 +4534,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			this.symbolConfigDialog.querySelector("#symbol-manager-set")]) {
 			select.replaceChildren();
 			for (const [value, name] of [
-				...Object.entries(tileSets).map(([id, preset]) => [id, preset.name]),
+				...Object.entries(tileSets).filter(([, preset]) => !preset.hidden)
+					.map(([id, preset]) => [id, preset.name]),
 				...Object.keys(this.symbolSets).map(name => ["custom:" + name, name]),
 			]) {
 				const option = document.createElement("option");
@@ -4647,6 +4674,9 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			select.className = "symbol-row-select";
 			select.disabled = this.symbolDraftReadOnly;
 			for (const [id, family] of Object.entries(symbolRows)) {
+				/* Keep existing custom selections usable while hiding new artwork. */
+				if (family.hidden && id != row.set)
+					continue;
 				const option = document.createElement("option");
 				option.value = id;
 				option.textContent = family.name;

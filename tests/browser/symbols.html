@@ -73,6 +73,10 @@ var browserTestsDone = (async function() {
 			"Automatic preview did not preserve the partial Halloween reveal");
 		assert(rowSelect(3).disabled && rowSelect(3).value == "automatic",
 			"Automatic row preview is editable or mislabeled");
+		assert(!doc.querySelector('.symbol-row-select option[value="thanksgiving"]'),
+			"unreleased Thanksgiving artwork is selectable");
+		assert(!doc.querySelector('#tile-set option[value="thanksgiving"], #symbol-manager-set option[value="thanksgiving"]'),
+			"unreleased Thanksgiving preset is selectable");
 		assert(!rowSelect(0).querySelector('option[value="letters"]').disabled,
 			"another row's family is unavailable in the selector");
 		cancel();

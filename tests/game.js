@@ -130,6 +130,34 @@ Deno.test("seasonal symbols reveal left to right on October 26–31 in local tim
 	       "selection mutated the classic symbols");
 });
 
+Deno.test("Thanksgiving reveals six tiles through the fourth Thursday in November", function() {
+	const expected = ["Turkey", "Cornucopia", "Pilgrim hat", "Maple leaf", "Cranberry sauce", "Pumpkin pie"];
+	/* Cover every possible holiday date, including leap years and five Thursdays. */
+	for (const [year, holiday] of [[2023, 23], [2024, 28], [2025, 27], [2026, 26],
+		[2027, 25], [2028, 23], [2029, 22], [2033, 24]]) {
+		for (const date of [new Date(year, 10, holiday - 6, 23, 59, 59),
+			new Date(year, 10, holiday + 1), new Date(year, 11, 1), new Date(year + 1, 0, 1)])
+			assert(Logos.symbolsForDate(date) === Logos.defaultSymbols,
+				"Thanksgiving appeared outside its reveal window");
+		for (let count = 1; count <= 6; count++) {
+			for (const hour of [0, 12, 23]) {
+				const date = new Date(year, 10, holiday - 6 + count, hour);
+				const selected = Logos.symbolsForDate(date);
+				for (let family = 0; family < 6; family++)
+					for (let value = 0; value < 6; value++) {
+						if (family == 3 && value < count)
+							assert(selected[family][value].label == expected[value],
+								"wrong Thanksgiving date or reveal order");
+						else
+							assert(selected[family][value] === Logos.defaultSymbols[family][value],
+								"an unrevealed symbol changed");
+					}
+			}
+		}
+	}
+	assert(Logos.defaultSymbols[3].every(symbol => typeof symbol == "string"));
+});
+
 Deno.test("seasonal reveal windows follow the number and positions of changed tiles", function() {
 	const original = Logos.tileSets.halloween.tiles;
 	const classic = Logos.tileSets.classic.tiles;

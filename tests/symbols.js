@@ -241,3 +241,72 @@ Deno.test("Automatic previews current reveals but customization starts from Clas
 		}
 	}
 });
+
+Deno.test("hidden seasonal rows do not leak through Automatic customization", function() {
+	for (const day of [20, 21, 26, 27]) {
+		const puzzle = makePuzzle(6, false, () => Logos.symbolsForDate(new Date(2026, 10, day)));
+		try {
+			puzzle.options.hidden = false;
+			puzzle.openSymbolConfig();
+			assert(puzzle.symbolDraft.rows[3].set == "dice",
+				"Thanksgiving was mistaken for Halloween or exposed in the draft");
+			const previews = puzzle.symbolConfigDialog.querySelector(".symbol-config-rows")
+				.querySelectorAll(".symbol-row-preview");
+			const revealed = day >= 21 && day <= 26 ? day - 20 : 0;
+			assert(previews[3].children.filter(tile => tile.children.length).length == revealed,
+				"preview revealed extra Thanksgiving artwork");
+			puzzle.duplicateSymbolSet();
+			const list = puzzle.symbolConfigDialog.querySelector(".symbol-config-rows");
+			for (const select of list.querySelectorAll(".symbol-row-select"))
+				assert(!select.children.some(option => option.value == "thanksgiving"),
+					"hidden artwork is selectable");
+		} finally {
+			clearSettings();
+		}
+	}
+});
+
+Deno.test("existing custom selections can still use a hidden seasonal row", function() {
+	const config = Logos.defaultSymbolConfig();
+	config.rows[3].set = "thanksgiving";
+	try {
+		localStorage.setItem("customSymbols", JSON.stringify({ version: 2,
+			sets: [{ name: "Harvest", config }] }));
+		localStorage.setItem("tileSet", "custom:Harvest");
+		const puzzle = makePuzzle(6, false, () => Logos.defaultSymbols);
+		assert(puzzle.symbols[3] === Logos.symbolRows.thanksgiving.symbols);
+		puzzle.options.hidden = false;
+		puzzle.openSymbolConfig();
+		const selects = puzzle.symbolConfigDialog.querySelector(".symbol-config-rows")
+			.querySelectorAll(".symbol-row-select");
+		assert(selects[3].value == "thanksgiving" &&
+			selects[3].children.some(option => option.value == "thanksgiving"));
+		assert(!selects[0].children.some(option => option.value == "thanksgiving"));
+	} finally {
+		clearSettings();
+	}
+});
+
+Deno.test("hidden presets stay out of both pickers until promoted", function() {
+	const puzzle = makePuzzle(6, false, () => Logos.defaultSymbols);
+	const selectors = [puzzle.options.querySelector("#tile-set"),
+		puzzle.symbolConfigDialog.querySelector("#symbol-manager-set")];
+	try {
+		for (const select of selectors)
+			assert(!select.children.some(option => option.value == "thanksgiving"));
+		Logos.tileSets.thanksgiving.hidden = false;
+		puzzle.renderSymbolSets();
+		for (const select of selectors)
+			assert(select.children.some(option => option.value == "thanksgiving"));
+		puzzle.setTileSet("thanksgiving");
+		assert(puzzle.symbols === Logos.tileSets.thanksgiving.tiles);
+		puzzle.options.hidden = false;
+		puzzle.openSymbolConfig();
+		assert(puzzle.symbolDraftReadOnly && puzzle.symbolDraft.rows[3].set == "thanksgiving");
+		puzzle.duplicateSymbolSet();
+		assert(puzzle.symbolSets.Custom.rows[3].set == "thanksgiving");
+	} finally {
+		Logos.tileSets.thanksgiving.hidden = true;
+		clearSettings();
+	}
+});

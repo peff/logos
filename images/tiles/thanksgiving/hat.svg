@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-labelledby="title">
+<title id="title">Pilgrim hat A: Tall crown</title>
+<g stroke="#202020" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
+<ellipse cx="50" cy="72" rx="40" ry="13" fill="#292929" stroke="#b0b0aa" stroke-width="4"/><path d="M32 17Q50 11 68 17L75.8 72Q50 78 25.2 72Z" fill="#202020" stroke="none"/><ellipse cx="50" cy="17" rx="16" ry="5" fill="#383838" stroke="#b0b0aa" stroke-width="3"/><path d="M28.8 59.5 34 17 M66 17 72 59.5" fill="none" stroke="#b0b0aa" stroke-width="4" stroke-linecap="butt"/><path d="M26.8 59Q50 65 74.2 59L75.4 68.5C75.7 70.5 73.5 72 70 73C58 76.5 42 76.5 30 73C26.5 72 24.9 70.5 25.4 68.5Z" fill="#ae754c" stroke="none"/><path d="M39.5 59H60.5V77H39.5Z M43.5 63V73H56.5V63Z" fill="#ffd374" fill-rule="evenodd" stroke="none"/>
+</g>
+</svg>
