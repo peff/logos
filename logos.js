@@ -60,50 +60,63 @@ const symbolRows = {
 	egyptian: { name: "Hieroglyphs", symbols: ["𓋹", "𓂀", "𓆣", "𓅓", "𓆗", "𓀠"] },
 };
 
+var defaultSymbols = ["numbers", "letters", "roman", "dice", "shapes", "math"]
+	.map(row => symbolRows[row].symbols);
+
 var tileSets = {
 	automatic: {
 		name: "Automatic",
 		description: "Classic symbols, plus seasonal inspiration.",
-		/* Resolved from the game's symbol source rather than fixed tiles. */
-		tiles: null,
+		seasonal: true,
+		tiles: defaultSymbols,
 	},
 	classic: {
 		name: "Classic",
 		description: "Play as the ancients once did.",
-		tiles: ["numbers", "letters", "roman", "dice", "shapes", "math"]
-			.map(row => symbolRows[row].symbols),
-	},
-	halloween: {
-		name: "Halloween",
-		description: "A spooky twist to your regular deductions.",
-		tiles: ["numbers", "letters", "roman", "halloween", "shapes", "math"]
-			.map(row => symbolRows[row].symbols),
-	},
-	thanksgiving: {
-		name: "Thanksgiving",
-		description: "A harvest of clues for the holiday.",
-		hidden: true, /* Make selectable manually after the holiday. */
-		tiles: ["numbers", "letters", "roman", "thanksgiving", "shapes", "math"]
-			.map(row => symbolRows[row].symbols),
+		seasonal: false,
+		tiles: defaultSymbols,
 	},
 };
 
-var defaultSymbols = tileSets.classic.tiles;
+/* Null entries leave the user's symbols alone, regardless of their artwork. */
+const seasonalMasks = {
+	halloween: [null, null, null, symbolRows.halloween.symbols, null, null]
+		.map(row => row || Array(6).fill(null)),
+	thanksgiving: [null, null, null, symbolRows.thanksgiving.symbols, null, null]
+		.map(row => row || Array(6).fill(null)),
+};
+
+function applySymbolMask(base, mask) {
+	if (!mask)
+		return base;
+	return base.map((row, family) => {
+		const replacements = mask[family];
+		if (!replacements?.some(symbol => symbol != null))
+			return row;
+		return row.map((symbol, value) => replacements[value] ?? symbol);
+	});
+}
 
 const symbolColors = [
 	"#8eb9d8", "#91c39a", "#bea4d1", "#d8bb76", "#d69aa1", "#86c3bb",
 ];
 
 function defaultSymbolConfig(preset = "classic") {
-	return { version: 1, rows: tileSets[preset].tiles.map((tiles, row) => ({
-		set: Object.keys(symbolRows).find(set => symbolRows[set].symbols === tiles),
-		color: symbolColors[row],
-	})) };
+	return {
+		version: 1,
+		seasonal: !!tileSets[preset].seasonal,
+		rows: tileSets[preset].tiles.map((tiles, row) => ({
+			set: Object.keys(symbolRows).find(set => symbolRows[set].symbols === tiles),
+			color: symbolColors[row],
+		})),
+	};
 }
 
 /* Stored configurations are data, never markup or arbitrary image URLs. */
 function validateSymbolConfig(config) {
 	if (!config || config.version !== 1 || !Array.isArray(config.rows) || config.rows.length != 6)
+		return null;
+	if (config.seasonal !== undefined && typeof config.seasonal != "boolean")
 		return null;
 	const rows = [];
 	for (const row of config.rows) {
@@ -114,7 +127,7 @@ function validateSymbolConfig(config) {
 			return null;
 		rows.push({ set: row.set, color: color.toLowerCase() });
 	}
-	return { version: 1, rows };
+	return { version: 1, seasonal: config.seasonal ?? false, rows };
 }
 
 function readSymbolSets() {
@@ -138,13 +151,12 @@ function readSymbolSets() {
 	return sets;
 }
 
-/* Reveal one differing tile per calendar day, finishing on the holiday. */
-function symbolsForHoliday(date, month, day, holiday) {
-	const classic = tileSets.classic.tiles;
+/* Reveal one non-null entry per calendar day, finishing on the holiday. */
+function seasonalMaskForHoliday(date, month, day, holiday) {
 	let changes = 0;
-	for (const [family, row] of holiday.entries())
-		for (const [value, symbol] of row.entries())
-			if (symbol !== classic[family][value])
+	for (const row of holiday)
+		for (const symbol of row)
+			if (symbol != null)
 				changes++;
 
 	/* Compare local calendar dates without counting daylight-saving hours. */
@@ -154,20 +166,20 @@ function symbolsForHoliday(date, month, day, holiday) {
 	if (end < today || revealed <= 0)
 		return null;
 
-	return classic.map((row, family) => row.map((symbol, value) => {
-		if (symbol !== holiday[family][value] && revealed-- > 0)
-			return holiday[family][value];
-		return symbol;
-	}));
+	return holiday.map(row => row.map(symbol =>
+		symbol != null && revealed-- > 0 ? symbol : null));
 }
 
-function symbolsForDate(date = new Date()) {
+function seasonalMaskForDate(date = new Date()) {
 	/* The fourth Thursday is the first Thursday on or after November 22. */
 	const november22 = new Date(date.getFullYear(), 10, 22);
 	const thanksgiving = 22 + (4 - november22.getDay() + 7) % 7;
-	return symbolsForHoliday(date, 10, 31, tileSets.halloween.tiles) ||
-		symbolsForHoliday(date, 11, thanksgiving, tileSets.thanksgiving.tiles) ||
-		defaultSymbols;
+	return seasonalMaskForHoliday(date, 10, 31, seasonalMasks.halloween) ||
+		seasonalMaskForHoliday(date, 11, thanksgiving, seasonalMasks.thanksgiving);
+}
+
+function symbolsForDate(date = new Date(), base = defaultSymbols) {
+	return applySymbolMask(base, seasonalMaskForDate(date));
 }
 
 function tileSymbolLabel(symbol) {
@@ -820,7 +832,7 @@ class SupposeModel {
 
 function Puzzle(board, hClues, vClues, messages, timer,
 		options, optionsButton, help, helpButton, scores, scoresButton,
-		about, logoButton) {
+		about, logoButton, seasonalSource = seasonalMaskForDate) {
 	const symbols = defaultSymbols;
 	this.symbols = symbols;
 
@@ -1108,12 +1120,9 @@ function Puzzle(board, hClues, vClues, messages, timer,
 			const color = config ? config.rows[row].color : symbolColors[row];
 			document.body.style.setProperty("--symbol-row-" + row + "-text", color);
 		}
-		if (config)
-			this.setSymbols(config.rows.map(row => symbolRows[row.set].symbols));
-		else if (this.tileSet != "automatic")
-			this.setSymbols(tileSets[this.tileSet].tiles);
-		else
-			this.setSymbols(symbolsForDate());
+		const preset = tileSets[this.tileSet];
+		const base = config ? config.rows.map(row => symbolRows[row.set].symbols) : preset.tiles;
+		this.setSymbols((config || preset).seasonal ? applySymbolMask(base, seasonalSource()) : base);
 	}
 
 	this.clear = function() {
@@ -4611,9 +4620,7 @@ function Puzzle(board, hClues, vClues, messages, timer,
 
 	this.loadSymbolManager = function() {
 		const config = this.tileSet.startsWith("custom:") ? this.symbolSets[this.tileSet.slice(7)] : null;
-		/* Automatic previews the current symbols, but customization starts from Classic. */
-		this.symbolDraft = config ? validateSymbolConfig(config) :
-			defaultSymbolConfig(this.tileSet == "automatic" ? "classic" : this.tileSet);
+		this.symbolDraft = config ? validateSymbolConfig(config) : defaultSymbolConfig(this.tileSet);
 		this.symbolDraftName = config ? this.tileSet.slice(7) : null;
 		this.symbolDraftBaseName = this.symbolDraftName;
 		this.symbolDraftSaved = false;
@@ -4654,12 +4661,15 @@ function Puzzle(board, hClues, vClues, messages, timer,
 	}
 
 	this.renderSymbolConfig = function() {
-		const automatic = this.symbolDraftName == null && this.tileSet == "automatic";
 		this.symbolConfigDialog.querySelector(".symbol-config-duplicate").textContent =
 			this.symbolDraftName == null ? "Customize" : "Duplicate";
 		const list = this.symbolConfigDialog.querySelector(".symbol-config-rows");
 		list.replaceChildren();
 		const draft = this.symbolDraft;
+		const seasonal = this.symbolConfigDialog.querySelector("#symbol-seasonal");
+		seasonal.checked = draft.seasonal;
+		this.symbolConfigDialog.querySelector(".symbol-seasonal-row").style.visibility =
+			this.symbolDraftName == null ? "hidden" : "visible";
 		for (const [index, row] of draft.rows.entries()) {
 			const item = document.createElement("li");
 			item.className = "symbol-config-row";
@@ -4677,13 +4687,7 @@ function Puzzle(board, hClues, vClues, messages, timer,
 				option.textContent = family.name;
 				select.append(option);
 			}
-			if (automatic) {
-				const option = document.createElement("option");
-				option.value = "automatic";
-				option.textContent = "Automatic";
-				select.append(option);
-			}
-			select.value = automatic ? "automatic" : row.set;
+			select.value = row.set;
 			select.addEventListener("change", () => {
 				row.set = select.value;
 				this.saveSymbolDraft();
@@ -4694,7 +4698,7 @@ function Puzzle(board, hClues, vClues, messages, timer,
 			preview.className = "symbol-row-preview family-" + index;
 			preview.style.setProperty("--tile-fg", row.color);
 			preview.setAttribute("aria-label", "Row " + (index + 1) + " preview");
-			const symbols = automatic ? this.symbols[index] : symbolRows[row.set].symbols;
+			const symbols = this.symbols[index];
 			for (const symbol of symbols) {
 				const tile = document.createElement("span");
 				tile.className = "proof-tile";
@@ -4716,6 +4720,14 @@ function Puzzle(board, hClues, vClues, messages, timer,
 			item.append(select, preview, color);
 			list.append(item);
 		}
+	}
+
+	this.changeSymbolSeasonal = function(enabled) {
+		if (!this.symbolDraft || this.symbolDraftName == null)
+			return;
+		this.symbolDraft.seasonal = enabled;
+		this.saveSymbolDraft();
+		this.renderSymbolConfig();
 	}
 
 	this.closeSymbolConfig = function() {

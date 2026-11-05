@@ -532,6 +532,11 @@
 						       onInput="puzzle.updateSymbolName()" onChange="puzzle.commitSymbolName()"
 						       onKeyDown="if (event.key == 'Enter') { event.preventDefault(); puzzle.commitSymbolName(); }" autocomplete="off" spellcheck="false">
 					</label>
+					<label class="symbol-seasonal-row">
+						<input id="symbol-seasonal" type="checkbox" onChange="puzzle.changeSymbolSeasonal(this.checked)">
+						<span>Seasonal artwork
+							<small>A festive surprise as holidays approach.</small></span>
+					</label>
 					<p class="symbol-preset-description"></p>
 				</div>
 				<footer>

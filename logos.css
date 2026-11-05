@@ -1539,7 +1539,8 @@ body:is(.proof-active, .suppose-active, .suppose-result, :has(#proof-controls.hi
 	font-weight: bold;
 }
 
-#options-menu label {
+#options-menu label,
+.symbol-seasonal-row {
 	display: flex;
 	align-items: flex-start;
 	gap: 0.3rem;
@@ -1547,7 +1548,8 @@ body:is(.proof-active, .suppose-active, .suppose-result, :has(#proof-controls.hi
 	white-space: nowrap;
 }
 
-#options-menu label > span {
+#options-menu label > span,
+.symbol-seasonal-row > span {
 	display: flex;
 	flex-direction: column;
 }
@@ -1647,6 +1649,7 @@ body:is(.proof-active, .suppose-active, .suppose-result, :has(#proof-controls.hi
 
 .symbol-set-details {
 	display: grid;
+	gap: .4em;
 	align-items: center;
 }
 
@@ -1654,7 +1657,13 @@ body:is(.proof-active, .suppose-active, .suppose-result, :has(#proof-controls.hi
 	grid-area: 1 / 1;
 }
 
-.symbol-preset-description {
+.symbol-set-details > .symbol-seasonal-row {
+	grid-area: 2 / 1;
+}
+
+.symbol-set-details > .symbol-preset-description {
+	grid-area: 1 / 1 / 3 / 2;
+	text-align: center;
 	margin: 0;
 	font-size: .9em;
 	color: #736d63;
@@ -1662,6 +1671,7 @@ body:is(.proof-active, .suppose-active, .suppose-result, :has(#proof-controls.hi
 
 .symbol-name-row {
 	display: flex;
+	min-width: 0;
 	align-items: baseline;
 	gap: .6em;
 }
@@ -1761,6 +1771,7 @@ body:is(.proof-active, .suppose-active, .suppose-result, :has(#proof-controls.hi
 }
 
 #options-menu label small,
+.symbol-seasonal-row small,
 #options-menu .random-difficulties-heading small {
 	max-width: 18rem;
 	color: #736d63;
@@ -1930,12 +1941,13 @@ input[type="text"] {
 }
 
 
-#options-menu label:has(input:disabled) {
+#options-menu label:has(input:disabled),
+.symbol-seasonal-row:has(input:disabled) {
 	opacity: 0.5;
 }
 
 #options-menu input[type="radio"],
-:is(#options-menu, .history-controls) input[type="checkbox"] {
+:is(#options-menu, #symbol-config, .history-controls) input[type="checkbox"] {
 	appearance: none;
 	display: inline-grid;
 	place-content: center;
@@ -1954,12 +1966,12 @@ input[type="text"] {
 	border-radius: 50%;
 }
 
-:is(#options-menu, .history-controls) input[type="checkbox"] {
+:is(#options-menu, #symbol-config, .history-controls) input[type="checkbox"] {
 	border-radius: 0.12rem;
 }
 
 #options-menu input[type="radio"]::before,
-:is(#options-menu, .history-controls) input[type="checkbox"]::before {
+:is(#options-menu, #symbol-config, .history-controls) input[type="checkbox"]::before {
 	content: "";
 	width: 0.42rem;
 	height: 0.42rem;
@@ -1972,23 +1984,23 @@ input[type="text"] {
 	border-radius: 50%;
 }
 
-:is(#options-menu, .history-controls) input[type="checkbox"]::before {
+:is(#options-menu, #symbol-config, .history-controls) input[type="checkbox"]::before {
 	clip-path: polygon(10% 48%, 0 62%, 40% 100%, 100% 18%, 84% 5%, 38% 72%);
 }
 
 #options-menu input[type="radio"]:checked::before,
-:is(#options-menu, .history-controls) input[type="checkbox"]:checked::before {
+:is(#options-menu, #symbol-config, .history-controls) input[type="checkbox"]:checked::before {
 	transform: scale(1);
 }
 
 #options-menu label:hover input[type="radio"]:not(:disabled),
-:is(#options-menu, .history-controls) label:hover input[type="checkbox"]:not(:disabled) {
+:is(#options-menu, #symbol-config, .history-controls) label:hover input[type="checkbox"]:not(:disabled) {
 	border-color: #80633a;
 	background-color: #f7f3e9;
 }
 
 #options-menu input[type="radio"]:focus-visible,
-:is(#options-menu, .history-controls) input[type="checkbox"]:focus-visible {
+:is(#options-menu, #symbol-config, .history-controls) input[type="checkbox"]:focus-visible {
 	outline: 2px solid #80633a;
 	outline-offset: 2px;
 }
@@ -2180,6 +2192,7 @@ input[type="text"] {
 	}
 
 	#options-menu label small,
+	.symbol-seasonal-row small,
 	#options-menu .random-difficulties-heading small {
 		font-size: max(0.72em, 13px);
 	}

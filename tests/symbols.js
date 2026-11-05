@@ -207,18 +207,18 @@ Deno.test("preset definitions supply selection, descriptions, tiles, and editabl
 	}
 });
 
-Deno.test("Automatic previews current reveals but customization starts from Classic", function() {
+Deno.test("Automatic previews current reveals and customization preserves seasonal behavior", function() {
 	for (const year of [2026, 2027]) {
 		for (const day of [25, 26, 30, 31]) {
 			const symbols = Logos.symbolsForDate(new Date(year, 9, day));
-			const puzzle = makePuzzle(6, false, () => symbols);
+			const puzzle = makePuzzle(6, false, () => Logos.seasonalMaskForDate(new Date(year, 9, day)));
 			try {
 				puzzle.options.hidden = false;
 				puzzle.openSymbolConfig();
 				assert(puzzle.tileSet == "automatic" && puzzle.symbolDraftName == null);
 				const list = puzzle.symbolConfigDialog.querySelector(".symbol-config-rows");
 				assert(list.querySelectorAll(".symbol-row-select").every(select =>
-					select.disabled && select.value == "automatic"));
+					select.disabled && select.value != "automatic"));
 				assert(list.querySelectorAll(".symbol-row-color").every(input => input.disabled));
 				const previews = list.querySelectorAll(".symbol-row-preview");
 				for (const [row, preview] of previews.entries())
@@ -228,13 +228,14 @@ Deno.test("Automatic previews current reveals but customization starts from Clas
 							tile.children[0].src == symbol.src);
 					}
 				puzzle.closeSymbolConfig();
-				assert(puzzle.tileSet == "automatic" && puzzle.symbols === symbols);
+				assert(puzzle.tileSet == "automatic" && puzzle.symbols.every((row, i) =>
+					row.every((symbol, j) => symbol === symbols[i][j])));
 				assert(localStorage.getItem("customSymbols") === null);
 				puzzle.openSymbolConfig();
 				puzzle.duplicateSymbolSet();
 				assert(puzzle.tileSet == "custom:Custom");
-				assert(JSON.stringify(puzzle.symbolSets.Custom) == JSON.stringify(Logos.defaultSymbolConfig()));
-				assert(puzzle.symbols.every((row, i) => row === Logos.defaultSymbols[i]));
+				assert(JSON.stringify(puzzle.symbolSets.Custom) == JSON.stringify(Logos.defaultSymbolConfig("automatic")));
+				assert(puzzle.symbols.every((row, i) => row.every((symbol, j) => symbol === symbols[i][j])));
 			} finally {
 				clearSettings();
 			}
@@ -244,7 +245,7 @@ Deno.test("Automatic previews current reveals but customization starts from Clas
 
 Deno.test("hidden seasonal rows do not leak through Automatic customization", function() {
 	for (const day of [20, 21, 26, 27]) {
-		const puzzle = makePuzzle(6, false, () => Logos.symbolsForDate(new Date(2026, 10, day)));
+		const puzzle = makePuzzle(6, false, () => Logos.seasonalMaskForDate(new Date(2026, 10, day)));
 		try {
 			puzzle.options.hidden = false;
 			puzzle.openSymbolConfig();
@@ -287,26 +288,106 @@ Deno.test("existing custom selections can still use a hidden seasonal row", func
 	}
 });
 
-Deno.test("hidden presets stay out of both pickers until promoted", function() {
-	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
-	const selectors = [puzzle.options.querySelector("#tile-set"),
-		puzzle.symbolConfigDialog.querySelector("#symbol-manager-set")];
+Deno.test("removed holiday presets fall back to Automatic", function() {
+	for (const preset of ["halloween", "thanksgiving"]) {
+		try {
+			localStorage.setItem("tileSet", preset);
+			const puzzle = makePuzzle(6, false, () => Logos.seasonalMaskForDate(new Date(2026, 9, 30)));
+			assert(puzzle.tileSet == "automatic");
+			assert(puzzle.symbols[3].filter(symbol => typeof symbol != "string").length == 5);
+			for (const select of [puzzle.options.querySelector("#tile-set"),
+				puzzle.symbolConfigDialog.querySelector("#symbol-manager-set")])
+				assert(!select.children.some(option => option.value == preset));
+		} finally {
+			clearSettings();
+		}
+	}
+});
+
+Deno.test("seasonal preferences default off for old custom sets and reject non-booleans", function() {
+	const old = customConfig();
+	delete old.seasonal;
+	assert(Logos.validateSymbolConfig(old).seasonal === false);
+	for (const value of [null, "true", 1, [], {}])
+		assert(Logos.validateSymbolConfig({ ...old, seasonal: value }) === null);
+	for (const value of [true, false])
+		assert(Logos.validateSymbolConfig({ ...old, seasonal: value }).seasonal === value);
 	try {
-		for (const select of selectors)
-			assert(!select.children.some(option => option.value == "thanksgiving"));
-		Logos.tileSets.thanksgiving.hidden = false;
-		puzzle.renderSymbolSets();
-		for (const select of selectors)
-			assert(select.children.some(option => option.value == "thanksgiving"));
-		puzzle.setTileSet("thanksgiving");
-		assert(puzzle.symbols === Logos.tileSets.thanksgiving.tiles);
+		localStorage.setItem("customSymbols", JSON.stringify(old));
+		localStorage.setItem("tileSet", "custom");
+		const puzzle = makePuzzle(6, false, () => Logos.seasonalMaskForDate(new Date(2026, 10, 26)));
+		assert(puzzle.symbolSets.Custom.seasonal === false);
+		assert(puzzle.symbols[3] === Logos.symbolRows.halloween.symbols);
+	} finally {
+		clearSettings();
+	}
+});
+
+Deno.test("custom seasonal artwork preserves fallback rows and colors and refreshes on settings edits", function() {
+	let date = new Date(2026, 9, 30);
+	const source = () => Logos.seasonalMaskForDate(date);
+	const puzzle = makePuzzle(6, false, source);
+	try {
+		puzzle.newGame(42);
+		const before = JSON.stringify(puzzle.positionSnapshot());
 		puzzle.options.hidden = false;
 		puzzle.openSymbolConfig();
-		assert(puzzle.symbolDraftName == null && puzzle.symbolDraft.rows[3].set == "thanksgiving");
+		assert(puzzle.symbolConfigDialog.querySelector(".symbol-seasonal-row").style.visibility == "hidden");
+		puzzle.changeSymbolSeasonal(false);
+		assert(puzzle.symbolDraft.seasonal, "read-only preset accepted a seasonal edit");
 		puzzle.duplicateSymbolSet();
-		assert(puzzle.symbolSets.Custom.rows[3].set == "thanksgiving");
+		puzzle.symbolDraft.rows[0].set = "math";
+		puzzle.symbolDraft.rows[3] = { set: "greek", color: "#123456" };
+		puzzle.saveSymbolDraft();
+		assert(puzzle.symbols[0] === Logos.symbolRows.math.symbols);
+		assert(puzzle.symbols[3][4] === Logos.symbolRows.halloween.symbols[4]);
+		assert(puzzle.symbols[3][5] === Logos.symbolRows.greek.symbols[5]);
+		assert(document.body.style["--symbol-row-3-text"] == "#123456");
+		assert(JSON.stringify(puzzle.positionSnapshot()) == before);
+		date = new Date(2026, 10, 1);
+		puzzle.changeSymbolSeasonal(false);
+		assert(puzzle.symbols[3] === Logos.symbolRows.greek.symbols);
+		puzzle.changeSymbolSeasonal(true);
+		assert(puzzle.symbols[3] === Logos.symbolRows.greek.symbols,
+			"editing a set did not refresh seasonal artwork for the current date");
+		puzzle.closeSymbolConfig();
+		puzzle.newGame(43);
+		assert(puzzle.symbols[3] === Logos.symbolRows.greek.symbols);
+		date = new Date(2026, 10, 26);
+		const loaded = makePuzzle(6, false, source);
+		assert(loaded.symbolSets.Custom.seasonal && loaded.tileSet == "custom:Custom");
+		assert(loaded.symbols[3].every((tile, i) => tile === Logos.symbolRows.thanksgiving.symbols[i]));
+		assert(loaded.symbols[0] === Logos.symbolRows.math.symbols);
+		assert(document.body.style["--symbol-row-3-text"] == "#123456");
+		puzzle.newGame(44);
+		assert(puzzle.symbols[3][5] === Logos.symbolRows.thanksgiving.symbols[5]);
 	} finally {
-		Logos.tileSets.thanksgiving.hidden = true;
+		puzzle.stopTimer();
+		clearSettings();
+	}
+});
+
+Deno.test("settings edits update seasonal artwork for a suspended game", function() {
+	let date = new Date(2026, 9, 26);
+	const puzzle = makePuzzle(6, false, () => Logos.seasonalMaskForDate(date));
+	try {
+		puzzle.newGame(42);
+		puzzle.saveDailyReturn();
+		date = new Date(2026, 9, 31);
+		puzzle.newGame("20261031", true, true);
+		puzzle.symbolSets.Custom = Logos.defaultSymbolConfig("automatic");
+		puzzle.symbolSets.Custom.rows[3].set = "greek";
+		puzzle.setTileSet("custom");
+		assert(puzzle.symbols[3][5].label == "Jack-o’-lantern");
+		assert(puzzle.restoreDailyReturn());
+		assert(puzzle.symbols[3][0].label == "Ghost");
+		assert(puzzle.symbols[3][5].label == "Jack-o’-lantern");
+		date = new Date(2026, 10, 1);
+		puzzle.symbolSets.Custom.rows[3].color = "#abcdef";
+		puzzle.refreshSymbols();
+		assert(puzzle.symbols[3][1] === Logos.symbolRows.greek.symbols[1]);
+	} finally {
+		puzzle.stopTimer();
 		clearSettings();
 	}
 });

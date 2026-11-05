@@ -3,6 +3,13 @@ import {
 	selectTileAction, makePuzzle, resetPuzzle, withRandom, puzzleSignature,
 } from "./helpers.js";
 
+/* Exercise fixed presets independently of the built-in seasonal choices. */
+Logos.tileSets.fixed = {
+	name: "Fixed artwork",
+	tiles: Logos.defaultSymbols.map((row, family) =>
+		family == 3 ? Logos.symbolRows.halloween.symbols : row),
+};
+
 function revealedTiles(puzzle) {
 	return puzzle.rows[3].slots[0].symbols.filter(symbol => typeof symbol != "string").length;
 }
@@ -25,24 +32,24 @@ function imageTestSymbols() {
 
 Deno.test("tile presets persist and preserve the current puzzle", function() {
 	let date = new Date(2026, 9, 27);
-	const source = () => Logos.symbolsForDate(date);
+	const source = () => Logos.seasonalMaskForDate(date);
 	const puzzle = makePuzzle(6, false, source);
 	try {
 		puzzle.newGame(42);
 		const before = JSON.stringify(puzzle.positionSnapshot());
 		assert(revealedTiles(puzzle) == 2);
-		puzzle.setTileSet("halloween");
+		puzzle.setTileSet("fixed");
 		assert(revealedTiles(puzzle) == 6);
-		assert(localStorage.getItem("tileSet") == "halloween");
+		assert(localStorage.getItem("tileSet") == "fixed");
 		const loaded = makePuzzle(6, false, source);
-		assert(loaded.tileSet == "halloween" && revealedTiles(loaded) == 6);
+		assert(loaded.tileSet == "fixed" && revealedTiles(loaded) == 6);
 		puzzle.setTileSet("classic");
 		assert(revealedTiles(puzzle) == 0);
 		puzzle.setTileSet("automatic");
 		assert(revealedTiles(puzzle) == 2);
 		assert(JSON.stringify(puzzle.positionSnapshot()) == before,
 		       "changing tiles changed the puzzle position");
-		puzzle.setTileSet("halloween");
+		puzzle.setTileSet("fixed");
 		date = new Date(2026, 10, 1);
 		puzzle.newGame(42);
 		assert(revealedTiles(puzzle) == 6, "new game ignored the preset");
@@ -65,7 +72,7 @@ Deno.test("changing tiles updates suppositions and the suspended daily return", 
 		puzzle.enterSuppose();
 		puzzle.requestTileAction(slot, wrong, "place");
 		const state = puzzle.suppose;
-		puzzle.setTileSet("halloween");
+		puzzle.setTileSet("fixed");
 		assert(puzzle.suppose === state && slot.singleElem.children[0].alt == slot.symbols[wrong].label,
 		       "changing tiles lost or misrendered the supposition");
 		puzzle.setTileSet("classic");
@@ -73,7 +80,7 @@ Deno.test("changing tiles updates suppositions and the suspended daily return", 
 		puzzle.leaveSuppose(true);
 		puzzle.saveDailyReturn();
 		puzzle.newGame("20261031", true, true);
-		puzzle.setTileSet("halloween");
+		puzzle.setTileSet("fixed");
 		assert(puzzle.restoreDailyReturn() && revealedTiles(puzzle) == 6,
 		       "returning from the daily restored the old preset");
 	} finally {
@@ -88,7 +95,7 @@ Deno.test("changing tiles preserves solution highlights and refreshes suppose re
 		puzzle.newGame(42);
 		const slot = puzzle.rows[3].slots.find(slot => !slot.single);
 		puzzle.revealSolution();
-		puzzle.setTileSet("halloween");
+		puzzle.setTileSet("fixed");
 		assert(slot.possibleElem.className == "solution" &&
 		       slot.possibilityElems[slot.value].className == "possibility answer",
 		       "changing symbols hid the revealed solution");
@@ -98,7 +105,7 @@ Deno.test("changing tiles preserves solution highlights and refreshes suppose re
 		const reminder = puzzle.supposeControls.querySelector(".suppose-reminder");
 		assert(reminder.children[0].textContent == Logos.defaultSymbols[3][0],
 		       "suppose receipt retained the old artwork");
-		puzzle.setTileSet("halloween");
+		puzzle.setTileSet("fixed");
 		assert(reminder.children[0].children[0].alt == "Ghost");
 	} finally {
 		puzzle.stopTimer();
@@ -159,12 +166,12 @@ Deno.test("Thanksgiving reveals six tiles through the fourth Thursday in Novembe
 });
 
 Deno.test("seasonal reveal windows follow the number and positions of changed tiles", function() {
-	const original = Logos.tileSets.halloween.tiles;
+	const original = Logos.seasonalMasks.halloween;
 	const classic = Logos.tileSets.classic.tiles;
 	try {
 		/* Two rows start twelve days before the end, not at a fixed date. */
-		Logos.tileSets.halloween.tiles = classic.map((row, family) =>
-			family == 0 || family == 4 ? original[3] : row);
+		Logos.seasonalMasks.halloween = classic.map((row, family) =>
+			family == 0 || family == 4 ? original[3] : row.map(() => null));
 		assert(Logos.symbolsForDate(new Date(2026, 9, 19, 23, 59)) === classic);
 		for (let count = 1; count <= 12; count++) {
 			const selected = Logos.symbolsForDate(new Date(2026, 9, 19 + count));
@@ -177,22 +184,22 @@ Deno.test("seasonal reveal windows follow the number and positions of changed ti
 		assert(Logos.symbolsForDate(new Date(2026, 10, 1)) === classic);
 
 		/* Unchanged positions within a changed row consume no reveal days. */
-		Logos.tileSets.halloween.tiles = classic.map((row, family) => row.map((symbol, value) =>
-			family == 2 && (value == 1 || value == 4) ? original[3][value] : symbol));
+		Logos.seasonalMasks.halloween = classic.map((row, family) => row.map((symbol, value) =>
+			family == 2 && (value == 1 || value == 4) ? original[3][value] : null));
 		assert(Logos.symbolsForDate(new Date(2026, 9, 29)) === classic);
 		const first = Logos.symbolsForDate(new Date(2026, 9, 30));
 		assert(first[2][1] === original[3][1] && first[2][4] === classic[2][4]);
 		assert(Logos.symbolsForDate(new Date(2026, 9, 31))[2][4] === original[3][4]);
-		Logos.tileSets.halloween.tiles = classic;
+		Logos.seasonalMasks.halloween = classic.map(row => row.map(() => null));
 		assert(Logos.symbolsForDate(new Date(2026, 9, 31)) === classic);
 	} finally {
-		Logos.tileSets.halloween.tiles = original;
+		Logos.seasonalMasks.halloween = original;
 	}
 });
 
 Deno.test("seasonal symbols refresh on load, new games, and accepting invitations", function() {
 	let date = new Date(2026, 9, 26);
-	const puzzle = makePuzzle(6, false, () => Logos.symbolsForDate(date));
+	const puzzle = makePuzzle(6, false, () => Logos.seasonalMaskForDate(date));
 	const slots = puzzle.rows.flatMap(row => row.slots);
 	assert(revealedTiles(puzzle) == 1, "initial board did not select today's symbols");
 	try {
@@ -223,7 +230,7 @@ Deno.test("seasonal symbols refresh on load, new games, and accepting invitation
 
 Deno.test("returning from a daily preview preserves the suspended game's symbols", function() {
 	let date = new Date(2026, 9, 26);
-	const puzzle = makePuzzle(6, false, () => Logos.symbolsForDate(date));
+	const puzzle = makePuzzle(6, false, () => Logos.seasonalMaskForDate(date));
 	try {
 		puzzle.newGame(42);
 		puzzle.saveDailyReturn();
@@ -1521,4 +1528,32 @@ Deno.test("a loss continues as a Zen game by default", function() {
 	       "another tile action did not clear the continued loss marker");
 	localStorage.removeItem("continueAfterLoss");
 	localStorage.removeItem("practiceMode");
+});
+
+Deno.test("seasonal masks replace only explicit entries on arbitrary boards", function() {
+	const original = Logos.seasonalMasks.halloween;
+	const base = Logos.defaultSymbols.map((row, i) => Logos.defaultSymbols[(i + 1) % 6]);
+	const before = JSON.stringify(base);
+	try {
+		const mask = base.map(row => row.map(() => null));
+		/* An entry equal to the fallback still occupies its reveal day. */
+		mask[0][2] = base[0][2];
+		mask[2][4] = Logos.symbolRows.halloween.symbols[0];
+		mask[5][1] = Logos.symbolRows.halloween.symbols[1];
+		Logos.seasonalMasks.halloween = mask;
+		assert(Logos.symbolsForDate(new Date(2026, 9, 28), base) === base);
+		for (const [day, revealed] of [[29, 1], [30, 2], [31, 3]]) {
+			const active = Logos.seasonalMaskForDate(new Date(2026, 9, day));
+			assert(active.flat().filter(symbol => symbol != null).length == revealed);
+			const tiles = Logos.symbolsForDate(new Date(2026, 9, day), base);
+			for (let row = 0; row < 6; row++)
+				for (let value = 0; value < 6; value++)
+					assert(tiles[row][value] === (active[row][value] ?? base[row][value]));
+		}
+		assert(Logos.symbolsForDate(new Date(2026, 10, 1), base) === base);
+		assert(JSON.stringify(base) == before);
+		assert(mask[5][1] === Logos.symbolRows.halloween.symbols[1]);
+	} finally {
+		Logos.seasonalMasks.halloween = original;
+	}
 });

@@ -11,12 +11,13 @@ var browserTestsDone = (async function() {
 	const saved = keys.map(key => localStorage.getItem(key));
 	for (const key of keys) localStorage.removeItem(key);
 	let app, doc;
+	let loads = 0;
 	function assert(condition, message) {
 		if (!condition) throw new Error(message);
 	}
 	async function load() {
 		const loaded = new Promise(resolve => frame.onload = resolve);
-		frame.src = "../../index.html";
+		frame.src = "../../index.html?load=" + (++loads) + "#today=2026-10-30";
 		if (!frame.isConnected) document.body.append(frame);
 		await loaded;
 		app = frame.contentWindow;
@@ -58,8 +59,6 @@ var browserTestsDone = (async function() {
 		await load();
 		app.puzzle.newGame(42);
 		const before = JSON.stringify(app.puzzle.positionSnapshot());
-		const seasonal = app.symbolsForDate(new Date(2026, 9, 30));
-		app.puzzle.setSymbols(seasonal);
 		doc.querySelector("#options-button").click();
 		assert(app.puzzle.paused && app.puzzle.timerTimeout === null, "Options did not pause the solo game");
 		configure();
@@ -67,11 +66,13 @@ var browserTestsDone = (async function() {
 			"Configure did not replace Options");
 		assert(doc.activeElement.id == "symbol-manager-set", "editor opening focus was lost");
 		assert(doc.querySelectorAll(".symbol-config-row").length == 6, "editor does not show six rows");
+		assert(app.getComputedStyle(doc.querySelector(".symbol-seasonal-row")).visibility == "hidden",
+			"preset shows the seasonal option");
 		const seasonalPreview = doc.querySelectorAll(".symbol-row-preview")[3];
 		assert(seasonalPreview.querySelectorAll("img").length == 5 &&
 			seasonalPreview.lastElementChild.textContent == "⚅",
 			"Automatic preview did not preserve the partial Halloween reveal");
-		assert(rowSelect(3).disabled && rowSelect(3).value == "automatic",
+		assert(rowSelect(3).disabled && rowSelect(3).value == "dice",
 			"Automatic row preview is editable or mislabeled");
 		assert(!doc.querySelector('.symbol-row-select option[value="thanksgiving"]'),
 			"unreleased Thanksgiving artwork is selectable");
@@ -85,18 +86,37 @@ var browserTestsDone = (async function() {
 		configure();
 		assert(rowSelect(0).disabled && color(0).disabled && doc.querySelector(".symbol-config-delete").disabled, "preset is editable");
 		await layout();
-		const stableElements = [".symbol-config-rows", ".symbol-set-details", "#symbol-config footer"];
-		const positions = stableElements.map(selector => doc.querySelector(selector).getBoundingClientRect().top);
+		const presetHeight = doc.querySelector("#symbol-config").getBoundingClientRect().height;
 		assert(doc.querySelector(".symbol-preset-description").textContent == app.tileSets.automatic.description, "Automatic description is missing");
 		doc.querySelector(".symbol-config-duplicate").click();
 		assert(rowSelect(3).value == "dice" && !rowSelect(3).disabled &&
-			!doc.querySelector(".symbol-row-preview img"),
-			"customizing Automatic did not start from Classic");
+			doc.querySelectorAll(".symbol-row-preview img").length == 5 &&
+			doc.querySelector("#symbol-seasonal").checked && doc.querySelector(".symbol-seasonal-row").style.visibility == "visible",
+			"customizing Automatic lost its base row or seasonal flag");
+		const seasonalCheckbox = doc.querySelector("#symbol-seasonal");
+		seasonalCheckbox.checked = false;
+		seasonalCheckbox.dispatchEvent(new app.Event("change", { bubbles: true }));
+		assert(!doc.querySelector(".symbol-row-preview img") && !app.puzzle.symbolSets.Custom.seasonal,
+			"disabling seasonal artwork did not restore the fallback symbols");
+		change(rowSelect(3), "greek");
+		pickColor(3, "#bc9876");
+		seasonalCheckbox.checked = true;
+		seasonalCheckbox.dispatchEvent(new app.Event("change", { bubbles: true }));
+		const customPreview = doc.querySelectorAll(".symbol-row-preview")[3];
+		assert(customPreview.querySelectorAll("img").length == 5 &&
+			customPreview.lastElementChild.textContent == "Ω" && rowSelect(3).value == "greek",
+			"seasonal artwork replaced the custom fallback or its row selection");
+		assert(color(3).value == "#bc9876", "seasonal artwork changed the row color");
+		assert(JSON.parse(localStorage.getItem("customSymbols")).sets[0].config.seasonal === true,
+			"seasonal flag was not saved");
+		seasonalCheckbox.checked = false;
+		seasonalCheckbox.dispatchEvent(new app.Event("change", { bubbles: true }));
+		assert(customPreview.isConnected === false && app.puzzle.symbols[3].join("") == "αθλπψΩ",
+			"turning seasonal artwork off did not restore Greek");
 		assert(app.getComputedStyle(doc.querySelector(".symbol-preset-description")).visibility == "hidden", "custom name overlaps preset description");
 		await layout();
-		stableElements.forEach((selector, i) => assert(
-			Math.abs(doc.querySelector(selector).getBoundingClientRect().top - positions[i]) < 1,
-			"duplicating a preset shifted " + selector));
+		assert(Math.abs(doc.querySelector("#symbol-config").getBoundingClientRect().height - presetHeight) < 1,
+			"customizing changed the dialog height");
 		change(rowSelect(0), "math");
 		pickColor(0, "#abcdef");
 		assert(app.puzzle.tileSet == "custom:Custom" && localStorage.getItem("customSymbols"),

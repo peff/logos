@@ -151,7 +151,7 @@ const Logos = eval(source +
 	"ColumnClue: ColumnClue, " +
 	"OrderClue: OrderClue, " +
 	"defaultSymbols: defaultSymbols, accessRunHistory: accessRunHistory, " +
-	"renderProofMessage, symbolsForDate, clueSlots, " +
+	"renderProofMessage, symbolsForDate, seasonalMaskForDate, seasonalMasks, applySymbolMask, clueSlots, " +
 	"tileSets, symbolRows, defaultSymbolConfig, validateSymbolConfig, " +
 	"setHistoryStorage: storage => { accessRunHistory = storage; }, " +
 	"setDebugDateActive: active => { debugDateActive = active; }, " +
@@ -194,6 +194,7 @@ function selectTileAction(puzzle, action) {
 }
 
 function makePuzzle(numRows, checkWin, puzzleSymbols) {
+	const seasonalSource = typeof puzzleSymbols == "function" ? puzzleSymbols : () => null;
 	const elem = function() { return new FakeElement(); };
 	const help = elem();
 	for (const [name, title] of [["rules", "Objective"], ["clues", "Clues"],
@@ -205,20 +206,21 @@ function makePuzzle(numRows, checkWin, puzzleSymbols) {
 	}
 	const puzzle = new Puzzle(elem(), elem(), elem(), elem(), elem(),
 		elem(), elem(), help, elem(),
-		elem(), elem(), elem(), elem());
+		elem(), elem(), elem(), elem(), seasonalSource);
 	/* Test boards use fewer rows or their own artwork. Keep that override
 	 * here rather than making it part of the game's constructor API.
 	 */
 	puzzle.rows.length = numRows;
-	const refreshSymbols = puzzle.refreshSymbols;
-	puzzle.refreshSymbols = function() {
-		if (this.tileSet == "automatic")
-			this.setSymbols(typeof puzzleSymbols == "function" ? puzzleSymbols() :
-				puzzleSymbols || Array(numRows).fill(symbols));
-		else
-			refreshSymbols.call(this);
-	};
-	puzzle.refreshSymbols();
+	if (typeof puzzleSymbols != "function") {
+		const refreshSymbols = puzzle.refreshSymbols;
+		puzzle.refreshSymbols = function() {
+			if (this.tileSet == "automatic")
+				this.setSymbols(puzzleSymbols || Array(numRows).fill(symbols));
+			else
+				refreshSymbols.call(this);
+		};
+		puzzle.refreshSymbols();
+	}
 	/* The fake DOM reuses these inputs across games and tests. */
 	selectTileAction(puzzle, "place");
 	/* Hand-built boards need not be solvable or have a reproducible seed.

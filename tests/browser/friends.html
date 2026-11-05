@@ -167,7 +167,7 @@ var browserTestsDone = (async function() {
 			"tile selector overflows or overlaps its label on a narrow screen");
 		const guestSymbols = alice.puzzle.symbols;
 		const beforeTiles = JSON.stringify(host.puzzle.positionSnapshot());
-		for (const preset of ["halloween", "classic", "automatic"]) {
+		for (const preset of ["classic", "automatic"]) {
 			tileSelect.value = preset;
 			tileSelect.dispatchEvent(new host.Event("change", { bubbles: true }));
 			const expected = preset == "automatic" ? host.symbolsForDate() : host.tileSets[preset].tiles;
@@ -237,8 +237,9 @@ var browserTestsDone = (async function() {
 		const slot = alice.puzzle.rows[0].slots.find(slot => !slot.single);
 		const value = slot.possible.findIndex((possible, value) => possible && value != slot.value);
 		const bobSymbols = bob.puzzle.symbols;
+		const imageSymbols = bob.symbolsForDate(new bob.Date(2026, 9, 31))[3];
 		bob.puzzle.setSymbols(bobSymbols.map((row, family) =>
-			family < 2 ? bob.tileSets.halloween.tiles[3] : row));
+			family < 2 ? imageSymbols : row));
 		function checkImageAction(type, family, value, columns) {
 			const icon = players(bob).querySelector('[data-action="' + type + '"]');
 			const symbol = bob.puzzle.symbols[family][value];

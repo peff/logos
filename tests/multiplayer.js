@@ -8,7 +8,7 @@ import {
 
 Deno.test("multiplayer resync preserves seasonal symbols until the next game", function() {
 	let date = new Date(2026, 9, 26);
-	const symbols = () => Logos.symbolsForDate(date);
+	const symbols = () => Logos.seasonalMaskForDate(date);
 	const host = makeSession("host", "host", symbols);
 	const guest = makeSession("guest", "guest", symbols);
 	const network = new InMemoryMultiplayerNetwork(host.session);
