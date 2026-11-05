@@ -4590,9 +4590,9 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 
 	this.loadSymbolManager = function() {
 		const config = this.tileSet.startsWith("custom:") ? this.symbolSets[this.tileSet.slice(7)] : null;
-		this.symbolDraft = config ? validateSymbolConfig(config) : defaultSymbolConfig(
-			this.tileSet == "automatic" ?
-				(this.symbols[3].some(symbol => typeof symbol != "string") ? "halloween" : "classic") : this.tileSet);
+		/* Automatic previews the current symbols, but customization starts from Classic. */
+		this.symbolDraft = config ? validateSymbolConfig(config) :
+			defaultSymbolConfig(this.tileSet == "automatic" ? "classic" : this.tileSet);
 		this.symbolDraftReadOnly = !config;
 		this.symbolDraftName = config ? this.tileSet.slice(7) : null;
 		this.symbolDraftBaseName = this.symbolDraftName;
@@ -4635,6 +4635,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.renderSymbolConfig = function() {
+		const automatic = this.symbolDraftReadOnly && this.tileSet == "automatic";
 		this.symbolConfigDialog.querySelector(".symbol-config-duplicate").textContent =
 			this.symbolDraftReadOnly ? "Customize" : "Duplicate";
 		const list = this.symbolConfigDialog.querySelector(".symbol-config-rows");
@@ -4654,7 +4655,13 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 				option.textContent = family.name;
 				select.append(option);
 			}
-			select.value = row.set;
+			if (automatic) {
+				const option = document.createElement("option");
+				option.value = "automatic";
+				option.textContent = "Automatic";
+				select.append(option);
+			}
+			select.value = automatic ? "automatic" : row.set;
 			select.addEventListener("change", () => {
 				row.set = select.value;
 				this.saveSymbolDraft();
@@ -4665,7 +4672,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			preview.className = "symbol-row-preview family-" + index;
 			preview.style.setProperty("--tile-fg", row.color);
 			preview.setAttribute("aria-label", "Row " + (index + 1) + " preview");
-			for (const symbol of symbolRows[row.set].symbols) {
+			const symbols = automatic ? this.symbols[index] : symbolRows[row.set].symbols;
+			for (const symbol of symbols) {
 				const tile = document.createElement("span");
 				tile.className = "proof-tile";
 				renderTileSymbol(tile, symbol);

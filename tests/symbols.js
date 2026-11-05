@@ -206,3 +206,38 @@ Deno.test("preset definitions supply selection, descriptions, tiles, and editabl
 		clearSettings();
 	}
 });
+
+Deno.test("Automatic previews current reveals but customization starts from Classic", function() {
+	for (const year of [2026, 2027]) {
+		for (const day of [25, 26, 30, 31]) {
+			const symbols = Logos.symbolsForDate(new Date(year, 9, day));
+			const puzzle = makePuzzle(6, false, () => symbols);
+			try {
+				puzzle.options.hidden = false;
+				puzzle.openSymbolConfig();
+				assert(puzzle.tileSet == "automatic" && puzzle.symbolDraftReadOnly);
+				const list = puzzle.symbolConfigDialog.querySelector(".symbol-config-rows");
+				assert(list.querySelectorAll(".symbol-row-select").every(select =>
+					select.disabled && select.value == "automatic"));
+				assert(list.querySelectorAll(".symbol-row-color").every(input => input.disabled));
+				const previews = list.querySelectorAll(".symbol-row-preview");
+				for (const [row, preview] of previews.entries())
+					for (const [value, tile] of preview.children.entries()) {
+						const symbol = symbols[row][value];
+						assert(typeof symbol == "string" ? tile.textContent == symbol :
+							tile.children[0].src == symbol.src);
+					}
+				puzzle.closeSymbolConfig();
+				assert(puzzle.tileSet == "automatic" && puzzle.symbols === symbols);
+				assert(localStorage.getItem("customSymbols") === null);
+				puzzle.openSymbolConfig();
+				puzzle.duplicateSymbolSet();
+				assert(puzzle.tileSet == "custom:Custom");
+				assert(JSON.stringify(puzzle.symbolSets.Custom) == JSON.stringify(Logos.defaultSymbolConfig()));
+				assert(puzzle.symbols.every((row, i) => row === Logos.defaultSymbols[i]));
+			} finally {
+				clearSettings();
+			}
+		}
+	}
+});

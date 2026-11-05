@@ -58,6 +58,8 @@ var browserTestsDone = (async function() {
 		await load();
 		app.puzzle.newGame(42);
 		const before = JSON.stringify(app.puzzle.positionSnapshot());
+		const seasonal = app.symbolsForDate(new Date(2026, 9, 30));
+		app.puzzle.setSymbols(seasonal);
 		doc.querySelector("#options-button").click();
 		assert(app.puzzle.paused && app.puzzle.timerTimeout === null, "Options did not pause the solo game");
 		configure();
@@ -65,6 +67,12 @@ var browserTestsDone = (async function() {
 			"Configure did not replace Options");
 		assert(doc.activeElement.id == "symbol-manager-set", "editor opening focus was lost");
 		assert(doc.querySelectorAll(".symbol-config-row").length == 6, "editor does not show six rows");
+		const seasonalPreview = doc.querySelectorAll(".symbol-row-preview")[3];
+		assert(seasonalPreview.querySelectorAll("img").length == 5 &&
+			seasonalPreview.lastElementChild.textContent == "⚅",
+			"Automatic preview did not preserve the partial Halloween reveal");
+		assert(rowSelect(3).disabled && rowSelect(3).value == "automatic",
+			"Automatic row preview is editable or mislabeled");
 		assert(!rowSelect(0).querySelector('option[value="letters"]').disabled,
 			"another row's family is unavailable in the selector");
 		cancel();
@@ -77,6 +85,9 @@ var browserTestsDone = (async function() {
 		const positions = stableElements.map(selector => doc.querySelector(selector).getBoundingClientRect().top);
 		assert(doc.querySelector(".symbol-preset-description").textContent == app.tileSets.automatic.description, "Automatic description is missing");
 		doc.querySelector(".symbol-config-duplicate").click();
+		assert(rowSelect(3).value == "dice" && !rowSelect(3).disabled &&
+			!doc.querySelector(".symbol-row-preview img"),
+			"customizing Automatic did not start from Classic");
 		assert(app.getComputedStyle(doc.querySelector(".symbol-preset-description")).visibility == "hidden", "custom name overlaps preset description");
 		await layout();
 		stableElements.forEach((selector, i) => assert(
