@@ -142,7 +142,7 @@ Deno.test("named sets can be copied, overwritten, deleted, and reloaded", functi
 	const open = () => { puzzle.options.hidden = false; puzzle.openSymbolConfig(); };
 	try {
 		open();
-		assert(puzzle.symbolDraftReadOnly);
+		assert(puzzle.symbolDraftName == null);
 		puzzle.duplicateSymbolSet();
 		assert(input.value == "Custom");
 		puzzle.symbolDraft.rows[0].set = "math";
@@ -197,7 +197,7 @@ Deno.test("preset definitions supply selection, descriptions, tiles, and editabl
 		assert(puzzle.symbols === Logos.tileSets.example.tiles);
 		puzzle.options.hidden = false;
 		puzzle.openSymbolConfig();
-		assert(puzzle.symbolDraftReadOnly && puzzle.symbolDraft.rows[0].set == "math");
+		assert(puzzle.symbolDraftName == null && puzzle.symbolDraft.rows[0].set == "math");
 		assert(puzzle.symbolConfigDialog.querySelector(".symbol-preset-description").textContent == Logos.tileSets.example.description);
 		puzzle.duplicateSymbolSet();
 		assert(puzzle.symbolSets.Custom.rows[0].set == "math");
@@ -215,7 +215,7 @@ Deno.test("Automatic previews current reveals but customization starts from Clas
 			try {
 				puzzle.options.hidden = false;
 				puzzle.openSymbolConfig();
-				assert(puzzle.tileSet == "automatic" && puzzle.symbolDraftReadOnly);
+				assert(puzzle.tileSet == "automatic" && puzzle.symbolDraftName == null);
 				const list = puzzle.symbolConfigDialog.querySelector(".symbol-config-rows");
 				assert(list.querySelectorAll(".symbol-row-select").every(select =>
 					select.disabled && select.value == "automatic"));
@@ -302,7 +302,7 @@ Deno.test("hidden presets stay out of both pickers until promoted", function() {
 		assert(puzzle.symbols === Logos.tileSets.thanksgiving.tiles);
 		puzzle.options.hidden = false;
 		puzzle.openSymbolConfig();
-		assert(puzzle.symbolDraftReadOnly && puzzle.symbolDraft.rows[3].set == "thanksgiving");
+		assert(puzzle.symbolDraftName == null && puzzle.symbolDraft.rows[3].set == "thanksgiving");
 		puzzle.duplicateSymbolSet();
 		assert(puzzle.symbolSets.Custom.rows[3].set == "thanksgiving");
 	} finally {

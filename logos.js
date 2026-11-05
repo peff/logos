@@ -4560,7 +4560,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.saveSymbolDraft = function() {
-		if (!this.symbolDraft || this.symbolDraftReadOnly)
+		if (!this.symbolDraft || this.symbolDraftName == null)
 			return;
 		const config = validateSymbolConfig(this.symbolDraft);
 		if (!config)
@@ -4573,7 +4573,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.commitSymbolName = function() {
-		if (!this.symbolDraft || this.symbolDraftReadOnly)
+		if (!this.symbolDraft || this.symbolDraftName == null)
 			return;
 		const input = this.symbolConfigDialog.querySelector("#symbol-name");
 		const name = input.value.trim() || this.symbolDraftName;
@@ -4617,7 +4617,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 		/* Automatic previews the current symbols, but customization starts from Classic. */
 		this.symbolDraft = config ? validateSymbolConfig(config) :
 			defaultSymbolConfig(this.tileSet == "automatic" ? "classic" : this.tileSet);
-		this.symbolDraftReadOnly = !config;
 		this.symbolDraftName = config ? this.tileSet.slice(7) : null;
 		this.symbolDraftBaseName = this.symbolDraftName;
 		this.symbolDraftSaved = false;
@@ -4635,7 +4634,6 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 
 	this.duplicateSymbolSet = function() {
 		this.commitSymbolName();
-		this.symbolDraftReadOnly = false;
 		this.symbolDraftName = this.unusedSymbolName();
 		this.symbolDraftBaseName = null;
 		const input = this.symbolConfigDialog.querySelector("#symbol-name");
@@ -4659,9 +4657,9 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 	}
 
 	this.renderSymbolConfig = function() {
-		const automatic = this.symbolDraftReadOnly && this.tileSet == "automatic";
+		const automatic = this.symbolDraftName == null && this.tileSet == "automatic";
 		this.symbolConfigDialog.querySelector(".symbol-config-duplicate").textContent =
-			this.symbolDraftReadOnly ? "Customize" : "Duplicate";
+			this.symbolDraftName == null ? "Customize" : "Duplicate";
 		const list = this.symbolConfigDialog.querySelector(".symbol-config-rows");
 		list.replaceChildren();
 		const draft = this.symbolDraft;
@@ -4672,7 +4670,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			select.id = "symbol-row-" + index;
 			select.setAttribute("aria-label", "Row " + (index + 1) + " symbols");
 			select.className = "symbol-row-select";
-			select.disabled = this.symbolDraftReadOnly;
+			select.disabled = this.symbolDraftName == null;
 			for (const [id, family] of Object.entries(symbolRows)) {
 				/* Keep existing custom selections usable while hiding new artwork. */
 				if (family.hidden && id != row.set)
@@ -4708,7 +4706,7 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			}
 			const color = document.createElement("input");
 			color.type = "color";
-			color.disabled = this.symbolDraftReadOnly;
+			color.disabled = this.symbolDraftName == null;
 			color.className = "symbol-row-color";
 			color.value = row.color;
 			color.setAttribute("aria-label", "Row " + (index + 1) + " color");
