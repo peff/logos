@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-labelledby="title">
+  <title id="title">Snowflake</title>
+  <defs><path id="arm" d="M50 50V12 M39 21 50 32 61 21"/></defs>
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <g stroke="#405975" stroke-width="8">
+      <use href="#arm"/><use href="#arm" transform="rotate(60 50 50)"/><use href="#arm" transform="rotate(120 50 50)"/><use href="#arm" transform="rotate(180 50 50)"/><use href="#arm" transform="rotate(240 50 50)"/><use href="#arm" transform="rotate(300 50 50)"/>
+    </g>
+    <g stroke="#b9e2ed" stroke-width="4">
+      <use href="#arm"/><use href="#arm" transform="rotate(60 50 50)"/><use href="#arm" transform="rotate(120 50 50)"/><use href="#arm" transform="rotate(180 50 50)"/><use href="#arm" transform="rotate(240 50 50)"/><use href="#arm" transform="rotate(300 50 50)"/>
+    </g>
+    <path d="M50 40 59 45V55L50 60 41 55V45Z" fill="#f2f1eb" stroke="#405975" stroke-width="2.5"/>
+  </g>
+</svg>

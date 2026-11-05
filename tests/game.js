@@ -165,6 +165,42 @@ Deno.test("Thanksgiving reveals six tiles through the fourth Thursday in Novembe
 	assert(Logos.defaultSymbols[3].every(symbol => typeof symbol == "string"));
 });
 
+Deno.test("December reveals two fresh rows in succession through Christmas", function() {
+	const weeks = [
+		[14, ["Wreath", "Snow globe", "Candy cane", "Snowman", "Holly", "Sugar cookie"]],
+		[20, ["Christmas tree", "Ornament", "Angel", "Gift", "Reindeer", "Santa"]],
+	];
+	/* A custom base must also reappear between reveals, rather than retaining
+	 * the previous week's artwork in the unrevealed positions. */
+	const custom = Logos.defaultSymbols.map(() => Logos.symbolRows.letters.symbols);
+	for (const base of [Logos.defaultSymbols, custom]) {
+		for (const year of [2026, 2027, 2028]) {
+			for (const date of [new Date(year, 11, 13, 23, 59, 59),
+				new Date(year, 11, 26), new Date(year + 1, 0, 1)])
+				assert(Logos.symbolsForDate(date, base) === base,
+					"December artwork appeared outside its reveal window");
+			for (const [start, expected] of weeks) {
+				for (let count = 1; count <= 6; count++) {
+					for (const hour of [0, 12, 23]) {
+						const selected = Logos.symbolsForDate(new Date(year, 11, start + count - 1, hour), base);
+						for (let family = 0; family < 6; family++)
+							for (let value = 0; value < 6; value++) {
+								if (family == 3 && value < count)
+									assert(selected[family][value].label == expected[value],
+										"wrong December reveal order or date");
+								else
+									assert(selected[family][value] === base[family][value],
+										"an unrevealed position retained holiday artwork");
+							}
+					}
+				}
+			}
+		}
+	}
+	assert(Logos.defaultSymbols.every(row => row.every(symbol => typeof symbol == "string")),
+		"December reveal mutated the base symbols");
+});
+
 Deno.test("seasonal reveal windows follow the number and positions of changed tiles", function() {
 	const original = Logos.seasonalMasks.halloween;
 	const classic = Logos.tileSets.classic.tiles;

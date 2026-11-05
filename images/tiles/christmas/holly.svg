@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-labelledby="title">
+  <title id="title">Holly</title>
+  <g stroke="#272334" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M48 65 Q28 67 28 54 Q16 54 20 41 Q8 36 13 18 Q30 16 35 28 Q48 24 49 39 Q61 41 48 65Z" fill="#6da879"/>
+    <path d="M51 66 Q47 49 59 44 Q56 31 70 32 Q73 18 89 17 Q92 35 82 41 Q88 53 74 57 Q74 71 51 66Z" fill="#84b779"/>
+    <path d="M22 29 47 62 M79 29 55 63" fill="none" stroke="#426a53" stroke-width="2.5"/>
+    <path d="M49 70 45 88" fill="none" stroke="#426a53"/>
+    <circle cx="40" cy="69" r="10" fill="#d95755"/>
+    <circle cx="60" cy="69" r="10" fill="#d95755"/>
+    <circle cx="50" cy="81" r="10" fill="#e46b63"/>
+    <path d="M36 65 39 64 M56 65 59 64 M46 77 49 76" stroke="#f4b4a1" stroke-width="2.5"/>
+  </g>
+</svg>

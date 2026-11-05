@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-labelledby="title">
+  <title id="title">Angel</title>
+  <g stroke="#272334" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M43 58 Q28 34 12 36 Q8 56 22 66 Q17 76 31 77 L46 70 M57 58 Q72 34 88 36 Q92 56 78 66 Q83 76 69 77 L54 70" fill="#d8e8ed"/>
+    <path d="M20 48 35 62 M80 48 65 62" fill="none" stroke="#91b8c9" stroke-width="2.5"/>
+    <path d="M41 49 59 49 72 85 Q50 95 28 85Z" fill="#f2f1eb"/>
+    <path d="M37 65 Q50 73 63 65" fill="none" stroke="#d9bb72" stroke-width="3"/>
+    <path d="M32 44V31 Q32 14 50 14 Q68 14 68 31V44Z" fill="#e7b65f"/>
+    <path d="M36 29 Q45 29 50 22 Q55 29 64 29V37 Q64 52 50 53 Q36 52 36 37Z" fill="#efba91" stroke-width="2.5"/>
+    <path d="M41 36 44 36 M56 36 59 36 M46 43 Q50 46 54 43" fill="none" stroke-width="2"/>
+    <ellipse cx="50" cy="12" rx="17" ry="5" fill="#ffd374" stroke-width="2.5"/>
+  </g>
+</svg>

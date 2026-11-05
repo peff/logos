@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-labelledby="title">
+  <title id="title">Christmas tree</title>
+  <g stroke="#272334" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M43 74H57V91H43Z" fill="#b58153"/>
+    <path d="M50 19 70 43 63 43 80 62 70 62 88 81H12L30 62H20L37 43H30Z" fill="#6da879"/>
+    <path d="M34 45 Q47 52 66 52 M27 65 Q46 74 74 72" fill="none" stroke="#f4cf77" stroke-width="3"/>
+    <path d="M50 7 54 16 64 17 57 24 59 34 50 29 41 34 43 24 36 17 46 16Z" fill="#ffd374" stroke-width="2.5"/>
+    <g fill="#d95755" stroke-width="2"><circle cx="48" cy="43" r="4"/><circle cx="38" cy="60" r="4"/><circle cx="60" cy="63" r="4"/><circle cx="49" cy="76" r="4"/></g>
+  </g>
+</svg>

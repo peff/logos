@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-labelledby="title">
+  <title id="title">Gift</title>
+  <g stroke="#272334" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M49 32 Q22 33 25 17 Q31 6 49 32Z M51 32 Q78 33 75 17 Q69 6 51 32Z" fill="#ffd374"/>
+    <rect x="19" y="40" width="62" height="47" rx="3" fill="#d95755"/>
+    <path d="M20 49H80" stroke="#b6444b" stroke-width="5"/>
+    <path d="M43 43H57V87H43Z" fill="#ffd374" stroke-width="2.5"/>
+    <rect x="14" y="31" width="72" height="16" rx="3" fill="#ea7770"/>
+    <path d="M43 31H57V47H43Z" fill="#ffd374" stroke-width="2.5"/>
+    <ellipse cx="50" cy="29" rx="7" ry="5" fill="#ffd374" stroke-width="2.5"/>
+  </g>
+</svg>

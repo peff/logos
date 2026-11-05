@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-labelledby="title">
+  <title id="title">Christmas wreath</title>
+  <g stroke="#272334" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M50 12 Q60 5 68 16 Q80 14 83 27 Q95 31 89 43 Q98 53 88 62 Q90 76 77 79 Q72 92 59 86 Q50 95 40 86 Q26 92 22 79 Q8 77 12 63 Q2 54 11 43 Q5 30 18 26 Q19 13 32 16 Q39 5 50 12Z M50 31 C24 31 24 70 50 70 C76 70 76 31 50 31Z" fill="#6da879" fill-rule="evenodd"/>
+    <path d="M35 23 30 31 21 33 M67 23 70 32 79 36 M81 51 74 57 74 65 M21 51 27 59 26 67" fill="none" stroke="#426a53" stroke-width="2.5"/>
+    <g fill="#d95755" stroke-width="2"><circle cx="48" cy="21" r="4"/><circle cx="19" cy="45" r="4"/><circle cx="80" cy="45" r="4"/><circle cx="66" cy="76" r="4"/><circle cx="33" cy="76" r="4"/></g>
+    <path d="M46 77 35 91 35 81 27 83 36 71 M54 77 65 91 65 81 73 83 64 71" fill="#d95755" stroke-width="2.5"/>
+    <path d="M47 73 Q26 57 29 73 Q29 85 47 78 M53 73 Q74 57 71 73 Q71 85 53 78" fill="#ea7770" stroke-width="2.5"/>
+    <rect x="44" y="70" width="12" height="11" rx="4" fill="#d95755" stroke-width="2.5"/>
+  </g>
+</svg>

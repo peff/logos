@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-labelledby="title">
+  <title id="title">Candy cane</title>
+  <defs>
+    <path id="cane" d="M35 88V32 C35 3 77 3 77 32V42H62V32 C62 22 50 22 50 32V88Z"/>
+    <clipPath id="cane-interior"><use href="#cane"/></clipPath>
+  </defs>
+  <g transform="rotate(17 50 50)" stroke-linejoin="round">
+    <use href="#cane" fill="#f2f1eb"/>
+    <g clip-path="url(#cane-interior)" fill="#d95755">
+      <path d="M30 72 55 82V91L30 81Z M30 50 55 60V69L30 59Z M30 28 55 38V47L30 37Z M34 7 45 3 59 28 48 30Z M60 5 72 9 66 31 56 25Z M66 31 82 24V34L66 41Z"/>
+    </g>
+    <use href="#cane" fill="none" stroke="#272334" stroke-width="3.5"/>
+  </g>
+</svg>

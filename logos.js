@@ -52,6 +52,34 @@ const symbolRows = {
 			label: label, src: "images/tiles/thanksgiving/" + name + ".svg",
 		})),
 	},
+	winter: {
+		name: "Winter",
+		hidden: true,
+		symbols: [
+			["wreath", "Wreath"],
+			["snowglobe", "Snow globe"],
+			["candy-cane", "Candy cane"],
+			["snowman", "Snowman"],
+			["holly", "Holly"],
+			["cookie", "Sugar cookie"],
+		].map(([name, label]) => ({
+			label: label, src: "images/tiles/christmas/" + name + ".svg",
+		})),
+	},
+	christmas: {
+		name: "Christmas",
+		hidden: true,
+		symbols: [
+			["tree", "Christmas tree"],
+			["ornament", "Ornament"],
+			["angel", "Angel"],
+			["gift", "Gift"],
+			["reindeer", "Reindeer"],
+			["santa", "Santa"],
+		].map(([name, label]) => ({
+			label: label, src: "images/tiles/christmas/" + name + ".svg",
+		})),
+	},
 	greek: { name: "Greek letters", symbols: ["α", "θ", "λ", "π", "ψ", "Ω"] },
 	lowercase: { name: "Lowercase letters", symbols: ["k", "n", "r", "s", "t", "z"] },
 	arrows: { name: "Arrows", symbols: ["↖", "↑", "↗", "↙", "↓", "↘"] },
@@ -83,6 +111,10 @@ const seasonalMasks = {
 	halloween: [null, null, null, symbolRows.halloween.symbols, null, null]
 		.map(row => row || Array(6).fill(null)),
 	thanksgiving: [null, null, null, symbolRows.thanksgiving.symbols, null, null]
+		.map(row => row || Array(6).fill(null)),
+	winter: [null, null, null, symbolRows.winter.symbols, null, null]
+		.map(row => row || Array(6).fill(null)),
+	christmas: [null, null, null, symbolRows.christmas.symbols, null, null]
 		.map(row => row || Array(6).fill(null)),
 };
 
@@ -175,7 +207,10 @@ function seasonalMaskForDate(date = new Date()) {
 	const november22 = new Date(date.getFullYear(), 10, 22);
 	const thanksgiving = 22 + (4 - november22.getDay() + 7) % 7;
 	return seasonalMaskForHoliday(date, 10, 31, seasonalMasks.halloween) ||
-		seasonalMaskForHoliday(date, 11, thanksgiving, seasonalMasks.thanksgiving);
+		seasonalMaskForHoliday(date, 11, thanksgiving, seasonalMasks.thanksgiving) ||
+		/* Start the same row fresh for each six-day December reveal. */
+		seasonalMaskForHoliday(date, 12, 19, seasonalMasks.winter) ||
+		seasonalMaskForHoliday(date, 12, 25, seasonalMasks.christmas);
 }
 
 function symbolsForDate(date = new Date(), base = defaultSymbols) {

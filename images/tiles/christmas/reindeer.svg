@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-labelledby="title">
+  <title id="title">Reindeer</title>
+  <g stroke="#272334" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M36 40 27 23 27 10 M27 25 15 20 12 12 M64 40 73 23 73 10 M73 25 85 20 88 12" fill="none" stroke="#805a43" stroke-width="5"/>
+    <path d="M34 45 Q17 48 13 32 Q29 27 37 39 M66 45 Q83 48 87 32 Q71 27 63 39" fill="#b58153"/>
+    <path d="M31 48 Q29 32 50 32 Q71 32 69 48 L67 68 Q65 86 50 88 Q35 86 33 68Z" fill="#b58153"/>
+    <ellipse cx="50" cy="73" rx="18" ry="14" fill="#e6bd87"/>
+    <g fill="#272334" stroke="none"><ellipse cx="40" cy="53" rx="3" ry="4"/><ellipse cx="60" cy="53" rx="3" ry="4"/></g>
+    <path d="M43 78 Q50 83 57 78" fill="none" stroke-width="2"/>
+    <ellipse cx="50" cy="67" rx="9" ry="7" fill="#d95755" stroke-width="2.5"/>
+    <path d="M46 64 49 63" fill="none" stroke="#f4b4a1" stroke-width="2.5"/>
+  </g>
+</svg>

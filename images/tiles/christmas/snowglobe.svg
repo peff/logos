@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-labelledby="title">
+  <title id="title">Snow globe</title>
+  <defs><clipPath id="globe-interior"><circle cx="50" cy="42" r="33"/></clipPath></defs>
+  <g stroke="#272334" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="50" cy="42" r="33" fill="#a8d3e1" stroke="none"/>
+    <g clip-path="url(#globe-interior)">
+      <path d="M14 65 Q31 56 48 64 Q68 55 86 65V80H14Z" fill="#f2f1eb" stroke="none"/>
+      <path d="M47 59H53V69H47Z" fill="#b58153" stroke-width="2"/>
+      <path d="M50 27 62 44H57L68 60H32L43 44H38Z" fill="#6da879" stroke-width="2.5"/>
+      <g fill="#f2f1eb" stroke="none"><circle cx="37" cy="25" r="2"/><circle cx="64" cy="25" r="2.5"/><circle cx="28" cy="48" r="2.5"/><circle cx="70" cy="47" r="2"/><circle cx="56" cy="18" r="1.8"/></g>
+      <path d="M26 34 Q30 22 40 19" fill="none" stroke="#e5f3f3" stroke-width="3"/>
+    </g>
+    <circle cx="50" cy="42" r="33" fill="none"/>
+    <path d="M29 72H71L80 87Q50 96 20 87Z" fill="#b58153"/>
+    <rect x="25" y="69" width="50" height="9" rx="4" fill="#dca461" stroke-width="2.5"/>
+    <path d="M42 84H58" stroke="#f4cf77" stroke-width="3"/>
+  </g>
+</svg>
