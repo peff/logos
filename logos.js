@@ -818,11 +818,10 @@ class SupposeModel {
 	}
 }
 
-function Puzzle(board, hClues, vClues, messages, timer, symbols,
+function Puzzle(board, hClues, vClues, messages, timer,
 		options, optionsButton, help, helpButton, scores, scoresButton,
 		about, logoButton) {
-	var symbolSource = typeof symbols == "function" ? symbols : null;
-	symbols = symbolSource ? symbolSource() : symbols || defaultSymbols;
+	const symbols = defaultSymbols;
 	this.symbols = symbols;
 
 	this.messages = messages;
@@ -1113,10 +1112,8 @@ function Puzzle(board, hClues, vClues, messages, timer, symbols,
 			this.setSymbols(config.rows.map(row => symbolRows[row.set].symbols));
 		else if (this.tileSet != "automatic")
 			this.setSymbols(tileSets[this.tileSet].tiles);
-		else if (symbolSource)
-			this.setSymbols(symbolSource());
 		else
-			this.setSymbols(symbols);
+			this.setSymbols(symbolsForDate());
 	}
 
 	this.clear = function() {

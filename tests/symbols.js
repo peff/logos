@@ -51,7 +51,7 @@ Deno.test("invalid stored custom symbols fall back to Automatic without overwrit
 		for (const stored of ["{", "null", '{"version":1,"rows":[]}',
 			JSON.stringify({ ...customConfig(), version: 2 })]) {
 			localStorage.setItem("customSymbols", stored);
-			const puzzle = makePuzzle(6, false, () => Logos.defaultSymbols);
+			const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
 			assert(puzzle.tileSet == "automatic" && !Object.keys(puzzle.symbolSets).length);
 			assert(localStorage.getItem("customSymbols") == stored);
 			assert(localStorage.getItem("tileSet") == "custom");
@@ -62,7 +62,7 @@ Deno.test("invalid stored custom symbols fall back to Automatic without overwrit
 });
 
 Deno.test("custom rows and colors persist without changing the puzzle", function() {
-	const puzzle = makePuzzle(6, false, () => Logos.defaultSymbols);
+	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
 	try {
 		puzzle.newGame(42);
 		const before = JSON.stringify(puzzle.positionSnapshot());
@@ -78,7 +78,7 @@ Deno.test("custom rows and colors persist without changing the puzzle", function
 		assert(puzzle.symbols[3][0].label == "Ghost");
 		assert(document.body.style["--symbol-row-2-text"] == "#aabbcc");
 		assert(JSON.stringify(puzzle.positionSnapshot()) == before);
-		const loaded = makePuzzle(6, false, () => Logos.defaultSymbols);
+		const loaded = makePuzzle(6, false, Logos.defaultSymbols);
 		assert(loaded.tileSet == "custom:Custom" && loaded.symbols[2] === Logos.symbolRows.math.symbols);
 		puzzle.setTileSet("classic");
 		assert(puzzle.symbols === Logos.defaultSymbols);
@@ -95,7 +95,7 @@ Deno.test("custom rows and colors persist without changing the puzzle", function
 });
 
 Deno.test("opening and closing a copy without edits leaves the saved set alone", function() {
-	const puzzle = makePuzzle(6, false, () => Logos.defaultSymbols);
+	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
 	try {
 		puzzle.symbolSets.Custom = customConfig();
 		puzzle.setTileSet("custom");
@@ -113,7 +113,7 @@ Deno.test("opening and closing a copy without edits leaves the saved set alone",
 });
 
 Deno.test("custom symbols refresh active suppositions and survive daily returns", function() {
-	const puzzle = makePuzzle(6, false, () => Logos.defaultSymbols);
+	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
 	try {
 		puzzle.newGame(42);
 		const slot = puzzle.rows[2].slots.find(slot => !slot.single);
@@ -137,7 +137,7 @@ Deno.test("custom symbols refresh active suppositions and survive daily returns"
 });
 
 Deno.test("named sets can be copied, overwritten, deleted, and reloaded", function() {
-	const puzzle = makePuzzle(6, false, () => Logos.defaultSymbols);
+	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
 	const input = puzzle.symbolConfigDialog.querySelector("#symbol-name");
 	const open = () => { puzzle.options.hidden = false; puzzle.openSymbolConfig(); };
 	try {
@@ -164,7 +164,7 @@ Deno.test("named sets can be copied, overwritten, deleted, and reloaded", functi
 		puzzle.saveSymbolDraft();
 		puzzle.closeSymbolConfig();
 		assert(Object.keys(puzzle.symbolSets).length == 2 && puzzle.symbolSets.Custom.rows[0].set == "shapes");
-		const loaded = makePuzzle(6, false, () => Logos.defaultSymbols);
+		const loaded = makePuzzle(6, false, Logos.defaultSymbols);
 		assert(loaded.tileSet == "custom:Custom" && Object.keys(loaded.symbolSets).length == 2);
 		open();
 		input.value = "Custom 1";
@@ -189,7 +189,7 @@ Deno.test("preset definitions supply selection, descriptions, tiles, and editabl
 		description: "An extra preset for the test.",
 		tiles: Logos.defaultSymbols.map((row, i) => i == 0 ? Logos.symbolRows.math.symbols : row),
 	};
-	const puzzle = makePuzzle(6, false, () => Logos.defaultSymbols);
+	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
 	try {
 		const option = puzzle.options.querySelector("#tile-set").children.find(option => option.value == "example");
 		assert(option.textContent == "Example preset");
@@ -273,7 +273,7 @@ Deno.test("existing custom selections can still use a hidden seasonal row", func
 		localStorage.setItem("customSymbols", JSON.stringify({ version: 2,
 			sets: [{ name: "Harvest", config }] }));
 		localStorage.setItem("tileSet", "custom:Harvest");
-		const puzzle = makePuzzle(6, false, () => Logos.defaultSymbols);
+		const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
 		assert(puzzle.symbols[3] === Logos.symbolRows.thanksgiving.symbols);
 		puzzle.options.hidden = false;
 		puzzle.openSymbolConfig();
@@ -288,7 +288,7 @@ Deno.test("existing custom selections can still use a hidden seasonal row", func
 });
 
 Deno.test("hidden presets stay out of both pickers until promoted", function() {
-	const puzzle = makePuzzle(6, false, () => Logos.defaultSymbols);
+	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
 	const selectors = [puzzle.options.querySelector("#tile-set"),
 		puzzle.symbolConfigDialog.querySelector("#symbol-manager-set")];
 	try {

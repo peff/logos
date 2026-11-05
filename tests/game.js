@@ -57,7 +57,7 @@ Deno.test("tile presets persist and preserve the current puzzle", function() {
 });
 
 Deno.test("changing tiles updates suppositions and the suspended daily return", function() {
-	const puzzle = makePuzzle(6, false, () => Logos.defaultSymbols);
+	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
 	try {
 		puzzle.newGame(42);
 		const slot = puzzle.rows[3].slots.find(slot => !slot.single);
@@ -83,7 +83,7 @@ Deno.test("changing tiles updates suppositions and the suspended daily return", 
 });
 
 Deno.test("changing tiles preserves solution highlights and refreshes suppose receipts", function() {
-	const puzzle = makePuzzle(6, false, () => Logos.defaultSymbols);
+	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
 	try {
 		puzzle.newGame(42);
 		const slot = puzzle.rows[3].slots.find(slot => !slot.single);
@@ -1160,7 +1160,7 @@ Deno.test("sound volume is saved independently of the sound toggle", function() 
 Deno.test("samples and chimes share a live volume control", function() {
 	const saved = { ...localStorage.values };
 	const elem = () => new FakeElement();
-	const puzzle = new Puzzle(elem(), elem(), elem(), elem(), elem(), [symbols],
+	const puzzle = new Puzzle(elem(), elem(), elem(), elem(), elem(),
 		elem(), elem(), elem(), elem(), elem(), elem(), elem(), elem());
 	const outputs = [];
 	puzzle.audioContext = {

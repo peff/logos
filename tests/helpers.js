@@ -204,9 +204,21 @@ function makePuzzle(numRows, checkWin, puzzleSymbols) {
 		help.appendChild(page);
 	}
 	const puzzle = new Puzzle(elem(), elem(), elem(), elem(), elem(),
-		puzzleSymbols || Array(numRows).fill(symbols),
 		elem(), elem(), help, elem(),
 		elem(), elem(), elem(), elem());
+	/* Test boards use fewer rows or their own artwork. Keep that override
+	 * here rather than making it part of the game's constructor API.
+	 */
+	puzzle.rows.length = numRows;
+	const refreshSymbols = puzzle.refreshSymbols;
+	puzzle.refreshSymbols = function() {
+		if (this.tileSet == "automatic")
+			this.setSymbols(typeof puzzleSymbols == "function" ? puzzleSymbols() :
+				puzzleSymbols || Array(numRows).fill(symbols));
+		else
+			refreshSymbols.call(this);
+	};
+	puzzle.refreshSymbols();
 	/* The fake DOM reuses these inputs across games and tests. */
 	selectTileAction(puzzle, "place");
 	/* Hand-built boards need not be solvable or have a reproducible seed.
