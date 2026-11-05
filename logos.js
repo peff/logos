@@ -4572,7 +4572,6 @@ function Puzzle(board, hClues, vClues, messages, timer,
 		if (!config)
 			return;
 		this.symbolSets[this.symbolDraftName] = config;
-		this.symbolDraftSaved = true;
 		this.saveSymbolSets();
 		this.setTileSet("custom:" + this.symbolDraftName);
 		this.updateSymbolName();
@@ -4585,8 +4584,7 @@ function Puzzle(board, hClues, vClues, messages, timer,
 		const name = input.value.trim() || this.symbolDraftName;
 		input.value = name;
 		if (name != this.symbolDraftName) {
-			if (this.symbolDraftSaved && this.symbolDraftName != this.symbolDraftBaseName)
-				delete this.symbolSets[this.symbolDraftName];
+			delete this.symbolSets[this.symbolDraftName];
 			this.symbolDraftName = name;
 			this.saveSymbolDraft();
 		}
@@ -4622,8 +4620,6 @@ function Puzzle(board, hClues, vClues, messages, timer,
 		const config = this.tileSet.startsWith("custom:") ? this.symbolSets[this.tileSet.slice(7)] : null;
 		this.symbolDraft = config ? validateSymbolConfig(config) : defaultSymbolConfig(this.tileSet);
 		this.symbolDraftName = config ? this.tileSet.slice(7) : null;
-		this.symbolDraftBaseName = this.symbolDraftName;
-		this.symbolDraftSaved = false;
 		const input = this.symbolConfigDialog.querySelector("#symbol-name");
 		input.value = this.symbolDraftName || "";
 		this.symbolConfigDialog.querySelector(".symbol-name-row").style.visibility = config ? "visible" : "hidden";
@@ -4639,7 +4635,6 @@ function Puzzle(board, hClues, vClues, messages, timer,
 	this.duplicateSymbolSet = function() {
 		this.commitSymbolName();
 		this.symbolDraftName = this.unusedSymbolName();
-		this.symbolDraftBaseName = null;
 		const input = this.symbolConfigDialog.querySelector("#symbol-name");
 		input.value = this.symbolDraftName;
 		input.disabled = false;

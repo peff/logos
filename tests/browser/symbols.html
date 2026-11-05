@@ -208,6 +208,7 @@ var browserTestsDone = (async function() {
 		rename("   ");
 		assert(name.value == "Custom" && !remove.disabled, "empty name did not restore the existing name");
 		rename("Temporary name");
+		assert(!Object.hasOwn(app.puzzle.symbolSets, "Custom"), "renaming left the original set");
 		rename("Second set");
 		assert(!Object.hasOwn(app.puzzle.symbolSets, "Temporary name"), "renaming left an intermediate set");
 		save.click();
@@ -217,7 +218,11 @@ var browserTestsDone = (async function() {
 		rename("Custom");
 		assert(!remove.disabled, "existing name cannot be deleted");
 		save.click();
-		assert(Object.keys(app.puzzle.symbolSets).length == 2, "overwrite made a third set");
+		assert(Object.keys(app.puzzle.symbolSets).length == 1, "rename left an old set");
+		configure();
+		doc.querySelector(".symbol-config-duplicate").click();
+		rename("Second set");
+		save.click();
 		change(doc.querySelector("#tile-set"), "custom:Second set");
 		configure();
 		assert(name.value == "Second set" && !remove.disabled, "Delete requires renaming");

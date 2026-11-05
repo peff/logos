@@ -151,6 +151,7 @@ Deno.test("named sets can be copied, overwritten, deleted, and reloaded", functi
 		puzzle.closeSymbolConfig();
 		open();
 		assert(input.value == "Custom" && puzzle.symbolDraft.rows[0].set == "math");
+		puzzle.duplicateSymbolSet();
 		input.value = "Custom 1";
 		puzzle.symbolDraft.rows[0].set = "shapes";
 		puzzle.commitSymbolName();
@@ -163,10 +164,12 @@ Deno.test("named sets can be copied, overwritten, deleted, and reloaded", functi
 		puzzle.commitSymbolName();
 		puzzle.saveSymbolDraft();
 		puzzle.closeSymbolConfig();
-		assert(Object.keys(puzzle.symbolSets).length == 2 && puzzle.symbolSets.Custom.rows[0].set == "shapes");
+		assert(Object.keys(puzzle.symbolSets).length == 1 && puzzle.symbolSets.Custom.rows[0].set == "shapes");
 		const loaded = makePuzzle(6, false, Logos.defaultSymbols);
-		assert(loaded.tileSet == "custom:Custom" && Object.keys(loaded.symbolSets).length == 2);
+		assert(loaded.tileSet == "custom:Custom" && Object.keys(loaded.symbolSets).length == 1);
 		open();
+		puzzle.duplicateSymbolSet();
+		puzzle.selectSymbolSet("custom:Custom");
 		input.value = "Custom 1";
 		puzzle.deleteSymbolSet();
 		assert(puzzle.tileSet == "custom:Custom");
@@ -388,6 +391,27 @@ Deno.test("settings edits update seasonal artwork for a suspended game", functio
 		assert(puzzle.symbols[3][1] === Logos.symbolRows.greek.symbols[1]);
 	} finally {
 		puzzle.stopTimer();
+		clearSettings();
+	}
+});
+
+Deno.test("renaming an existing set removes its old name without other edits", function() {
+	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
+	try {
+		puzzle.symbolSets.Original = customConfig();
+		puzzle.setTileSet("custom:Original");
+		puzzle.options.hidden = false;
+		puzzle.openSymbolConfig();
+		const before = JSON.stringify(puzzle.symbolSets.Original);
+		puzzle.symbolConfigDialog.querySelector("#symbol-name").value = "Renamed";
+		puzzle.closeSymbolConfig();
+		assert(Object.keys(puzzle.symbolSets).join() == "Renamed");
+		assert(JSON.stringify(puzzle.symbolSets.Renamed) == before);
+		const loaded = makePuzzle(6, false, Logos.defaultSymbols);
+		assert(loaded.tileSet == "custom:Renamed");
+		assert(Object.keys(loaded.symbolSets).join() == "Renamed");
+		assert(JSON.stringify(loaded.symbolSets.Renamed) == before);
+	} finally {
 		clearSettings();
 	}
 });
