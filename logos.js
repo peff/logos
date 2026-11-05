@@ -17,11 +17,6 @@ function handleLinkClick(event, action) {
 	action();
 }
 
-/* Symbols are presentation only; puzzle state uses row and value indices. */
-function halloweenSymbol(name, label) {
-	return { label: label, src: "images/tiles/halloween/" + name + ".svg" };
-}
-
 /* Row identities belong to the artwork, not to puzzle row/value indices. */
 const symbolRows = {
 	numbers: { name: "Numbers", symbols: ["1", "2", "3", "4", "5", "6"] },
@@ -39,7 +34,9 @@ const symbolRows = {
 			["candy", "Candy corn"],
 			["skull", "Skull"],
 			["pumpkin", "Jack-o’-lantern"],
-		].map(([name, label]) => halloweenSymbol(name, label)),
+		].map(([name, label]) => ({
+			label: label, src: "images/tiles/halloween/" + name + ".svg",
+		})),
 	},
 	greek: { name: "Greek letters", symbols: ["α", "θ", "λ", "π", "ψ", "Ω"] },
 	lowercase: { name: "Lowercase letters", symbols: ["k", "n", "r", "s", "t", "z"] },
