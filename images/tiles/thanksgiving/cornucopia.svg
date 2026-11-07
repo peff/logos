@@ -2,6 +2,9 @@
   <title id="title">Cornucopia A: Left-facing harvest horn</title>
   <defs>
     <ellipse id="mouth-rim" cx="38" cy="54" rx="19" ry="26"/>
+    <clipPath id="inside-mouth">
+      <ellipse cx="38" cy="54" rx="14.5" ry="21.5" transform="rotate(-14 38 54)"/>
+    </clipPath>
   </defs>
   <g stroke="#272334" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
     <path d="M39 27C58 31 79 45 88 29Q92 22 91 14C103 41 86 72 60 79L39 82Z" fill="#dca15b" stroke="#a9713d"/>
@@ -10,15 +13,17 @@
       <use href="#mouth-rim" fill="#79503c" stroke-width="9"/>
       <use href="#mouth-rim" fill="none" stroke="#f4c778" stroke-width="6"/>
     </g>
-    <!-- Produce overlaps the rim consistently as it spills from the mouth. -->
+    <!-- Corn and pumpkin spill over the rim; the apple sits inside. -->
     <g transform="rotate(24 34 52)" stroke-width="2">
       <ellipse cx="34" cy="50" rx="7" ry="18" fill="#ffd374"/>
       <path d="M28 41H40 M27 48H41 M28 55H40 M34 34V65" fill="none" stroke="#c58b39" stroke-width="1.5"/>
       <path d="M34 69Q22 62 23 50Q33 55 34 69Z" fill="#7cad66"/>
     </g>
-    <path d="M45 53C34 46 32 58 37 68Q41 74 46 71Q51 75 57 67C63 55 54 47 45 53Z" fill="#e87555" stroke-width="2.5"/>
-    <path d="M45 53 47 46" fill="none" stroke-width="2.5"/>
-    <path d="M47 49Q49 40 57 44Q56 51 47 49Z" fill="#7cad66" stroke-width="2"/>
+    <g clip-path="url(#inside-mouth)">
+      <path d="M45 53C34 46 32 58 37 68Q41 74 46 71Q51 75 57 67C63 55 54 47 45 53Z" fill="#e87555" stroke-width="2.5"/>
+      <path d="M45 53 47 46" fill="none" stroke-width="2.5"/>
+      <path d="M47 49Q49 40 57 44Q56 51 47 49Z" fill="#7cad66" stroke-width="2"/>
+    </g>
     <!-- The pumpkin crosses the lip and spills forward to the left. -->
     <path d="M20 62L21 55 27 54 25 63Z" fill="#7cad66" stroke-width="2"/>
     <path d="M23 63C9 56 5 67 9 77C12 86 19 86 23 83C29 88 39 81 39 73C39 63 32 58 23 63Z" fill="#f59a45" stroke-width="2.5"/>
