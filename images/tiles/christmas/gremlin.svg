@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-labelledby="title">
+  <title id="title">Gremlin</title>
+  <g stroke="#272334" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M29 34 5 18 Q7 45 28 51 M71 34 95 18 Q93 45 72 51" fill="#6da879"/>
+    <path d="M12 27 29 40 26 45Z M88 27 71 40 74 45Z" fill="#c9b77e" stroke="none"/>
+    <path d="M38 60 Q30 71 34 84L29 91 44 91 50 80 56 91 71 91 66 84 Q70 71 62 60Z" fill="#6da879"/>
+    <path d="M44 65 56 65 59 78 50 84 41 78Z" fill="#c9b77e" stroke-width="2"/>
+    <path d="M34 65 24 75 17 70 M66 65 76 75 83 70" fill="none" stroke="#6da879" stroke-width="6"/>
+    <path d="M17 66V74 M13 69 21 72 M83 66V74 M79 72 87 69" fill="none" stroke="#c9b77e" stroke-width="2.5"/>
+    <path d="M27 32 35 25 44 28 50 22 56 28 65 25 73 32 76 47 69 60 50 69 31 60 24 47Z" fill="#6da879"/>
+    <path d="M43 28 45 16 50 21 56 11 57 29" fill="#f2e3c7" stroke-width="2.5"/>
+    <path d="M30 37 45 42 Q41 52 33 47Z M70 37 55 42 Q59 52 67 47Z" fill="#ffd374" stroke-width="2"/>
+    <path d="M38 42V46 M62 42V46" stroke-width="2.5"/>
+    <path d="M47 49 50 46 53 49 M34 54 Q50 60 66 54 Q50 72 34 54Z" fill="#272334" stroke-width="2"/>
+    <path d="M39 57 44 58 43 62Z M56 58 61 57 57 62Z" fill="#f2f1eb" stroke="none"/>
+  </g>
+</svg>

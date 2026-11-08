@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-labelledby="title">
+  <title id="title">String of Christmas lights</title>
+  <g stroke="#272334" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M8 20 Q50 51 92 20" fill="none" stroke="#6da879" stroke-width="4"/>
+    <g transform="rotate(24 22 29)">
+      <path d="M16 41 Q8 53 22 67 Q36 53 28 41Z" fill="#d95755"/>
+      <path d="M18 47 17 52" stroke="#f4b4a1" stroke-width="2"/>
+      <path d="M15 29H29V41H15Z" fill="#6da879"/>
+      <path d="M19 35H25" stroke="#426a53" stroke-width="2"/>
+    </g>
+    <g>
+      <path d="M44 48 Q36 61 50 77 Q64 61 56 48Z" fill="#ffd374"/>
+      <path d="M46 55 45 61" stroke="#fff0bc" stroke-width="2"/>
+      <path d="M43 36H57V48H43Z" fill="#6da879"/>
+      <path d="M47 42H53" stroke="#426a53" stroke-width="2"/>
+    </g>
+    <g transform="rotate(-24 78 29)">
+      <path d="M72 41 Q64 53 78 67 Q92 53 84 41Z" fill="#8eb9d8"/>
+      <path d="M74 47 73 52" stroke="#e5f3f3" stroke-width="2"/>
+      <path d="M71 29H85V41H71Z" fill="#6da879"/>
+      <path d="M75 35H81" stroke="#426a53" stroke-width="2"/>
+    </g>
+  </g>
+</svg>

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-labelledby="title">
+  <title id="title">Santa going down a chimney</title>
+  <g stroke="#272334" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M33 47 26 29 41 24 49 46 M53 46 59 24 74 29 68 47" fill="#d95755"/>
+    <path d="M25 27 20 16 Q9 18 10 11 Q12 5 25 7 L32 9 37 24Z M63 24 68 9 75 7 Q88 5 90 11 Q91 18 80 16 L75 27Z" fill="#675080"/>
+    <path d="M23 26 39 21 42 29 27 34Z M61 21 77 26 73 34 58 29Z" fill="#f2f1eb" stroke-width="2.5"/>
+    <rect x="23" y="49" width="54" height="42" rx="2" fill="#c97660"/>
+    <path d="M24 64H76 M24 78H76 M49 51V64 M37 64V78 M62 64V78 M49 78V90" fill="none" stroke="#edb58b" stroke-width="3"/>
+    <rect x="17" y="41" width="66" height="15" rx="3" fill="#ad5f50"/>
+    <path d="M18 41 Q22 36 31 40 Q41 35 49 40 Q58 35 68 40 Q79 36 83 41 L83 47 Q78 52 73 47 H61 Q58 59 52 50 L50 47H35 Q30 55 26 47H18Z" fill="#f2f1eb" stroke-width="2.5"/>
+  </g>
+</svg>

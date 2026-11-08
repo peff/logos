@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-labelledby="title">
+  <title id="title">Nutcracker</title>
+  <g stroke="#272334" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M32 37 26 50 30 59 24 66H38 M68 37 74 50 70 59 76 66H62" fill="#f2f1eb"/>
+    <path d="M29 66 19 73V90H81V73L71 66Z" fill="#d95755"/>
+    <path d="M25 69H37V77H22 M63 69H75L78 77H63" fill="#ffd374" stroke-width="2.5"/>
+    <path d="M39 79H61 M39 86H61" stroke="#ffd374" stroke-width="2.5"/>
+    <path d="M32 32H68V57 Q66 69 50 72 Q34 69 32 57Z" fill="#efba91"/>
+    <path d="M42 65H58L55 77H45Z" fill="#f2f1eb" stroke-width="2.5"/>
+    <path d="M41 53H59V65H41Z" fill="#f2f1eb" stroke-width="2"/>
+    <path d="M41 59H59 M47 54V64 M53 54V64" stroke-width="1.5"/>
+    <path d="M50 51 Q41 46 36 52 L33 49 Q32 60 48 56L50 54 52 56 Q68 60 67 49L64 52 Q59 46 50 51Z" fill="#272334" stroke="none"/>
+    <path d="M48 43 46 50H53" fill="#d99b80" stroke-width="2"/>
+    <g fill="#272334" stroke="none"><circle cx="40" cy="42" r="2.5"/><circle cx="60" cy="42" r="2.5"/></g>
+    <path d="M29 32 31 9H69L71 32Z" fill="#675080"/>
+    <path d="M29 28H71V35H29Z" fill="#ffd374" stroke-width="2.5"/>
+    <path d="M50 13 54 18 50 23 46 18Z" fill="#ffd374" stroke="none"/>
+  </g>
+</svg>

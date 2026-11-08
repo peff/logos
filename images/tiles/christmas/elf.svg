@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-labelledby="title">
+  <title id="title">Elf shoes</title>
+  <defs><clipPath id="stockings"><path d="M27 17H43V59H27Z M57 17H73V59H57Z"/></clipPath></defs>
+  <g stroke="#272334" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M27 17H43V59H27Z M57 17H73V59H57Z" fill="#f2f1eb"/>
+    <g clip-path="url(#stockings)" stroke="#d95755" stroke-width="7">
+      <path d="M24 26H46 M24 41H46 M54 26H76 M54 41H76"/>
+    </g>
+    <path d="M25 53H45V79 Q19 90 11 76 Q6 67 14 60 Q11 74 25 69Z M55 53H75V69 Q89 74 86 60 Q94 67 89 76 Q81 90 55 79Z" fill="#6da879"/>
+    <path d="M23 50 30 55 35 50 40 55 47 50 44 63H26Z M53 50 60 55 65 50 70 55 77 50 74 63H56Z" fill="#d95755" stroke-width="2.5"/>
+    <circle cx="14" cy="60" r="4" fill="#ffd374" stroke-width="2"/>
+    <circle cx="86" cy="60" r="4" fill="#ffd374" stroke-width="2"/>
+    <path d="M18 78 Q28 83 40 77 M60 77 Q72 83 82 78" fill="none" stroke="#426a53" stroke-width="2"/>
+  </g>
+</svg>

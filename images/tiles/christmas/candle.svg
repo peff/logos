@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-labelledby="title">
+  <title id="title">Christmas candle</title>
+  <g stroke="#272334" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M50 7 Q33 22 40 31 Q49 42 59 31 Q65 21 50 7Z" fill="#f5b552" stroke-width="2.5"/>
+    <path d="M50 20 Q43 27 47 32 Q52 36 55 30Z" fill="#fff0bc" stroke="none"/>
+    <rect x="36" y="37" width="28" height="42" rx="3" fill="#f2e3b8"/>
+    <path d="M37 42 Q40 47 43 43V52 Q47 58 50 52V44 Q57 49 63 42V38H37Z" fill="#fff4d7" stroke-width="2"/>
+    <ellipse cx="50" cy="37" rx="14" ry="4" fill="#fff4d7" stroke-width="2"/>
+    <path d="M50 36V31" fill="none" stroke-width="2"/>
+    <path d="M70 59 Q86 54 85 67 Q85 80 70 76" fill="none" stroke="#272334" stroke-width="8"/>
+    <path d="M70 59 Q86 54 85 67 Q85 80 70 76" fill="none" stroke="#ffd374" stroke-width="4"/>
+    <path d="M24 74H76 Q75 87 61 87H39 Q25 87 24 74Z" fill="#ffd374"/>
+    <path d="M29 85 Q16 88 13 75 L20 74 18 65 Q34 67 35 81 M35 83 Q41 69 53 73 L50 80 56 83 Q48 94 35 88" fill="#6da879" stroke-width="2.5"/>
+    <g fill="#d95755" stroke-width="2"><circle cx="29" cy="83" r="4.5"/><circle cx="37" cy="86" r="4.5"/></g>
+  </g>
+</svg>

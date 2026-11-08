@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-labelledby="title">
+  <title id="title">Sleigh</title>
+  <g stroke="#272334" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M30 65 34 79 M65 65 69 79" fill="none" stroke="#ffd374" stroke-width="4"/>
+    <path d="M16 80H77 Q91 80 90 68 Q89 61 83 64" fill="none" stroke="#272334" stroke-width="8"/>
+    <path d="M16 80H77 Q91 80 90 68 Q89 61 83 64" fill="none" stroke="#ffd374" stroke-width="4"/>
+    <path d="M30 52 Q25 36 36 30 L33 21 43 24 53 21 50 30 Q62 36 58 52Z" fill="#b58153"/>
+    <path d="M36 31H50" fill="none" stroke="#ffd374" stroke-width="3"/>
+    <path d="M13 32H28V48H67 Q78 48 79 35 L86 39 Q87 58 75 67H36 Q20 66 19 44Z" fill="#d95755" stroke="none"/>
+    <path d="M67 48 Q78 48 79 35 L86 39 Q87 58 75 67H36 Q20 66 19 44L13 32H28V48" fill="none"/>
+    <path d="M13 32H28 M28 48H67 Q78 48 79 35" fill="none" stroke="#ffd374" stroke-width="3"/>
+    <path d="M40 58H62" stroke="#ea7770" stroke-width="3"/>
+  </g>
+</svg>

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-labelledby="title">
+  <title id="title">Gingerbread person</title>
+  <g stroke-linecap="round" stroke-linejoin="round">
+    <path d="M39 37 C22 23 35 9 50 10 C65 9 78 23 61 37 L80 33 C91 31 95 44 83 49 L67 55 77 78 C84 93 68 99 60 86 L50 71 40 86 C32 99 16 93 23 78 L33 55 17 49 C5 44 9 31 20 33Z" fill="#c68b50" stroke="#80502c" stroke-width="3.5"/>
+    <g fill="#f2f1eb"><circle cx="43" cy="24" r="2.8"/><circle cx="57" cy="24" r="2.8"/></g>
+    <path d="M43 31 Q50 37 57 31 M19 38 17 44 M81 38 83 44 M28 81 35 85 M65 85 72 81" fill="none" stroke="#f2f1eb" stroke-width="3"/>
+    <path d="M49 44 39 40V50L49 46 61 50V40Z" fill="#d95755" stroke="#80502c" stroke-width="2"/>
+    <circle cx="50" cy="56" r="3.5" fill="#6da879" stroke="#80502c" stroke-width="1.5"/>
+    <circle cx="50" cy="66" r="3.5" fill="#d95755" stroke="#80502c" stroke-width="1.5"/>
+  </g>
+</svg>
