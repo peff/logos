@@ -73,7 +73,7 @@
 					let continuationOf;
 					if (original) {
 						if (original.outcome !== "lost" || run.outcome !== "won" ||
-							run.elapsed !== undefined || completed.has(run.daily)) continue;
+							completed.has(run.daily)) continue;
 						completed.add(run.daily);
 						continuationOf = known.get(original.id)?.id;
 						/* Only share a continuation if we have shared its loss. */
@@ -84,7 +84,11 @@
 					}
 					if (known.has(run.id)) continue;
 					const record = makeRecord(run, name);
-					if (continuationOf) record.continuationOf = continuationOf;
+					if (continuationOf) {
+						record.continuationOf = continuationOf;
+						/* Replays earn completion credit, never a replacement time. */
+						record.elapsed = null;
+					}
 					s.uploads.add({ group: id, runId: run.id, record, sent: false });
 					known.set(run.id, record);
 				}

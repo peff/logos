@@ -202,9 +202,9 @@
 			if (record.completed) {
 				const completion = document.createElement("span");
 				completion.className = "forum-completion";
-				completion.title = "Completed afterward in Zen mode";
+				completion.title = "Later solved";
 				completion.innerHTML = '<svg class="history-infinity" viewBox="0 0 40 20" ' +
-					'role="img" aria-label="Completed afterward in Zen mode" focusable="false">' +
+					'role="img" aria-label="Later solved" focusable="false">' +
 					'<use href="#infinity-shape"/></svg>';
 				row.children[1].append(completion);
 			}

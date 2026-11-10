@@ -56,7 +56,8 @@ Deno.test("daily attempts remember the first result and share a fixed date", asy
 			       restored.dailyResultOpen && restored.timerTimeout === null,
 			       "completed daily did not show its preview and saved result after reload");
 			puzzle.newGame("20261008", true);
-			assert(!puzzle.daily && !puzzle.runRecord("won").daily, "regular replay retained daily identity");
+			assert(!puzzle.daily && puzzle.runRecord("won").daily === "20261008",
+			       "regular replay did not recognize the daily seed");
 			await puzzle.openDaily("20261009");
 			puzzle.pendingSeed = undefined;
 			puzzle.scoreEligible = false;
@@ -109,6 +110,60 @@ Deno.test("daily attempts remember the first result and share a fixed date", asy
 		else globalThis.window = oldWindow;
 		if (clipboard) Object.defineProperty(navigator, "clipboard", clipboard);
 		else delete navigator.clipboard;
+	}
+});
+
+Deno.test("daily identity is determined at completion and restarted wins earn credit", async function() {
+	const puzzle = makePuzzle(6);
+	puzzle.say = function() {};
+	const RealDate = globalThis.Date;
+	let day = 9;
+	globalThis.Date = class extends RealDate {
+		constructor(...args) { super(...(args.length ? args : [2026, 10, day, 12])); }
+	};
+	try {
+		for (const [seed, daily] of [
+			["20260731", undefined], ["20260801", "20260801"],
+			["20261109", "20261109"], ["20261110", undefined],
+			["20260931", undefined], ["abcdef12", undefined],
+		]) {
+			puzzle.newGame(seed);
+			puzzle.stopTimer();
+			assert(puzzle.runRecord("won").daily === daily, "incorrect daily classification: " + seed);
+		}
+		puzzle.newGame("20261110");
+		puzzle.stopTimer();
+		day = 10;
+		assert(puzzle.runRecord("won").daily === "20261110", "daily date was checked before completion");
+		day = 9;
+		for (const date of ["20260731", "20261110"])
+			assert(!await puzzle.openDaily(date), "daily navigation accepted an unpublished date");
+		puzzle.newGame("20261008");
+		puzzle.stopTimer();
+		puzzle.extreme = true;
+		assert(!puzzle.runRecord("won").daily, "Extreme counted as a daily");
+		puzzle.extreme = false;
+		puzzle.actionController = {};
+		assert(!puzzle.runRecord("won").daily, "multiplayer counted as a daily");
+		puzzle.actionController = null;
+		await withRunHistory(async runs => {
+			let shared = 0;
+			puzzle.dailyScoreSaved = () => shared++;
+			puzzle.showDailyResult = () => {};
+			puzzle.timerElapsed = 700;
+			await puzzle.recordOutcome("lost");
+			puzzle.newGame("20261008");
+			puzzle.stopTimer();
+			puzzle.timerElapsed = 45000;
+			await puzzle.recordOutcome("won");
+			const result = await puzzle.getDailyResult("20261008");
+			assert(result.runId === runs[0].id && result.outcome === "lost" && result.elapsed === 700);
+			assert(result.completionRunId === runs[1].id && runs[1].elapsed === 45000 && shared === 2,
+			       "timed restart did not earn completion credit or lost its Chronicle time");
+		});
+	} finally {
+		puzzle.stopTimer();
+		globalThis.Date = RealDate;
 	}
 });
 

@@ -23,7 +23,7 @@ var browserTestsDone = (async function() {
 	};
 	const runs = [
 		{ id: 1, date: 1, daily: localDate(), outcome: "lost", elapsed: 123000 },
-		{ id: 2, date: 2, daily: localDate(), outcome: "won", elapsed: 130000 },
+		{ id: 2, date: 2, daily: localDate(), outcome: "lost", elapsed: 130000 },
 		{ id: 3, date: 1, daily: "20200101", outcome: "won", elapsed: 1000 },
 	];
 	const client = new ScoreboardClient(store, "https://example.test/api/scoreboards", async () => ({ runs }), fetcher);
@@ -97,14 +97,15 @@ var browserTestsDone = (async function() {
 		await continuedClient.reconcile("20200102");
 		await continuedClient.sync();
 		await store.setName("Renamed");
-		continuedRuns.push({ id: 11, date: 2, daily: "20200102", outcome: "won" });
+		continuedRuns.push({ id: 11, date: 2, daily: "20200102", outcome: "won", elapsed: 45000 });
 		continuedRuns.push({ id: 12, date: 3, daily: "20200102", outcome: "won" });
 		offline = true;
 		await continuedClient.sync().catch(() => {});
 		for (const id of continuationGroups) {
 			const uploads = await store.uploads(id);
 			assert(uploads.length === 2 && uploads[0].sent && !uploads[1].sent &&
-			       uploads[1].record.continuationOf === uploads[0].record.id,
+			       uploads[1].record.continuationOf === uploads[0].record.id &&
+			       uploads[1].record.elapsed === null && continuedRuns[1].elapsed === 45000,
 			       "continuation did not reference the already shared loss"); checks++;
 			const grouped = groupScores(uploads.map(item => ({ ...item.record, pending: !item.sent })));
 			assert(grouped.length === 1 && grouped[0].completed && grouped[0].pending &&

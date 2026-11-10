@@ -350,7 +350,8 @@ function dailyDate(date = new Date()) {
 }
 
 function validDailyDate(date) {
-	if (typeof date != "string" || !/^[0-9]{8}$/.test(date))
+	if (typeof date != "string" || !/^[0-9]{8}$/.test(date) ||
+	    date < "20260801" || date > dailyDate())
 		return false;
 	var parsed = new Date(Number(date.slice(0, 4)),
 		Number(date.slice(4, 6)) - 1, Number(date.slice(6)));
@@ -378,7 +379,7 @@ function renderDailyTitle(heading, date, selectDate, direction = 0) {
 	var input = document.createElement("input");
 	input.type = "date";
 	input.value = dailyDateLabel(date);
-	input.min = "0100-01-01";
+	input.min = "2026-08-01";
 	input.max = dailyDateLabel(dailyDate());
 	input.setAttribute("aria-label", "Choose a daily puzzle date");
 	input.title = "Choose another day's puzzle";
@@ -402,7 +403,7 @@ function renderDailyTitle(heading, date, selectDate, direction = 0) {
 		arrow.className = "daily-date-arrow " + (step < 0 ? "daily-previous" : "daily-next");
 		arrow.setAttribute("aria-label", step < 0 ? "Previous day's puzzle" : "Next day's puzzle");
 		arrow.title = step < 0 ? "Previous day" : "Next day";
-		arrow.disabled = !validDailyDate(adjacent) || step > 0 && adjacent > dailyDate();
+		arrow.disabled = !validDailyDate(adjacent);
 		arrow.innerHTML = '<svg viewBox="0 0 12 20" aria-hidden="true" focusable="false">' +
 			'<path d="M9 3L3 10l6 7"/></svg>';
 		arrow.onclick = ((value, movement) => () => selectDate(value, movement))(adjacent, step);
@@ -1548,15 +1549,15 @@ function Puzzle(board, hClues, vClues, messages, timer,
 		var history = await accessRunHistory(null, true);
 		if (!history)
 			return null;
-		/* The store cursor returns records in insertion order. A later Zen
-		 * completion must not replace the original timed loss.
+		/* The store cursor returns records in insertion order. A later
+		 * completion must not replace the original loss.
 		 */
 		var run = history.runs.find(run => run.daily === date && !run.multiplayer);
 		if (!run)
 			return undefined;
 		var completion = run.outcome === "lost" ? history.runs.slice(history.runs.indexOf(run) + 1)
 			.find(later => later.daily === date && !later.multiplayer &&
-				later.outcome === "won" && later.elapsed === undefined) : undefined;
+				later.outcome === "won") : undefined;
 		var level = run.difficulty?.level || "all";
 		if (level != "all")
 			history = await accessRunHistory(null, false, level);
@@ -3631,8 +3632,11 @@ function Puzzle(board, hClues, vClues, messages, timer,
 		};
 		if (this.scoreEligible)
 			run.elapsed = this.timerElapsed;
-		if (this.daily)
-			run.daily = this.daily;
+		/* Daily identity belongs to the completed puzzle, regardless of how
+		 * it was opened. Save it now so history never reclassifies old runs. */
+		var date = formatSeed(this.seed);
+		if (!this.extreme && !this.actionController && validDailyDate(date))
+			run.daily = date;
 		if (this.extreme) {
 			run.extreme = true;
 			run.extremeDifficulty = storedExtremeDifficulty(this.extremeDifficulty());
