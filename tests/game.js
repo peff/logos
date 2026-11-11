@@ -138,7 +138,7 @@ Deno.test("seasonal symbols reveal left to right on October 26–31 in local tim
 });
 
 Deno.test("Thanksgiving reveals six tiles through the fourth Thursday in November", function() {
-	const expected = ["Turkey", "Cornucopia", "Pilgrim hat", "Maple leaf", "Cranberry sauce", "Pumpkin pie"];
+	const expected = ["Turkey", "Cornucopia", "Pilgrim hat", "Cranberry sauce", "Maple leaf", "Pumpkin pie"];
 	/* Cover every possible holiday date, including leap years and five Thursdays. */
 	for (const [year, holiday] of [[2023, 23], [2024, 28], [2025, 27], [2026, 26],
 		[2027, 25], [2028, 23], [2029, 22], [2033, 24]]) {

@@ -45,8 +45,8 @@ const symbolRows = {
 			["turkey", "Turkey"],
 			["cornucopia", "Cornucopia"],
 			["hat", "Pilgrim hat"],
-			["leaf", "Maple leaf"],
 			["cranberry", "Cranberry sauce"],
+			["leaf", "Maple leaf"],
 			["pie", "Pumpkin pie"],
 		].map(([name, label]) => ({
 			label: label, src: "images/tiles/thanksgiving/" + name + ".svg",
