@@ -291,6 +291,7 @@ var winMessages = [
 	"All false paths are closed. The one true order remains.",
 ];
 
+// Each stage has the same number of messages; matching indices form a sequence.
 var milestoneMessages = [
 	[
 		"The first signs align. A hidden order begins to emerge.",
@@ -969,6 +970,7 @@ function Puzzle(board, hClues, vClues, messages, timer,
 	this.resumeAfterPageHidden = false;
 	this.pausedBeforePageHidden = false;
 	this.nextMilestone = 0;
+	this.milestoneMessageIndex = null;
 	this.pantheonViewport = this.scores.querySelector(".pantheon-tablets");
 	this.pantheonScroll = new NativeScroll(this.pantheonViewport);
 	this.pantheonModeTablets = [{}, {}];
@@ -1185,6 +1187,7 @@ function Puzzle(board, hClues, vClues, messages, timer,
 		this.proofControls.hidden = true;
 		document.body.classList.remove("proof-active");
 		this.nextMilestone = 0;
+		this.milestoneMessageIndex = null;
 		this.closeSlotTray();
 		this.clearPencilMarks();
 		this.hClues.classList.remove("solution");
@@ -1239,6 +1242,7 @@ function Puzzle(board, hClues, vClues, messages, timer,
 				manualPaused: this.manualPaused,
 				timerElapsed: this.timerElapsed,
 				nextMilestone: this.nextMilestone,
+				milestoneMessageIndex: this.milestoneMessageIndex,
 				pencilMarks: this.pencilMarks.map(mark => ({ ...mark })),
 			},
 			rows: this.rows.map(row => row.slots.map(slot => ({
@@ -1495,6 +1499,7 @@ function Puzzle(board, hClues, vClues, messages, timer,
 		this.paused = false;
 		this.resumeAfterModal = false;
 		this.nextMilestone = 0;
+		this.milestoneMessageIndex = randInt(0, milestoneMessages[0].length);
 		this.closeSlotTray();
 		this.clearPencilMarks();
 		this.stopTimer();
@@ -2014,8 +2019,8 @@ function Puzzle(board, hClues, vClues, messages, timer,
 		while (this.nextMilestone < milestoneThresholds.length &&
 		       complete >= milestoneThresholds[this.nextMilestone]) {
 			if (this.showMilestones)
-				this.say(randomChoice(
-					milestoneMessages[this.nextMilestone]));
+				this.say(milestoneMessages[this.nextMilestone]
+					[this.milestoneMessageIndex]);
 			this.nextMilestone++;
 		}
 	}
