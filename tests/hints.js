@@ -41,7 +41,7 @@ Deno.test("hints place a three-adjacent middle before discarding its edges", () 
 	for (const clue of puzzle.clues)
 		if (clue.applyInitialState) clue.constrain(domains, 63);
 	Logos.drainForcedProofSteps(domains, placements);
-	// Place D and ◇. The latter forces ‒ inward from column five.
+	// Place D and ◇. The latter forces − inward from column five.
 	for (let i = 0; i < 2; i++) {
 		const step = Logos.nextHintStep(puzzle, domains, placements);
 		assert(step && step.placement, "expected an opening placement");
@@ -54,7 +54,7 @@ Deno.test("hints place a three-adjacent middle before discarding its edges", () 
 	       step.deduction == "adjacent3.placement.inward-from-edge",
 	       "hint discarded candidates despite an available middle placement");
 	assert(Logos.proofMessageText(puzzle, step.message) ==
-	       "‒ must be in the fourth column because the sequence containing ◇ can only extend toward the center.");
+	       "− must be in the fourth column because the sequence containing ◇ can only extend toward the center.");
 	assert(JSON.stringify({ domains, placements }) == before,
 	       "hint mutated the input position");
 });

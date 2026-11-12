@@ -159,7 +159,7 @@ var browserTestsDone = (async function() {
 		apply();
 		assert(app.puzzle.tileSet == "custom:Custom" && doc.querySelector("#tile-set").value == "custom:Custom",
 			"Apply did not select Custom");
-		assert(app.puzzle.symbols[1].join("") == "+‒÷x=√", "Math row was not applied");
+		assert(app.puzzle.symbols[1].join("") == "+−÷x=√", "Math row was not applied");
 		assert(JSON.stringify(app.puzzle.positionSnapshot()) == before, "Apply changed puzzle state");
 		assert(app.puzzle.paused && app.puzzle.timerTimeout === null, "Apply resumed the game behind Options");
 		const tile = app.puzzle.rows[1].slots[0].possibilityElems[0];
@@ -192,7 +192,7 @@ var browserTestsDone = (async function() {
 		cancel();
 		assert(Object.keys(app.puzzle.symbolSets).length == 1, "opening a preset saved a new set");
 		change(doc.querySelector("#tile-set"), "custom:Custom");
-		assert(app.puzzle.symbols[1].join("") == "+‒÷x=√", "preset switching lost the saved custom set");
+		assert(app.puzzle.symbols[1].join("") == "+−÷x=√", "preset switching lost the saved custom set");
 		configure();
 		const name = doc.querySelector("#symbol-name");
 		const remove = doc.querySelector(".symbol-config-delete");
@@ -238,7 +238,7 @@ var browserTestsDone = (async function() {
 		assert(!app.puzzle.paused && app.puzzle.timerTimeout !== null, "closing Options did not resume the game");
 		app.puzzle.stopTimer();
 		await load();
-		assert(app.puzzle.tileSet == "custom:Custom" && app.puzzle.symbols[1].join("") == "+‒÷x=√",
+		assert(app.puzzle.tileSet == "custom:Custom" && app.puzzle.symbols[1].join("") == "+−÷x=√",
 			"reload lost the custom symbols");
 		assertColor(app.puzzle.rows[1].slots[0].singleElem, "rgb(171, 205, 239)", "rgb(136, 182, 228)");
 		output.textContent = "PASS: named custom symbols, autosave, rename, delete, close, persistence, focus, timer, and responsive layout";

@@ -960,7 +960,7 @@ Deno.test("a three-adjacent placement preserves distinct elimination reasons", f
 		       "adjacent3.outer.middle-not-adjacent" &&
 	       finalSteps[1].removed == 32 &&
 	       Logos.proofMessageText(puzzle, finalSteps[1].message) ==
-		       "+ cannot be in the sixth column because ‒ must be " +
+		       "+ cannot be in the sixth column because − must be " +
 		       "adjacent." &&
 	       finalSteps[2].deduction == "row.only-position" &&
 	       Logos.proofMessageText(puzzle, finalSteps[2].message) ==

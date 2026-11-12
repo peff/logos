@@ -17,7 +17,7 @@ ASCENT = 800
 DESCENT = -200
 NUMBER_SYMBOLS = "123456"
 CAPITAL_SYMBOLS = "ABCDEF"
-MATH_SYMBOLS = "+‒÷x="
+MATH_SYMBOLS = "+−÷x="
 GREEK_SYMBOLS = "αθλπψΩ"
 LOWERCASE_SYMBOLS = "knrstz"
 ARROW_SYMBOLS = "↖↑↗↙↓↘"
@@ -70,14 +70,14 @@ def draw_with_extended_right_edge(glyph, pen, old_xmax, new_xmax):
 
 
 def text_glyph(font, text, max_width=760, max_height=680, tracking=0,
-		embolden=0, extend_root=None, scale=None, baseline=None):
+		embolden=0, extend_root=None, scale=None, baseline=None, height_scale=1):
 	glyphs = font.getGlyphSet()
 	run = glyph_run(font, text, tracking)
 	xmin, ymin, xmax, ymax = run_bounds(glyphs, run)
 	if scale is None:
 		scale = min(max_width / (xmax - xmin), max_height / (ymax - ymin))
 	dx = 500 - scale * (xmin + xmax) / 2
-	dy = (500 + scale * (ymin + ymax) / 2
+	dy = (500 + scale * height_scale * (ymin + ymax) / 2
 	      if baseline is None else ASCENT - baseline)
 
 	pen = TTGlyphPen(None)
@@ -93,7 +93,7 @@ def text_glyph(font, text, max_width=760, max_height=680, tracking=0,
 		]
 	for ox, oy in offsets:
 		for name, x in run:
-			transform = (scale, 0, 0, scale,
+			transform = (scale, 0, 0, scale * height_scale,
 			             dx + scale * x + ox, ASCENT - dy + oy)
 			transformed = TransformPen(quadratic, transform)
 			if extend_root is not None:
@@ -457,7 +457,11 @@ def main():
 
 		for text in family:
 			name = f"text_{ord(text):04x}"
-			glyphs[name] = text_glyph(source, text, scale=scale, baseline=baseline)
+			# Give the minus a little more weight: 110 units, between the
+			# shared-scale figure dash (94) and its old fitted size (124).
+			height_scale = 7 / 6 if text == "−" else 1
+			glyphs[name] = text_glyph(source, text, scale=scale, baseline=baseline,
+			                          height_scale=height_scale)
 			glyph_order.append(name)
 			cmap[ord(text)] = name
 

@@ -24,7 +24,7 @@ const symbolRows = {
 	roman: { name: "Roman numerals", symbols: ["I", "II", "III", "IV", "V", "VI"] },
 	dice: { name: "Dice", symbols: ["⚀", "⚁", "⚂", "⚃", "⚄", "⚅"] },
 	shapes: { name: "Shapes", symbols: ["△", "▽", "□", "◇", "⬠", "○"] },
-	math: { name: "Mathematics", symbols: ["+", "‒", "÷", "x", "=", "√"] },
+	math: { name: "Mathematics", symbols: ["+", "−", "÷", "x", "=", "√"] },
 	halloween: {
 		name: "Halloween",
 		symbols: [

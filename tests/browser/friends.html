@@ -188,7 +188,7 @@ var browserTestsDone = (async function() {
 		customColor.value = "#abcdef";
 		customColor.dispatchEvent(new host.Event("input", { bubbles: true }));
 		host.document.querySelector("#symbol-config .modal-close").click();
-		assert(host.puzzle.symbols[0].join("") == "+‒÷x=√" && alice.puzzle.symbols === guestSymbols,
+		assert(host.puzzle.symbols[0].join("") == "+−÷x=√" && alice.puzzle.symbols === guestSymbols,
 			"custom configuration changed another player's symbols");
 		assert(host.getComputedStyle(host.puzzle.rows[0].slots[0].possibilityElems[0]).color == "rgb(171, 205, 239)" &&
 			alice.getComputedStyle(alice.puzzle.rows[0].slots[0].possibilityElems[0]).color == guestColor,
