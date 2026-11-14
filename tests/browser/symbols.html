@@ -104,14 +104,14 @@ var browserTestsDone = (async function() {
 		seasonalCheckbox.dispatchEvent(new app.Event("change", { bubbles: true }));
 		const customPreview = doc.querySelectorAll(".symbol-row-preview")[3];
 		assert(customPreview.querySelectorAll("img").length == 5 &&
-			customPreview.lastElementChild.textContent == "Ω" && rowSelect(3).value == "greek",
+			customPreview.lastElementChild.textContent == "ψ" && rowSelect(3).value == "greek",
 			"seasonal artwork replaced the custom fallback or its row selection");
 		assert(color(3).value == "#bc9876", "seasonal artwork changed the row color");
 		assert(JSON.parse(localStorage.getItem("customSymbols")).sets[0].config.seasonal === true,
 			"seasonal flag was not saved");
 		seasonalCheckbox.checked = false;
 		seasonalCheckbox.dispatchEvent(new app.Event("change", { bubbles: true }));
-		assert(customPreview.isConnected === false && app.puzzle.symbols[3].join("") == "αθλπψΩ",
+		assert(customPreview.isConnected === false && app.puzzle.symbols[3].join("") == "αδθλπψ",
 			"turning seasonal artwork off did not restore Greek");
 		assert(app.getComputedStyle(doc.querySelector(".symbol-preset-description")).visibility == "hidden", "custom name overlaps preset description");
 		await layout();

@@ -80,7 +80,7 @@ const symbolRows = {
 			label: label, src: "images/tiles/christmas/" + name + ".svg",
 		})),
 	},
-	greek: { name: "Greek letters", symbols: ["α", "θ", "λ", "π", "ψ", "Ω"] },
+	greek: { name: "Greek letters", symbols: ["α", "δ", "θ", "λ", "π", "ψ"] },
 	lowercase: { name: "Lowercase letters", symbols: ["k", "n", "r", "s", "t", "z"] },
 	arrows: { name: "Arrows", symbols: ["↖", "↑", "↗", "↙", "↓", "↘"] },
 	chess: { name: "Chess pieces", symbols: ["♟", "♞", "♝", "♜", "♛", "♚"] },
