@@ -1771,6 +1771,7 @@ body:is(.proof-active, .suppose-active, .suppose-result, :has(#proof-controls.hi
 }
 
 #options-menu label small,
+#options-menu .seed-heading small,
 .symbol-seasonal-row small,
 #options-menu .random-difficulties-heading small {
 	max-width: 18rem;
@@ -1834,7 +1835,7 @@ body:is(.proof-active, .suppose-active, .suppose-result, :has(#proof-controls.hi
 #options-menu .seed-controls {
 	display: flex;
 	align-items: center;
-	gap: 0.4rem;
+	gap: 0.3rem;
 }
 
 #options-menu .difficulty-options {
@@ -1864,6 +1865,17 @@ body:is(.proof-active, .suppose-active, .suppose-result, :has(#proof-controls.hi
 	align-items: center;
 }
 
+#options-menu .seed-heading {
+	display: flex;
+	align-items: baseline;
+	gap: 0.3rem;
+}
+
+#options-menu .seed-heading label {
+	flex-shrink: 0;
+	margin: 0;
+}
+
 .seed-controls .option-action {
 	box-sizing: border-box;
 	flex-shrink: 0;
@@ -1871,7 +1883,7 @@ body:is(.proof-active, .suppose-active, .suppose-result, :has(#proof-controls.hi
 }
 
 #start-game-button {
-	width: 5.8em;
+	width: 5em;
 }
 
 .random-difficulties[aria-disabled="true"] {
@@ -1879,7 +1891,26 @@ body:is(.proof-active, .suppose-active, .suppose-result, :has(#proof-controls.hi
 }
 
 #copy-seed-link {
-	width: 5.8em;
+	flex-shrink: 0;
+	width: 4.4em;
+	border: 0;
+	padding: 0;
+	background: transparent;
+	color: #4b4033;
+	font: max(12px, 0.65rem) Forum, Georgia, "Times New Roman", serif;
+	text-decoration: underline;
+	text-underline-offset: 0.12em;
+	cursor: var(--action-cursor);
+}
+
+#copy-seed-link:disabled {
+	opacity: 0.5;
+	cursor: var(--default-cursor);
+}
+
+#copy-seed-link:focus-visible {
+	outline: 2px solid #80633a;
+	outline-offset: 2px;
 }
 
 #seed-difficulty {

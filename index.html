@@ -488,17 +488,22 @@
 								</div>
 							</div>
 						</div>
-						<label for="game-seed">Puzzle seed
-						       <small id="seed-help">Replay or share a particular puzzle.</small></label>
+						<div class="seed-heading">
+							<label for="game-seed">Puzzle seed</label>
+							<small id="seed-help">Replay or share a particular puzzle.</small>
+							<input id="copy-seed-link" type="button" disabled
+							       onClick="puzzle.copySeedLink()" value="Copy link">
+						</div>
 						<div class="seed-controls">
 							<input id="game-seed" type="text" maxlength="8"
 							       autocapitalize="none" autocomplete="off" spellcheck="false"
 							       aria-describedby="seed-help"
 							       onKeyDown="if (event.key == 'Enter') puzzle.playSeed()">
 							<input id="start-game-button" class="option-action" type="button"
-							       onClick="puzzle.playSeed()" value="Random">
-							<input id="copy-seed-link" class="option-action" type="button" disabled
-							       onClick="puzzle.copySeedLink()" value="Copy link">
+							       onClick="puzzle.playSeed()" value="Start" disabled>
+							<input id="random-game-button" class="option-action" type="button"
+							       onClick="puzzle.playSeed(true)" value="Random"
+							       title="Start a new random puzzle">
 						</div>
 						<button id="seed-difficulty" type="button" aria-live="polite" disabled
 						        onClick="puzzle.openAnalysis()"></button>

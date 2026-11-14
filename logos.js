@@ -1754,8 +1754,9 @@ function Puzzle(board, hClues, vClues, messages, timer,
 	this.updateSeedControls = function() {
 		var value = this.options.querySelector("#game-seed").value.trim();
 		var seed = parseSeed(value);
-		this.options.querySelector("#start-game-button").value =
-			!value ? "Random" :
+		var start = this.options.querySelector("#start-game-button");
+		start.disabled = !value;
+		start.value =
 			seed === this.seed && !!this.extreme === this.extremeMode &&
 			this.pendingSeed === undefined ? "Restart" : "Start";
 		var copy = this.options.querySelector("#copy-seed-link");
@@ -1945,10 +1946,12 @@ function Puzzle(board, hClues, vClues, messages, timer,
 		}
 	}
 
-	this.playSeed = function() {
+	this.playSeed = function(random = false) {
 		this.updateSeedDifficulty();
 		var input = this.options.querySelector("#game-seed");
-		var value = input.value.trim();
+		var value = random ? "" : input.value.trim();
+		if (!random && !value)
+			return;
 		var seed = value ? parseSeed(value) : undefined;
 		if (value && seed === null) {
 			input.setCustomValidity("Enter up to eight hexadecimal digits.");

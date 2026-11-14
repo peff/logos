@@ -38,8 +38,8 @@ Deno.test("Extreme mode generates random puzzles independently of ordinary diffi
 	puzzle.toggleOptions();
 	puzzle.setExtremeMode(true);
 	puzzle.setRandomDifficulties([]);
-	puzzle.options.querySelector("#game-seed").value = "";
-	puzzle.playSeed();
+	puzzle.options.querySelector("#game-seed").value = "2";
+	puzzle.playSeed(true);
 	puzzle.setExtremeMode(false);
 	puzzle.setRandomDifficulties(["easy", "medium", "hard"]);
 	assert(puzzle.extreme && puzzle.options.hidden);

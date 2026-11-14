@@ -426,16 +426,16 @@ Deno.test("hexadecimal puzzle seeds are accepted and normalized", function() {
 	puzzle.stopTimer();
 });
 
-Deno.test("a blank seed starts a random game from Options", function() {
+Deno.test("the random action ignores the seed field in Options", function() {
 	const puzzle = makePuzzle(6);
 	puzzle.say = function() {};
 	const input = puzzle.options.querySelector("#game-seed");
-	input.value = "   ";
-	puzzle.playSeed();
+	input.value = "invalid";
+	puzzle.playSeed(true);
 	assert(!puzzle.gameOver && typeof puzzle.seed == "number" &&
 	       input.value == puzzle.seed.toString(16).padStart(8, "0") &&
 	       input.validationMessage == "",
-	       "a blank seed did not start a random game");
+	       "the random action did not start a random game");
 	puzzle.stopTimer();
 });
 
@@ -456,7 +456,7 @@ Deno.test("opening options resets the seed and its action label", function() {
 	puzzle.stopTimer();
 });
 
-Deno.test("the seed action describes random, chosen, and restarted puzzles", function() {
+Deno.test("the seed action describes chosen and restarted puzzles", function() {
 	const puzzle = makePuzzle(6);
 	puzzle.say = function() {};
 	const input = puzzle.options.querySelector("#game-seed");
@@ -464,19 +464,20 @@ Deno.test("the seed action describes random, chosen, and restarted puzzles", fun
 	function edit(value, expected) {
 		input.value = value;
 		input.listeners.input();
+		assert(start.disabled === !value.trim(), "blank seed action was not disabled");
 		assert(start.value == expected,
 		       "unexpected seed action for " + JSON.stringify(value));
 		assert(puzzle.options.querySelector("#copy-seed-link").disabled ==
-		       (expected == "Random" || value == "invalid"),
+		       (!value.trim() || value == "invalid"),
 		       "copy link was not enabled only for a valid seed");
 	}
-	edit("", "Random");
+	edit("", "Start");
 	edit("0", "Start");
 	puzzle.newGame(0x2a);
 	puzzle.stopTimer();
 	assert(start.value == "Restart", "a new game did not update the action");
-	edit("", "Random");
-	edit("   ", "Random");
+	edit("", "Start");
+	edit("   ", "Start");
 	edit("2b", "Start");
 	edit("invalid", "Start");
 	edit(" 2A ", "Restart");

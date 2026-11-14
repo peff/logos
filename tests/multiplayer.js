@@ -1000,10 +1000,10 @@ Deno.test("seed controls start and restart shared games through the host", funct
 			return 0x12345678;
 		};
 		host.puzzle.randomPuzzleSeed = () => { throw Error("host chose a guest seed"); };
-		input.value = "";
-		guest.puzzle.playSeed();
+		input.value = "not-a-seed";
+		guest.puzzle.playSeed(true);
 		assert(host.session.seed === 0x12345678 && guest.session.seed === 0x12345678,
-		       "empty seed did not request a requester-selected random game");
+		       "random action did not request a requester-selected random game");
 	} finally {
 		stopAll(host, guest);
 	}
