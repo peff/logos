@@ -249,7 +249,8 @@ Deno.test("Automatic previews current reveals and customization preserves season
 Deno.test("hidden seasonal rows do not leak through Automatic customization", function() {
 	for (const [month, day, revealed] of [
 		[10, 20, 0], [10, 21, 1], [10, 26, 6], [10, 27, 0],
-		[11, 13, 0], [11, 14, 1], [11, 19, 6], [11, 20, 1], [11, 25, 6], [11, 26, 0],
+		[10, 30, 0], [11, 1, 1], [11, 6, 6], [11, 7, 1], [11, 12, 6],
+		[11, 13, 1], [11, 18, 6], [11, 19, 1], [11, 24, 6], [11, 25, 6], [11, 26, 0],
 	]) {
 		const puzzle = makePuzzle(6, false, () => Logos.seasonalMaskForDate(new Date(2026, month, day)));
 		try {
@@ -264,7 +265,7 @@ Deno.test("hidden seasonal rows do not leak through Automatic customization", fu
 			puzzle.duplicateSymbolSet();
 			const list = puzzle.symbolConfigDialog.querySelector(".symbol-config-rows");
 			for (const select of list.querySelectorAll(".symbol-row-select"))
-				assert(!select.children.some(option => ["thanksgiving", "winter", "christmas"].includes(option.value)),
+				assert(!select.children.some(option => Logos.symbolRows[option.value]?.hidden),
 					"hidden artwork is selectable");
 		} finally {
 			clearSettings();

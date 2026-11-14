@@ -56,12 +56,12 @@ const symbolRows = {
 		name: "Winter",
 		hidden: true,
 		symbols: [
-			["wreath", "Wreath"],
-			["snowglobe", "Snow globe"],
-			["candy-cane", "Candy cane"],
 			["snowman", "Snowman"],
 			["holly", "Holly"],
-			["cookie", "Sugar cookie"],
+			["snowflake", "Snowflake"],
+			["wreath", "Wreath"],
+			["snowglobe", "Snow globe"],
+			["nutcracker", "Nutcracker"],
 		].map(([name, label]) => ({
 			label: label, src: "images/tiles/christmas/" + name + ".svg",
 		})),
@@ -71,11 +71,39 @@ const symbolRows = {
 		hidden: true,
 		symbols: [
 			["tree", "Christmas tree"],
+			["lights", "Christmas lights"],
 			["ornament", "Ornament"],
+			["candle", "Candle"],
+			["bell", "Bell"],
 			["angel", "Angel"],
+		].map(([name, label]) => ({
+			label: label, src: "images/tiles/christmas/" + name + ".svg",
+		})),
+	},
+	christmasTreats: {
+		name: "Christmas treats",
+		hidden: true,
+		symbols: [
+			["cookie", "Sugar cookie"],
+			["gingerbread", "Gingerbread person"],
+			["milk", "Milk"],
+			["candy-cane", "Candy cane"],
 			["gift", "Gift"],
+			["stocking", "Stocking"],
+		].map(([name, label]) => ({
+			label: label, src: "images/tiles/christmas/" + name + ".svg",
+		})),
+	},
+	christmasSanta: {
+		name: "Santa’s visit",
+		hidden: true,
+		symbols: [
+			["elf", "Elf shoes"],
 			["reindeer", "Reindeer"],
+			["sleigh", "Sleigh"],
 			["santa", "Santa"],
+			["chimney", "Chimney"],
+			["mogwai", "Mogwai"],
 		].map(([name, label]) => ({
 			label: label, src: "images/tiles/christmas/" + name + ".svg",
 		})),
@@ -116,7 +144,17 @@ const seasonalMasks = {
 		.map(row => row || Array(6).fill(null)),
 	christmas: [null, null, null, symbolRows.christmas.symbols, null, null]
 		.map(row => row || Array(6).fill(null)),
+	christmasTreats: [null, null, null, symbolRows.christmasTreats.symbols, null, null]
+		.map(row => row || Array(6).fill(null)),
+	christmasSanta: [null, null, null, symbolRows.christmasSanta.symbols, null, null]
+		.map(row => row || Array(6).fill(null)),
 };
+
+/* Christmas Day keeps the final row, with one overnight transformation. */
+const christmasDayMask = seasonalMasks.christmasSanta.map((row, family) =>
+	row.map((symbol, value) => family == 3 && value == 5 ? {
+		label: "Gremlin", src: "images/tiles/christmas/gremlin.svg",
+	} : symbol));
 
 function applySymbolMask(base, mask) {
 	if (!mask)
@@ -203,14 +241,19 @@ function seasonalMaskForHoliday(date, month, day, holiday) {
 }
 
 function seasonalMaskForDate(date = new Date()) {
+	if (date.getMonth() == 11 && date.getDate() == 25)
+		return christmasDayMask;
+
 	/* The fourth Thursday is the first Thursday on or after November 22. */
 	const november22 = new Date(date.getFullYear(), 10, 22);
 	const thanksgiving = 22 + (4 - november22.getDay() + 7) % 7;
 	return seasonalMaskForHoliday(date, 10, 31, seasonalMasks.halloween) ||
 		seasonalMaskForHoliday(date, 11, thanksgiving, seasonalMasks.thanksgiving) ||
 		/* Start the same row fresh for each six-day December reveal. */
-		seasonalMaskForHoliday(date, 12, 19, seasonalMasks.winter) ||
-		seasonalMaskForHoliday(date, 12, 25, seasonalMasks.christmas);
+		seasonalMaskForHoliday(date, 12, 6, seasonalMasks.winter) ||
+		seasonalMaskForHoliday(date, 12, 12, seasonalMasks.christmas) ||
+		seasonalMaskForHoliday(date, 12, 18, seasonalMasks.christmasTreats) ||
+		seasonalMaskForHoliday(date, 12, 24, seasonalMasks.christmasSanta);
 }
 
 function symbolsForDate(date = new Date(), base = defaultSymbols) {

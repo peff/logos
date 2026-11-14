@@ -143,7 +143,7 @@ Deno.test("Thanksgiving reveals six tiles through the fourth Thursday in Novembe
 	for (const [year, holiday] of [[2023, 23], [2024, 28], [2025, 27], [2026, 26],
 		[2027, 25], [2028, 23], [2029, 22], [2033, 24]]) {
 		for (const date of [new Date(year, 10, holiday - 6, 23, 59, 59),
-			new Date(year, 10, holiday + 1), new Date(year, 11, 1), new Date(year + 1, 0, 1)])
+			new Date(year, 10, holiday + 1), new Date(year, 10, 30), new Date(year + 1, 0, 1)])
 			assert(Logos.symbolsForDate(date) === Logos.defaultSymbols,
 				"Thanksgiving appeared outside its reveal window");
 		for (let count = 1; count <= 6; count++) {
@@ -165,20 +165,37 @@ Deno.test("Thanksgiving reveals six tiles through the fourth Thursday in Novembe
 	assert(Logos.defaultSymbols[3].every(symbol => typeof symbol == "string"));
 });
 
-Deno.test("December reveals two fresh rows in succession through Christmas", function() {
+Deno.test("December resets one holiday row every six days and transforms the mogwai on Christmas", function() {
 	const weeks = [
-		[14, ["Wreath", "Snow globe", "Candy cane", "Snowman", "Holly", "Sugar cookie"]],
-		[20, ["Christmas tree", "Ornament", "Angel", "Gift", "Reindeer", "Santa"]],
+		[1, ["Snowman", "Holly", "Snowflake", "Wreath", "Snow globe", "Nutcracker"]],
+		[7, ["Christmas tree", "Christmas lights", "Ornament", "Candle", "Bell", "Angel"]],
+		[13, ["Sugar cookie", "Gingerbread person", "Milk", "Candy cane", "Gift", "Stocking"]],
+		[19, ["Elf shoes", "Reindeer", "Sleigh", "Santa", "Chimney", "Mogwai"]],
 	];
 	/* A custom base must also reappear between reveals, rather than retaining
 	 * the previous week's artwork in the unrevealed positions. */
 	const custom = Logos.defaultSymbols.map(() => Logos.symbolRows.letters.symbols);
 	for (const base of [Logos.defaultSymbols, custom]) {
 		for (const year of [2026, 2027, 2028]) {
-			for (const date of [new Date(year, 11, 13, 23, 59, 59),
+			for (const date of [new Date(year, 10, 30, 23, 59, 59),
 				new Date(year, 11, 26), new Date(year + 1, 0, 1)])
 				assert(Logos.symbolsForDate(date, base) === base,
 					"December artwork appeared outside its reveal window");
+			const eve = Logos.symbolsForDate(new Date(year, 11, 24, 23, 59, 59), base);
+			for (const hour of [0, 6, 12, 23]) {
+				const christmas = Logos.symbolsForDate(new Date(year, 11, 25, hour), base);
+				for (let family = 0; family < 6; family++)
+					for (let value = 0; value < 6; value++) {
+						if (family == 3 && value == 5) {
+							assert(christmas[family][value].label == "Gremlin");
+							assert(christmas[family][value].src == "images/tiles/christmas/gremlin.svg");
+						} else
+							assert(christmas[family][value] === eve[family][value],
+								"Christmas Day changed more than the mogwai");
+					}
+			}
+			assert(Logos.symbolsForDate(new Date(year, 11, 24), base)[3][5].label == "Mogwai",
+				"Christmas Day mutated the Christmas Eve artwork");
 			for (const [start, expected] of weeks) {
 				for (let count = 1; count <= 6; count++) {
 					for (const hour of [0, 12, 23]) {
