@@ -3,7 +3,7 @@ var puzzleGeneratorVersion = 1;
 
 /* Increment when the difficulty formula, route policy/count, or cutoffs change. */
 var puzzleDifficultyVersion = 1;
-var extremeDifficultyVersion = 4;
+var extremeDifficultyVersion = 5;
 
 const difficultyLevels = ["easy", "medium", "hard"];
 const pantheonLevels = ["all", ...difficultyLevels];
@@ -1841,6 +1841,7 @@ function Puzzle(board, hClues, vClues, messages, timer,
 			display.innerHTML = "Extreme " + extremeSkulls(rating);
 			display.disabled = false;
 			display.title = rating.stalled ? "Beyond single-choice deductions" :
+				rating.estimated ? "Estimated difficulty from a budget-limited search" :
 				rating.complete ? (rating.skulls == 0 ?
 					"Solvable with two-clue deductions; no assumptions needed" : "") :
 					"Extreme rating unavailable";
@@ -1935,10 +1936,11 @@ function Puzzle(board, hClues, vClues, messages, timer,
 			"Seed: " + snapshot.seed + "\n" +
 			(this.extreme ? "Extreme (experimental)\n" +
 			(extremeRating.stalled ? "Skulls: ∞" :
-			 extremeRating.complete ? "Skulls: " + extremeRating.skulls + "\nScore: " + extremeRating.score.toFixed(2) +
+			 (extremeRating.complete || extremeRating.estimated) ? "Skulls: " + extremeRating.skulls + "\nScore: " + extremeRating.score.toFixed(2) +
 				"\nMean bottlenecks: " + extremeRating.bottlenecks.toFixed(1) +
 				"\nMean two-clue deductions: " + extremeRating.pairDeductions.toFixed(1) +
-				"\nMaximum assumption depth: " + extremeRating.maxDepth :
+				"\nMaximum assumption depth: " + extremeRating.maxDepth +
+				(extremeRating.estimated ? "\nEstimated rating (" + extremeRating.completedRoutes + "/" + extremeRating.routes + " routes completed)" : "") :
 				"Extreme rating unavailable") :
 			"Difficulty: " + rating.level + "\n" +
 			"Score: " + rating.score.toFixed(2) + " = excess discards + 5 × scarcity\n" +
@@ -5570,7 +5572,7 @@ function applyCluePairDeduction(pairs, domains) {
  * At each stall, reject the trial that unlocks the most candidate removals.
  * This is a reproducible estimate, not the minimum over all solving routes.
  * Fall back to bounded nested contradictions when single trials fail. */
-function traceExtremeDifficulty(puzzle, maxTrials = 10000, options = {}) {
+function traceExtremeDifficulty(puzzle, maxTrials = 20000, options = {}) {
 	var size = puzzle.rows[0].slots.length;
 	var domains = puzzle.rows.map(() => Array(size).fill((1 << size) - 1));
 	var result = { bottlenecks: 0, complete: false, maxDepth: 0, pairDeductions: 0 };
@@ -5605,8 +5607,11 @@ function traceExtremeDifficulty(puzzle, maxTrials = 10000, options = {}) {
 			}
 		}
 		for (var trial of clueRouteOrder(trials, route)) {
-			if (--budget.remaining < 0)
+			if (--budget.remaining < 0) {
+				if (best)
+					break;
 				return result;
+			}
 			var cacheIndex = (trial.row * size + trial.symbol) * size + Math.log2(trial.bit);
 			var cached = trialCache[cacheIndex];
 			/* The real board only loses candidates. A failed assumption
@@ -5682,27 +5687,34 @@ function traceExtremeDifficulty(puzzle, maxTrials = 10000, options = {}) {
 	return result;
 }
 
-/* Average weighted contradiction work over fixed routes, independently of
- * proof narration. A genuine stall rates as infinite; an interrupted search
- * leaves the puzzle unrated. */
-function measureExtremeDifficulty(puzzle, maxTrials = 10000, routes = 10, options = {}) {
+/* Prefer completed routes, but retain partial work if none finish within
+ * the budget. These estimates can understate difficulty; a bounded search
+ * that actually stalls still rates as infinite. */
+function measureExtremeDifficulty(puzzle, maxTrials = 20000, routes = 10, options = {}) {
 	if (!Number.isInteger(routes) || routes < 1)
 		throw new Error("difficulty analysis needs a positive route count");
-	var score = 0, bottlenecks = 0, maxDepth = 0, pairDeductions = 0;
+	var runs = [], maxDepth = 0;
 	var cluePairs = options.twoClueDeductions === false ? [] : compileCluePairs(puzzle);
 	for (var route = 0; route < routes; route++) {
 		var run = traceExtremeDifficulty(puzzle, maxTrials, { ...options, cluePairs, route, measureCost: true });
 		maxDepth = Math.max(maxDepth, run.maxDepth);
-		if (!run.complete)
-			return run.stalled ? { complete: false, stalled: true, skulls: Infinity, maxDepth } :
-				{ complete: false, maxDepth };
-		score += run.costs.reduce((sum, cost) => sum + contradictionLemmaScore(cost), 0);
-		bottlenecks += run.bottlenecks;
-		pairDeductions += run.pairDeductions;
+		if (run.stalled)
+			return { complete: false, stalled: true, skulls: Infinity, maxDepth };
+		runs.push(run);
 	}
-	score /= routes;
-	return { complete: true, score, skulls: Math.ceil(score / 1500),
-		bottlenecks: bottlenecks / routes, maxDepth, pairDeductions: pairDeductions / routes };
+	var completed = runs.filter(run => run.complete);
+	var selected = completed.length ? completed : runs;
+	var mean = fn => selected.reduce((sum, run) => sum + fn(run), 0) / selected.length;
+	var score = mean(run => run.costs.reduce((sum, cost) => sum + contradictionLemmaScore(cost), 0));
+	var rating = { complete: completed.length > 0, score, skulls: Math.ceil(score / 1500),
+		bottlenecks: mean(run => run.bottlenecks), maxDepth,
+		pairDeductions: mean(run => run.pairDeductions) };
+	if (completed.length < routes) {
+		rating.estimated = true;
+		rating.completedRoutes = completed.length;
+		rating.routes = routes;
+	}
+	return rating;
 }
 
 function contradictionLemmaScore(lemma) {
@@ -5786,7 +5798,7 @@ function findContradictionLemma(puzzle, base, clues = puzzle.clues,
 }
 
 function extremeSkulls(rating) {
-	if (!rating.complete && !rating.stalled)
+	if (!rating.complete && !rating.estimated && !rating.stalled)
 		return "(?)";
 	var skull = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">' +
 		'<use href="#extreme-skull-icon"/></svg>';

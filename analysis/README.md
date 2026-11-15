@@ -44,8 +44,8 @@ the candidate eliminations in its failed assumptions, raised individually to
 the power 1.5. Inner lemmas contribute their own scores, added to their parent's
 score rather than pooled before exponentiation. One skull represents 1,500
 points, rounded up, with no cap. Maximum assumption depth is reported separately
-and does not multiply the score. These ratings use Extreme difficulty version 4;
-older cached ratings are recomputed, including formerly infinite ratings.
+and does not multiply the score. These ratings use Extreme difficulty version 5;
+older cached ratings are recomputed, including formerly unavailable ratings.
 
 At each real-board stall, the rating first combines pairs of clues, enforcing
 both clues and row uniqueness. These deductions are free; a puzzle solved
@@ -62,8 +62,12 @@ by determined tiles, then remaining candidates, until it proves a contradiction
 or exhausts the shared trial budget. There is no board-count cutoff: the most
 productive boards can all come from correct guesses. Inner searches prefer guesses
 with fewer symbol positions or slot candidates. Successful guessed solutions
-do not count as deductions. Recursive calls share the route's 10,000-trial
-budget. Exhausting that budget leaves the rating unavailable; exhausting the
+do not count as deductions. Recursive calls share the rating route's 20,000-trial
+budget. At the cutoff, the route uses any contradiction already found and
+continues deductions that need no trials. If some routes remain unfinished,
+the rating averages the completed routes; if none finish, it averages their
+partial scores. Analysis marks these ratings as estimates and reports how
+many routes completed. They can underestimate difficulty. Exhausting the
 bounded search without progress still displays infinite skulls. That denotes a
 solver limitation, not a proof that deeper reasoning cannot solve the puzzle.
 
@@ -139,7 +143,8 @@ each proved inner discard once. Progress after rejecting the outer assumption
 is excluded as before. This gives longer branches more weight. The output also
 keeps recursive unweighted elimination totals and maximum assumption depth for
 comparison.
-Incomplete routes suppress the averages. The game maps this score to
+This experimental tool reports null averages if any route is incomplete;
+the game instead uses the estimate fallback described above. It maps the score to
 `ceil(score / 1500)` skulls, without a cap. Reported time covers all ten rating
 routes, excluding puzzle generation.
 

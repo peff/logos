@@ -20,7 +20,7 @@ for (const input of Deno.args) {
 	puzzle.clues = indices.map(i => puzzle.clues[i]);
 	const start = performance.now(), routes = [];
 	for (let route = 0; route < 10; route++) {
-		const rating = game.traceExtremeDifficulty(puzzle, 10000,
+		const rating = game.traceExtremeDifficulty(puzzle, 20000,
 			{ route, measureCost: true });
 		routes.push({ ...rating,
 			eliminations: rating.costs.reduce((sum, c) => sum + eliminations(c), 0),

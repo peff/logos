@@ -136,7 +136,7 @@ Deno.test("extreme pruning preserves uniqueness but defeats deduction", function
 	assert(found > 0 && found < 30, "exercise both accepted and rejected candidates");
 });
 
-Deno.test("extreme skull ratings use weighted branch costs and leave incomplete searches unrated", function() {
+Deno.test("extreme skull ratings use weighted branch costs and estimate budget-limited searches", function() {
 	for (const [seed, count] of [[0xd40791eb, 1], [0xac185eca, 1], [0x39c, 1], [0x3c5, 2], [0x59, 6], [0xd505b84e, 12]]) {
 		const puzzle = Logos.puzzleFromSeed(seed);
 		puzzle.clues = Logos.extremeClueIndices(puzzle).map(index => puzzle.clues[index]);
@@ -151,7 +151,8 @@ Deno.test("extreme skull ratings use weighted branch costs and leave incomplete 
 		assert(Logos.extremeSkulls(rating).includes(`aria-label="${count} skull${count === 1 ? "" : "s"}"`));
 		assert(puzzleSignature(puzzle) === before, "rating mutated the puzzle");
 		const incomplete = Logos.measureExtremeDifficulty(puzzle, 0, 10, { twoClueDeductions: false });
-		assert(!incomplete.complete && Logos.extremeSkulls(incomplete) === "(?)");
+		assert(!incomplete.complete && incomplete.estimated && incomplete.skulls === 0);
+		assert(!Logos.extremeSkulls(incomplete).includes("(?)"));
 	}
 	assert(Logos.extremeSkulls({ complete: true, skulls: 22 }).includes(" × 22"));
 	assert(!Logos.measureExtremeDifficulty({ rows: [{ slots: [{}, {}] }], clues: [] }).complete);
@@ -205,7 +206,7 @@ Deno.test("nested fallback rates formerly stalled extremes without changing sing
 		assert(html.includes('href="#extreme-skull-icon"'));
 		const interrupted = Logos.measureExtremeDifficulty(puzzle, 0, 10, { twoClueDeductions: false });
 		assert(!interrupted.complete && !interrupted.stalled);
-		assert(Logos.extremeSkulls(interrupted) === "(?)");
+		assert(interrupted.estimated && !Logos.extremeSkulls(interrupted).includes("(?)"));
 	}
 });
 
@@ -343,4 +344,32 @@ Deno.test("two-clue rating costs replay after free pair deductions", function() 
 		propagate();
 	}
 	assert(count(domains) === 36 && deductions === run.pairDeductions);
+});
+
+Deno.test("rating keeps the best trial at the cutoff and estimates unfinished routes", function() {
+	const puzzle = Logos.puzzleFromSeed(0x43922f48);
+	puzzle.clues = Logos.extremeClueIndices(puzzle).map(index => puzzle.clues[index]);
+	// Previously this route threw away its final deduction at trial 10,001.
+	const route = Logos.traceExtremeDifficulty(puzzle, 10000, { route: 6 });
+	assert(route.complete && route.maxDepth === 2);
+	const rating = Logos.measureExtremeDifficulty(puzzle);
+	assert(rating.complete && !rating.estimated && rating.skulls === 33);
+	assert(Math.abs(rating.score - 49300.97134465824) < 1e-8);
+
+	// At a tighter cutoff only route zero finishes; average that route.
+	const estimate = Logos.measureExtremeDifficulty(puzzle, 9000);
+	assert(estimate.complete && estimate.estimated && estimate.completedRoutes === 1);
+	assert(estimate.routes === 10);
+	assert(Math.abs(estimate.score - 47570.14973288467) < 1e-8);
+
+	// Even when no route finishes, keep the measured partial proof costs.
+	const partial = Logos.measureExtremeDifficulty(puzzle, 8000, 2);
+	const runs = [0, 1].map(route => Logos.traceExtremeDifficulty(puzzle, 8000,
+		{ route, measureCost: true }));
+	assert(runs.every(run => !run.complete));
+	const score = runs.reduce((sum, run) => sum + run.costs.reduce(
+		(sum, cost) => sum + Logos.contradictionLemmaScore(cost), 0), 0) / 2;
+	assert(!partial.complete && partial.estimated && partial.completedRoutes === 0);
+	assert(partial.score === score && score > 0 && Number.isFinite(partial.skulls));
+	assert(!Logos.extremeSkulls(partial).includes("(?)"));
 });

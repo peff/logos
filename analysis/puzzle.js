@@ -201,11 +201,13 @@ function analyzePuzzle(game, seed, snapshot, trace, extreme) {
 		validatePosition(game, puzzle, snapshot);
 	if (extreme) {
 		const rating = game.measureExtremeDifficulty(puzzle);
-		const summary = rating.stalled ? "∞ (∞ skulls)" : rating.complete ?
+		const summary = rating.stalled ? "∞ (∞ skulls)" : (rating.complete || rating.estimated) ?
 			`${rating.score.toFixed(2)} (${rating.skulls} ${rating.skulls === 1 ? "skull" : "skulls"})` :
 			"extreme rating unavailable";
 		console.log(`Seed ${game.formatSeed(seed)} — ${summary}`);
-		if (rating.complete) {
+		if (rating.complete || rating.estimated) {
+			if (rating.estimated)
+				console.log(`Estimated rating (${rating.completedRoutes}/${rating.routes} routes completed)`);
 			console.log(`Mean bottlenecks: ${rating.bottlenecks.toFixed(1)}`);
 			console.log(`Mean two-clue deductions: ${rating.pairDeductions.toFixed(1)}`);
 			console.log(`Maximum assumption depth: ${rating.maxDepth}`);
