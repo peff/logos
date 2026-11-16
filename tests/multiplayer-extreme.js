@@ -122,8 +122,8 @@ Deno.test("shared Extreme results retain mode, host time, and JSON-safe skull ra
 		       JSON.stringify(hostRuns) === JSON.stringify(guestRuns));
 		const run = hostRuns[0];
 		assert(run.extreme === true && run.multiplayer && run.elapsed >= 45000 &&
-		       run.extremeDifficulty.version === 5 && run.extremeDifficulty.complete &&
-		       run.extremeDifficulty.level === 20 && run.extremeDifficulty.maxDepth === 2 && !run.difficulty);
+		       run.extremeDifficulty.version === 6 && run.extremeDifficulty.complete &&
+		       run.extremeDifficulty.level === 17 && run.extremeDifficulty.maxDepth === 2 && !run.difficulty);
 		guest.session.requestSync();
 		assert(guestRuns.length === 1);
 	} finally {

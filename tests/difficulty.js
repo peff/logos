@@ -136,22 +136,25 @@ Deno.test("extreme pruning preserves uniqueness but defeats deduction", function
 	assert(found > 0 && found < 30, "exercise both accepted and rejected candidates");
 });
 
-Deno.test("extreme skull ratings use weighted branch costs and estimate budget-limited searches", function() {
-	for (const [seed, count] of [[0xd40791eb, 1], [0xac185eca, 1], [0x39c, 1], [0x3c5, 2], [0x59, 6], [0xd505b84e, 12]]) {
+Deno.test("extreme skull ratings use accumulated effort and estimate budget-limited searches", function() {
+	for (const [seed, count] of [[0xd40791eb, 2], [0xac185eca, 4], [0x39c, 4], [0x3c5, 3], [0x59, 8], [0xd505b84e, 9]]) {
 		const puzzle = Logos.puzzleFromSeed(seed);
 		puzzle.clues = Logos.extremeClueIndices(puzzle).map(index => puzzle.clues[index]);
 		const before = puzzleSignature(puzzle);
 		const rating = Logos.measureExtremeDifficulty(puzzle, 10000, 10, { twoClueDeductions: false });
 		assert(rating.complete && rating.skulls === count);
+		assert(rating.score === rating.effort.score);
+		assert(Math.abs(rating.score - rating.effort.excessDiscards - 5 * rating.effort.scarcity) < 1e-8);
+		assert(rating.skulls === Math.ceil(rating.score / 50));
 		if (seed === 0x39c) {
-			assert(Math.abs(rating.score - 1271.3197213409258) < 1e-8);
+			assert(Math.abs(rating.score - 189.9169594294594) < 1e-8);
 			assert(rating.bottlenecks === 5.4, "rating did not average all ten routes");
 			assert(JSON.stringify(Logos.measureExtremeDifficulty(puzzle, 10000, 10, { twoClueDeductions: false })) === JSON.stringify(rating));
 		}
 		assert(Logos.extremeSkulls(rating).includes(`aria-label="${count} skull${count === 1 ? "" : "s"}"`));
 		assert(puzzleSignature(puzzle) === before, "rating mutated the puzzle");
 		const incomplete = Logos.measureExtremeDifficulty(puzzle, 0, 10, { twoClueDeductions: false });
-		assert(!incomplete.complete && incomplete.estimated && incomplete.skulls === 0);
+		assert(!incomplete.complete && incomplete.estimated && incomplete.score > 0 && incomplete.effort.hypotheticalScore === 0);
 		assert(!Logos.extremeSkulls(incomplete).includes("(?)"));
 	}
 	assert(Logos.extremeSkulls({ complete: true, skulls: 22 }).includes(" × 22"));
@@ -190,7 +193,7 @@ Deno.test("extreme bottleneck costs measure branch work separately from its assu
 	assert(puzzleSignature(puzzle) === before);
 });
 
-Deno.test("nested fallback rates formerly stalled extremes without changing single-level scores", function() {
+Deno.test("nested fallback rates formerly stalled extremes with accumulated effort", function() {
 	for (const seed of [0x4c3f2a56, 0x78c9d796]) {
 		const puzzle = Logos.puzzleFromSeed(seed);
 		puzzle.clues = Logos.extremeClueIndices(puzzle).map(index => puzzle.clues[index]);
@@ -198,8 +201,8 @@ Deno.test("nested fallback rates formerly stalled extremes without changing sing
 		assert(!rating.complete && rating.stalled && rating.skulls === Infinity);
 		const nested = Logos.measureExtremeDifficulty(puzzle, 10000, 10, { twoClueDeductions: false });
 		assert(nested.complete && nested.maxDepth === 2);
-		assert(nested.skulls === (seed === 0x4c3f2a56 ? 20 : 18));
-		const expected = seed === 0x4c3f2a56 ? 29498.95744725509 : 26597.65826765664;
+		assert(nested.skulls === (seed === 0x4c3f2a56 ? 17 : 16));
+		const expected = seed === 0x4c3f2a56 ? 824.0045659814044 : 751.0484072257293;
 		assert(Math.abs(nested.score - expected) < 1e-8);
 		const html = Logos.extremeSkulls(rating);
 		assert(html.includes('aria-label="Infinite skulls"') && html.includes(' × ∞'));
@@ -214,8 +217,8 @@ Deno.test("nested search continues past productive but correct outer guesses", f
 	// The top four distinct outer boards all reach valid solutions. The
 	// scorer must explore lower-ranked boards to prove a failed assumption.
 	for (const [seed, skulls, score] of [
-		[0xcd7c02f4, 17, 24091.891587492973],
-		[0x76d8e094, 16, 23766.532458545822],
+		[0xcd7c02f4, 19, 922.2519441342971],
+		[0x76d8e094, 13, 629.0978948124459],
 	]) {
 		const puzzle = Logos.puzzleFromSeed(seed);
 		puzzle.clues = Logos.extremeClueIndices(puzzle).map(i => puzzle.clues[i]);
@@ -293,8 +296,8 @@ Deno.test("recursive contradiction search respects depth and a shared work budge
 
 Deno.test("two-clue ratings remove assumptions without changing generated clues", function() {
 	for (const [seed, score, deductions] of [
-		[0xa56f91ef, 0, 1],
-		[0, 4522.642702245086, 2.5],
+		[0xa56f91ef, 95.66541552917327, 1],
+		[0, 213.34441595770932, 2.5],
 	]) {
 		const puzzle = Logos.puzzleFromSeed(seed);
 		puzzle.clues = Logos.extremeClueIndices(puzzle).map(i => puzzle.clues[i]);
@@ -304,12 +307,12 @@ Deno.test("two-clue ratings remove assumptions without changing generated clues"
 		assert(rating.complete && Math.abs(rating.score - score) < 1e-8);
 		assert(rating.pairDeductions === deductions);
 		assert(puzzleSignature(puzzle) === before);
-		if (!score) {
-			assert(rating.skulls === 0 && rating.maxDepth === 0 && rating.bottlenecks === 0);
+		if (seed === 0xa56f91ef) {
+			assert(rating.skulls === 2 && rating.maxDepth === 0 && rating.bottlenecks === 0);
 			assert(Logos.measureExtremeDifficulty(puzzle, 0).complete,
 				"a deduction-only puzzle should not consume the assumption budget");
 			const html = Logos.extremeSkulls(rating);
-			assert(html.includes('aria-label="0 skulls"') && html.includes(' × 0'));
+			assert(html.includes('aria-label="2 skulls"') && !html.includes(' × 0'));
 			assert(html.includes('href="#extreme-skull-icon"'));
 		}
 	}
@@ -353,23 +356,76 @@ Deno.test("rating keeps the best trial at the cutoff and estimates unfinished ro
 	const route = Logos.traceExtremeDifficulty(puzzle, 10000, { route: 6 });
 	assert(route.complete && route.maxDepth === 2);
 	const rating = Logos.measureExtremeDifficulty(puzzle);
-	assert(rating.complete && !rating.estimated && rating.skulls === 33);
-	assert(Math.abs(rating.score - 49300.97134465824) < 1e-8);
+	assert(rating.complete && !rating.estimated && rating.skulls === 32);
+	assert(Math.abs(rating.score - 1587.1753971518679) < 1e-8);
 
 	// At a tighter cutoff only route zero finishes; average that route.
 	const estimate = Logos.measureExtremeDifficulty(puzzle, 9000);
 	assert(estimate.complete && estimate.estimated && estimate.completedRoutes === 1);
 	assert(estimate.routes === 10);
-	assert(Math.abs(estimate.score - 47570.14973288467) < 1e-8);
+	assert(Math.abs(estimate.score - 1591.0407092907099) < 1e-8);
 
 	// Even when no route finishes, keep the measured partial proof costs.
 	const partial = Logos.measureExtremeDifficulty(puzzle, 8000, 2);
 	const runs = [0, 1].map(route => Logos.traceExtremeDifficulty(puzzle, 8000,
 		{ route, measureCost: true }));
 	assert(runs.every(run => !run.complete));
-	const score = runs.reduce((sum, run) => sum + run.costs.reduce(
-		(sum, cost) => sum + Logos.contradictionLemmaScore(cost), 0), 0) / 2;
+	const score = runs.reduce((sum, run, route) => sum +
+		Logos.replayExtremeEffort(puzzle, run, { route }).score, 0) / 2;
 	assert(!partial.complete && partial.estimated && partial.completedRoutes === 0);
 	assert(partial.score === score && score > 0 && Number.isFinite(partial.skulls));
 	assert(!Logos.extremeSkulls(partial).includes("(?)"));
+});
+
+Deno.test("extreme effort replay agrees with ordinary scoring without suppositions", () => {
+	for (const seed of [0x98079244, 0xc549b7c4, 0xe2a689dd]) {
+		const puzzle = Logos.puzzleFromSeed(seed);
+		for (let route = 0; route < 3; route++) {
+			const ordinary = Logos.traceDifficulty(puzzle, Math.imul(route + 1, 0x9e3779b9));
+			const effort = Logos.replayExtremeEffort(puzzle, { costs: [], complete: true }, { route });
+			assert(effort.scarcity === ordinary.scarcity);
+			assert(effort.excessDiscards === ordinary.excessDiscards);
+			assert(effort.score === Logos.difficultyRating(ordinary).score);
+			assert(effort.hypothetical.score === 0);
+		}
+	}
+});
+
+Deno.test("extreme effort counts only selected proofs and retains rolled-back nested work", () => {
+	for (const seed of [0xac185eca, 0xa56f91ef, 0x4c3f2a56]) {
+		const puzzle = Logos.puzzleFromSeed(seed);
+		puzzle.clues = Logos.extremeClueIndices(puzzle).map(i => puzzle.clues[i]);
+		const before = puzzleSignature(puzzle);
+		const run = Logos.traceExtremeDifficulty(puzzle, 20000, { measureCost: true });
+		const certificate = JSON.stringify(run);
+		const effort = Logos.replayExtremeEffort(puzzle, run);
+		assert(effort.complete && effort.real.score > 0);
+		assert(effort.proofs.length === run.costs.length);
+		const count = costs => costs.reduce((n, c) => n + 1 + count(c.children || []), 0);
+		assert(effort.suppositions === count(run.costs));
+		const sum = (proofs, key) => proofs.reduce((n, p) => n + p[key] + sum(p.children, key), 0);
+		for (const key of ["scarcity", "excessDiscards", "score"]) {
+			assert(Math.abs(sum(effort.proofs, key) - effort.hypothetical[key]) < 1e-8);
+			assert(Math.abs(effort[key] - effort.real[key] - effort.hypothetical[key]) < 1e-8);
+		}
+		if (seed === 0xa56f91ef) assert(effort.hypothetical.score === 0);
+		else assert(effort.hypothetical.score > 0);
+		if (seed === 0x4c3f2a56) assert(effort.proofs.some(p => p.children.length));
+		assert(JSON.stringify(Logos.replayExtremeEffort(puzzle, run)) === JSON.stringify(effort));
+		assert(JSON.stringify(run) === certificate && puzzleSignature(puzzle) === before);
+		const partial = Logos.traceExtremeDifficulty(puzzle, 0, { measureCost: true });
+		const partialEffort = Logos.replayExtremeEffort(puzzle, partial);
+		assert(partialEffort.complete === partial.complete && partialEffort.hypothetical.score === 0);
+	}
+});
+
+Deno.test("extreme effort charges a terminal observation but not the assumption or row cascade", () => {
+	const puzzle = { rows: [{ slots: [{}, {}] }], clues: [{ constrain(d) {
+		if (d[0][0] === 1) d[0][0] = 0;
+	} }] };
+	const run = { complete: true, costs: [{ row: 0, symbol: 0, column: 0 }] };
+	const effort = Logos.replayExtremeEffort(puzzle, run, { twoClueDeductions: false });
+	assert(effort.complete && effort.score === 5);
+	assert(effort.hypothetical.scarcity === 1 && effort.hypothetical.excessDiscards === 0);
+	assert(effort.real.score === 0);
 });

@@ -3,7 +3,7 @@ var puzzleGeneratorVersion = 1;
 
 /* Increment when the difficulty formula, route policy/count, or cutoffs change. */
 var puzzleDifficultyVersion = 1;
-var extremeDifficultyVersion = 5;
+var extremeDifficultyVersion = 6;
 
 const difficultyLevels = ["easy", "medium", "hard"];
 const pantheonLevels = ["all", ...difficultyLevels];
@@ -1842,7 +1842,7 @@ function Puzzle(board, hClues, vClues, messages, timer,
 			display.disabled = false;
 			display.title = rating.stalled ? "Beyond single-choice deductions" :
 				rating.estimated ? "Estimated difficulty from a budget-limited search" :
-				rating.complete ? (rating.skulls == 0 ?
+				rating.complete ? (rating.bottlenecks == 0 ?
 					"Solvable with two-clue deductions; no assumptions needed" : "") :
 					"Extreme rating unavailable";
 			return;
@@ -1934,9 +1934,10 @@ function Puzzle(board, hClues, vClues, messages, timer,
 		this.analysisSnapshot = JSON.stringify(snapshot);
 		this.analysis.querySelector(".analysis-summary").textContent =
 			"Seed: " + snapshot.seed + "\n" +
-			(this.extreme ? "Extreme (experimental)\n" +
+			(this.extreme ? "Extreme\n" +
 			(extremeRating.stalled ? "Skulls: ∞" :
 			 (extremeRating.complete || extremeRating.estimated) ? "Skulls: " + extremeRating.skulls + "\nScore: " + extremeRating.score.toFixed(2) +
+				" = excess discards + 5 × scarcity\nSkulls: one per 50 effort, rounded up" +
 				"\nMean bottlenecks: " + extremeRating.bottlenecks.toFixed(1) +
 				"\nMean two-clue deductions: " + extremeRating.pairDeductions.toFixed(1) +
 				"\nMaximum assumption depth: " + extremeRating.maxDepth +
@@ -5700,21 +5701,146 @@ function measureExtremeDifficulty(puzzle, maxTrials = 20000, routes = 10, option
 		maxDepth = Math.max(maxDepth, run.maxDepth);
 		if (run.stalled)
 			return { complete: false, stalled: true, skulls: Infinity, maxDepth };
+		run.effort = replayExtremeEffort(puzzle, run, { ...options, cluePairs, route });
 		runs.push(run);
 	}
 	var completed = runs.filter(run => run.complete);
 	var selected = completed.length ? completed : runs;
 	var mean = fn => selected.reduce((sum, run) => sum + fn(run), 0) / selected.length;
-	var score = mean(run => run.costs.reduce((sum, cost) => sum + contradictionLemmaScore(cost), 0));
-	var rating = { complete: completed.length > 0, score, skulls: Math.ceil(score / 1500),
+	var score = mean(run => run.effort.score);
+	var rating = { complete: completed.length > 0, score, skulls: Math.ceil(score / 50),
 		bottlenecks: mean(run => run.bottlenecks), maxDepth,
 		pairDeductions: mean(run => run.pairDeductions) };
+	rating.effort = {
+		score: mean(run => run.effort.score),
+		scarcity: mean(run => run.effort.scarcity),
+		excessDiscards: mean(run => run.effort.excessDiscards),
+		realScore: mean(run => run.effort.real.score),
+		hypotheticalScore: mean(run => run.effort.hypothetical.score),
+		suppositions: mean(run => run.effort.suppositions),
+	};
+	// Keep the old formula available for analysis, without changing selection.
+	if (options.compareLegacy) {
+		rating.legacyScore = mean(run => run.costs.reduce(
+			(sum, cost) => sum + contradictionLemmaScore(cost), 0));
+		rating.legacySkulls = Math.ceil(rating.legacyScore / 1500);
+	}
 	if (completed.length < routes) {
 		rating.estimated = true;
 		rating.completedRoutes = completed.length;
 		rating.routes = routes;
 	}
 	return rating;
+}
+
+/* Replay only the selected certificates with the ordinary placement-first
+ * effort model. Search trials never enter these totals. Assumptions carry no
+ * separate penalty; their deductions remain counted after rollback. */
+function replayExtremeEffort(puzzle, run, options = {}) {
+	var route = options.route || 0;
+	var random = seedRandom(Math.imul(route + 1, 0x9e3779b9));
+	var pairs = options.twoClueDeductions === false ? [] :
+		clueRouteOrder(options.cluePairs || compileCluePairs(puzzle), route);
+	var empty = () => ({ scarcity: 0, excessDiscards: 0 });
+	var real = empty(), hypothetical = empty();
+	var proofs = [], suppositions = 0;
+	var add = (a, b) => {
+		a.scarcity += b.scarcity;
+		a.excessDiscards += b.excessDiscards;
+	};
+	var score = m => m.excessDiscards + 5 * m.scarcity;
+	function contradicted(domains) {
+		return domains.some(row => {
+			var singles = 0, union = 0;
+			for (var bits of row) {
+				if (!bits) return true;
+				union |= bits;
+				if (countBits(bits) == 1) {
+					if (singles & bits) return true;
+					singles |= bits;
+				}
+			}
+			return union != (1 << row.length) - 1;
+		});
+	}
+	function state(domains) {
+		return { domains, placements: domains.map(() => 0), gap: 0 };
+	}
+	function drain(s) {
+		drainForcedProofSteps(s.domains, s.placements, null,
+			() => contradicted(s.domains));
+	}
+	function move(s, m, metrics) {
+		var before = difficultyPlacements(s.domains);
+		s.domains[m.row][m.symbol] = m.after;
+		drain(s);
+		if (!m.placement && ++s.gap > 3)
+			metrics.excessDiscards++;
+		if (difficultyPlacements(s.domains) > before)
+			s.gap = 0;
+	}
+	function propagate(s, metrics, usePairs) {
+		drain(s);
+		while (!contradicted(s.domains)) {
+			var available = difficultyOpportunities(puzzle, s.domains, true);
+			if (!available.length) {
+				var before = difficultyPlacements(s.domains);
+				if (!usePairs || !applyCluePairDeduction(pairs, s.domains))
+					return true;
+				drain(s);
+				if (difficultyPlacements(s.domains) > before) s.gap = 0;
+				continue;
+			}
+			metrics.scarcity += 1 / available.length;
+			// A visible contradiction ends the branch immediately. Otherwise
+			// use exactly the normal scorer's placement-cascade preference.
+			var choices = available.filter(m => !m.after);
+			if (!choices.length)
+				choices = placementDifficultyChoices(s.domains, s.placements, available);
+			move(s, choices[Math.floor(random() * choices.length)], metrics);
+		}
+		return false;
+	}
+	function reject(s, lemma, metrics) {
+		var after = s.domains[lemma.row][lemma.symbol] & ~(1 << lemma.column);
+		// The proof paid for finding this reduction; do not invent a
+		// scarcity observation at a board with no ordinary opportunities.
+		move(s, { row: lemma.row, symbol: lemma.symbol, after,
+			placement: countBits(after) == 1 }, metrics);
+	}
+	function proof(base, lemma) {
+		suppositions++;
+		var s = state(copyDomains(base)), metrics = empty(), children = [];
+		s.domains[lemma.row][lemma.symbol] = 1 << lemma.column;
+		var valid = propagate(s, metrics, false);
+		for (var child of lemma.children || []) {
+			if (!valid) throw new Error("effort replay contradicted before child proof");
+			children.push(proof(s.domains, child));
+			reject(s, child, metrics);
+			valid = propagate(s, metrics, false);
+		}
+		if (valid) throw new Error("effort replay did not prove contradiction");
+		add(hypothetical, metrics);
+		return { ...metrics, score: score(metrics), children };
+	}
+	var size = puzzle.rows[0].slots.length;
+	var s = state(puzzle.rows.map(() => Array(size).fill((1 << size) - 1)));
+	for (var clue of puzzle.clues)
+		if (clue.applyInitialState) clue.constrain(s.domains, (1 << size) - 1);
+	if (!propagate(s, real, true)) throw new Error("inconsistent puzzle");
+	for (var lemma of run.costs) {
+		proofs.push(proof(s.domains, lemma));
+		reject(s, lemma, real);
+		if (!propagate(s, real, true)) throw new Error("inconsistent certificate");
+	}
+	var complete = difficultyPlacements(s.domains) == s.domains.flat().length;
+	if (complete != run.complete) throw new Error("effort replay completion differs");
+	var total = empty();
+	add(total, real);
+	add(total, hypothetical);
+	return { ...total, score: score(total), complete, suppositions,
+		real: { ...real, score: score(real) },
+		hypothetical: { ...hypothetical, score: score(hypothetical) }, proofs };
 }
 
 function contradictionLemmaScore(lemma) {
@@ -7880,7 +8006,7 @@ function difficultyPlacements(domains) {
 }
 
 /* Group all reductions to one target from one clue as one observation. */
-function difficultyOpportunities(puzzle, domains) {
+function difficultyOpportunities(puzzle, domains, allowContradiction = false) {
 	var full = (1 << domains[0].length) - 1;
 	var result = [];
 	for (var clue of puzzle.clues) {
@@ -7892,7 +8018,7 @@ function difficultyOpportunities(puzzle, domains) {
 			for (var symbol = 0; symbol < domains[row].length; symbol++) {
 				var before = domains[row][symbol];
 				var after = before & complete[row][symbol];
-				if (!after)
+				if (!after && !allowContradiction)
 					throw new Error("constraint contradicted generated solution");
 				if (after == before)
 					continue;

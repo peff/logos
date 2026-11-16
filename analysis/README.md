@@ -31,29 +31,31 @@ For extreme puzzles, use `--extreme` or a URL containing the `extreme` flag:
 ./analysis/puzzle 'file:///home/peff/work/logos/index.html#seed=0e2b42be&extreme'
 ```
 
-These report the original extreme puzzle's numeric score and skull count,
-such as `Seed 0e2b42be — 51.99 (1 skull)`, instead of a normal difficulty
-score, followed by the mean bottleneck count. Seeds without an extreme variant are reported
-as such, and processing continues with the remaining inputs.
+These report the original extreme puzzle's effort score and skull count,
+such as `Seed ac185eca — 125.99 (3 skulls)`, followed by solving metrics.
+Seeds without an extreme variant are reported as such, and processing continues
+with the remaining inputs. Reports include scarcity, excess discards, and the
+score split between real-board deductions and used suppositions.
 `--extreme` applies to every input; URL flags apply only to their own input.
 Snapshots automatically select extreme mode and restore any revealed clues;
 the difficulty rating still describes the original puzzle without assistance.
 
-The extreme score averages ten deterministic solving routes. Each route sums
-the candidate eliminations in its failed assumptions, raised individually to
-the power 1.5. Inner lemmas contribute their own scores, added to their parent's
-score rather than pooled before exponentiation. One skull represents 1,500
-points, rounded up, with no cap. Maximum assumption depth is reported separately
-and does not multiply the score. These ratings use Extreme difficulty version 5;
-older cached ratings are recomputed, including formerly unavailable ratings.
+The Extreme score uses the ordinary formula, excess discards + 5 × scarcity,
+averaged over ten deterministic routes. It includes ordinary real-board work
+and the work inside selected suppositions, including nested proofs. Rolled-back
+work still counts; discarded search attempts do not. There is no extra penalty
+for making a supposition or for its depth. Each skull represents 50 effort
+points, rounded up, with no cap. These ratings use Extreme difficulty version 6;
+older cached ratings are lazily recomputed, including formerly unavailable and
+zero-skull ratings. Extreme mode and puzzle generation are unchanged.
 
 At each real-board stall, the rating first combines pairs of clues, enforcing
-both clues and row uniqueness. These deductions are free; a puzzle solved
-without assumptions has zero score and displays a skull followed by `× 0`.
-Analysis reports the mean number of useful two-clue deductions separately.
-Hypothetical branches still use ordinary propagation. Seed generation and
-hint explanations retain their existing solver, so a zero-skull puzzle's
-hint walkthrough may still explain a move through a chalk contradiction.
+both clues and row uniqueness. These deductions are free, but the ordinary work
+around them still counts: puzzles needing no assumptions now receive an effort
+rating too. Analysis reports useful two-clue deductions and maximum assumption
+depth separately. Hypothetical branches still use ordinary propagation. Hint
+explanations retain their existing solver, so a puzzle needing no assumptions
+in its rating may still receive a chalk contradiction in its hint walkthrough.
 
 Single-level contradictions retain their existing selection rules. When they
 cannot advance the board, the solver tries nested contradictions, currently
@@ -136,7 +138,7 @@ Elimination counts exclude making the assumption itself. They measure solver
 work, not narrated proof steps or the shortest possible argument; a propagation
 sweep can continue after a clue has already become impossible.
 
-The score is the sum of each lemma's eliminations raised to 1.5, averaged
+The legacy `score` is the sum of each lemma's eliminations raised to 1.5, averaged
 over ten routes. Nested costs appear in `children`; their scores are added
 recursively. Parent eliminations exclude hypothetical inner work but include
 each proved inner discard once. Progress after rejecting the outer assumption
@@ -144,8 +146,9 @@ is excluded as before. This gives longer branches more weight. The output also
 keeps recursive unweighted elimination totals and maximum assumption depth for
 comparison.
 This experimental tool reports null averages if any route is incomplete;
-the game instead uses the estimate fallback described above. It maps the score to
-`ceil(score / 1500)` skulls, without a cap. Reported time covers all ten rating
+the game instead uses the estimate fallback described above. The former
+rating mapped this legacy score to `ceil(score / 1500)` skulls; the current
+game uses `ceil(effort / 50)` instead. Reported time covers all ten rating
 routes, excluding puzzle generation.
 
 ## Experimental two-clue deductions
@@ -189,7 +192,7 @@ The summary compares pair costs of 0, 10, 50, and 100 points; these are
 sensitivity checks, not calibrated difficulty weights. Score and skull
 comparisons use puzzles completed on all routes by both methods. With zero
 pair cost, a puzzle solved entirely by pairs has score zero and zero skulls;
-that is also the current game rating behavior. Timings
+that was the game rating behavior before version 6. Timings
 cover all ten routes, with pair compilation included in the experimental
 summary, but exclude puzzle generation and extreme clue pruning.
 
@@ -206,3 +209,118 @@ all ten routes for every puzzle. 147 puzzles needed no assumptions with
 the pair pass. These results use the original generation version 1 and
 extreme rating version 2 as the baseline. Version 3 integrates the zero-cost
 pair pass; the other experimental deduction weights are not used in the game.
+
+## Effort replay and legacy comparisons
+
+The `extreme-cost.js` tool also includes each route's `effort` replay, with ten-route means
+under `averages.effort`. Its score is the ordinary formula, excess discards +
+5 × scarcity, accumulated across the real board and every selected supposition.
+`real` and `hypothetical` split the totals; `proofs` records each supposition's
+own metrics and nested `children`. A proof's own score excludes its children,
+while the hypothetical total includes every level once. Search attempts which
+were not selected contribute nothing. The replay preserves the current
+rating solver's selection policy, rather than the hint solver's separate
+progress-per-explanation-step policy.
+
+Replay uses the normal placement-first observation model, including free row
+cascades and three free discards per stretch. Each assumption starts a fresh
+stretch; its parent resumes its saved stretch after rollback. The proved
+rejection counts as a reduction in the parent, but adds no scarcity charge:
+its proof already paid for establishing it. Contradictions end a branch, with
+an immediately available empty-domain observation preferred over other moves.
+Two-clue deductions remain free and restricted to the real board, matching the
+existing rating policy; they reset a discard stretch if they unlock placements.
+Ordinary deductions before and after these deductions still accrue effort.
+
+This is the current in-game score, including ordinary solving work for puzzles
+that need no suppositions. Incomplete routes retain partial metrics, but this
+tool reports null `averages` unless all routes completed. The score measures
+following the selected reasoning, not discovering which suppositions to try.
+
+To sample Extreme puzzles and compare the legacy numeric rating with current effort:
+
+```sh
+deno run --allow-read=logos.js analysis/extreme-comparison.js 150 > /tmp/extreme-comparison.csv
+gnuplot -c analysis/extreme-comparison.gnuplot /tmp/extreme-comparison.csv /tmp/extreme-comparison.png
+```
+
+The sampler uses a fixed xorshift32 stream starting at `0x731b9a2d`, retaining
+seeds with an extreme variant until the requested sample size is reached. Each
+puzzle uses ten routes and the usual 20,000-trial budget. It appends `ac185eca`
+and `aac80a9c` as separately labeled references, excluded from the random sample.
+CSV rows retain incomplete/stalled statuses with no effort value. `old_score`
+and `skulls` retain the legacy version-5 values for these comparisons;
+`effort` is the current score. The exporters request `compareLegacy` to obtain
+both formulas from the same selected routes. The plot
+shows a sample close-up and a full-scale view including both references; its
+axes are sized for the default 150-puzzle sample.
+
+## Extreme ratings versus recorded time
+
+Export the browser history with
+`copy(JSON.stringify((await accessRunHistory(null, true)).runs, null, 2))`
+and save the JSON as `analysis/scores`. Then run:
+
+```sh
+deno run --allow-read=logos.js,analysis/scores analysis/extreme-times.js analysis/scores > /tmp/extreme-times.csv
+python3 analysis/extreme-times-summary.py /tmp/extreme-times.csv
+gnuplot -c analysis/extreme-times.gnuplot /tmp/extreme-times.csv /tmp/extreme-times.png
+```
+
+The CSV preserves every Extreme run with an inclusion flag and exclusion
+reason. Analysis uses the earliest recorded timed solo win for each supported
+seed, excluding losses, untimed completions, and later wins. It does not impose
+a time cutoff or remove puzzles whose ratings disagree with their times.
+Both ratings are recomputed with the current ten-route, 20,000-trial settings;
+partial ratings are excluded. Times are active play minutes, excluding pauses.
+`prior_runs` counts earlier recorded Extreme runs on that seed, including losses
+and untimed completions: earliest recorded timed win need not mean first exposure.
+
+The summary reports Pearson linear and Spearman rank correlations, including
+sensitivity checks without the 80-minute puzzle, without earlier recorded
+attempts, and for wins under 15 minutes. These are descriptive comparisons on
+completed games, not validation on an independent test set. The plot includes
+full-range panels and explicitly cropped detail panels; its title and axes are
+currently sized for the 67 eligible puzzles in the November 16 export.
+
+For effort distributions, compare a larger random sample with the eligible
+played runs (the two reference puzzles are excluded from the random sample):
+
+```sh
+deno run --allow-read=logos.js analysis/extreme-comparison.js 1000 > /tmp/effort-sample.csv
+python3 analysis/effort-distribution.py /tmp/effort-sample.csv /tmp/extreme-times.csv /tmp/effort-distribution
+gnuplot -c analysis/effort-distribution.gnuplot /tmp/effort-distribution.dat /tmp/effort-distribution.png 1000 67
+```
+
+The summary JSON reports quantiles, score-band counts, and completion status.
+The chart compares percentages in categorical score bands of unequal numeric
+widths, not histogram density. Pass the actual complete sample sizes as the
+last two plotting arguments. Played puzzles are a separate observational set;
+do not use their upper-tail frequency to infer random-generation frequency.
+
+## Supposition penalties and skull calibration
+
+Both comparison CSV exporters now append `suppositions`: the mean number of
+used assumptions across ten routes, counting every nested assumption once.
+This is distinct from the existing outer bottleneck count. The baseline effort
+score is unchanged. Regenerate the CSVs before running:
+
+```sh
+python3 analysis/supposition-penalties.py /tmp/effort-sample.csv /tmp/extreme-times.csv /tmp/penalties
+gnuplot -c analysis/supposition-penalties.gnuplot /tmp/penalties.dat /tmp/penalties.png
+```
+
+The experiment evaluates `effort + penalty * suppositions` for penalties 0–40.
+The baseline presentation is the live game's `ceil(effort / 50)`. The recalibrated divisor is
+`50 * mean(adjusted effort) / mean(original effort)` over the random sample.
+This preserves mean continuous skull units, not exactly the rounded mean skull
+count. A positive divisor rescaling never changes numeric ordering, but may
+lower skull counts for deduction-only puzzles whose scores did not increase.
+
+The JSON reports skull-count changes, the penalty's share of adjusted effort,
+and strict ordering reversals among all pairs with unequal baseline scores.
+It also reports Pearson and Spearman correlations with recorded times, with
+and without the 80-minute puzzle. These correlations are secondary descriptive
+checks, not an objective used to select the penalty or divisor. Reference
+puzzles are excluded from random-sample calibration. The plot title currently
+assumes 1,000 random puzzles and 67 eligible played puzzles.

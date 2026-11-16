@@ -212,6 +212,15 @@ function analyzePuzzle(game, seed, snapshot, trace, extreme) {
 			console.log(`Mean two-clue deductions: ${rating.pairDeductions.toFixed(1)}`);
 			console.log(`Maximum assumption depth: ${rating.maxDepth}`);
 		}
+		if (rating.effort) {
+			const effort = rating.effort;
+			console.log("Score = excess discards + 5 × scarcity; one skull per 50 points (rounded up)");
+			console.log("Route averages (placement-first, including used suppositions):");
+			console.log(`  Total scarcity:               ${effort.scarcity.toFixed(2)}`);
+			console.log(`  Excess discards (3 free):     ${effort.excessDiscards.toFixed(2)}`);
+			console.log(`  Real-board score:            ${effort.realScore.toFixed(2)}`);
+			console.log(`  Supposition score:           ${effort.hypotheticalScore.toFixed(2)}`);
+		}
 	} else {
 		const metrics = game.measureDifficulty(puzzle);
 		const rating = game.difficultyRating(metrics);

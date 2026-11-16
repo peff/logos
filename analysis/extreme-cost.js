@@ -2,7 +2,7 @@
 // Run with: deno run --allow-read=logos.js analysis/extreme-cost.js SEED...
 const source = await Deno.readTextFile(new URL("../logos.js", import.meta.url));
 const game = new Function("document", source + `\nreturn {
-	parseSeed, puzzleFromSeed, extremeClueIndices, traceExtremeDifficulty, contradictionLemmaScore
+	parseSeed, puzzleFromSeed, extremeClueIndices, traceExtremeDifficulty, contradictionLemmaScore, replayExtremeEffort
 };`)({ addEventListener() {} });
 
 if (!Deno.args.length)
@@ -23,6 +23,7 @@ for (const input of Deno.args) {
 		const rating = game.traceExtremeDifficulty(puzzle, 20000,
 			{ route, measureCost: true });
 		routes.push({ ...rating,
+			effort: game.replayExtremeEffort(puzzle, rating, { route }),
 			eliminations: rating.costs.reduce((sum, c) => sum + eliminations(c), 0),
 			score: rating.costs.reduce((sum, c) => sum + game.contradictionLemmaScore(c), 0),
 		});
@@ -33,6 +34,8 @@ for (const input of Deno.args) {
 	const averages = routes.every(r => r.complete) ? {
 		bottlenecks: mean("bottlenecks"), eliminations: mean("eliminations"),
 		score: mean("score"),
+		effort: Object.fromEntries(["score", "scarcity", "excessDiscards"].map(key =>
+			[key, routes.reduce((sum, r) => sum + r.effort[key], 0) / routes.length])),
 	} : null;
 	console.log(JSON.stringify({ seed: input, ms, averages, maxDepth: Math.max(...routes.map(r => r.maxDepth)), routes }));
 }
