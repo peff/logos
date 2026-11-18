@@ -2269,7 +2269,7 @@ input[type="text"] {
 
 .scores-panel ol {
 	margin: 0;
-	padding-left: 2.4rem;
+	padding-left: 1.6rem;
 	font-variant-numeric: tabular-nums;
 }
 
@@ -2403,10 +2403,10 @@ input[type="text"] {
 }
 
 .score-entry {
-	display: flex;
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
 	align-items: center;
-	justify-content: space-between;
-	gap: 1.5rem;
+	gap: 0.5em;
 }
 
 button.score-entry {
@@ -2683,6 +2683,7 @@ button.score-entry:focus-visible {
 .score-date {
 	display: flex;
 	flex-direction: column;
+	min-width: 0;
 	white-space: nowrap;
 }
 
@@ -2694,6 +2695,10 @@ button.score-entry:focus-visible {
 
 .score-time {
 	font-weight: bold;
+	/* Reserve five digits and the colon, using the time's bold metrics. */
+	width: 6ch;
+	text-align: right;
+	white-space: nowrap;
 }
 
 .scores-empty {
