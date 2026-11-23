@@ -324,3 +324,18 @@ and without the 80-minute puzzle. These correlations are secondary descriptive
 checks, not an objective used to select the penalty or divisor. Reference
 puzzles are excluded from random-sample calibration. The plot title currently
 assumes 1,000 random puzzles and 67 eligible played puzzles.
+
+## Suppose contradictions
+
+```sh
+deno run --allow-read=logos.js analysis/suppose-contradictions.js > failures.jsonl
+deno run --allow-read=logos.js analysis/suppose-contradictions.js --extreme > extreme-failures.jsonl
+```
+
+The survey tries every available wrong placement and removal of a correct tile
+at the opening position and after exhausting ordinary deductions. It verifies
+returned explanations by replaying their deductions and assumption scopes.
+Pass hexadecimal seeds to replace the default sample. Totals go to stderr;
+stdout contains JSON records for positions that exclude the solution but have
+no explanation within the current search and walkthrough limits. Each record
+includes the seed, mode, move, domains, and placements needed to reproduce it.
