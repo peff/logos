@@ -4236,15 +4236,16 @@ body.multiplayer #logo {
 	pointer-events: none;
 }
 
-/* Suppositions use the existing board, retaining a visible distinction
- * between committed moves and the consequences of an assumption. */
-.suppose-actions {
+/* Suppositions and their hints share the same panel and action row. */
+.proof-actions:has(.proof-return[hidden]) { display: none; }
+.suppose-actions, .proof-actions {
 	display: flex;
 	justify-content: center;
 	gap: 0.35rem;
 }
-#suppose-controls .proof-deduction { height: 1.65rem; }
-#suppose-controls .suppose-actions button {
+#suppose-controls .proof-deduction,
+#proof-controls:has(.proof-return:not([hidden])) .proof-deduction { height: 1.65rem; }
+.deduction-controls :is(.suppose-actions, .proof-actions) button {
 	padding: 0;
 	border: 0;
 	background: none;
@@ -4255,7 +4256,7 @@ body.multiplayer #logo {
 	text-decoration: underline;
 	text-underline-offset: 0.1em;
 }
-#suppose-controls .suppose-actions button:disabled { color: rgb(80 48 30 / 28%); }
+.deduction-controls :is(.suppose-actions, .proof-actions) button:disabled { color: rgb(80 48 30 / 28%); }
 #board .suppose-placed > .single { opacity: 0.6; }
 #board .possibility.suppose-removed {
 	visibility: visible;

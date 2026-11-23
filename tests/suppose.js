@@ -523,3 +523,101 @@ Deno.test("rejection results close and give way to a new supposition or game", f
 		puzzle.stopTimer();
 	}
 });
+
+Deno.test("Suppose hints use tentative domains and restore nested history after a walkthrough", function() {
+	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
+	puzzle.newGame(0);
+	try {
+		puzzle.hintAcknowledged = true;
+		puzzle.enterSuppose();
+		const first = puzzle.rows[0].slots[0];
+		puzzle.requestTileAction(first, first.value, "place");
+		puzzle.enterSuppose();
+		const second = puzzle.rows[1].slots[0];
+		puzzle.requestTileAction(second, second.value, "place");
+		puzzle.moveSuppose(-1);
+		const state = puzzle.suppose;
+		const history = JSON.stringify(puzzle.supposeModel().serialize());
+		const board = JSON.stringify(puzzle.positionSnapshot());
+		assert(!puzzle.explainButton.disabled);
+		puzzle.hint(1);
+		assert(puzzle.hintRequest && !puzzle.proof);
+		assert(puzzle.supposeControls.hidden && !puzzle.proofControls.hidden);
+		assert(puzzle.proofControls.querySelector(".proof-position").textContent === "Suppose hint");
+		assert(!puzzle.proofControls.querySelector(".proof-return").hidden);
+		assert(JSON.stringify(puzzle.hintRequest.base) === JSON.stringify(state.domains));
+		assert(puzzle.hintRequest.basePlacements[0] & (1 << first.value));
+		puzzle.hint(2);
+		assert(!puzzle.proofControls.hidden && !puzzle.proof && puzzle.supposeControls.hidden);
+		puzzle.returnToSuppose();
+		assert(!puzzle.hintRequest && puzzle.proofControls.hidden && !puzzle.supposeControls.hidden);
+		assert(JSON.stringify(puzzle.supposeModel().serialize()) === history);
+		puzzle.hint(3);
+		assert(puzzle.proof && puzzle.suppose === state && puzzle.supposeControls.hidden);
+		document.listeners.keydown({ key: "ArrowLeft", preventDefault() {} });
+		assert(puzzle.proof.position === 0 && state.position === 0);
+		puzzle.requestTileAction(second, second.value, "place");
+		puzzle.requestClueAction(puzzle.clues.find(clue => clue.active), false);
+		assert(JSON.stringify(puzzle.supposeModel().serialize()) === history,
+		       "walkthrough allowed edits to the hidden branch");
+		assert(!first.singleElem.hidden, "walkthrough base lost a supposed placement");
+		while (puzzle.proof.position < puzzle.proof.steps.length) puzzle.moveProof(1);
+		puzzle.returnToSuppose();
+		assert(puzzle.suppose === state && !puzzle.supposeControls.hidden);
+		assert(!first.singleElem.hidden && first.singleElem.textContent === first.symbols[first.value]);
+		assert(JSON.stringify(puzzle.supposeModel().serialize()) === history);
+		assert(JSON.stringify(puzzle.positionSnapshot()) === board);
+		puzzle.moveSuppose(1);
+		assert(!second.singleElem.hidden, "hint lost the branch's redo history");
+		puzzle.hint(2);
+		puzzle.moveSuppose(-1);
+		assert(!puzzle.hintRequest && puzzle.proofControls.hidden, "rewind retained a stale hint");
+	} finally {
+		puzzle.stopTimer();
+	}
+});
+
+Deno.test("Suppose checks the solution only after accepting assistance", function() {
+	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
+	puzzle.newGame(0);
+	const acknowledged = localStorage.getItem("hintAcknowledged");
+	try {
+		puzzle.practiceMode = false;
+		puzzle.scoreEligible = true;
+		puzzle.hintAcknowledged = false;
+		let checks = 0;
+		const matches = puzzle.supposeMatchesSolution;
+		puzzle.supposeMatchesSolution = function() {
+			checks++;
+			assert(this.practiceMode && !this.scoreEligible, "answer checked before entering Zen");
+			return matches.call(this);
+		};
+		puzzle.enterSuppose();
+		const slot = puzzle.rows[0].slots[0];
+		const wrong = slot.possible.findIndex((possible, symbol) => possible && symbol !== slot.value);
+		puzzle.requestTileAction(slot, wrong, "place");
+		assert(!puzzle.explainButton.disabled && checks === 0);
+		puzzle.hint(1);
+		assert(puzzle.pendingHint && checks === 0 && !puzzle.practiceMode);
+		puzzle.finishHintNotice(false);
+		assert(!puzzle.hintRequest && checks === 0 && puzzle.scoreEligible);
+		puzzle.hint(1);
+		puzzle.finishHintNotice(true);
+		assert(checks === 1 && puzzle.hintRequest.contradiction && !puzzle.proof);
+		assert(puzzle.supposeControls.hidden && !puzzle.proofControls.hidden);
+		puzzle.hint(3);
+		assert(checks === 1 && !puzzle.proof, "contradiction opened an ordinary walkthrough");
+		puzzle.returnToSuppose();
+		assert(!puzzle.hintRequest && !puzzle.supposeControls.hidden && puzzle.proofControls.hidden);
+		puzzle.moveSuppose(-1);
+		assert(!puzzle.explainButton.disabled);
+		puzzle.requestTileAction(slot, slot.value, "remove");
+		assert(!puzzle.explainButton.disabled && checks === 1);
+		puzzle.hint();
+		assert(checks === 2 && puzzle.hintRequest.contradiction && !puzzle.proof);
+	} finally {
+		puzzle.stopTimer();
+		if (acknowledged === null) localStorage.removeItem("hintAcknowledged");
+		else localStorage.setItem("hintAcknowledged", acknowledged);
+	}
+});

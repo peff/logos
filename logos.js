@@ -1228,6 +1228,7 @@ function Puzzle(board, hClues, vClues, messages, timer,
 		this.explainButton.classList.remove("active", "proof-available");
 		this.explainButton.setAttribute("aria-pressed", "false");
 		this.proofControls.hidden = true;
+		this.updateHintReturnControl();
 		document.body.classList.remove("proof-active");
 		this.nextMilestone = 0;
 		this.milestoneMessageIndex = null;
@@ -2190,7 +2191,8 @@ function Puzzle(board, hClues, vClues, messages, timer,
 	/* Reveal assistance in stages without applying moves to the board. */
 	this.hint = function(stage = 3, committed = false) {
 		this.recordMoveEvent("hint", { stage });
-		if (this.suppose || this.supposeReplay || this.actionController?.replay)
+		if (this.supposeReplay || this.actionController?.replay ||
+		    this.suppose?.pending)
 			return;
 		if (this.gameOver || this.pendingSeed !== undefined || this.paused) {
 			console.log("Start or resume a game before requesting a hint.");
@@ -2208,6 +2210,8 @@ function Puzzle(board, hClues, vClues, messages, timer,
 		if (this.actionController && !committed)
 			return this.actionController.requestAction({ type: "hint", stage });
 		if (this.hintRequest) {
+			if (this.hintRequest.contradiction)
+				return;
 			if (this.hintRequest.stalled && stage < 3 && this.hintRequest.exploration) {
 				var exploration = this.hintRequest.exploration;
 				this.hintRequest.stage = 2;
@@ -2221,8 +2225,23 @@ function Puzzle(board, hClues, vClues, messages, timer,
 			}
 			return;
 		}
-		var base = domainsFromSlots(this);
-		var basePlacements = proofPlacementsFromSlots(this);
+		/* Even checking a tentative position is assistance. Enter Zen before
+		 * looking at the answer, and never expose this check in button state. */
+		if (this.suppose) {
+			this.prepareHint();
+			if (!this.supposeMatchesSolution()) {
+				this.hintRequest = { contradiction: true, stage,
+					supposeSnapshot: JSON.stringify(this.supposeSnapshot()) };
+				this.showHintExplanation("This Suppose position conflicts with the solution. Return to Suppose to review your moves.");
+				return;
+			}
+		}
+		var base = this.suppose ? copyDomains(this.suppose.domains) : domainsFromSlots(this);
+		var basePlacements = this.suppose ? base.map(row =>
+			row.reduce((bits, domain, symbol) => bits |
+				(countBits(domain) == 1 ? 1 << symbol : 0), 0)) :
+			proofPlacementsFromSlots(this);
+		var supposeSnapshot = this.suppose ? JSON.stringify(this.supposeSnapshot()) : null;
 
 		var step = nextHintStep(this, base, basePlacements);
 		if (!step) {
@@ -2230,7 +2249,7 @@ function Puzzle(board, hClues, vClues, messages, timer,
 				this.prepareHint();
 				var lemma = bestChalkLemma(this, base, basePlacements);
 				var exploration = lemma.find(step => step.lemmaStage == "assumption");
-				this.hintRequest = { stalled: true, stage: 1, exploration, lemma,
+				this.hintRequest = { stalled: true, stage: 1, exploration, lemma, supposeSnapshot,
 					base, basePlacements, step: null };
 				var message = "No deduction available. Press Hint again for a walkthrough.";
 				if (exploration) {
@@ -2259,7 +2278,7 @@ function Puzzle(board, hClues, vClues, messages, timer,
 			return;
 		}
 		this.prepareHint();
-		this.hintRequest = { base, basePlacements, step, stage: 0 };
+		this.hintRequest = { base, basePlacements, step, stage: 0, supposeSnapshot };
 		this.say("A little enlightenment. Consider the highlighted clue.");
 		this.showHint(stage);
 	}
@@ -2281,19 +2300,34 @@ function Puzzle(board, hClues, vClues, messages, timer,
 		this.proofControls.hidden = false;
 		this.proofControls.querySelector(".proof-previous").disabled = true;
 		this.proofControls.querySelector(".proof-next").disabled = true;
-		this.proofControls.querySelector(".proof-position").textContent = "Hint";
+		this.proofControls.querySelector(".proof-position").textContent = this.suppose ? "Suppose hint" : "Hint";
+		this.updateHintReturnControl();
+		this.updateSupposeControls();
 		renderProofMessage(this,
 			this.proofControls.querySelector(".proof-deduction"), message, false);
 	}
 
+	this.updateHintReturnControl = function() {
+		this.proofControls.querySelector(".proof-return").hidden =
+			!this.suppose || !this.hintRequest && !this.proof?.supposeSnapshot;
+	}
+
+	this.returnToSuppose = function() {
+		if (this.proof?.supposeSnapshot)
+			this.closeProof();
+		else
+			this.clearHint();
+		this.supposeControls.querySelector(".suppose-leave").focus();
+	}
+
 	this.updateRevealClueControl = function(available) {
 		this.proofControls.querySelector(".proof-reveal").hidden =
-			!available || !this.extreme || !this.hintRequest?.stalled ||
+			!available || !!this.suppose || !this.extreme || !this.hintRequest?.stalled ||
 			!this.originalClues.some(clue => !this.clues.includes(clue));
 	}
 
 	this.requestExtremeClue = function() {
-		if (!this.extreme || this.gameOver || this.paused ||
+		if (!this.extreme || this.gameOver || this.paused || this.suppose ||
 		    !this.hintRequest?.stalled)
 			return;
 		var domains = domainsFromSlots(this);
@@ -2384,6 +2418,8 @@ function Puzzle(board, hClues, vClues, messages, timer,
 		this.hintRequest = null;
 		this.proofControls.hidden = true;
 		this.proofControls.classList.remove("hint-explanation");
+		this.updateHintReturnControl();
+		this.updateSupposeControls();
 		for (var clue of this.clues)
 			if (clue.display)
 				clue.display.classList.remove("hint-current");
@@ -2399,6 +2435,9 @@ function Puzzle(board, hClues, vClues, messages, timer,
 				clue.display.classList.add("hint-current");
 			if (stage == 2)
 				this.showHintExplanation(step.message);
+			else if (this.suppose)
+				this.showHintExplanation(step.clues.length ?
+					"Consider the highlighted clue." : "Consider the remaining possibilities.");
 			return;
 		}
 		var steps = buildHintSteps(this, step, request.base, request.basePlacements, request.lemma);
@@ -2408,6 +2447,7 @@ function Puzzle(board, hClues, vClues, messages, timer,
 		this.clearHint();
 		this.proof = {
 			hint: true,
+			supposeSnapshot: request.supposeSnapshot,
 			steps: steps,
 			base: request.base,
 			basePlacements: request.basePlacements,
@@ -2439,9 +2479,17 @@ function Puzzle(board, hClues, vClues, messages, timer,
 	}
 
 	this.openProofDisplay = function() {
-		this.leaveSuppose(true);
+		if (!this.proof.supposeSnapshot)
+			this.leaveSuppose(true);
+		else {
+			document.body.classList.remove("suppose-active");
+			for (var row of this.rows)
+				for (var slot of row.slots)
+					slot.elem.classList.remove("suppose-placed");
+		}
 		this.updateSupposeControls();
 		this.updateRevealClueControl(false);
+		this.updateHintReturnControl();
 		this.updateChalkControls();
 		this.proofControls.hidden = false;
 		document.body.classList.add("proof-active");
@@ -2481,6 +2529,10 @@ function Puzzle(board, hClues, vClues, messages, timer,
 			failedValue: proof.failedValue,
 		};
 		this.proof = null;
+		if (proof.supposeSnapshot && this.suppose) {
+			this.suppose.displayed = null;
+			document.body.classList.add("suppose-active");
+		}
 		this.updateSupposeControls();
 		this.updateChalkControls();
 		this.proofControls.hidden = true;
@@ -2559,7 +2611,7 @@ function Puzzle(board, hClues, vClues, messages, timer,
 				this.proof.basePlacements);
 			positionElem.textContent = "Before the proof";
 			deductionElem.textContent = this.proof.hint ?
-				"The board as it stood." :
+				(this.proof.supposeSnapshot ? "The Suppose board as it stood." : "The board as it stood.") :
 				"The board as it stood before the mistake.";
 		} else {
 			var step = this.proof.steps[position - 1];
@@ -2582,6 +2634,8 @@ function Puzzle(board, hClues, vClues, messages, timer,
 			for (var i = 0; i < step.clues.length; i++)
 				step.clues[i].display.classList.add("proof-current");
 		}
+		if (this.proof.supposeSnapshot)
+			positionElem.textContent = "Suppose hint · " + positionElem.textContent;
 		this.proofControls.querySelector(".proof-previous").disabled =
 			position == 0;
 		this.proofControls.querySelector(".proof-next").disabled =
@@ -2607,6 +2661,13 @@ function Puzzle(board, hClues, vClues, messages, timer,
 	 * domains; Slot.value and the committed board are never modified. */
 	this.hasSupposeConflict = function() {
 		return !!this.suppose?.sharedConflicts.some(Boolean);
+	}
+
+	/* A temporary answer check until hints can explain contradictions.
+	 * Only call after the player has accepted assistance. */
+	this.supposeMatchesSolution = function() {
+		return this.rows.every((row, r) => row.slots.every((slot, c) =>
+				this.suppose.domains[r][slot.value] & (1 << c)));
 	}
 
 	/* Metadata for the displayed step, shared by rendering and snapshots. */
@@ -2660,9 +2721,11 @@ function Puzzle(board, hClues, vClues, messages, timer,
 				this.suppose && (!this.suppose.assumption || this.suppose.pending || this.hasSupposeConflict()));
 			button.setAttribute("aria-expanded", String(!!this.suppose));
 		}
-		this.supposeControls.hidden = !this.suppose && !this.supposeResult;
+		this.supposeControls.hidden = !!this.proof || !!this.hintRequest?.supposeSnapshot ||
+			!this.suppose && !this.supposeResult;
 		if (this.suppose)
-			this.explainButton.disabled = true;
+			this.explainButton.disabled = !this.proof &&
+				(this.paused || !!this.actionController?.replay || !!this.suppose.pending);
 	}
 
 	this.saveSupposeStep = function(move = null) {
@@ -2675,7 +2738,7 @@ function Puzzle(board, hClues, vClues, messages, timer,
 
 	this.applySupposeAction = function(slot, symbol, action) {
 		if (this.actionController?.joinRequest) return;
-		if (!this.suppose || this.suppose.pending || this.hasSupposeConflict() || this.paused || this.gameOver || slot.single)
+		if (!this.suppose || this.proof || this.suppose.pending || this.hasSupposeConflict() || this.paused || this.gameOver || slot.single)
 			return;
 		if (this.actionController)
 			return this.actionController.requestBranchAction({ type: action == "remove" || action == "pencil-remove" ? "remove" : "place",
@@ -2692,7 +2755,7 @@ function Puzzle(board, hClues, vClues, messages, timer,
 
 	this.toggleSupposeClue = function(clue) {
 		if (this.actionController?.joinRequest) return;
-		if (this.paused || !this.suppose || this.suppose.pending || this.hasSupposeConflict() || !clue.active)
+		if (this.paused || this.proof || !this.suppose || this.suppose.pending || this.hasSupposeConflict() || !clue.active)
 			return;
 		if (this.actionController) {
 			var index = this.clues.indexOf(clue);
@@ -2803,6 +2866,20 @@ function Puzzle(board, hClues, vClues, messages, timer,
 	}
 
 	this.renderSuppose = function() {
+		var snapshot = this.proof?.supposeSnapshot || this.hintRequest ?
+			JSON.stringify(this.supposeSnapshot()) : null;
+		if (this.proof?.supposeSnapshot) {
+			if (this.proof.supposeSnapshot === snapshot) {
+				document.body.classList.remove("suppose-active");
+				this.showProofPosition();
+				this.updateSupposeControls();
+				return;
+			}
+			this.closeProof();
+			return;
+		}
+		if (this.hintRequest && this.hintRequest.supposeSnapshot !== snapshot)
+			this.clearHint();
 		var state = this.suppose;
 		var previous = state.displayed;
 		state.displayed = copyDomains(state.domains);
@@ -2940,6 +3017,8 @@ function Puzzle(board, hClues, vClues, messages, timer,
 		this.supposeControls.querySelector(".suppose-leave").textContent = "Back out";
 		if (this.expandedSlot)
 			this.renderSlotTray();
+		for (var elem of this.hintRequest?.highlights || [])
+			elem.classList.add("hint-current");
 	}
 
 	/* Once an exploration becomes real, use the usual move checking and
@@ -3073,6 +3152,9 @@ function Puzzle(board, hClues, vClues, messages, timer,
 	}
 
 	this.leaveSuppose = function(all = false) {
+		if (this.proof?.supposeSnapshot)
+			this.closeProof();
+		this.clearHint();
 		this.clearSupposeResult();
 		if (this.actionController?.ready && !this.actionController.updatingBranches && this.suppose)
 			return this.actionController.requestBranchAction({ type: !all && this.suppose.parent ? "back-out" : "leave" });
@@ -4543,10 +4625,10 @@ function Puzzle(board, hClues, vClues, messages, timer,
 		if ((!puzzle.proof && !puzzle.suppose) || puzzle.paused)
 			return;
 		ev.preventDefault();
-		if (puzzle.suppose)
-			puzzle.moveSuppose(direction);
-		else
+		if (puzzle.proof)
 			puzzle.moveProof(direction);
+		else
+			puzzle.moveSuppose(direction);
 	});
 	document.addEventListener("keyup", function(ev) {
 		if (ev.key == "Control" || ev.key == "Shift" || ev.key == "Alt") {
