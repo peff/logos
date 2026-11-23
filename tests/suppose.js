@@ -731,9 +731,9 @@ function checkContradictionWalkthrough(puzzle, base, basePlacements, steps) {
 	assert(!scopes.length && steps.at(-1).contradiction);
 }
 
-Deno.test("an Extreme contradiction can exceed the walkthrough budget without becoming valid", function() {
-	// Found by analysis/suppose-contradictions.js. This is a real wrong
-	// removal, not an artificial search with its budget set to zero.
+Deno.test("an Extreme contradiction beyond the old budget now gets a complete walkthrough", function() {
+	// Found by analysis/suppose-contradictions.js. The old 500-step limit
+	// could not explain this wrong removal from the opening position.
 	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
 	puzzle.newGame(0x4c3f2a56, false, false, true);
 	try {
@@ -744,15 +744,16 @@ Deno.test("an Extreme contradiction can exceed the walkthrough budget without be
 		puzzle.requestTileAction(slot, slot.value, "remove");
 		const saved = JSON.stringify(puzzle.supposeModel().serialize());
 		puzzle.hint(1);
-		assert(puzzle.hintRequest.unexplainedContradiction && !puzzle.proof);
-		assert(puzzle.supposeControls.hidden && !puzzle.proofControls.hidden);
+		assert(!puzzle.hintRequest.unexplainedContradiction && !puzzle.proof);
+		assert(!puzzle.supposeControls.hidden && puzzle.proofControls.hidden);
 		const request = puzzle.hintRequest;
-		const steps = Logos.buildContradictionSteps(puzzle, request.base, request.basePlacements,
-			{ maxSteps: 2000 });
-		assert(steps.length > 500 && steps.some(step => step.lemmaStage === "start"));
+		assert(!Logos.buildContradictionSteps(puzzle, request.base, request.basePlacements,
+			{ maxSteps: 500 }).length);
+		const steps = request.contradictionSteps;
+		assert(steps.length > 500 && steps.length <= 2000 && steps.some(step => step.lemmaStage === "start"));
 		checkContradictionWalkthrough(puzzle, request.base, request.basePlacements, steps);
 		puzzle.hint(3);
-		assert(!puzzle.proof && puzzle.hintRequest === request);
+		assert(puzzle.proof && puzzle.proof.steps === steps);
 		puzzle.returnToSuppose();
 		assert(JSON.stringify(puzzle.supposeModel().serialize()) === saved);
 	} finally {

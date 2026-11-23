@@ -47,7 +47,7 @@ function shuffle(values, rng) {
 	}
 	return values;
 }
-let extreme = false, sample = null, seedCount = null, maxSteps = 500;
+let extreme = false, sample = null, seedCount = null, maxSteps = 2000;
 const seeds = [];
 for (let i = 0; i < Deno.args.length; i++) {
 	const arg = Deno.args[i];

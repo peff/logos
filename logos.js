@@ -7301,7 +7301,7 @@ function positionContradiction(puzzle, domains, clues = puzzle.clues) {
  * every alternative impossible explains why the enclosing position fails;
  * one rejected placement alone would be normal progress on a valid board. */
 function buildContradictionChoices(puzzle, base, basePlacements, options = {}) {
-	var maxSteps = options.maxSteps ?? 500;
+	var maxSteps = options.maxSteps ?? 2000;
 	var depthLimit = options.depthLimit ?? 2;
 	var budget = { remaining: options.maxTrials ?? 10000 };
 	if (depthLimit < 1) return [];
@@ -7389,7 +7389,7 @@ function buildContradictionChoices(puzzle, base, basePlacements, options = {}) {
  * rather than proving the opposite of a particular move. A failed search
  * returns no explanation; it says nothing about the position's validity. */
 function buildContradictionSteps(puzzle, base, basePlacements, options = {}) {
-	var maxSteps = options.maxSteps ?? 500;
+	var maxSteps = options.maxSteps ?? 2000;
 	function route(clues, useLemmas = false) {
 		var domains = copyDomains(base), placements = basePlacements.slice();
 		var steps = [], budget = { remaining: options.maxTrials ?? 10000 };
