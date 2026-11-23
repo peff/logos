@@ -2435,9 +2435,6 @@ function Puzzle(board, hClues, vClues, messages, timer,
 				clue.display.classList.add("hint-current");
 			if (stage == 2)
 				this.showHintExplanation(step.message);
-			else if (this.suppose)
-				this.showHintExplanation(step.clues.length ?
-					"Consider the highlighted clue." : "Consider the remaining possibilities.");
 			return;
 		}
 		var steps = buildHintSteps(this, step, request.base, request.basePlacements, request.lemma);
@@ -2721,7 +2718,8 @@ function Puzzle(board, hClues, vClues, messages, timer,
 				this.suppose && (!this.suppose.assumption || this.suppose.pending || this.hasSupposeConflict()));
 			button.setAttribute("aria-expanded", String(!!this.suppose));
 		}
-		this.supposeControls.hidden = !!this.proof || !!this.hintRequest?.supposeSnapshot ||
+		this.supposeControls.hidden = !!this.proof ||
+			!!this.hintRequest?.supposeSnapshot && !this.proofControls.hidden ||
 			!this.suppose && !this.supposeResult;
 		if (this.suppose)
 			this.explainButton.disabled = !this.proof &&

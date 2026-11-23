@@ -542,13 +542,16 @@ Deno.test("Suppose hints use tentative domains and restore nested history after 
 		assert(!puzzle.explainButton.disabled);
 		puzzle.hint(1);
 		assert(puzzle.hintRequest && !puzzle.proof);
-		assert(puzzle.supposeControls.hidden && !puzzle.proofControls.hidden);
-		assert(puzzle.proofControls.querySelector(".proof-position").textContent === "Suppose hint");
-		assert(!puzzle.proofControls.querySelector(".proof-return").hidden);
+		assert(puzzle.hintRequest.step.clues.some(clue => clue.display.classList.contains("hint-current")));
+		puzzle.renderSuppose();
+		assert(!puzzle.supposeControls.hidden && puzzle.proofControls.hidden,
+		       "highlight-only hint replaced the Suppose controls");
 		assert(JSON.stringify(puzzle.hintRequest.base) === JSON.stringify(state.domains));
 		assert(puzzle.hintRequest.basePlacements[0] & (1 << first.value));
 		puzzle.hint(2);
 		assert(!puzzle.proofControls.hidden && !puzzle.proof && puzzle.supposeControls.hidden);
+		assert(puzzle.proofControls.querySelector(".proof-position").textContent === "Suppose hint");
+		assert(!puzzle.proofControls.querySelector(".proof-return").hidden);
 		puzzle.returnToSuppose();
 		assert(!puzzle.hintRequest && puzzle.proofControls.hidden && !puzzle.supposeControls.hidden);
 		assert(JSON.stringify(puzzle.supposeModel().serialize()) === history);
