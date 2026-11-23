@@ -143,7 +143,7 @@ Object.defineProperty(globalThis, "localStorage", { value: {
 const source = await Deno.readTextFile(
 	new URL("../logos.js", import.meta.url));
 const Logos = eval(source +
-	"\n;({ replayExtremeEffort, traceDifficulty, compileCluePairs, applyCluePairDeduction, cluePairTuples, countBits, findContradictionLemma, contradictionLemmaScore, traceExtremeDifficulty, measureExtremeDifficulty, extremeSkulls, countSolutions, cluesSolve, cluesAllow, buildChalkLemma, bestChalkLemma, chalkContradiction, chalkClueContradiction, extremeExplorationTrials, extremeClueIndices, puzzleDifficulty, difficultyRating, puzzleFromSeed, " +
+	"\n;({ replayExtremeEffort, traceDifficulty, compileCluePairs, applyCluePairDeduction, cluePairTuples, countBits, findContradictionLemma, contradictionLemmaScore, traceExtremeDifficulty, measureExtremeDifficulty, extremeSkulls, countSolutions, cluesSolve, cluesAllow, buildContradictionSteps, buildContradictionChoices, positionContradiction, applyProofStep, buildChalkLemma, bestChalkLemma, chalkContradiction, chalkClueContradiction, extremeExplorationTrials, extremeClueIndices, puzzleDifficulty, difficultyRating, puzzleFromSeed, " +
 	"difficultyOpportunities, placementDifficultyChoices, nextHintStep, buildHintSteps, measureDifficulty, hasRunDifficulty, " +
 	"Puzzle: Puzzle, ExactClue: ExactClue, " +
 	"Adjacent2Clue: Adjacent2Clue, " +

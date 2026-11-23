@@ -606,10 +606,10 @@ Deno.test("Suppose checks the solution only after accepting assistance", functio
 		assert(!puzzle.hintRequest && checks === 0 && puzzle.scoreEligible);
 		puzzle.hint(1);
 		puzzle.finishHintNotice(true);
-		assert(checks === 1 && puzzle.hintRequest.contradiction && !puzzle.proof);
-		assert(puzzle.supposeControls.hidden && !puzzle.proofControls.hidden);
+		assert(checks === 1 && puzzle.hintRequest.contradictionSteps.length && !puzzle.proof);
+		assert(!puzzle.supposeControls.hidden && puzzle.proofControls.hidden);
 		puzzle.hint(3);
-		assert(checks === 1 && !puzzle.proof, "contradiction opened an ordinary walkthrough");
+		assert(checks === 1 && puzzle.proof.steps.at(-1).contradiction);
 		puzzle.returnToSuppose();
 		assert(!puzzle.hintRequest && !puzzle.supposeControls.hidden && puzzle.proofControls.hidden);
 		puzzle.moveSuppose(-1);
@@ -617,10 +617,394 @@ Deno.test("Suppose checks the solution only after accepting assistance", functio
 		puzzle.requestTileAction(slot, slot.value, "remove");
 		assert(!puzzle.explainButton.disabled && checks === 1);
 		puzzle.hint();
-		assert(checks === 2 && puzzle.hintRequest.contradiction && !puzzle.proof);
+		assert(checks === 2 && puzzle.proof.steps.at(-1).contradiction);
 	} finally {
 		puzzle.stopTimer();
 		if (acknowledged === null) localStorage.removeItem("hintAcknowledged");
 		else localStorage.setItem("hintAcknowledged", acknowledged);
+	}
+});
+
+Deno.test("contradiction explanations identify empty and overcrowded rows", function() {
+	const puzzle = makePuzzle(1, false, Logos.defaultSymbols);
+	for (const row of [
+		[0, 63, 63, 63, 63, 63], // symbol with nowhere to go
+		[31, 31, 31, 31, 31, 31], // column with no candidate
+		[1, 1, 62, 62, 62, 62], // two symbols in the same column
+		[3, 3, 3, 60, 60, 60], // three symbols competing for two columns
+	]) {
+		const before = JSON.stringify(row);
+		const steps = Logos.buildContradictionSteps(puzzle, [row], [0]);
+		assert(steps.length === 1 && steps[0].contradiction && steps[0].conflictRow === 0);
+		assert(!steps[0].clues.length);
+		assert(JSON.stringify(row) === before, "explainer changed its input");
+	}
+	assert(!Logos.positionContradiction(puzzle, [[3, 3, 60, 60, 60, 60]]));
+});
+
+Deno.test("an immediate clue contradiction is explained without making another deduction", function() {
+	const puzzle = makePuzzle(2, false, Logos.defaultSymbols);
+	const clue = new ColumnClue(puzzle);
+	clue.tRow = puzzle.rows[0];
+	clue.bRow = puzzle.rows[1];
+	clue.col = 0;
+	clue.display = new FakeElement();
+	puzzle.clues = [clue];
+	const domains = [Array(6).fill(63), Array(6).fill(63)];
+	domains[0][clue.tRow.slots[0].value] = 1;
+	domains[1][clue.bRow.slots[0].value] = 2;
+	const steps = Logos.buildContradictionSteps(puzzle, domains, [0, 0]);
+	assert(steps.length === 1 && steps[0].contradiction && steps[0].clues[0] === clue);
+	assert(steps[0].message.includes("cannot share a column"));
+});
+
+Deno.test("contradiction hints preserve the branch through all stages and rewind", function() {
+	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
+	puzzle.newGame(0);
+	try {
+		puzzle.hintAcknowledged = true;
+		puzzle.enterSuppose();
+		// A later bad move must not cause the initial correct assumption to be rejected.
+		const first = puzzle.rows[0].slots[0];
+		puzzle.requestTileAction(first, first.value, "place");
+		const other = puzzle.rows[1].slots[0];
+		puzzle.requestTileAction(other, other.value, "remove");
+		const before = JSON.stringify(puzzle.supposeModel().serialize());
+		const real = JSON.stringify(puzzle.positionSnapshot());
+		puzzle.hint(1);
+		assert(puzzle.hintRequest.contradictionSteps.length);
+		assert(puzzle.proofControls.hidden && !puzzle.supposeControls.hidden);
+		puzzle.hint(2);
+		assert(!puzzle.proofControls.hidden && puzzle.supposeControls.hidden);
+		puzzle.hint(3);
+		const steps = puzzle.proof.steps;
+		let domains = puzzle.proof.base.map(row => row.slice());
+		let placements = puzzle.proof.basePlacements.slice();
+		for (const step of steps) {
+			if (step.contradiction) {
+				assert(Logos.positionContradiction(puzzle, domains));
+			} else {
+				assert(Logos.proofStepSupported(puzzle, step, domains, placements));
+				Logos.applyProofStep(domains, placements, step);
+			}
+			assert(JSON.stringify(domains) === JSON.stringify(step.domains));
+			assert(JSON.stringify(placements) === JSON.stringify(step.placements));
+		}
+		puzzle.moveProof(steps.length - puzzle.proof.position);
+		assert(puzzle.proofControls.querySelector(".proof-position").textContent === "Suppose hint · Contradiction");
+		puzzle.returnToSuppose();
+		assert(JSON.stringify(puzzle.supposeModel().serialize()) === before);
+		assert(JSON.stringify(puzzle.positionSnapshot()) === real);
+		puzzle.moveSuppose(-1);
+		assert(puzzle.supposeMatchesSolution(), "hint rejected the initial assumption");
+		puzzle.hint(1);
+		assert(!puzzle.hintRequest.contradictionSteps);
+	} finally {
+		puzzle.stopTimer();
+	}
+});
+
+function checkContradictionWalkthrough(puzzle, base, basePlacements, steps) {
+	let domains = base.map(row => row.slice()), placements = basePlacements.slice();
+	const scopes = [];
+	for (const step of steps) {
+		if (step.lemmaStage === "start") {
+			scopes.push({ domains: domains.map(row => row.slice()), placements: placements.slice(), trial: step.lemmaTrial });
+		} else if (step.lemmaStage === "end") {
+			const scope = scopes.pop();
+			domains = scope.domains;
+			placements = scope.placements;
+			domains[scope.trial.row][scope.trial.symbol] &= ~(1 << scope.trial.column);
+		} else if (step.contradiction || step.lemmaStage === "contradiction") {
+			assert(Logos.positionContradiction(puzzle, domains), "unjustified contradiction");
+		} else {
+			if (step.lemmaStage === "assumption") {
+				assert(domains[step.row][step.symbol] & (1 << step.column));
+			} else {
+				assert(Logos.proofStepSupported(puzzle, step, domains, placements), "unsupported deduction");
+			}
+			Logos.applyProofStep(domains, placements, step);
+		}
+		assert(JSON.stringify(domains) === JSON.stringify(step.domains), "incorrect proof snapshot");
+		assert(JSON.stringify(placements) === JSON.stringify(step.placements), "incorrect placements");
+	}
+	assert(!scopes.length && steps.at(-1).contradiction);
+}
+
+Deno.test("an Extreme contradiction can exceed the walkthrough budget without becoming valid", function() {
+	// Found by analysis/suppose-contradictions.js. This is a real wrong
+	// removal, not an artificial search with its budget set to zero.
+	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
+	puzzle.newGame(0x4c3f2a56, false, false, true);
+	try {
+		puzzle.hintAcknowledged = true;
+		puzzle.enterSuppose();
+		const slot = puzzle.rows[0].slots[0];
+		assert(slot.value === 0);
+		puzzle.requestTileAction(slot, slot.value, "remove");
+		const saved = JSON.stringify(puzzle.supposeModel().serialize());
+		puzzle.hint(1);
+		assert(puzzle.hintRequest.unexplainedContradiction && !puzzle.proof);
+		assert(puzzle.supposeControls.hidden && !puzzle.proofControls.hidden);
+		const request = puzzle.hintRequest;
+		const steps = Logos.buildContradictionSteps(puzzle, request.base, request.basePlacements,
+			{ maxSteps: 2000 });
+		assert(steps.length > 500 && steps.some(step => step.lemmaStage === "start"));
+		checkContradictionWalkthrough(puzzle, request.base, request.basePlacements, steps);
+		puzzle.hint(3);
+		assert(!puzzle.proof && puzzle.hintRequest === request);
+		puzzle.returnToSuppose();
+		assert(JSON.stringify(puzzle.supposeModel().serialize()) === saved);
+	} finally {
+		puzzle.stopTimer();
+	}
+});
+
+Deno.test("a consistent position does not produce a contradiction explanation", function() {
+	const puzzle = Logos.puzzleFromSeed(0x12345678);
+	const domains = puzzle.rows.map(row => {
+		const result = Array(6).fill(0);
+		row.slots.forEach((slot, column) => result[slot.value] = 1 << column);
+		return result;
+	});
+	assert(!Logos.buildContradictionSteps(puzzle, domains, Array(6).fill(63)).length);
+});
+
+Deno.test("Extreme contradiction hints can use lemmas within the existing supposition", function() {
+	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
+	puzzle.newGame(0x4c3f2a56, false, false, true);
+	try {
+		puzzle.hintAcknowledged = true;
+		puzzle.enterSuppose();
+		const slot = puzzle.rows[0].slots[0];
+		puzzle.requestTileAction(slot, 3, "place");
+		const saved = JSON.stringify(puzzle.supposeModel().serialize());
+		puzzle.hint(3);
+		assert(puzzle.proof && puzzle.proof.steps.some(step => step.lemmaStage === "start"));
+		checkContradictionWalkthrough(puzzle, puzzle.proof.base, puzzle.proof.basePlacements, puzzle.proof.steps);
+		while (puzzle.proof.position < puzzle.proof.steps.length) puzzle.moveProof(1);
+		puzzle.returnToSuppose();
+		assert(JSON.stringify(puzzle.supposeModel().serialize()) === saved);
+	} finally {
+		puzzle.stopTimer();
+	}
+});
+
+Deno.test("overcrowded columns highlight only their competing candidate tiles", function() {
+	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
+	puzzle.newGame(0);
+	try {
+		puzzle.hintAcknowledged = true;
+		puzzle.enterSuppose();
+		const row = puzzle.rows[1];
+		for (const symbol of [0, 1, 2])
+			for (const column of [2, 3, 4, 5])
+				puzzle.requestTileAction(row.slots[column], symbol, "remove");
+		const saved = JSON.stringify(puzzle.supposeModel().serialize());
+		puzzle.hint(1);
+		assert(puzzle.hintRequest.step.conflictRow === 1);
+		puzzle.renderSuppose();
+		for (const [column, slot] of row.slots.entries()) {
+			assert(!slot.elem.classList.contains("hint-current"));
+			for (const [symbol, tile] of slot.possibilityElems.entries())
+				assert(tile.classList.contains("hint-current") === (symbol < 3 && column < 2));
+		}
+		assert(!puzzle.supposeControls.hidden && puzzle.proofControls.hidden);
+		puzzle.hint(2);
+		assert(Logos.proofMessageText(puzzle, puzzle.hintRequest.step.message) ===
+			"There isn't room for all of A, B, and C in columns one and two.");
+		puzzle.hint(3);
+		assert(puzzle.proof.steps.length === 1 && puzzle.proof.steps[0].contradiction);
+		assert(row.elem.classList.contains("pencil-conflict"));
+		puzzle.returnToSuppose();
+		assert(JSON.stringify(puzzle.supposeModel().serialize()) === saved);
+		assert(row.slots.every(slot => slot.possibilityElems.every(tile => !tile.classList.contains("hint-current"))));
+	} finally {
+		puzzle.stopTimer();
+	}
+});
+
+Deno.test("an empty column hint highlights only that slot", function() {
+	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
+	puzzle.newGame(0);
+	try {
+		puzzle.hintAcknowledged = true;
+		puzzle.enterSuppose();
+		puzzle.suppose.domains[0] = Array(6).fill(31);
+		puzzle.renderSuppose();
+		puzzle.hint(1);
+		assert(puzzle.hintRequest.step.conflictRow === 0 && puzzle.hintRequest.step.conflictColumn === 5);
+		puzzle.renderSuppose();
+		for (const [column, slot] of puzzle.rows[0].slots.entries())
+			assert(slot.elem.classList.contains("hint-current") === (column === 5));
+		puzzle.hint(2);
+		assert(puzzle.hintRequest.step.message.includes("column 6"));
+		puzzle.returnToSuppose();
+		assert(puzzle.rows[0].slots.every(slot => !slot.elem.classList.contains("hint-current")));
+	} finally {
+		puzzle.stopTimer();
+	}
+});
+
+Deno.test("a symbol with nowhere to go is highlighted only in unplaced slots", function() {
+	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
+	puzzle.newGame(0);
+	try {
+		puzzle.hintAcknowledged = true;
+		puzzle.enterSuppose();
+		const row = puzzle.rows[1];
+		// Reproduce the cascade through actual moves: A has columns 2/3,
+		// B has 1/2, and C has 1/3. Placing D in 1 leaves A homeless.
+		for (const [symbol, columns] of [[0, [0, 3, 4, 5]], [1, [2, 3, 4, 5]], [2, [1, 3, 4, 5]]])
+			for (const column of columns)
+				puzzle.requestTileAction(row.slots[column], symbol, "remove");
+		puzzle.requestTileAction(row.slots[0], 3, "place");
+		puzzle.hint(1);
+		assert(puzzle.hintRequest.step.conflictSymbol === 0);
+		puzzle.renderSuppose();
+		for (const [column, slot] of row.slots.entries()) {
+			assert(!slot.elem.classList.contains("hint-current"));
+			for (const [symbol, tile] of slot.possibilityElems.entries())
+				assert(tile.classList.contains("hint-current") === (symbol === 0 && column >= 3));
+		}
+		puzzle.returnToSuppose();
+		assert(row.slots.every(slot => !slot.possibilityElems[0].classList.contains("hint-current")));
+		assert(puzzle.suppose.domains[1][0] === 0, "highlight restored a discarded possibility");
+	} finally {
+		puzzle.stopTimer();
+	}
+});
+
+Deno.test("a duplicate placement explains the tile missing from the displayed row", function() {
+	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
+	puzzle.newGame(0);
+	try {
+		puzzle.hintAcknowledged = true;
+		puzzle.enterSuppose();
+		const row = puzzle.rows[1];
+		// A/B/C share columns 1/2. Placing C in 1 forces A and B into 2.
+		for (const symbol of [0, 1, 2])
+			for (const column of [2, 3, 4, 5])
+				puzzle.requestTileAction(row.slots[column], symbol, "remove");
+		puzzle.requestTileAction(row.slots[0], 2, "place");
+		const saved = JSON.stringify(puzzle.supposeModel().serialize());
+		assert(row.slots[1].singleElem.textContent === row.slots[1].symbols[0]);
+		puzzle.hint(1);
+		assert(puzzle.hintRequest.step.conflictRow === 1 && puzzle.hintRequest.step.conflictSymbol === 1);
+		puzzle.renderSuppose();
+		for (const [column, slot] of row.slots.entries()) {
+			assert(!slot.elem.classList.contains("hint-current"));
+			for (const [symbol, tile] of slot.possibilityElems.entries())
+				assert(tile.classList.contains("hint-current") === (symbol === 1 && column >= 2));
+		}
+		puzzle.hint(2);
+		assert(Logos.proofMessageText(puzzle, puzzle.hintRequest.step.message) ===
+			"Contradiction: B has no possible column.");
+		puzzle.hint(3);
+		assert(row.slots[1].singleElem.textContent === row.slots[1].symbols[0]);
+		puzzle.returnToSuppose();
+		assert(row.slots.every(slot => !slot.possibilityElems[1].classList.contains("hint-current")));
+		assert(JSON.stringify(puzzle.supposeModel().serialize()) === saved);
+	} finally {
+		puzzle.stopTimer();
+	}
+});
+
+Deno.test("a contradiction hint explains every alternative in a small choice", function() {
+	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
+	puzzle.newGame(0x78c9d796, false, false, true);
+	try {
+		puzzle.hintAcknowledged = true;
+		puzzle.enterSuppose();
+		// Exhaust the opening deductions, then wrongly discard II from
+		// column 1. That leaves I/V there; rejecting just V proves little.
+		for (const [row, symbol, columns] of [
+			[0, 0, [5]], [0, 4, [0, 5]],
+			[1, 0, [5]], [1, 2, [0, 5]], [1, 3, [0, 1]],
+			[2, 2, [0, 1]], [2, 3, [0]], [2, 5, [0, 5]],
+			[3, 1, [0, 5]], [4, 2, [0]], [4, 3, [0, 5]],
+			[5, 0, [0, 5]], [5, 3, [0, 5]],
+		])
+			for (const column of columns)
+				puzzle.requestTileAction(puzzle.rows[row].slots[column], symbol, "remove");
+		const valid = puzzle.suppose.domains.map(row => row.slice());
+		assert(Logos.findContradictionLemma(puzzle, valid, puzzle.clues, 1),
+		       "valid fixture must still permit a failed trial");
+		assert(!Logos.buildContradictionChoices(puzzle, valid, Array(6).fill(0), { depthLimit: 1 }).length,
+		       "one failed trial was treated as an exhausted choice");
+		puzzle.requestTileAction(puzzle.rows[2].slots[0], 1, "remove");
+		const saved = JSON.stringify(puzzle.supposeModel().serialize());
+		const messages = [], explain = puzzle.showHintExplanation;
+		puzzle.showHintExplanation = function(message) {
+			messages.push(Logos.proofMessageText(this, message));
+			return explain.call(this, message);
+		};
+		puzzle.hint(1);
+		const choices = puzzle.hintRequest.step.contradictionChoices;
+		assert(choices.row === 2 && choices.column === 0);
+		assert(choices.alternatives.map(trial => trial.symbol).join() === "0,4");
+		assert(messages.at(-1) === "Neither I nor V can occupy column 1.");
+		const slot = puzzle.rows[2].slots[0];
+		assert(slot.possibilityElems[0].classList.contains("hint-current") &&
+		       slot.possibilityElems[4].classList.contains("hint-current"));
+		assert(puzzle.rows[2].slots.every(slot => !slot.elem.classList.contains("hint-current")));
+		puzzle.hint(2);
+		assert(messages.at(-1) === "Placing V in column 1 leads to a contradiction.");
+		assert(!slot.possibilityElems[0].classList.contains("hint-current") &&
+		       slot.possibilityElems[4].classList.contains("hint-current"));
+		puzzle.hint(3);
+		const proof = puzzle.proof;
+		assert(proof.steps.length < 281, "exhausting the choice lengthened the old detour");
+		const trials = proof.steps.filter(step => step.lemmaStage === "start" && step.lemmaDepth === 1)
+			.map(step => step.lemmaTrial);
+		assert(trials.length === 2 && trials.every(trial => trial.row === 2 && trial.column === 0));
+		assert(trials.map(trial => trial.symbol).join() === "4,0");
+		assert(proof.steps.at(-1).conflictColumn === 0);
+		checkContradictionWalkthrough(puzzle, proof.base, proof.basePlacements, proof.steps);
+		puzzle.returnToSuppose();
+		assert(JSON.stringify(puzzle.supposeModel().serialize()) === saved);
+	} finally {
+		puzzle.stopTimer();
+	}
+});
+
+Deno.test("fallback contradiction lemmas introduce the purpose and highlight candidate positions", function() {
+	const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
+	puzzle.newGame(0);
+	try {
+		puzzle.enterSuppose();
+		puzzle.requestTileAction(puzzle.rows[1].slots[5], 0, "remove");
+		const saved = JSON.stringify(puzzle.supposeModel().serialize());
+		// Exercise the presentation of a proof beginning with an individual
+		// lemma, without an exhausted-choice explanation attached to it.
+		const step = { clues: [], lemmaTrial: { row: 1, symbol: 0, column: 2 } };
+		puzzle.hintRequest = {
+			base: puzzle.suppose.domains.map(row => row.slice()),
+			step, contradictionSteps: [step],
+			supposeSnapshot: JSON.stringify(puzzle.supposeSnapshot()),
+		};
+		const messages = [], explain = puzzle.showHintExplanation;
+		puzzle.showHintExplanation = function(message) {
+			messages.push(Logos.proofMessageText(this, message));
+			return explain.call(this, message);
+		};
+		puzzle.showHint(1);
+		assert(messages.at(-1) === "To see why your supposition conflicts, explore the positions of A.");
+		assert(!puzzle.proofControls.hidden && puzzle.supposeControls.hidden);
+		for (const [row, model] of puzzle.rows.entries())
+			for (const [column, slot] of model.slots.entries()) {
+				assert(!slot.elem.classList.contains("hint-current"));
+				for (const [symbol, tile] of slot.possibilityElems.entries())
+					assert(tile.classList.contains("hint-current") === (row === 1 && symbol === 0 && column < 5));
+			}
+		puzzle.showHint(2);
+		assert(messages.at(-1) === "Placing A in column 3 leads to a contradiction.");
+		for (const [column, slot] of puzzle.rows[1].slots.entries())
+			assert(slot.possibilityElems[0].classList.contains("hint-current") === (column === 2));
+		puzzle.returnToSuppose();
+		assert(JSON.stringify(puzzle.supposeModel().serialize()) === saved);
+		assert(puzzle.proofControls.hidden && !puzzle.supposeControls.hidden);
+	} finally {
+		puzzle.stopTimer();
 	}
 });

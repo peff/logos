@@ -2210,7 +2210,7 @@ function Puzzle(board, hClues, vClues, messages, timer,
 		if (this.actionController && !committed)
 			return this.actionController.requestAction({ type: "hint", stage });
 		if (this.hintRequest) {
-			if (this.hintRequest.contradiction)
+			if (this.hintRequest.unexplainedContradiction)
 				return;
 			if (this.hintRequest.stalled && stage < 3 && this.hintRequest.exploration) {
 				var exploration = this.hintRequest.exploration;
@@ -2227,21 +2227,43 @@ function Puzzle(board, hClues, vClues, messages, timer,
 		}
 		/* Even checking a tentative position is assistance. Enter Zen before
 		 * looking at the answer, and never expose this check in button state. */
-		if (this.suppose) {
+		if (this.suppose)
 			this.prepareHint();
-			if (!this.supposeMatchesSolution()) {
-				this.hintRequest = { contradiction: true, stage,
-					supposeSnapshot: JSON.stringify(this.supposeSnapshot()) };
-				this.showHintExplanation("This Suppose position conflicts with the solution. Return to Suppose to review your moves.");
-				return;
-			}
-		}
 		var base = this.suppose ? copyDomains(this.suppose.domains) : domainsFromSlots(this);
 		var basePlacements = this.suppose ? base.map(row =>
 			row.reduce((bits, domain, symbol) => bits |
 				(countBits(domain) == 1 ? 1 << symbol : 0), 0)) :
 			proofPlacementsFromSlots(this);
 		var supposeSnapshot = this.suppose ? JSON.stringify(this.supposeSnapshot()) : null;
+
+		if (this.suppose && !this.supposeMatchesSolution()) {
+			var steps = buildContradictionSteps(this, base, basePlacements);
+			this.hintRequest = { base, basePlacements, supposeSnapshot, stage: 0,
+				step: steps[0], contradictionSteps: steps,
+				unexplainedContradiction: !steps.length };
+			if (!steps.length) {
+				this.showHintExplanation("This position excludes the solution, but I couldn't find a contradiction to explain.");
+				return;
+			}
+			var first = steps[0];
+			if (!first.clues.length && !first.contradictionChoices && !first.lemmaTrial) {
+				var slots = this.rows[first.conflictRow ?? first.row ?? first.lemmaTrial?.row].slots;
+				if (first.conflictSymbol !== undefined)
+					this.setHintHighlights(slots.filter(slot => !slot.single && !slot.possibleElem.hidden)
+						.map(slot => slot.possibilityElems[first.conflictSymbol]));
+				else if (first.conflictSymbols)
+					this.setHintHighlights(first.conflictSymbols.flatMap(symbol =>
+						slots.flatMap((slot, column) => !slot.possibleElem.hidden &&
+							(base[first.conflictRow][symbol] & (1 << column)) ?
+							[slot.possibilityElems[symbol]] : [])));
+				else
+					this.setHintHighlights(first.conflictColumn !== undefined ?
+						[slots[first.conflictColumn].elem] : slots.map(slot => slot.elem));
+			}
+			this.say("Your supposition contains a contradiction.");
+			this.showHint(stage);
+			return;
+		}
 
 		var step = nextHintStep(this, base, basePlacements);
 		if (!step) {
@@ -2430,6 +2452,42 @@ function Puzzle(board, hClues, vClues, messages, timer,
 		var request = this.hintRequest;
 		request.stage = stage;
 		var step = request.step;
+		if (stage < 3 && step.contradictionChoices) {
+			var choices = step.contradictionChoices;
+			var trial = step.lemmaTrial;
+			var highlighted = stage == 1 ? choices.alternatives : [trial];
+			this.setHintHighlights(highlighted.map(({ row, column, symbol }) =>
+				this.rows[row].slots[column].possibilityElems[symbol]));
+			var message;
+			if (stage == 2) {
+				message = "Placing " + proofSymbolReference(this, trial.row, trial.symbol) +
+					" in column " + (trial.column + 1) + " leads to a contradiction.";
+			} else if (choices.column !== undefined) {
+				var symbols = choices.alternatives.map(trial =>
+					proofSymbolReference(this, trial.row, trial.symbol));
+				message = symbols.length == 2 ?
+					"Neither " + symbols[0] + " nor " + symbols[1] + " can occupy column " + (choices.column + 1) + "." :
+					"No remaining tile can occupy column " + (choices.column + 1) + ".";
+			} else {
+				message = "Every remaining position for " + proofSymbolReference(this, choices.row, choices.symbol) +
+					" leads to a contradiction.";
+			}
+			this.showHintExplanation(message);
+			return;
+		}
+		if (stage < 3 && request.contradictionSteps && step.lemmaTrial) {
+			var { row, symbol, column } = step.lemmaTrial;
+			var slots = this.rows[row].slots;
+			this.setHintHighlights(stage == 1 ? slots.flatMap((slot, c) =>
+				request.base[row][symbol] & (1 << c) ? [slot.possibilityElems[symbol]] : []) :
+				[slots[column].possibilityElems[symbol]]);
+			this.showHintExplanation(stage == 1 ?
+				"To see why your supposition conflicts, explore the positions of " +
+					proofSymbolReference(this, row, symbol) + "." :
+				"Placing " + proofSymbolReference(this, row, symbol) +
+					" in column " + (column + 1) + " leads to a contradiction.");
+			return;
+		}
 		if (stage < 3) {
 			for (var clue of step.clues)
 				clue.display.classList.add("hint-current");
@@ -2437,7 +2495,8 @@ function Puzzle(board, hClues, vClues, messages, timer,
 				this.showHintExplanation(step.message);
 			return;
 		}
-		var steps = buildHintSteps(this, step, request.base, request.basePlacements, request.lemma);
+		var steps = request.contradictionSteps ||
+			buildHintSteps(this, step, request.base, request.basePlacements, request.lemma);
 		if (!steps.length)
 			return;
 		steps[steps.length - 1].conclusion = true;
@@ -2616,8 +2675,10 @@ function Puzzle(board, hClues, vClues, messages, timer,
 				this.renderChalkProof(step);
 			else
 				this.renderProofDomains(step.domains, step.placements, step);
+			if (step.conflictRow !== undefined)
+				this.rows[step.conflictRow].elem.classList.add("pencil-conflict");
 			if (step.conclusion) {
-				positionElem.textContent = "Conclusion";
+				positionElem.textContent = step.contradiction ? "Contradiction" : "Conclusion";
 			} else if (step.walkthroughNumber) {
 				positionElem.textContent = "Step " + step.walkthroughNumber +
 					(step.lemmaStage == "start" ? " — Lemma" :
@@ -2660,8 +2721,8 @@ function Puzzle(board, hClues, vClues, messages, timer,
 		return !!this.suppose?.sharedConflicts.some(Boolean);
 	}
 
-	/* A temporary answer check until hints can explain contradictions.
-	 * Only call after the player has accepted assistance. */
+	/* Choose between deduction and contradiction hints only after the
+	 * player has accepted assistance. This check is not an explanation. */
 	this.supposeMatchesSolution = function() {
 		return this.rows.every((row, r) => row.slots.every((slot, c) =>
 				this.suppose.domains[r][slot.value] & (1 << c)));
@@ -7182,6 +7243,225 @@ function buildHintSteps(puzzle, first, base, basePlacements, firstLemma) {
 				message: "No further ordinary deductions. Explore with chalk to make more progress.",
 			});
 	}
+	return best;
+}
+
+/* Describe an inconsistent position without assigning blame to any one
+ * assumption. Check rows before clues: a clue cannot explain a domain which
+ * was already empty when it was given the position. */
+function positionContradiction(puzzle, domains, clues = puzzle.clues) {
+	for (var row = 0; row < domains.length; row++) {
+		var values = domains[row], size = values.length;
+		var conflict = message => ({ clues: [], conflictRow: row,
+			contradiction: true, message: "Contradiction: " + message });
+		var missing = symbol => ({
+			...conflict(proofSymbolReference(puzzle, row, symbol) + " has no possible column."),
+			conflictSymbol: symbol,
+		});
+		for (var symbol = 0; symbol < size; symbol++)
+			if (!values[symbol])
+				return missing(symbol);
+		/* Suppose displays the first singleton in each slot (or its
+		 * committed tile). Describe a second singleton as the missing
+		 * tile, matching the placement the player already sees. Keep the
+		 * conflicting domains intact for history and proof replay. */
+		for (var symbol = 0; symbol < size; symbol++) {
+			var col = singleBitIndex(values[symbol]);
+			if (col === null) continue;
+			var slot = puzzle.rows[row].slots[col];
+			var displayed = slot.single ? slot.value : values.findIndex(bits => bits == (1 << col));
+			if (displayed != symbol)
+				return missing(symbol);
+		}
+		for (var col = 0; col < size; col++)
+			if (!values.some(bits => bits & (1 << col)))
+				return { ...conflict("None of the symbols in this row can occupy column " + (col + 1) + "."),
+					conflictColumn: col };
+		/* Groups can compete for too few columns even without an empty
+		 * domain or a forced placement. */
+		for (var count = 2; count <= size; count++) {
+			for (var subset = 1; subset < (1 << size); subset++) {
+				if (countBits(subset) != count) continue;
+				var columns = 0, symbols = [];
+				for (var symbol = 0; symbol < size; symbol++) {
+					if (!(subset & (1 << symbol))) continue;
+					columns |= values[symbol];
+					symbols.push(proofSymbolReference(puzzle, row, symbol));
+				}
+				if (countBits(columns) < count) {
+					var names = ["one", "two", "three", "four", "five", "six"]
+						.filter((name, column) => columns & (1 << column));
+					return { clues: [], conflictRow: row, contradiction: true,
+						conflictSymbols: values.flatMap((bits, symbol) => subset & (1 << symbol) ? [symbol] : []),
+						message: "There isn't room for all of " + new Intl.ListFormat("en").format(symbols) +
+							" in columns " + new Intl.ListFormat("en").format(names) + "." };
+				}
+			}
+		}
+	}
+	var conflict = chalkClueContradiction(puzzle, domains, clues);
+	return conflict ? { ...conflict, contradiction: true } : null;
+}
+
+/* Prefer a complete small choice to an unrelated failed trial. Proving
+ * every alternative impossible explains why the enclosing position fails;
+ * one rejected placement alone would be normal progress on a valid board. */
+function buildContradictionChoices(puzzle, base, basePlacements, options = {}) {
+	var maxSteps = options.maxSteps ?? 500;
+	var depthLimit = options.depthLimit ?? 2;
+	var budget = { remaining: options.maxTrials ?? 10000 };
+	if (depthLimit < 1) return [];
+	var groups = [];
+	for (var row = 0; row < base.length; row++) {
+		for (var symbol = 0; symbol < base[row].length; symbol++) {
+			var alternatives = [];
+			for (var bits = base[row][symbol]; bits; bits &= bits - 1)
+				alternatives.push({ row, symbol, column: singleBitIndex(bits & -bits) });
+			if (alternatives.length > 1) groups.push({ row, symbol, alternatives });
+		}
+		for (var column = 0; column < base[row].length; column++) {
+			var alternatives = base[row].flatMap((bits, symbol) =>
+				bits & (1 << column) ? [{ row, symbol, column }] : []);
+			if (alternatives.length > 1) groups.push({ row, column, alternatives });
+		}
+	}
+	groups.sort((a, b) => a.alternatives.length - b.alternatives.length);
+	function prove(domains, alternative) {
+		if (--budget.remaining < 0 || budget.exhausted) return null;
+		var { row, symbol, column } = alternative;
+		var trial = { row, symbol, column, children: [] };
+		domains = copyDomains(domains);
+		domains[row][symbol] = 1 << column;
+		while (cluesAllow(puzzle, puzzle.clues, domains)) {
+			var child = findContradictionLemma(puzzle, domains, puzzle.clues, depthLimit - 1, budget);
+			if (!child) return null;
+			trial.children.push(child);
+			domains[child.row][child.symbol] &= ~(1 << child.column);
+		}
+		return trial;
+	}
+	var best = null;
+	for (var group of groups) {
+		if (budget.remaining <= 0 || budget.exhausted ||
+		    best && group.alternatives.length > best.group.alternatives.length)
+			break;
+		/* Try both orders; prefer a short first trial when totals tie. */
+		for (var alternatives of [group.alternatives, group.alternatives.slice().reverse()]) {
+			var domains = copyDomains(base), placements = basePlacements.slice();
+			var lemmas = [], length = 1;
+			for (var alternative of alternatives) {
+				var trial = prove(domains, alternative);
+				if (!trial) break;
+				var steps = buildChalkLemma(puzzle, domains, placements, trial,
+					puzzle.clues, Math.min(maxSteps, best?.length ?? maxSteps) - length);
+				if (!steps.length) break;
+				lemmas.push({ trial, steps });
+				length += steps.length;
+				domains = copyDomains(steps.at(-1).domains);
+				placements = steps.at(-1).placements.slice();
+			}
+			if (lemmas.length != alternatives.length) continue;
+			if (!best || length < best.length || length == best.length &&
+			    lemmas[0].steps.length < best.lemmas[0].steps.length)
+				best = { group, lemmas, length };
+		}
+	}
+	if (!best) return [];
+	/* Simplify only the selected explanations. Each lemma still ends
+	 * with the same discard, so the next one's starting position survives. */
+	var steps = [], domains = copyDomains(base), placements = basePlacements.slice();
+	for (var lemma of best.lemmas) {
+		var clues = puzzle.clues.slice(), proof = lemma.steps;
+		for (var clue of puzzle.clues) {
+			var reduced = clues.filter(candidate => candidate !== clue);
+			var shorter = buildChalkLemma(puzzle, domains, placements, lemma.trial, reduced, proof.length);
+			if (shorter.length) {
+				clues = reduced;
+				proof = shorter;
+			}
+		}
+		steps.push(...proof);
+		domains = copyDomains(proof.at(-1).domains);
+		placements = proof.at(-1).placements.slice();
+	}
+	var conflict = positionContradiction(puzzle, domains);
+	if (!conflict) return [];
+	steps.push({ ...conflict, domains, placements, conclusion: true });
+	steps[0].contradictionChoices = best.group;
+	return steps;
+}
+
+/* Use the mistake explainer's deductions, but stop at any contradiction
+ * rather than proving the opposite of a particular move. A failed search
+ * returns no explanation; it says nothing about the position's validity. */
+function buildContradictionSteps(puzzle, base, basePlacements, options = {}) {
+	var maxSteps = options.maxSteps ?? 500;
+	function route(clues, useLemmas = false) {
+		var domains = copyDomains(base), placements = basePlacements.slice();
+		var steps = [], budget = { remaining: options.maxTrials ?? 10000 };
+		var choicesTried = false;
+		while (steps.length < maxSteps) {
+			var conflict = positionContradiction(puzzle, domains, clues);
+			if (conflict) {
+				steps.push({ ...conflict, domains: copyDomains(domains),
+					placements: placements.slice(), conclusion: true });
+				return steps;
+			}
+			var step = nextForcedProofStep(domains, placements) ||
+				nextClueProofStep(puzzle, clues, domains);
+			if (!step) {
+				if (!useLemmas) return [];
+				if (!choicesTried) {
+					choicesTried = true;
+					var choices = buildContradictionChoices(puzzle, domains, placements,
+						{ ...options, maxSteps: maxSteps - steps.length });
+					if (choices.length) return steps.concat(choices);
+				}
+				var trial = findContradictionLemma(puzzle, domains, clues,
+					options.depthLimit ?? 2, budget);
+				if (!trial) return [];
+				var lemma = buildChalkLemma(puzzle, domains, placements, trial,
+					clues, maxSteps - steps.length - 1);
+				if (!lemma.length) return [];
+				steps.push(...lemma);
+				domains = copyDomains(lemma.at(-1).domains);
+				placements = lemma.at(-1).placements.slice();
+				continue;
+			}
+			var before = domains[step.row][step.symbol];
+			applyProofStep(domains, placements, step);
+			step.domain = domains[step.row][step.symbol];
+			step.message = step.rule == "clue" ?
+				proofDeductionMessage(puzzle, step, before, step.domain, domains) :
+				forcedProofMessage(puzzle, step);
+			steps.push({ ...step, domains: copyDomains(domains), placements: placements.slice() });
+		}
+		return [];
+	}
+	var best = [], chosen = puzzle.clues;
+	for (var order = 0; order < 5; order++) {
+		var clues = clueRouteOrder(puzzle.clues, order), steps = route(clues);
+		if (steps.length && (!best.length || steps.length < best.length)) {
+			best = steps;
+			chosen = clues;
+		}
+		if (best.length == 1) return best;
+	}
+	if (!best.length) {
+		best = route(puzzle.clues, true);
+	} else {
+		/* Removing unrelated clues often removes whole detours. Keep a
+		 * removal only when it still explains a contradiction as briefly. */
+		for (var clue of chosen.slice()) {
+			var reduced = chosen.filter(candidate => candidate !== clue);
+			var steps = route(reduced);
+			if (steps.length && steps.length <= best.length) {
+				chosen = reduced;
+				best = steps;
+			}
+		}
+	}
+	numberWalkthroughSteps(best);
 	return best;
 }
 
