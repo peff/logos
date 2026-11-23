@@ -1615,3 +1615,53 @@ Deno.test("a delayed leave acknowledgment does not reopen the watched view", fun
 		stopAll(host, guest);
 	}
 });
+
+Deno.test("Suppose hints stay local, mark shared assistance, and follow branch changes", function() {
+	const host = makeSession("host", "host"), guest = makeSession("guest", "alice");
+	const network = new InMemoryMultiplayerNetwork(host.session);
+	try {
+		host.session.start(0x12345678);
+		network.addGuest(guest.session);
+		host.puzzle.enterSuppose();
+		assert(guest.session.joinSuppose(host.session.branchForPlayer().id));
+		const p = guest.puzzle;
+		p.hintAcknowledged = true;
+		const slot = p.rows[0].slots[0];
+		p.requestTileAction(slot, slot.value, "place");
+		const branch = p.suppose;
+		const before = boardState(p);
+		p.hint(1);
+		assert(p.hintRequest && !host.puzzle.hintRequest);
+		assert(host.puzzle.practiceMode && !host.puzzle.scoreEligible);
+		p.hint(2);
+		assert(p.hintRequest.stage === 2);
+		p.hint(3);
+		assert(p.proof && !host.puzzle.proof && p.suppose === branch);
+		guest.session.updateBranchView();
+		assert(p.proof && p.supposeControls.hidden, "unchanged branch closed the walkthrough");
+		p.closeProof();
+		assert(p.suppose === branch && boardState(p) === before);
+		p.hint(3);
+		assert(p.proof);
+		const other = host.puzzle.rows[1].slots[0];
+		host.puzzle.requestTileAction(other, other.value, "place");
+		assert(!p.proof && p.suppose && !p.supposeControls.hidden,
+		       "another participant's move retained a stale walkthrough");
+		// The host can request hints within the same shared branch, too.
+		host.puzzle.hintAcknowledged = true;
+		host.puzzle.hint(3);
+		assert(host.puzzle.proof && !p.proof);
+		host.puzzle.closeProof();
+		assert(host.puzzle.suppose);
+		p.leaveSuppose();
+		host.puzzle.hint(3);
+		assert(host.puzzle.proof);
+		const real = p.rows[2].slots[0];
+		p.requestTileAction(real, real.value, "place");
+		assert(real.single && host.puzzle.rows[2].slots[0].single,
+		       "host walkthrough blocked another player's real move");
+		assert(!host.puzzle.proof && host.puzzle.suppose);
+	} finally {
+		stopAll(host, guest);
+	}
+});

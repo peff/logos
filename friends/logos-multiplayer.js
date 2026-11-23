@@ -63,7 +63,7 @@ function applicableAction(puzzle, action) {
 	if (!action)
 		return false;
 	if (action.type == "suppose-apply")
-		return !puzzle.gameOver && !puzzle.paused && !puzzle.proof && validSupposeMoves(puzzle, action);
+		return !puzzle.gameOver && !puzzle.paused && (!puzzle.proof || !!puzzle.proof.supposeSnapshot) && validSupposeMoves(puzzle, action);
 	if (action.type == "hint")
 		return puzzle.seed !== undefined && !puzzle.gameOver && !puzzle.paused &&
 			Number.isInteger(action.stage) && action.stage >= 1 && action.stage <= 3;
@@ -76,23 +76,25 @@ function applicableAction(puzzle, action) {
 			typeof action.active == "boolean" &&
 			!!puzzle.clues[action.clue]?.display;
 	if (action.type == "chalk-clue")
-		return !puzzle.gameOver && !puzzle.paused && !puzzle.proof &&
+		return !puzzle.gameOver && !puzzle.paused && (!puzzle.proof || !!puzzle.proof.supposeSnapshot) &&
 			Number.isInteger(action.clue) && typeof action.marked == "boolean" &&
 			!!puzzle.clues[action.clue]?.display && !!puzzle.clues[action.clue].active;
 	if (action.type == "chalk-clear")
-		return !puzzle.gameOver && !puzzle.paused && !puzzle.proof;
+		return !puzzle.gameOver && !puzzle.paused && (!puzzle.proof || !!puzzle.proof.supposeSnapshot);
 	if (action.type == "chalk" &&
 	    !["select", "remove", "erase"].includes(action.mark))
 		return false;
 	if (action.type != "chalk" && action.type != "place" && action.type != "remove")
 		return false;
 	var slot = slotForAction(puzzle, action);
-	return !!slot && !puzzle.gameOver && !puzzle.paused && !puzzle.proof &&
+	return !!slot && !puzzle.gameOver && !puzzle.paused && (!puzzle.proof || !!puzzle.proof.supposeSnapshot) &&
 		action.value >= 0 && action.value < slot.possible.length &&
 		!slot.single && slot.possible[action.value];
 }
 
 function applyAction(puzzle, action, playerAction, actor, actorColor) {
+	if (action.type != "hint" && puzzle.proof?.supposeSnapshot)
+		puzzle.closeProof();
 	try {
 		return applySharedAction(puzzle, action, playerAction, actor, actorColor);
 	} finally {
@@ -958,7 +960,7 @@ class MultiplayerSession {
 	}
 
 	requestAction(action) {
-		if (!this.ready || this.seed === null || this.pendingSuppose || this.replay || this.viewingBranch || this.joinRequest ||
+		if (!this.ready || this.seed === null || this.pendingSuppose || this.replay || this.viewingBranch && action.type != "hint" || this.joinRequest ||
 		    this.role == "guest" && !this.hostSender)
 			return false;
 		var command = {
@@ -1069,7 +1071,7 @@ class MultiplayerSession {
 			Number.isInteger(message.expectedRevision) && message.expectedRevision >= 0 &&
 			message.expectedRevision <= this.revision : message.expectedRevision == this.revision;
 		if (message.gameId !== this.gameId || this.replay ||
-		    !!this.branchForPlayer(from) ||
+		    !!this.branchForPlayer(from) && message.action?.type != "hint" ||
 		    !revisionOK ||
 		    !applicableAction(this.puzzle, message.action)) {
 			this.reject(from, message.commandId, "stale-or-inapplicable");
