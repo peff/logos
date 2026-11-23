@@ -888,6 +888,9 @@ Deno.test("a duplicate placement explains the tile missing from the displayed ro
 				puzzle.requestTileAction(row.slots[column], symbol, "remove");
 		puzzle.requestTileAction(row.slots[0], 2, "place");
 		const saved = JSON.stringify(puzzle.supposeModel().serialize());
+		assert(!row.elem.classList.contains("pencil-conflict"));
+		const message = puzzle.supposeControls.querySelector(".suppose-assumption").textContent;
+		assert(!message.includes("conflict"), "tentative row conflict was announced before a hint");
 		assert(row.slots[1].singleElem.textContent === row.slots[1].symbols[0]);
 		puzzle.hint(1);
 		assert(puzzle.hintRequest.step.conflictRow === 1 && puzzle.hintRequest.step.conflictSymbol === 1);
@@ -901,8 +904,10 @@ Deno.test("a duplicate placement explains the tile missing from the displayed ro
 		assert(Logos.proofMessageText(puzzle, puzzle.hintRequest.step.message) ===
 			"Contradiction: B has no possible column.");
 		puzzle.hint(3);
+		assert(row.elem.classList.contains("pencil-conflict"));
 		assert(row.slots[1].singleElem.textContent === row.slots[1].symbols[0]);
 		puzzle.returnToSuppose();
+		assert(!row.elem.classList.contains("pencil-conflict"));
 		assert(row.slots.every(slot => !slot.possibilityElems[1].classList.contains("hint-current")));
 		assert(JSON.stringify(puzzle.supposeModel().serialize()) === saved);
 	} finally {

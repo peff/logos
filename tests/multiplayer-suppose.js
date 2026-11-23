@@ -458,7 +458,7 @@ Deno.test("private row contradictions are not attributed to unrelated shared mov
 		host.session.branchesChanged();
 		const a = wrongMove(host.puzzle, 1);
 		host.puzzle.requestTileAction(a.slot, a.value, "remove");
-		assert(p.rows[0].elem.classList.contains("pencil-conflict"));
+		assert(!p.rows[0].elem.classList.contains("pencil-conflict"));
 		assert(!p.suppose.sharedConflicts.some(Boolean));
 		assert(!p.supposeRewindTarget());
 		assert(p.supposeControls.querySelector(".suppose-rewind").hidden);

@@ -2942,15 +2942,11 @@ function Puzzle(board, hClues, vClues, messages, timer,
 		var state = this.suppose;
 		var previous = state.displayed;
 		state.displayed = copyDomains(state.domains);
-		var conflict = false;
 		for (var r = 0; r < this.rows.length; r++) {
 			var row = this.rows[r];
 			row.elem.classList.remove("pencil-conflict");
-			var rowConflict = propagatePencilRow(state.domains[r].slice());
-			if (rowConflict) {
+			if (state.sharedConflicts[r])
 				row.elem.classList.add("pencil-conflict");
-				conflict = true;
-			}
 			for (var c = 0; c < row.slots.length; c++) {
 				var slot = row.slots[c];
 				for (var tile of [slot.singleElem, ...slot.possibilityElems])
@@ -3020,8 +3016,6 @@ function Puzzle(board, hClues, vClues, messages, timer,
 			!info.previousConflicts[tile]);
 		if (!state.pending && stepConflict)
 			message = stepConflict[1];
-		else if (conflict && !sharedConflict)
-			message += " These possibilities conflict within a row.";
 		renderProofMessage(this, this.supposeControls.querySelector(".suppose-assumption"), message, false);
 		var position = this.supposeControls.querySelector(".proof-position");
 		position.textContent = (state.position ? "· Step " + info.label :
