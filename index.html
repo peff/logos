@@ -179,7 +179,7 @@
 				</h2>
 				<ul id="friends-roster-players" aria-label="Players"></ul>
 			</section>
-			<section id="suppose-controls" hidden aria-label="Supposition" aria-live="polite">
+			<section id="suppose-controls" class="deduction-controls" hidden aria-label="Supposition" aria-live="polite">
 				<button class="proof-previous" type="button" onClick="puzzle.moveSuppose(-1)" aria-label="Previous supposed move">←</button>
 				<div class="proof-step">
 					<div class="suppose-heading">
@@ -211,7 +211,7 @@
 				</div>
 				<button class="proof-next" type="button" onClick="puzzle.moveSuppose(1)" aria-label="Next supposed move">→</button>
 			</section>
-			<div id="proof-controls" hidden aria-live="polite">
+			<div id="proof-controls" class="deduction-controls" hidden aria-live="polite">
 				<button class="proof-previous" type="button"
 				        onClick="puzzle.moveProof(-1)"
 				        aria-label="Previous deduction">←</button>

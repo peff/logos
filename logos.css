@@ -719,21 +719,22 @@ body[data-chalk-cursor="true"][data-discard-cursor="true"]:not([data-custom-curs
 	width: 100%;
 }
 
-:is(#proof-controls, #suppose-controls) {
+.deduction-controls {
 	box-sizing: border-box;
 	align-items: stretch;
 	width: 18rem;
+	max-width: 100%;
 	height: 3.7rem;
 	margin: 0 auto;
 }
 
-:is(#proof-controls, #suppose-controls) {
+.deduction-controls {
 	display: grid;
 	grid-template-columns: 2rem 1fr 2rem;
 	gap: 0.18rem;
 }
 
-#proof-controls[hidden] {
+.deduction-controls[hidden] {
 	display: none;
 }
 
@@ -745,7 +746,7 @@ body[data-chalk-cursor="true"][data-discard-cursor="true"]:not([data-custom-curs
  * defeats the cache. Explicit-angle gradients (145deg below) also still repaint,
  * so leave those unwrapped.
  */
-:is(#proof-controls, #suppose-controls) :where(button, .proof-step) {
+.deduction-controls :where(button, .proof-step) {
 	border: 1px solid #a48c65;
 	background-color: #f7f3e9;
 	background-image:
@@ -761,7 +762,7 @@ body[data-chalk-cursor="true"][data-discard-cursor="true"]:not([data-custom-curs
 		0 0.04rem 0.1rem rgb(75 55 31 / 18%);
 }
 
-:is(#proof-controls, #suppose-controls) button {
+.deduction-controls button {
 	background-image:
 		image-set(linear-gradient(to right,
 			rgb(126 87 46 / 72%),
@@ -781,19 +782,19 @@ body[data-chalk-cursor="true"][data-discard-cursor="true"]:not([data-custom-curs
 	cursor: var(--action-cursor);
 }
 
-:is(#proof-controls, #suppose-controls) .proof-previous {
+.deduction-controls .proof-previous {
 	border-radius: 0.32rem 0.12rem 0.12rem 0.32rem;
 }
 
-:is(#proof-controls, #suppose-controls) .proof-next {
+.deduction-controls .proof-next {
 	border-radius: 0.12rem 0.32rem 0.32rem 0.12rem;
 }
 
-:is(#proof-controls, #suppose-controls) button:not(:disabled):hover {
+.deduction-controls button:not(:disabled):hover {
 	filter: brightness(1.04);
 }
 
-:is(#proof-controls, #suppose-controls) button:disabled {
+.deduction-controls button:disabled {
 	color: rgb(80 48 30 / 28%);
 	text-shadow: none;
 }
@@ -3810,7 +3811,7 @@ body.multiplayer {
 	--friends-panel-height: max(3.7rem, 60px);
 }
 
-body.multiplayer :is(#proof-controls, #suppose-controls) {
+body.multiplayer .deduction-controls {
 	height: var(--friends-panel-height);
 }
 
@@ -4237,13 +4238,6 @@ body.multiplayer #logo {
 
 /* Suppositions use the existing board, retaining a visible distinction
  * between committed moves and the consequences of an assumption. */
-#suppose-controls {
-	width: 18rem;
-	max-width: 100%;
-	margin: 0 auto;
-	text-align: center;
-}
-#suppose-controls[hidden] { display: none; }
 .suppose-actions {
 	display: flex;
 	justify-content: center;
