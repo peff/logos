@@ -330,6 +330,7 @@ assumes 1,000 random puzzles and 67 eligible played puzzles.
 ```sh
 deno run --allow-read=logos.js analysis/suppose-contradictions.js > failures.jsonl
 deno run --allow-read=logos.js analysis/suppose-contradictions.js --extreme > extreme-failures.jsonl
+deno run --allow-read=logos.js analysis/suppose-contradictions.js --extreme --seeds 100 --sample 16 --max-steps 2000 > sampled-failures.jsonl
 ```
 
 The survey tries every available wrong placement and removal of a correct tile
@@ -339,3 +340,15 @@ Pass hexadecimal seeds to replace the default sample. Totals go to stderr;
 stdout contains JSON records for positions that exclude the solution but have
 no explanation within the current search and walkthrough limits. Each record
 includes the seed, mode, move, domains, and placements needed to reproduce it.
+
+Use `--sample N` to select up to N distinct moves per seed, balanced between
+opening and deduced positions and between wrong placements and correct-tile
+removals. Sampling is deterministic for each seed. This explores single wrong
+moves from those two boards, not arbitrary histories of tentative moves.
+`--seeds N` replaces the default seed list with a deterministic sequence and
+continues until N eligible puzzles have been examined (skipping seeds without
+an Extreme variant). It cannot be combined with explicit seeds. `--max-steps N`
+overrides the default 500-step walkthrough limit without changing the game's
+limit or the solver's other search limits. The final summary includes the
+number of seeds with failures, the longest proof, and median, 95th-percentile,
+and worst search times; timings exclude puzzle generation and proof validation.
