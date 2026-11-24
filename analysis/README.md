@@ -352,3 +352,11 @@ overrides the default 2,000-step walkthrough limit without changing the game's
 limit or the solver's other search limits. The final summary includes the
 number of seeds with failures, the longest proof, and median, 95th-percentile,
 and worst search times; timings exclude puzzle generation and proof validation.
+
+For a catalogue of the two-clue deduction mechanism, observed type families,
+and a worked trace of `28311466`, see [TWO-CLUE.md](TWO-CLUE.md). To inspect
+all ten search routes for particular Extreme puzzles:
+
+```sh
+deno run --allow-read=logos.js analysis/two-clue-catalogue.js 28311466
+```
