@@ -275,20 +275,20 @@ Deno.test("hidden seasonal rows do not leak through Automatic customization", fu
 
 Deno.test("existing custom selections can still use a hidden seasonal row", function() {
 	const config = Logos.defaultSymbolConfig();
-	config.rows[3].set = "thanksgiving";
+	config.rows[3].set = "winter";
 	try {
 		localStorage.setItem("customSymbols", JSON.stringify({ version: 2,
-			sets: [{ name: "Harvest", config }] }));
-		localStorage.setItem("tileSet", "custom:Harvest");
+			sets: [{ name: "Winter", config }] }));
+		localStorage.setItem("tileSet", "custom:Winter");
 		const puzzle = makePuzzle(6, false, Logos.defaultSymbols);
-		assert(puzzle.symbols[3] === Logos.symbolRows.thanksgiving.symbols);
+		assert(puzzle.symbols[3] === Logos.symbolRows.winter.symbols);
 		puzzle.options.hidden = false;
 		puzzle.openSymbolConfig();
 		const selects = puzzle.symbolConfigDialog.querySelector(".symbol-config-rows")
 			.querySelectorAll(".symbol-row-select");
-		assert(selects[3].value == "thanksgiving" &&
-			selects[3].children.some(option => option.value == "thanksgiving"));
-		assert(!selects[0].children.some(option => option.value == "thanksgiving"));
+		assert(selects[3].value == "winter" &&
+			selects[3].children.some(option => option.value == "winter"));
+		assert(!selects[0].children.some(option => option.value == "winter"));
 	} finally {
 		clearSettings();
 	}

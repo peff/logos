@@ -40,7 +40,6 @@ const symbolRows = {
 	},
 	thanksgiving: {
 		name: "Thanksgiving",
-		hidden: true, /* Make selectable manually after the holiday. */
 		symbols: [
 			["turkey", "Turkey"],
 			["cornucopia", "Cornucopia"],
