@@ -210,7 +210,7 @@
 			}
 			const pending = document.createElement("span");
 			pending.textContent = "Awaiting sync";
-			pending.style.visibility = record.pending ? "visible" : "hidden";
+			pending.hidden = !record.pending;
 			row.lastElementChild.append(pending);
 			if (record.elapsed === null) {
 				row.children[2].title = "Untimed completion";
