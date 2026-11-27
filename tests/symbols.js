@@ -265,7 +265,7 @@ Deno.test("hidden seasonal rows do not leak through Automatic customization", fu
 			puzzle.duplicateSymbolSet();
 			const list = puzzle.symbolConfigDialog.querySelector(".symbol-config-rows");
 			for (const select of list.querySelectorAll(".symbol-row-select"))
-				assert(!select.children.some(option => Logos.symbolRows[option.value]?.hidden),
+				assert(!select.children.flatMap(group => group.children).some(option => Logos.symbolRows[option.value]?.hidden),
 					"hidden artwork is selectable");
 		} finally {
 			clearSettings();
@@ -287,8 +287,8 @@ Deno.test("existing custom selections can still use a hidden seasonal row", func
 		const selects = puzzle.symbolConfigDialog.querySelector(".symbol-config-rows")
 			.querySelectorAll(".symbol-row-select");
 		assert(selects[3].value == "winter" &&
-			selects[3].children.some(option => option.value == "winter"));
-		assert(!selects[0].children.some(option => option.value == "winter"));
+			selects[3].children.flatMap(group => group.children).some(option => option.value == "winter"));
+		assert(!selects[0].children.flatMap(group => group.children).some(option => option.value == "winter"));
 	} finally {
 		clearSettings();
 	}

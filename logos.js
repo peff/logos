@@ -19,19 +19,20 @@ function handleLinkClick(event, action) {
 
 /* Row identities belong to the artwork, not to puzzle row/value indices. */
 const symbolRows = {
-	numbers: { name: "Numbers", symbols: ["1", "2", "3", "4", "5", "6"] },
-	letters: { name: "Letters", symbols: ["A", "B", "C", "D", "E", "F"] },
-	roman: { name: "Roman numerals", symbols: ["I", "II", "III", "IV", "V", "VI"] },
-	dice: { name: "Dice", symbols: ["⚀", "⚁", "⚂", "⚃", "⚄", "⚅"] },
-	shapes: { name: "Shapes", symbols: ["△", "▽", "□", "◇", "⬠", "○"] },
-	math: { name: "Mathematics", symbols: ["+", "−", "÷", "x", "=", "√"] },
-	greek: { name: "Greek letters", symbols: ["α", "δ", "θ", "λ", "π", "ψ"] },
-	lowercase: { name: "Lowercase letters", symbols: ["k", "n", "r", "s", "t", "z"] },
-	arrows: { name: "Arrows", symbols: ["↖", "↑", "↗", "↙", "↓", "↘"] },
-	chess: { name: "Chess pieces", symbols: ["♟", "♞", "♝", "♜", "♛", "♚"] },
-	sky: { name: "Sky", symbols: ["☀", "☽", "☁", "⚡", "❄", "🌬"] },
-	egyptian: { name: "Hieroglyphs", symbols: ["𓋹", "𓂀", "𓆣", "𓅓", "𓆗", "𓀠"] },
+	numbers: { group: "Classic", name: "Numbers", symbols: ["1", "2", "3", "4", "5", "6"] },
+	letters: { group: "Classic", name: "Letters", symbols: ["A", "B", "C", "D", "E", "F"] },
+	roman: { group: "Classic", name: "Roman numerals", symbols: ["I", "II", "III", "IV", "V", "VI"] },
+	dice: { group: "Classic", name: "Dice", symbols: ["⚀", "⚁", "⚂", "⚃", "⚄", "⚅"] },
+	shapes: { group: "Classic", name: "Shapes", symbols: ["△", "▽", "□", "◇", "⬠", "○"] },
+	math: { group: "Classic", name: "Mathematics", symbols: ["+", "−", "÷", "x", "=", "√"] },
+	greek: { group: "More symbols", name: "Greek letters", symbols: ["α", "δ", "θ", "λ", "π", "ψ"] },
+	lowercase: { group: "More symbols", name: "Lowercase letters", symbols: ["k", "n", "r", "s", "t", "z"] },
+	arrows: { group: "More symbols", name: "Arrows", symbols: ["↖", "↑", "↗", "↙", "↓", "↘"] },
+	chess: { group: "More symbols", name: "Chess pieces", symbols: ["♟", "♞", "♝", "♜", "♛", "♚"] },
+	sky: { group: "More symbols", name: "Sky", symbols: ["☀", "☽", "☁", "⚡", "❄", "🌬"] },
+	egyptian: { group: "More symbols", name: "Hieroglyphs", symbols: ["𓋹", "𓂀", "𓆣", "𓅓", "𓆗", "𓀠"] },
 	halloween: {
+		group: "Seasonal",
 		name: "Halloween",
 		symbols: [
 			["ghost", "Ghost"],
@@ -45,6 +46,7 @@ const symbolRows = {
 		})),
 	},
 	thanksgiving: {
+		group: "Seasonal",
 		name: "Thanksgiving",
 		symbols: [
 			["turkey", "Turkey"],
@@ -58,6 +60,7 @@ const symbolRows = {
 		})),
 	},
 	winter: {
+		group: "Seasonal",
 		name: "Winter",
 		hidden: true,
 		symbols: [
@@ -72,6 +75,7 @@ const symbolRows = {
 		})),
 	},
 	christmas: {
+		group: "Seasonal",
 		name: "Christmas",
 		hidden: true,
 		symbols: [
@@ -86,6 +90,7 @@ const symbolRows = {
 		})),
 	},
 	christmasTreats: {
+		group: "Seasonal",
 		name: "Christmas treats",
 		hidden: true,
 		symbols: [
@@ -100,6 +105,7 @@ const symbolRows = {
 		})),
 	},
 	christmasSanta: {
+		group: "Seasonal",
 		name: "Santa’s visit",
 		hidden: true,
 		symbols: [
@@ -4900,14 +4906,20 @@ function Puzzle(board, hClues, vClues, messages, timer,
 			select.setAttribute("aria-label", "Row " + (index + 1) + " symbols");
 			select.className = "symbol-row-select";
 			select.disabled = this.symbolDraftName == null;
+			let group;
 			for (const [id, family] of Object.entries(symbolRows)) {
 				/* Keep existing custom selections usable while hiding new artwork. */
 				if (family.hidden && id != row.set)
 					continue;
+				if (!group || group.label != family.group) {
+					group = document.createElement("optgroup");
+					group.label = family.group;
+					select.append(group);
+				}
 				const option = document.createElement("option");
 				option.value = id;
 				option.textContent = family.name;
-				select.append(option);
+				group.append(option);
 			}
 			select.value = row.set;
 			select.addEventListener("change", () => {

@@ -68,6 +68,13 @@ var browserTestsDone = (async function() {
 		assert(doc.querySelectorAll(".symbol-config-row").length == 6, "editor does not show six rows");
 		assert(app.getComputedStyle(doc.querySelector(".symbol-seasonal-row")).visibility == "hidden",
 			"preset shows the seasonal option");
+		const groups = rowSelect(0).querySelectorAll("optgroup");
+		assert(Array.from(groups, group => group.label).join("|") == "Classic|More symbols|Seasonal",
+			"symbol row groups are missing or out of order");
+		assert(groups[0].querySelector('option[value="dice"]') &&
+			groups[1].querySelector('option[value="greek"]') &&
+			groups[2].querySelector('option[value="thanksgiving"]'),
+			"symbols appear in the wrong groups");
 		const seasonalPreview = doc.querySelectorAll(".symbol-row-preview")[3];
 		assert(seasonalPreview.querySelectorAll("img").length == 5 &&
 			seasonalPreview.lastElementChild.textContent == "⚅",
