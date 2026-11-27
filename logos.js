@@ -25,6 +25,12 @@ const symbolRows = {
 	dice: { name: "Dice", symbols: ["⚀", "⚁", "⚂", "⚃", "⚄", "⚅"] },
 	shapes: { name: "Shapes", symbols: ["△", "▽", "□", "◇", "⬠", "○"] },
 	math: { name: "Mathematics", symbols: ["+", "−", "÷", "x", "=", "√"] },
+	greek: { name: "Greek letters", symbols: ["α", "δ", "θ", "λ", "π", "ψ"] },
+	lowercase: { name: "Lowercase letters", symbols: ["k", "n", "r", "s", "t", "z"] },
+	arrows: { name: "Arrows", symbols: ["↖", "↑", "↗", "↙", "↓", "↘"] },
+	chess: { name: "Chess pieces", symbols: ["♟", "♞", "♝", "♜", "♛", "♚"] },
+	sky: { name: "Sky", symbols: ["☀", "☽", "☁", "⚡", "❄", "🌬"] },
+	egyptian: { name: "Hieroglyphs", symbols: ["𓋹", "𓂀", "𓆣", "𓅓", "𓆗", "𓀠"] },
 	halloween: {
 		name: "Halloween",
 		symbols: [
@@ -107,12 +113,6 @@ const symbolRows = {
 			label: label, src: "images/tiles/christmas/" + name + ".svg",
 		})),
 	},
-	greek: { name: "Greek letters", symbols: ["α", "δ", "θ", "λ", "π", "ψ"] },
-	lowercase: { name: "Lowercase letters", symbols: ["k", "n", "r", "s", "t", "z"] },
-	arrows: { name: "Arrows", symbols: ["↖", "↑", "↗", "↙", "↓", "↘"] },
-	chess: { name: "Chess pieces", symbols: ["♟", "♞", "♝", "♜", "♛", "♚"] },
-	sky: { name: "Sky", symbols: ["☀", "☽", "☁", "⚡", "❄", "🌬"] },
-	egyptian: { name: "Hieroglyphs", symbols: ["𓋹", "𓂀", "𓆣", "𓅓", "𓆗", "𓀠"] },
 };
 
 var defaultSymbols = ["numbers", "letters", "roman", "dice", "shapes", "math"]
