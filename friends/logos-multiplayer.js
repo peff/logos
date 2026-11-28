@@ -220,13 +220,26 @@ class MultiplayerSession {
 
 		if (this.role != "host" && this.role != "guest")
 			throw new Error("a multiplayer session must be host or guest");
+		const adopt = this.role == "host" && puzzle.seed !== undefined && !puzzle.gameOver &&
+			puzzle.pendingSeed === undefined;
+		const suppose = adopt && puzzle.suppose ? puzzle.supposeModel().serialize() : null;
 		puzzle.setActionController(this);
-		if (this.role == "host" && puzzle.seed !== undefined && !puzzle.gameOver &&
-		    puzzle.pendingSeed === undefined)
+		if (adopt)
 			this.adoptGame();
 		else
 			puzzle.showMultiplayerLobby();
 		this.ready = this.role == "host";
+		if (suppose) {
+			/* Adopt the whole exploration, including nested and future steps.
+			 * Guests still start on the committed board and can join this branch.
+			 */
+			const id = this.playerId + ":" + this.nextBranch++;
+			const model = puzzle.supposeModel(suppose);
+			this.branches.set(id, { id, participants: [this.playerId],
+				snapshot: model.snapshot(), state: model.serialize(), version: 1, generation: 0 });
+			this.recentActions.set(this.playerId, [{ type: "suppose-enter", branchId: id }]);
+			this.updateBranchView();
+		}
 	}
 
 	adoptGame() {

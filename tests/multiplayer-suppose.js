@@ -1,9 +1,43 @@
 import { mock } from "node:test";
-import { Logos } from "./helpers.js";
+import { Logos, makePuzzle } from "./helpers.js";
 import {
-	InMemoryMultiplayerNetwork, assert, boardState, makeSession, stopAll,
+	InMemoryMultiplayerNetwork, MultiplayerSession, assert, boardState, makeSession, stopAll,
 	wrongMove,
 } from "./multiplayer-helpers.js";
+
+Deno.test("hosting preserves a solo supposition and lets guests join it", function() {
+	const puzzle = makePuzzle(6, true, Logos.defaultSymbols);
+	puzzle.newGame(0x12345678);
+	const committed = boardState(puzzle);
+	puzzle.enterSuppose();
+	const outer = wrongMove(puzzle);
+	puzzle.requestTileAction(outer.slot, outer.value, "remove");
+	puzzle.enterSuppose();
+	const inner = wrongMove(puzzle, 1);
+	puzzle.requestTileAction(inner.slot, inner.value, "remove");
+	puzzle.moveSuppose(-1);
+	const before = JSON.stringify(puzzle.supposeModel().serialize());
+	const host = { puzzle, session: new MultiplayerSession(puzzle, { role: "host", playerId: "host" }) };
+	const guest = makeSession("guest", "guest");
+	try {
+		assert(puzzle.suppose && JSON.stringify(puzzle.supposeModel().serialize()) === before,
+		       "hosting discarded nested history or changed the current step");
+		const branch = host.session.branchForPlayer();
+		assert(branch && host.session.recentActions.get("host")[0].branchId === branch.id);
+		new InMemoryMultiplayerNetwork(host.session).addGuest(guest.session);
+		assert(!guest.puzzle.suppose && boardState(guest.puzzle) === committed,
+		       "tentative moves leaked into the guest's committed board");
+		assert(guest.session.joinSuppose(branch.id));
+		assert(JSON.stringify(guest.puzzle.supposeModel().serialize()) === before,
+		       "joining lost the adopted exploration");
+		guest.puzzle.moveSuppose(1);
+		assert(puzzle.suppose.position === 1 && guest.puzzle.suppose.position === 1,
+		       "the adopted branch could not navigate its saved future");
+		assert(boardState(puzzle) === committed && boardState(guest.puzzle) === committed);
+	} finally {
+		stopAll(host, guest);
+	}
+});
 
 async function waitForConflictRewind(puzzle, timers) {
 	for (let i = 0; (puzzle.supposeRewindTimer !== null || puzzle.actionController?.branchForPlayer()?.rewinding) && i < 60; i++)
