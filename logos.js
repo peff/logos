@@ -2021,7 +2021,9 @@ function Puzzle(board, hClues, vClues, messages, timer,
 				this.toggleOptions();
 			return;
 		}
-		if (this.pendingSeed !== undefined && seed === this.pendingSeed &&
+		/* Options starts daily seeds as ordinary replays, even when a saved
+		 * result would prevent accepting the daily invitation. */
+		if (!this.daily && this.pendingSeed !== undefined && seed === this.pendingSeed &&
 		    !!this.extreme === this.extremeMode) {
 			this.startGame();
 			input.setCustomValidity("");

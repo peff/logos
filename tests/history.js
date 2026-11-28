@@ -113,6 +113,33 @@ Deno.test("daily attempts remember the first result and share a fixed date", asy
 	}
 });
 
+Deno.test("Options starts a completed daily preview as a replay", async function() {
+	await withRunHistory(async runs => {
+		const puzzle = makePuzzle(6);
+		puzzle.options.hidden = true;
+		try {
+			await puzzle.openDaily("20261008");
+			assert(puzzle.dailyResultOpen && puzzle.pendingSeed === 0x20261008 && puzzle.gameOver);
+			puzzle.toggleOptions();
+			puzzle.playSeed();
+			assert(puzzle.seed === 0x20261008 && puzzle.pendingSeed === undefined &&
+			       !puzzle.gameOver && !puzzle.paused && puzzle.timerTimeout !== null,
+			       "Options did not start the daily replay");
+			assert(puzzle.options.hidden && puzzle.invitation.hidden && !puzzle.dailyResultOpen &&
+			       !puzzle.dailyReturn, "replay retained the daily dialog or suspended game");
+			puzzle.stopTimer();
+			puzzle.timerElapsed = 45000;
+			await puzzle.recordOutcome("won");
+			const result = await puzzle.getDailyResult("20261008");
+			assert(result.runId === runs[0].id && result.outcome === "lost" &&
+			       result.completionRunId === runs[1].id,
+			       "replay replaced the first result or failed to earn completion credit");
+		} finally {
+			puzzle.stopTimer();
+		}
+	}, [{ seed: 0x20261008, daily: "20261008", outcome: "lost", elapsed: 700 }]);
+});
+
 Deno.test("daily identity is determined at completion and restarted wins earn credit", async function() {
 	const puzzle = makePuzzle(6);
 	puzzle.say = function() {};
