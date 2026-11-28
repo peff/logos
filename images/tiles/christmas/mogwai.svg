@@ -1,18 +1,32 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-labelledby="title">
   <title id="title">Mogwai</title>
+  <defs><path id="ears" d="M35 28 Q20 22 3 23 Q9 34 9 46 Q17 42 21 56 Q28 50 35 61Z M65 28 Q80 22 97 23 Q91 34 91 46 Q83 42 79 56 Q72 50 65 61Z"/><clipPath id="ear-interior"><use href="#ears"/></clipPath><path id="eyes" d="M28 44 Q35 33 44 43 Q39 52 28 44Z M56 43 Q65 33 72 44 Q61 52 56 43Z"/><clipPath id="eye-interior"><use href="#eyes"/></clipPath><path id="head" d="M26 37 Q27 25 38 25L42 21 48 25 54 21 60 26 Q73 26 75 39L78 49 Q78 67 50 71 Q22 67 22 49Z"/></defs>
   <g stroke="#272334" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M30 34 Q19 23 5 23 Q6 47 29 53 M70 34 Q81 23 95 23 Q94 47 71 53" fill="#b58153"/>
-    <path d="M12 30 30 40 27 46 Q17 43 12 30 M88 30 70 40 73 46 Q83 43 88 30" fill="#d99b8d" stroke="none"/>
-    <ellipse cx="50" cy="73" rx="20" ry="18" fill="#b58153"/>
-    <ellipse cx="50" cy="74" rx="12" ry="14" fill="#f2e3c7" stroke-width="2.5"/>
-    <path d="M33 63 Q19 68 27 78L34 73 M67 63 Q81 68 73 78L66 73" fill="#b58153" stroke-width="2.5"/>
-    <ellipse cx="36" cy="88" rx="10" ry="5" fill="#b58153" stroke-width="2.5"/>
-    <ellipse cx="64" cy="88" rx="10" ry="5" fill="#b58153" stroke-width="2.5"/>
-    <path d="M26 36 Q29 22 40 23 L43 18 49 23 55 18 59 24 Q73 23 75 39 L77 48 Q76 66 50 68 Q24 66 23 48Z" fill="#f2e3c7"/>
-    <path d="M32 29 Q42 25 44 36 Q47 53 34 55 Q25 54 27 42Z M58 31 Q69 26 73 38 Q79 52 65 56 Q54 54 56 41Z" fill="#b58153" stroke="none"/>
-    <g fill="#272334" stroke-width="2"><ellipse cx="36" cy="43" rx="5.5" ry="7"/><ellipse cx="64" cy="43" rx="5.5" ry="7"/></g>
-    <g fill="#fff4d7" stroke="none"><circle cx="34" cy="40" r="2"/><circle cx="62" cy="40" r="2"/></g>
-    <path d="M46 53 Q50 50 54 53 L50 57Z" fill="#805a43" stroke-width="2"/>
-    <path d="M44 60 Q50 64 56 60" fill="none" stroke-width="2"/>
+    <path d="M36 63 Q26 72 29 86H71 Q74 72 64 63Z" fill="#94643f"/>
+    <path d="M41 68 Q50 64 59 68L62 86H38Z" fill="#f2f1eb" stroke="none"/>
+    <!-- Paint both outlines before the fills so the ear roots join the head. -->
+    <use href="#ears" fill="none"/>
+    <use href="#head" fill="none"/>
+    <use href="#ears" fill="#e6c49d" stroke="none"/>
+    <g clip-path="url(#ear-interior)" fill="#94643f" stroke="none">
+      <path d="M25 22 36 25V63L24 57 27 46 23 40 27 35Z M75 22 64 25V63L76 57 73 46 77 40 73 35Z"/>
+    </g>
+    <use href="#head" fill="#94643f" stroke="none"/>
+    <path d="M38 27 Q44 25 47 31 Q49 36 46 43L48 52 Q46 61 36 62 Q25 59 25 49 Q25 34 38 27Z" fill="#f2f1eb" stroke="none"/>
+    <use href="#eyes" fill="#f2f1eb" stroke="none"/>
+    <g clip-path="url(#eye-interior)">
+      <g transform="translate(-2.5 0)">
+    <g fill="#805a43" stroke="none"><ellipse cx="37" cy="43" rx="4.5" ry="5"/><ellipse cx="63" cy="43" rx="4.5" ry="5"/></g>
+    <g fill="#272334" stroke="none"><ellipse cx="37" cy="43" rx="2.8" ry="3.8"/><ellipse cx="63" cy="43" rx="2.8" ry="3.8"/></g>
+    <g fill="#fffaf0" stroke="none"><circle cx="35.5" cy="41" r="1.3"/><circle cx="61.5" cy="41" r="1.3"/></g>
+      </g>
+    </g>
+    <use href="#eyes" fill="none" stroke-width="2.5"/>
+    <path d="M33 58 Q50 54 67 58L65 66 59 67 56 71 50 69 44 71 41 67 35 66Z" fill="#f2f1eb" stroke="none"/>
+    <path d="M34 56 Q39 51 50 52 Q61 51 66 56 Q63 64 50 65 Q37 64 34 56Z" fill="#e6c49d" stroke="none"/>
+    <path d="M45 53 Q45 48 50 49 Q55 48 55 53Z" fill="#e6c49d" stroke="#805a43" stroke-width="1.5"/>
+    <g fill="#272334" stroke="none"><ellipse cx="48" cy="52" rx="1.3" ry="1"/><ellipse cx="52" cy="52" rx="1.3" ry="1"/></g>
+    <path d="M39 59 C45 63 54 63 61 56" fill="none" stroke="#805a43" stroke-width="2"/>
+
   </g>
 </svg>
