@@ -24,7 +24,7 @@ var browserTestsDone = (async function() {
 		await new Promise(resolve => app.requestAnimationFrame(() =>
 			app.requestAnimationFrame(resolve)));
 	}
-	async function open(role, name) {
+	async function open(role, name, options = {}) {
 		const frame = document.createElement("iframe");
 		frame.src = "../../index.html";
 		frames.push(frame);
@@ -46,8 +46,14 @@ var browserTestsDone = (async function() {
 		doc.querySelector("#online-name").value = name;
 		await doc.querySelector("#online-name").onchange({target: doc.querySelector("#online-name")});
 		/* Read the invitation without reloading away our local test setup. */
-		app.history.replaceState(null, "", "#room=" + room);
+		if (options.setup) options.setup(app);
+		app.history.replaceState(null, "", "#room=" + (options.room || room));
 		app.dispatchEvent(new app.HashChangeEvent("hashchange"));
+		if (options.reject) {
+			await waitFor(() => doc.querySelector("#online-menu .online-status").textContent.includes("already has a game"),
+				"occupied room rejection");
+			return app;
+		}
 		await waitFor(() => app.puzzle.actionController?.ready, "room connection");
 		assert(app.puzzle.actionController.role == role, "unexpected room role");
 		if (!doc.querySelector("#online-menu").hidden)
@@ -488,6 +494,37 @@ var browserTestsDone = (async function() {
 		assert(host.puzzle.timerTimeout !== null && !host.puzzle.paused,
 		       "reopening the multiplayer dialog paused the game again");
 		host.document.querySelector("#friends-leave").click();
+		const empty = await open("host", "Lobby", { room: room + "-guest" });
+		const sharing = await open("guest", "Sharer", { room: room + "-guest", setup(app) {
+			const p = app.puzzle;
+			p.newGame(0x10699);
+			const slot = p.rows[0].slots.find(slot => !slot.single);
+			p.requestTileAction(slot, slot.value, "place");
+			p.enterSuppose();
+			app.sharedColumn = slot.row.slots.indexOf(slot);
+		} });
+		await waitFor(() => empty.puzzle.seed === 0x10699, "guest puzzle import");
+		assert(sharing.puzzle.suppose && !empty.puzzle.suppose &&
+		       empty.puzzle.rows[0].slots[sharing.sharedColumn].single,
+		       "guest import lost progress or supposition");
+		assert(sharing.document.querySelector("#online-menu").hidden,
+		       "successful import did not close the room dialog");
+		const rejected = await open("guest", "Solo", { room: room + "-guest", reject: true, setup(app) {
+			app.puzzle.newGame(123);
+			app.puzzle.enterSuppose();
+			app.savedSuppose = app.puzzle.suppose;
+			app.savedIdentity = app.puzzle.gameIdentity;
+		} });
+		assert(!rejected.puzzle.actionController && rejected.puzzle.seed === 123 &&
+		       rejected.puzzle.suppose === rejected.savedSuppose &&
+		       rejected.puzzle.gameIdentity === rejected.savedIdentity && rejected.puzzle.scoreEligible &&
+		       !rejected.document.querySelector("#online-menu").hidden &&
+		       rejected.document.querySelector("#friends-roster").hidden,
+		       "rejected join failed to restore solo UI and state");
+		rejected.document.querySelector("#online-menu .modal-close").click();
+		assert(!rejected.puzzle.paused && rejected.puzzle.timerTimeout !== null,
+		       "rejected join left the solo timer paused");
+
 		result.textContent = "PASS: lobby, shared New Game controls, player action histories, guest and host departures";
 	} catch (error) {
 		result.textContent = "FAIL: " + error.stack;

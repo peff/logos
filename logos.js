@@ -3212,6 +3212,7 @@ function Puzzle(board, hClues, vClues, messages, timer,
 	}
 
 	this.leaveSuppose = function(all = false) {
+		if (!all && this.actionController?.pendingSolo) return;
 		if (this.proof?.supposeSnapshot)
 			this.closeProof();
 		this.clearHint();
@@ -3346,8 +3347,13 @@ function Puzzle(board, hClues, vClues, messages, timer,
 		}
 	}
 
-	this.setActionController = function(controller) {
+	this.setActionController = function(controller, pendingSolo = false) {
 		this.cancelSupposeReplay();
+		/* A guest keeps the solo game until the host accepts its offer. */
+		if (pendingSolo) {
+			this.actionController = controller;
+			return;
+		}
 		this.leaveSuppose(true);
 		if (controller) {
 			this.dailyReturn = null;

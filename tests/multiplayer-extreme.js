@@ -157,3 +157,27 @@ Deno.test("random multiplayer starts use the requester’s Extreme preference", 
 		stopAll(host, guest);
 	}
 });
+
+Deno.test("a guest can share an extreme puzzle with revealed clues and Zen mode", function() {
+	const host = makeSession("host", "host");
+	const puzzle = makePuzzle(6, true);
+	puzzle.newGame(0, false, false, true);
+	const index = puzzle.originalClues.findIndex(clue => !puzzle.clues.includes(clue));
+	puzzle.revealExtremeClue(index);
+	puzzle.timerElapsed = 12345;
+	const guest = { puzzle, session: new MultiplayerSession(puzzle, { role: "guest", playerId: "alice" }) };
+	try {
+		new InMemoryMultiplayerNetwork(host.session).addGuest(guest.session);
+		assert(guest.session.ready, guest.session.joinError);
+		for (const game of [host, guest]) {
+			assert(game.puzzle.extreme && game.puzzle.seed === 0 && game.puzzle.revealedClues.includes(index));
+			assert(game.puzzle.practiceMode && game.puzzle.timerElapsed === 12345);
+			assert(game.puzzle.timerTimeout === null);
+		}
+		assert(boardState(puzzle) === boardState(host.puzzle));
+		host.session.start(123);
+		assert(!host.puzzle.practiceMode && !puzzle.practiceMode, "import changed the host's future game rules");
+	} finally {
+		stopAll(host, guest);
+	}
+});

@@ -33,7 +33,17 @@ Rejoining never creates a new room. If another gathering has claimed an expired
 name, the host must choose a new name and share its invitation.
 
 The first arrival shares their current puzzle if they are already playing.
-Otherwise, the room begins in the lobby.
+Otherwise, the room begins in the lobby. A guest arriving with an unfinished
+solo puzzle shares it automatically if the room is still in the lobby,
+including progress, elapsed time, chalk, and any nested supposition. The
+original host continues coordinating the game. If several guests bring
+puzzles, the host accepts the first offer.
+
+If the room already has a puzzle, joining with an unfinished solo puzzle is
+rejected with an explanation, leaving the solo game intact. Cancelling or
+failing to connect also preserves it. Create a new room to share that puzzle.
+Guests without an unfinished puzzle join normally; **Rejoin room** always
+returns to the host's current game.
 
 The signaling endpoint is configured by the `logos-rooms-endpoint` meta tag in
 `index.html`. See [the server instructions](../server/README.md) for deployment

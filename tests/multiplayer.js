@@ -1184,3 +1184,178 @@ Deno.test("hover targets are attributed, transient, and separate from moves", fu
 		stopAll(host, guest, observer);
 	}
 });
+
+Deno.test("a guest shares its solo position and nested supposition with an empty lobby", function() {
+	const host = makeSession("host", "host"), observer = makeSession("guest", "observer");
+	const network = new InMemoryMultiplayerNetwork(host.session);
+	network.addGuest(observer.session);
+	const puzzle = makePuzzle(6, true, Logos.defaultSymbols);
+	puzzle.newGame(0x12345678);
+	const remove = wrongMove(puzzle);
+	puzzle.requestTileAction(remove.slot, remove.value, "remove");
+	const chalk = wrongMove(puzzle, 1);
+	puzzle.requestTileAction(chalk.slot, chalk.value, "pencil-remove");
+	const clue = puzzle.clues.find(clue => clue.display);
+	const clueIndex = puzzle.clues.indexOf(clue);
+	puzzle.applyClueAction(clue, false);
+	const before = boardState(puzzle);
+	puzzle.enterSuppose();
+	const outer = wrongMove(puzzle, 2);
+	puzzle.requestTileAction(outer.slot, outer.value, "remove");
+	puzzle.enterSuppose();
+	const inner = wrongMove(puzzle, 3);
+	puzzle.requestTileAction(inner.slot, inner.value, "remove");
+	puzzle.moveSuppose(-1);
+	const suppose = JSON.stringify(puzzle.supposeModel().serialize());
+	puzzle.timerStarted = Date.now() - 45000;
+	puzzle.stopTimer();
+	puzzle.paused = true;
+	puzzle.resumeAfterModal = true;
+	const guest = { puzzle, session: new MultiplayerSession(puzzle, { role: "guest", playerId: "alice" }) };
+	try {
+		assert(puzzle.suppose && puzzle.scoreEligible && boardState(puzzle) === before,
+		       "connecting changed the solo game before the host replied");
+		network.addGuest(guest.session);
+		assert(guest.session.ready && !guest.session.pendingSolo, guest.session.joinError);
+		for (const game of [host, guest, observer]) {
+			assert(boardState(game.puzzle) === before, "shared board lost solo progress");
+			assert(!game.puzzle.clues[clueIndex].active);
+			assert(game.session.clockState().elapsed >= 45000 && !game.puzzle.paused,
+			       "import lost elapsed time or retained the solo menu pause");
+			assert(game.puzzle.pencilMarks.length === 1 && game.puzzle.pencilMarks[0].actor === "alice");
+			assert(!game.puzzle.scoreEligible && !game.session.history.length);
+		}
+		assert(JSON.stringify(puzzle.supposeModel().serialize()) === suppose, "import lost nested history");
+		assert(!host.puzzle.suppose && !observer.puzzle.suppose);
+		assert(host.session.joinSuppose(guest.session.branchForPlayer().id));
+		host.puzzle.moveSuppose(1);
+		assert(puzzle.suppose.position === 1, "imported branch could not navigate saved future");
+		guest.session.receiveSync(host.session.syncMessage());
+		assert(puzzle.suppose.position === 1 && boardState(puzzle) === before);
+	} finally {
+		stopAll(host, guest, observer);
+	}
+});
+
+Deno.test("joining an occupied room preserves the solo game and ignores late syncs", function() {
+	const host = makeSession("host", "host");
+	host.session.start(123);
+	const puzzle = makePuzzle(6, true, Logos.defaultSymbols);
+	puzzle.newGame(456);
+	puzzle.enterSuppose();
+	const move = wrongMove(puzzle);
+	puzzle.requestTileAction(move.slot, move.value, "remove");
+	const state = puzzle.suppose, before = boardState(puzzle), identity = puzzle.gameIdentity;
+	let rejected;
+	const guest = { puzzle, session: new MultiplayerSession(puzzle, {
+		role: "guest", playerId: "alice", onJoinRejected: reason => rejected = reason,
+	}) };
+	try {
+		new InMemoryMultiplayerNetwork(host.session).addGuest(guest.session);
+		assert(rejected?.includes("already has a game") && !puzzle.actionController);
+		assert(!host.session.peers.has("alice") && !host.session.gamePlayers.has("alice"),
+		       "rejected guest remained in the room or the game participants");
+		assert(puzzle.suppose === state && puzzle.gameIdentity === identity &&
+		       puzzle.scoreEligible && boardState(puzzle) === before, "rejection discarded solo state");
+		guest.session.receive("host", host.session.syncMessage());
+		assert(puzzle.suppose === state && boardState(puzzle) === before, "late sync replaced rejected game");
+		puzzle.moveSuppose(-1);
+		assert(puzzle.suppose.position === 0, "rejection left solo controls locked");
+	} finally {
+		stopAll(host, guest);
+	}
+});
+
+Deno.test("cancelling a pending solo join preserves the exploration", function() {
+	const puzzle = makePuzzle(6, true, Logos.defaultSymbols);
+	puzzle.newGame(123);
+	puzzle.enterSuppose();
+	const state = puzzle.suppose, identity = puzzle.gameIdentity;
+	const session = new MultiplayerSession(puzzle, { role: "guest", playerId: "alice" });
+	session.leave();
+	assert(puzzle.suppose === state && puzzle.gameIdentity === identity &&
+	       puzzle.scoreEligible && !puzzle.actionController);
+	puzzle.stopTimer();
+	puzzle.say("");
+});
+
+Deno.test("competing solo offers cannot replace the first accepted game", function() {
+	const host = makeSession("host", "host");
+	const guests = [123, 456].map((seed, i) => {
+		const puzzle = makePuzzle(6, true, Logos.defaultSymbols);
+		puzzle.newGame(seed);
+		return { puzzle, session: new MultiplayerSession(puzzle, { role: "guest", playerId: "guest" + i }) };
+	});
+	const requests = [];
+	try {
+		for (const guest of guests) {
+			guest.session.connectHost(message => requests.push([guest.session.playerId, message]));
+			host.session.addPeer(guest.session.playerId, message => guest.session.receive("host", message));
+		}
+		assert(requests.length === 2);
+		host.session.receive(...requests[0]);
+		const id = host.session.runId;
+		host.session.receive(...requests[1]);
+		assert(host.session.seed === 123 && guests[0].session.ready && guests[1].session.joinError);
+		assert(guests[1].puzzle.seed === 456 && guests[1].puzzle.scoreEligible && !guests[1].puzzle.actionController);
+		host.session.receive(...requests[0]);
+		assert(host.session.runId === id, "duplicate offer restarted the game");
+	} finally {
+		stopAll(host, ...guests);
+	}
+});
+
+Deno.test("invalid game offers leave the lobby available for another guest", function() {
+	const host = makeSession("host", "host");
+	const puzzle = makePuzzle(6, true, Logos.defaultSymbols);
+	puzzle.newGame(123);
+	const guest = { puzzle, session: new MultiplayerSession(puzzle, { role: "guest", playerId: "alice" }) };
+	let offer;
+	try {
+		guest.session.connectHost(message => { if (message.type === "offer-game") offer = message; });
+		host.session.addPeer("alice", message => guest.session.receive("host", message));
+		host.session.receive("alice", { ...offer, position: { ...offer.position, rows: [] } });
+		assert(host.session.seed === null && host.puzzle.seed === undefined && host.session.ready);
+		assert(puzzle.seed === 123 && puzzle.scoreEligible && !puzzle.actionController);
+		host.session.start(456);
+		assert(host.session.seed === 456, "bad offer left the lobby unusable");
+	} finally {
+		stopAll(host, guest);
+	}
+});
+
+Deno.test("explicit rejoining replaces a disconnected shared game without offering it", function() {
+	const host = makeSession("host", "host");
+	host.session.start(123);
+	const puzzle = makePuzzle(6, true, Logos.defaultSymbols);
+	puzzle.newGame(456);
+	const guest = { puzzle, session: new MultiplayerSession(puzzle, {
+		role: "guest", playerId: "alice", rejoining: true,
+	}) };
+	try {
+		new InMemoryMultiplayerNetwork(host.session).addGuest(guest.session);
+		assert(guest.session.ready && puzzle.seed === 123 && !guest.session.soloOffer);
+	} finally {
+		stopAll(host, guest);
+	}
+});
+
+Deno.test("a guest's explicit solo pause carries into the shared game", function() {
+	const host = makeSession("host", "host");
+	const puzzle = makePuzzle(6, true, Logos.defaultSymbols);
+	puzzle.newGame(123);
+	puzzle.togglePause();
+	puzzle.timerElapsed = 12345;
+	const guest = { puzzle, session: new MultiplayerSession(puzzle, { role: "guest", playerId: "alice" }) };
+	try {
+		new InMemoryMultiplayerNetwork(host.session).addGuest(guest.session);
+		assert(guest.session.ready, guest.session.joinError);
+		for (const game of [host, guest])
+			assert(game.puzzle.manualPaused && game.puzzle.paused && game.puzzle.timerTimeout === null &&
+			       game.puzzle.timerElapsed === 12345, "import resumed an explicit pause");
+		puzzle.togglePause();
+		assert(!puzzle.paused && !host.puzzle.paused && host.puzzle.timerTimeout !== null);
+	} finally {
+		stopAll(host, guest);
+	}
+});

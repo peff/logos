@@ -165,6 +165,8 @@ class MultiplayerSession {
 		this.role = options.role;
 		this.playerId = options.playerId || this.role;
 		this.playerName = options.playerName || this.playerId;
+		this.onReady = options.onReady || function() {};
+		this.onJoinRejected = options.onJoinRejected || function() {};
 		this.onPlayersChanged = options.onPlayersChanged || function() {};
 		this.onHoverChanged = options.onHoverChanged || function() {};
 		this.hovers = new Map();
@@ -220,10 +222,18 @@ class MultiplayerSession {
 
 		if (this.role != "host" && this.role != "guest")
 			throw new Error("a multiplayer session must be host or guest");
-		const adopt = this.role == "host" && puzzle.seed !== undefined && !puzzle.gameOver &&
-			puzzle.pendingSeed === undefined;
+		const playing = puzzle.seed !== undefined && !puzzle.gameOver && puzzle.pendingSeed === undefined;
+		this.pendingSolo = this.role == "guest" && playing && !options.rejoining;
+		this.importedGame = null;
+		this.soloOffer = null;
+		const adopt = this.role == "host" && playing;
 		const suppose = adopt && puzzle.suppose ? puzzle.supposeModel().serialize() : null;
-		puzzle.setActionController(this);
+		puzzle.setActionController(this, this.pendingSolo);
+		if (this.pendingSolo) {
+			this.joinRequest = "solo-game";
+			puzzle.updateSupposeControls();
+			return;
+		}
 		if (adopt)
 			this.adoptGame();
 		else
@@ -262,24 +272,7 @@ class MultiplayerSession {
 			}
 		for (const row of puzzle.rows)
 			puzzle.renderPencilMarks(row);
-		this.initialPosition = {
-			rows: puzzle.rows.map(row => row.slots.map(slot => ({
-				single: slot.single, possible: slot.possible.slice(),
-			}))),
-			clues: puzzle.clues.map(clue => !!clue.active),
-			revealedClues: puzzle.revealedClues.slice(),
-			chalk: puzzle.pencilMarks.map(mark => ({
-				...actionFromSlot(puzzle, mark.slot, mark.value, "chalk"),
-				mark: mark.discard ? "remove" : "select",
-				actor: mark.actor, color: mark.color,
-			})).concat(puzzle.clues.flatMap((clue, index) => clue.chalkMark ? [{
-				type: "chalk-clue", clue: index, marked: true,
-				actor: this.playerId, color: playerColor(this.players[0]),
-			}] : [])),
-			practiceMode: puzzle.practiceMode,
-			continuedFromLoss: puzzle.continuedFromLoss,
-			nextMilestone: puzzle.nextMilestone,
-		};
+		this.initialPosition = this.capturePosition(this.players[0]);
 		puzzle.scoreEligible = false;
 		/* Keep the solo menu's pause until hosting setup is closed. Later
 		 * multiplayer dialogs do not set resumeAfterModal.
@@ -290,6 +283,28 @@ class MultiplayerSession {
 		if (!puzzle.paused && !puzzle.practiceMode && puzzle.timerTimeout === null)
 			puzzle.startTimer();
 		puzzle.updatePauseControl();
+	}
+
+	capturePosition(player) {
+		const puzzle = this.puzzle;
+		return {
+			rows: puzzle.rows.map(row => row.slots.map(slot => ({
+				single: slot.single, possible: slot.possible.slice(),
+			}))),
+			clues: puzzle.clues.map(clue => !!clue.active),
+			revealedClues: puzzle.revealedClues.slice(),
+			chalk: puzzle.pencilMarks.map(mark => ({
+				...actionFromSlot(puzzle, mark.slot, mark.value, "chalk"),
+				mark: mark.discard ? "remove" : "select",
+				actor: player.id, color: playerColor(player),
+			})).concat(puzzle.clues.flatMap((clue, index) => clue.chalkMark ? [{
+				type: "chalk-clue", clue: index, marked: true,
+				actor: player.id, color: playerColor(player),
+			}] : [])),
+			practiceMode: puzzle.practiceMode,
+			continuedFromLoss: puzzle.continuedFromLoss,
+			nextMilestone: puzzle.nextMilestone,
+		};
 	}
 
 	restoreInitialPosition(position) {
@@ -345,6 +360,7 @@ class MultiplayerSession {
 		this.revision = 0;
 		this.history = [];
 		this.initialPosition = null;
+		this.importedGame = null;
 		this.recentActions.clear();
 		for (const id of this.branchRewinds.keys()) this.cancelBranchRewind(id);
 		this.branchCommands.clear();
@@ -391,6 +407,159 @@ class MultiplayerSession {
 		    message.seed < 0 || message.seed > 0xffffffff || !this.start(message.seed, from, message.extreme))
 			this.sendTo(from, this.syncMessage());
 	}
+
+	rejectJoin(reason) {
+		this.joinError = reason;
+		this.hostSender?.({ type: "decline-game" });
+		this.leave();
+		this.onJoinRejected(reason);
+	}
+
+	/* Only an empty lobby can accept an offer. The host processes offers
+	 * synchronously, so a second arrival cannot replace the first game.
+	 */
+	receiveGameOffer(from, message) {
+		if (!this.ready || !this.peers.has(from)) return;
+		if (this.importedGame?.playerId === from && this.importedGame.id === message.id) {
+			this.sendTo(from, this.syncMessage());
+			return;
+		}
+		const reject = reason => this.sendTo(from, { type: "join-rejected", reason });
+		if (this.seed !== null || message.gameId !== this.gameId) {
+			reject("That room already has a game in progress. Your solo game is unchanged; create a room to share it.");
+			return;
+		}
+		if (typeof message.id != "string" || message.id.length > 128 ||
+		    !Number.isInteger(message.seed) || message.seed < 0 || message.seed > 0xffffffff ||
+		    typeof message.extreme != "boolean" || !message.clock ||
+		    !Number.isFinite(message.clock.elapsed) || message.clock.elapsed < 0 ||
+		    typeof message.clock.paused != "boolean") {
+			reject("Could not share this puzzle. Your solo game is unchanged.");
+			return;
+		}
+		const puzzle = this.puzzle;
+		this.ready = false;
+		try {
+			if (!puzzle.newGame(message.seed, false, false, message.extreme))
+				throw new Error("invalid puzzle");
+			const position = this.validateOfferedPosition(message.position, from);
+			this.restoreInitialPosition(position);
+			const model = this.restoreOfferedSuppose(message.suppose);
+			this.seed = puzzle.seed;
+			this.gameId++;
+			this.runId = crypto.randomUUID();
+			this.participatingRunId = this.runId;
+			this.gamePlayers = new Map(this.players.map(player => [player.id, player.name]));
+			this.initialPosition = position;
+			this.importedGame = { playerId: from, id: message.id };
+			puzzle.scoreEligible = false;
+			puzzle.stopTimer();
+			puzzle.timerElapsed = message.clock.elapsed;
+			puzzle.manualPaused = puzzle.paused = message.clock.paused;
+			puzzle.resumeAfterModal = false;
+			this.lastPaused = puzzle.manualPaused;
+			if (!puzzle.paused && !puzzle.practiceMode) puzzle.startTimer();
+			puzzle.updatePauseControl();
+			if (model.suppose) {
+				const id = from + ":import:" + message.id;
+				this.branches.set(id, { id, participants: [from], snapshot: model.snapshot(),
+					state: model.serialize(), version: 1, generation: 0 });
+				this.recentActions.set(from, [{ type: "suppose-enter", branchId: id }]);
+			}
+		} catch (error) {
+			puzzle.showMultiplayerLobby();
+			this.ready = true;
+			reject("Could not share this puzzle. Your solo game is unchanged.");
+			return;
+		}
+		this.ready = true;
+		this.broadcast(this.syncMessage());
+		this.onPlayersChanged(copyMessage(this.players));
+	}
+
+	validateOfferedPosition(position, actor) {
+		const puzzle = this.puzzle;
+		const invalid = () => { throw new Error("invalid offered position"); };
+		if (!position || !Array.isArray(position.rows) || position.rows.length !== puzzle.rows.length)
+			invalid();
+		position.rows.forEach((row, r) => {
+			if (!Array.isArray(row) || row.length !== puzzle.rows[r].slots.length) invalid();
+			row.forEach((slot, c) => {
+				if (!slot || typeof slot.single != "boolean" || !Array.isArray(slot.possible) ||
+				    slot.possible.length !== row.length || slot.possible.some(value => typeof value != "boolean") ||
+				    !slot.single && !slot.possible[puzzle.rows[r].slots[c].value]) invalid();
+			});
+		});
+		if (!Array.isArray(position.revealedClues) ||
+		    position.revealedClues.length > puzzle.originalClues.length ||
+		    new Set(position.revealedClues).size !== position.revealedClues.length) invalid();
+		for (const index of position.revealedClues)
+			if (!Number.isInteger(index) || !puzzle.revealExtremeClue(index, false)) invalid();
+		if (!Array.isArray(position.clues) || position.clues.length !== puzzle.clues.length ||
+		    position.clues.some(active => typeof active != "boolean") ||
+		    typeof position.practiceMode != "boolean" || typeof position.continuedFromLoss != "boolean" ||
+		    !Number.isInteger(position.nextMilestone) || position.nextMilestone < 0 ||
+		    !Array.isArray(position.chalk) || position.chalk.length > 4096) invalid();
+		const player = this.players.find(player => player.id === actor);
+		const chalk = position.chalk.map(mark => {
+			if (mark?.type === "chalk-clue") {
+				if (!Number.isInteger(mark.clue) || !puzzle.clues[mark.clue]?.display || mark.marked !== true) invalid();
+				return { type: "chalk-clue", clue: mark.clue, marked: true, actor, color: playerColor(player) };
+			}
+			if (mark?.type !== "chalk" || !slotForAction(puzzle, mark) ||
+			    mark.value < 0 || mark.value >= puzzle.rows[mark.row].slots.length ||
+			    !["remove", "select"].includes(mark.mark)) invalid();
+			return { type: "chalk", row: mark.row, column: mark.column, value: mark.value,
+				mark: mark.mark, actor, color: playerColor(player) };
+		});
+		return { rows: copyMessage(position.rows), clues: position.clues.slice(),
+			revealedClues: position.revealedClues.slice(), chalk,
+			practiceMode: position.practiceMode, continuedFromLoss: position.continuedFromLoss,
+			nextMilestone: position.nextMilestone };
+	}
+
+	/* Import only the solo history's data. Rebuild labels, explanations and
+	 * conflict bookkeeping locally instead of trusting client-rendered text.
+	 */
+	restoreOfferedSuppose(suppose) {
+		const model = this.puzzle.supposeModel(null), levels = [];
+		const invalid = () => { throw new Error("invalid offered supposition"); };
+		for (let state = suppose; state; state = state.parent) {
+			if (levels.length >= 128) invalid();
+			levels.unshift(state);
+		}
+		const moveOK = move => move === null || move &&
+			Number.isInteger(move.row) && Number.isInteger(move.column) && Number.isInteger(move.symbol) &&
+			!!model.rows[move.row]?.slots[move.column] && move.symbol >= 0 &&
+			move.symbol < model.rows[move.row].slots.length && typeof move.discard == "boolean";
+		let steps = 0;
+		for (const level of levels) {
+			if (!Array.isArray(level.history) || !level.history.length ||
+			    (steps += level.history.length) > 4096 || !Number.isInteger(level.position) ||
+			    level.position < 0 || level.position >= level.history.length) invalid();
+			model.enter();
+			model.suppose.history = [];
+			model.suppose.position = -1;
+			for (const [i, step] of level.history.entries()) {
+				if (!step || !Array.isArray(step.domains) || step.domains.length !== model.rows.length ||
+				    !moveOK(step.move) || !moveOK(step.assumption) ||
+				    (i === 0 ? step.move !== null : !step.move) ||
+				    !Array.isArray(step.dismissed) || step.dismissed.length > model.clues.length ||
+				    step.dismissed.some(index => !Number.isInteger(index) || !model.clues[index])) invalid();
+				step.domains.forEach((row, r) => {
+					if (!Array.isArray(row) || row.length !== model.rows[r].slots.length ||
+					    row.some(bits => !Number.isInteger(bits) || bits < 0 || bits >= 1 << row.length)) invalid();
+				});
+				Object.assign(model.suppose, { domains: copyMessage(step.domains),
+					assumption: copyMessage(step.assumption), dismissed: step.dismissed.slice(),
+					message: step.move ? model.supposeMoveMessage(step.move, i === 1) : null });
+				model.saveSupposeStep(copyMessage(step.move));
+			}
+			model.moveSuppose(level.position - model.suppose.position);
+		}
+		return model;
+	}
+
 
 	addPeer(playerId, sender, playerName) {
 		if (this.role != "host")
@@ -1014,7 +1183,7 @@ class MultiplayerSession {
 	}
 
 	receive(from, message) {
-		if (!message || typeof message.type != "string")
+		if (this.closed || !message || typeof message.type != "string")
 			return;
 		if (this.role == "host" && message.type == "branch-join")
 			this.receiveJoin(from, message);
@@ -1036,6 +1205,13 @@ class MultiplayerSession {
 			this.receiveHover(from, message);
 		else if (this.role == "host" && message.type == "command")
 			this.receiveCommand(from, message);
+		else if (this.role == "host" && message.type == "decline-game" && this.peers.has(from)) {
+			if (!this.recentActions.has(from)) this.gamePlayers.delete(from);
+			this.removePeer(from);
+		} else if (this.role == "host" && message.type == "offer-game")
+			this.receiveGameOffer(from, message);
+		else if (this.role == "guest" && message.type == "join-rejected" && this.pendingSolo)
+			this.rejectJoin(message.reason);
 		else if (this.role == "host" && message.type == "new-game")
 			this.receiveNewGame(from, message);
 		else if (this.role == "host" && message.type == "pause")
@@ -1236,6 +1412,30 @@ class MultiplayerSession {
 		    (message.extreme !== undefined && typeof message.extreme !== "boolean") ||
 		    (message.seed === null && message.extreme))
 			return;
+		const soloSymbols = this.pendingSolo ? this.puzzle.symbols : null;
+		if (this.pendingSolo) {
+			if (message.importedGame?.playerId === this.playerId &&
+			    message.importedGame?.id === this.soloOffer?.id) {
+				this.pendingSolo = false;
+				this.joinRequest = null;
+				this.puzzle.setActionController(this);
+			} else if (message.seed !== null) {
+				this.rejectJoin("That room already has a game in progress. Your solo game is unchanged; create a room to share it.");
+				return;
+			} else {
+				if (!this.soloOffer) {
+					const player = message.players?.find(player => player.id === this.playerId);
+					if (!player || !this.hostSender) return;
+					this.soloOffer = { type: "offer-game", id: crypto.randomUUID(), gameId: message.gameId,
+						seed: this.puzzle.seed, extreme: !!this.puzzle.extreme,
+						position: this.capturePosition(player),
+						suppose: this.puzzle.supposeModel().serialize(),
+						clock: { ...this.clockState(), paused: !!this.puzzle.manualPaused } };
+				}
+				this.hostSender(copyMessage(this.soloOffer));
+				return;
+			}
+		}
 		var sameGame = message.gameId === this.gameId && message.seed === this.seed;
 		this.restoringSuppose = sameGame ? this.puzzle.suppose : null;
 
@@ -1251,8 +1451,8 @@ class MultiplayerSession {
 		};
 		this.applyRoomRules();
 		/* A resync of the same game must not change its seasonal artwork. */
-		var symbols = message.gameId === this.gameId && message.seed === this.seed ?
-			this.puzzle.symbols : null;
+		var symbols = soloSymbols || (message.gameId === this.gameId && message.seed === this.seed ?
+			this.puzzle.symbols : null);
 		if (message.seed === null)
 			this.puzzle.showMultiplayerLobby();
 		else if (!this.puzzle.newGame(message.seed, false, false, message.extreme)) {
@@ -1311,6 +1511,7 @@ class MultiplayerSession {
 			this.sendBranchRequest(this.pendingSuppose.command);
 		this.sendPlayerName();
 		this.saveResult();
+		if (!wasReady) this.onReady();
 	}
 
 	receiveRejection(message) {
@@ -1353,6 +1554,7 @@ class MultiplayerSession {
 			replay: this.replayState(),
 			acceptedSupposes: copyMessage(this.acceptedSupposes),
 			initialPosition: copyMessage(this.initialPosition),
+			importedGame: copyMessage(this.importedGame),
 			recentActions: copyMessage([...this.recentActions]),
 			players: copyMessage(this.players),
 			clock: this.clockState(),
@@ -1496,10 +1698,16 @@ class MultiplayerSession {
 	}
 
 	leave() {
+		if (this.closed) return;
+		this.closed = true;
+		this.preservedSolo = this.pendingSolo;
 		this.setReplay(null);
 		this.pendingSuppose = null;
-		if (this.puzzle.actionController == this)
-			this.puzzle.setActionController(null);
+		if (this.puzzle.actionController == this) {
+			if (this.pendingSolo) this.puzzle.actionController = null;
+			else this.puzzle.setActionController(null);
+		}
+		this.pendingSolo = false;
 		this.puzzle.practiceModePreference = this.localRules.practiceMode;
 		this.puzzle.continueAfterLoss =
 			this.localRules.continueAfterLoss;
@@ -1519,6 +1727,7 @@ class MultiplayerSession {
 		this.onPlayersChanged([]);
 		this.hostSender = null;
 		this.puzzle.updatePauseControl();
+		this.puzzle.updateSupposeControls();
 	}
 
 	broadcast(message) {

@@ -224,15 +224,23 @@ function setGameControlsDisabled(disabled) {
 	document.querySelector("#continue-after-loss").disabled = disabled;
 }
 
-function beginSession(role) {
+function beginSession(role, rejoining = false) {
 	if (transport)
 		transport.close();
 	session = new MultiplayerSession(window.puzzle, {
-		role,
+		role, rejoining,
 		playerId: playerId(),
 		playerName: playerName(role),
 		onPlayersChanged: renderPlayers,
 		onHoverChanged: renderSharedHover,
+		onReady() {
+			if (session?.role == "guest") updateWebRTCGuest({ state: "connected", connected: true });
+		},
+		onJoinRejected(message) {
+			leave();
+			if (friendsMenu.hidden) toggleMenu();
+			status.textContent = message;
+		},
 	});
 	rosterConnection = role == "host" ? "connected" : "connecting";
 	roster.hidden = false;
@@ -416,6 +424,12 @@ function updateWebRTCHost(state) {
 }
 
 function updateWebRTCGuest(state) {
+	if (state.terminal && session?.preservedSolo) {
+		leave();
+		if (friendsMenu.hidden) toggleMenu();
+		status.textContent = "Could not join the room. Your solo game is unchanged.";
+		return;
+	}
 	if (state.terminal) room?.close();
 	rejoinButton.hidden = !state.terminal;
 	rejoinButton.disabled = false;
@@ -425,6 +439,10 @@ function updateWebRTCGuest(state) {
 	renderPlayers(session?.players || []);
 	if (state.connected) {
 		room?.connected();
+		if (!session?.ready) {
+			status.textContent = "Checking the room…";
+			return;
+		}
 		status.textContent = "Connected to the host.";
 		if (!friendsMenu.hidden)
 			toggleMenu();
@@ -583,7 +601,7 @@ function joinRoom(requestedName = roomInput.value, random = false, guestOnly = f
 		randomName: random ? globalThis.LogosFriends.generateRoomName : null,
 		onRole(role) {
 			if (existingHost) return transport;
-			beginSession(role);
+			beginSession(role, guestOnly);
 			const update = role == "host" ? updateWebRTCHost : updateWebRTCGuest;
 			const Transport = role == "host" ? WebRTCHostTransport : WebRTCGuestTransport;
 			const next = new Transport(session, {
